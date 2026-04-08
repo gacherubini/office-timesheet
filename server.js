@@ -6,6 +6,8 @@ import meRoutes from './routes/me.js'
 import projectsRoutes from './routes/projects.js'
 import timeEntriesRoutes from './routes/timeEntries.js'
 import authRoutes from './routes/auth.js'
+import usersRoutes from './routes/users.js'
+
 
 const app = express()
 
@@ -17,6 +19,7 @@ app.get('/health', (_req, res) => {
 })
 
 app.use(meRoutes)
+app.use('/admin', usersRoutes)
 app.use(authRoutes)
 app.use(projectsRoutes)
 app.use(timeEntriesRoutes)
