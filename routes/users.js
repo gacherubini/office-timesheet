@@ -92,4 +92,58 @@ router.post('/create-user', requireAuth, requireAdmin, async (req, res) => {
   }
 })
 
+// ─── LISTAR USUÁRIOS ──────────────────────────────────────────────────
+router.get('/users', requireAuth, requireAdmin, async (req, res) => {
+  const { data, error } = await adminClient
+    .from('profiles')
+    .select('id, name, email, role, hourly_rate, is_active, created_at')
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    return res.status(400).json({ error: error.message })
+  }
+
+  return res.json(data)
+})
+
+// ─── EDITAR USUÁRIO ───────────────────────────────────────────────────
+router.put('/users/:id', requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params
+  const { name, role, hourly_rate, is_active } = req.body
+
+  // Monta objeto só com campos enviados
+  const updates = {}
+  if (name !== undefined) updates.name = name.trim()
+  if (role !== undefined) {
+    if (!['admin', 'employee'].includes(role)) {
+      return res.status(400).json({ error: 'Role inválida.' })
+    }
+    updates.role = role
+  }
+  if (hourly_rate !== undefined) {
+    if (Number(hourly_rate) < 0) {
+      return res.status(400).json({ error: 'Valor/hora não pode ser negativo.' })
+    }
+    updates.hourly_rate = hourly_rate
+  }
+  if (is_active !== undefined) updates.is_active = is_active
+
+  if (Object.keys(updates).length === 0) {
+    return res.status(400).json({ error: 'Nenhum campo para atualizar.' })
+  }
+
+  const { data, error } = await adminClient
+    .from('profiles')
+    .update(updates)
+    .eq('id', id)
+    .select('id, name, email, role, hourly_rate, is_active')
+    .single()
+
+  if (error) {
+    return res.status(400).json({ error: error.message })
+  }
+
+  return res.json(data)
+})
+
 export default router
