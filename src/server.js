@@ -12,7 +12,9 @@ import reportsRoutes from './routes/reports.js'
 
 const app = express()
 
-app.use(cors())
+app.use(cors({
+  origin: process.env.ALLOWED_ORIGIN ? process.env.ALLOWED_ORIGIN.split(',') : true,
+}))
 app.use(express.json())
 
 app.get('/health', (_req, res) => {
