@@ -45,7 +45,7 @@ router.post('/auth/forgot-password', async (req, res) => {
       return res.status(400).json({ error: 'Email é obrigatório.' })
     }
 
-    const frontendUrl = process.env.FRONTEND_URL
+    const frontendUrl = (process.env.FRONTEND_URL || '').replace(/\/$/, '')
     await authClient.auth.resetPasswordForEmail(email, {
       redirectTo: `${frontendUrl}/reset-password`,
     })
