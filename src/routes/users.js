@@ -92,15 +92,54 @@ router.post('/create-user', requireAuth, requireAdmin, async (req, res) => {
   }
 })
 
-// ─── LISTAR USUÁRIOS ──────────────────────────────────────────────────
+// ─── LISTAR USUÁRIOS (apenas não deletados) ───────────────────────────
 router.get('/users', requireAuth, requireAdmin, async (req, res) => {
   const { data, error } = await adminClient
     .from('profiles')
     .select('id, name, email, role, hourly_rate, is_active, created_at')
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
 
   if (error) {
     return res.status(400).json({ error: error.message })
+  }
+
+  return res.json(data)
+})
+
+// ─── LISTAR USUÁRIOS DELETADOS ────────────────────────────────────────
+router.get('/users/deleted', requireAuth, requireAdmin, async (req, res) => {
+  const { data, error } = await adminClient
+    .from('profiles')
+    .select('id, name, email, role, hourly_rate, deleted_at, created_at')
+    .not('deleted_at', 'is', null)
+    .order('deleted_at', { ascending: false })
+
+  if (error) {
+    return res.status(400).json({ error: error.message })
+  }
+
+  return res.json(data)
+})
+
+// ─── RESTAURAR USUÁRIO ────────────────────────────────────────────────
+router.post('/users/:id/restore', requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params
+
+  const { data, error } = await adminClient
+    .from('profiles')
+    .update({ deleted_at: null, is_active: true })
+    .eq('id', id)
+    .not('deleted_at', 'is', null)
+    .select('id, name, email, role, hourly_rate, is_active')
+    .single()
+
+  if (error) {
+    return res.status(400).json({ error: error.message })
+  }
+
+  if (!data) {
+    return res.status(404).json({ error: 'Usuário deletado não encontrado.' })
   }
 
   return res.json(data)
@@ -146,7 +185,7 @@ router.put('/users/:id', requireAuth, requireAdmin, async (req, res) => {
   return res.json(data)
 })
 
-// ─── DELETAR USUÁRIO ──────────────────────────────────────────────────
+// ─── DELETAR USUÁRIO (soft delete) ────────────────────────────────────
 router.delete('/users/:id', requireAuth, requireAdmin, async (req, res) => {
   const { id } = req.params
 
@@ -154,34 +193,20 @@ router.delete('/users/:id', requireAuth, requireAdmin, async (req, res) => {
     return res.status(400).json({ error: 'Você não pode deletar sua própria conta.' })
   }
 
-  const { count, error: countError } = await adminClient
-    .from('time_entries')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', id)
-
-  if (countError) {
-    return res.status(500).json({ error: 'Erro ao verificar registros do usuário.' })
-  }
-
-  if (count > 0) {
-    return res.status(409).json({
-      error: 'Usuário possui apontamentos registrados. Inative-o ao invés de deletar.',
-    })
-  }
-
-  const { error: profileError } = await adminClient
+  const { data, error } = await adminClient
     .from('profiles')
-    .delete()
+    .update({ deleted_at: new Date().toISOString(), is_active: false })
     .eq('id', id)
+    .is('deleted_at', null)
+    .select('id')
+    .single()
 
-  if (profileError) {
-    return res.status(500).json({ error: profileError.message })
+  if (error) {
+    return res.status(400).json({ error: error.message })
   }
 
-  const { error: authError } = await adminClient.auth.admin.deleteUser(id)
-
-  if (authError) {
-    return res.status(500).json({ error: authError.message })
+  if (!data) {
+    return res.status(404).json({ error: 'Usuário não encontrado ou já deletado.' })
   }
 
   return res.status(204).send()

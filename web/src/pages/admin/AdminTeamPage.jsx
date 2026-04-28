@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../../lib/api'
-import { Plus, X } from 'lucide-react'
+import { Plus, X, AlertTriangle, Trash2 } from 'lucide-react'
 
 export function AdminTeamPage() {
   const [users, setUsers] = useState([])
@@ -8,8 +9,9 @@ export function AdminTeamPage() {
   const [showForm, setShowForm] = useState(false)
   const [editingUser, setEditingUser] = useState(null)
   const [error, setError] = useState('')
-  const [confirmDeleteId, setConfirmDeleteId] = useState(null)
+  const [userToDelete, setUserToDelete] = useState(null)
   const [deleteError, setDeleteError] = useState('')
+  const [deleting, setDeleting] = useState(false)
 
   // Form state
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'employee', hourly_rate: '', is_active: true })
@@ -48,14 +50,18 @@ export function AdminTeamPage() {
     setError('')
   }
 
-  async function handleDelete(id) {
+  async function handleDelete() {
+    if (!userToDelete) return
     setDeleteError('')
+    setDeleting(true)
     try {
-      await api.delete(`/admin/users/${id}`)
-      setConfirmDeleteId(null)
-      setUsers((prev) => prev.filter((u) => u.id !== id))
+      await api.delete(`/admin/users/${userToDelete.id}`)
+      setUsers((prev) => prev.filter((u) => u.id !== userToDelete.id))
+      setUserToDelete(null)
     } catch (err) {
       setDeleteError(err.message)
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -95,13 +101,22 @@ export function AdminTeamPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Equipe</h1>
-        <button
-          onClick={() => { resetForm(); setShowForm(true) }}
-          className="flex items-center gap-1 bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
-        >
-          <Plus size={16} />
-          Novo Colaborador
-        </button>
+        <div className="flex items-center gap-3">
+          <Link
+            to="/admin/deleted-users"
+            className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900"
+          >
+            <Trash2 size={14} />
+            Excluídos
+          </Link>
+          <button
+            onClick={() => { resetForm(); setShowForm(true) }}
+            className="flex items-center gap-1 bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
+          >
+            <Plus size={16} />
+            Novo Colaborador
+          </button>
+        </div>
       </div>
 
       {/* Modal / Form */}
@@ -215,42 +230,74 @@ export function AdminTeamPage() {
                   </span>
                 </td>
                 <td className="px-4 py-3 text-right">
-                  {confirmDeleteId === user.id ? (
-                    <div className="flex items-center justify-end gap-2">
-                      {deleteError && <span className="text-xs text-red-600">{deleteError}</span>}
-                      <span className="text-xs text-gray-500">Confirmar?</span>
-                      <button
-                        onClick={() => handleDelete(user.id)}
-                        className="text-xs font-medium text-red-600 hover:text-red-800"
-                      >
-                        Sim
-                      </button>
-                      <button
-                        onClick={() => { setConfirmDeleteId(null); setDeleteError('') }}
-                        className="text-xs text-gray-500 hover:text-gray-700"
-                      >
-                        Não
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-end gap-3">
-                      <button onClick={() => startEdit(user)} className="text-sm text-gray-500 hover:text-gray-900">
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => { setConfirmDeleteId(user.id); setDeleteError('') }}
-                        className="text-sm text-red-500 hover:text-red-700"
-                      >
-                        Excluir
-                      </button>
-                    </div>
-                  )}
+                  <div className="flex items-center justify-end gap-3">
+                    <button onClick={() => startEdit(user)} className="text-sm text-gray-500 hover:text-gray-900">
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => { setUserToDelete(user); setDeleteError('') }}
+                      className="text-sm text-red-500 hover:text-red-700"
+                    >
+                      Excluir
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {/* Modal de confirmação de exclusão */}
+      {userToDelete && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
+            <div className="bg-red-50 px-6 py-8 flex flex-col items-center text-center border-b border-red-100">
+              <div className="bg-red-100 rounded-full p-4 mb-4">
+                <AlertTriangle className="text-red-600" size={40} />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                Excluir colaborador?
+              </h2>
+              <p className="text-gray-600">
+                Você está prestes a excluir{' '}
+                <strong className="text-gray-900">{userToDelete.name}</strong>
+              </p>
+            </div>
+
+            <div className="px-6 py-5 space-y-3">
+              <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 text-sm text-blue-900">
+                <p className="font-medium mb-1">Os apontamentos serão preservados.</p>
+                <p className="text-blue-700">
+                  Você pode restaurar este colaborador a qualquer momento na página de{' '}
+                  <strong>Excluídos</strong>.
+                </p>
+              </div>
+
+              {deleteError && (
+                <div className="bg-red-50 text-red-700 text-sm rounded-md p-3">{deleteError}</div>
+              )}
+            </div>
+
+            <div className="px-6 py-4 bg-gray-50 flex items-center justify-end gap-3 border-t">
+              <button
+                onClick={() => { setUserToDelete(null); setDeleteError('') }}
+                disabled={deleting}
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 rounded-md transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors disabled:opacity-50"
+              >
+                {deleting ? 'Excluindo...' : 'Sim, excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
