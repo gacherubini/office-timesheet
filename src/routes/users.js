@@ -132,7 +132,7 @@ router.post('/users/:id/restore', requireAuth, requireAdmin, async (req, res) =>
     .eq('id', id)
     .not('deleted_at', 'is', null)
     .select('id, name, email, role, hourly_rate, is_active')
-    .single()
+    .maybeSingle()
 
   if (error) {
     return res.status(400).json({ error: error.message })
@@ -199,7 +199,7 @@ router.delete('/users/:id', requireAuth, requireAdmin, async (req, res) => {
     .eq('id', id)
     .is('deleted_at', null)
     .select('id')
-    .single()
+    .maybeSingle()
 
   if (error) {
     return res.status(400).json({ error: error.message })
