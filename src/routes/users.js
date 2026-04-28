@@ -146,4 +146,45 @@ router.put('/users/:id', requireAuth, requireAdmin, async (req, res) => {
   return res.json(data)
 })
 
+// ─── DELETAR USUÁRIO ──────────────────────────────────────────────────
+router.delete('/users/:id', requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params
+
+  if (id === req.profile.id) {
+    return res.status(400).json({ error: 'Você não pode deletar sua própria conta.' })
+  }
+
+  const { count, error: countError } = await adminClient
+    .from('time_entries')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', id)
+
+  if (countError) {
+    return res.status(500).json({ error: 'Erro ao verificar registros do usuário.' })
+  }
+
+  if (count > 0) {
+    return res.status(409).json({
+      error: 'Usuário possui apontamentos registrados. Inative-o ao invés de deletar.',
+    })
+  }
+
+  const { error: profileError } = await adminClient
+    .from('profiles')
+    .delete()
+    .eq('id', id)
+
+  if (profileError) {
+    return res.status(500).json({ error: profileError.message })
+  }
+
+  const { error: authError } = await adminClient.auth.admin.deleteUser(id)
+
+  if (authError) {
+    return res.status(500).json({ error: authError.message })
+  }
+
+  return res.status(204).send()
+})
+
 export default router

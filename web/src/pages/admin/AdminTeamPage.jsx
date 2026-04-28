@@ -8,6 +8,8 @@ export function AdminTeamPage() {
   const [showForm, setShowForm] = useState(false)
   const [editingUser, setEditingUser] = useState(null)
   const [error, setError] = useState('')
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null)
+  const [deleteError, setDeleteError] = useState('')
 
   // Form state
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'employee', hourly_rate: '', is_active: true })
@@ -44,6 +46,17 @@ export function AdminTeamPage() {
     setEditingUser(user)
     setShowForm(true)
     setError('')
+  }
+
+  async function handleDelete(id) {
+    setDeleteError('')
+    try {
+      await api.delete(`/admin/users/${id}`)
+      setConfirmDeleteId(null)
+      setUsers((prev) => prev.filter((u) => u.id !== id))
+    } catch (err) {
+      setDeleteError(err.message)
+    }
   }
 
   async function handleSubmit(e) {
@@ -202,9 +215,36 @@ export function AdminTeamPage() {
                   </span>
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <button onClick={() => startEdit(user)} className="text-sm text-gray-500 hover:text-gray-900">
-                    Editar
-                  </button>
+                  {confirmDeleteId === user.id ? (
+                    <div className="flex items-center justify-end gap-2">
+                      {deleteError && <span className="text-xs text-red-600">{deleteError}</span>}
+                      <span className="text-xs text-gray-500">Confirmar?</span>
+                      <button
+                        onClick={() => handleDelete(user.id)}
+                        className="text-xs font-medium text-red-600 hover:text-red-800"
+                      >
+                        Sim
+                      </button>
+                      <button
+                        onClick={() => { setConfirmDeleteId(null); setDeleteError('') }}
+                        className="text-xs text-gray-500 hover:text-gray-700"
+                      >
+                        Não
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-end gap-3">
+                      <button onClick={() => startEdit(user)} className="text-sm text-gray-500 hover:text-gray-900">
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => { setConfirmDeleteId(user.id); setDeleteError('') }}
+                        className="text-sm text-red-500 hover:text-red-700"
+                      >
+                        Excluir
+                      </button>
+                    </div>
+                  )}
                 </td>
               </tr>
             ))}
