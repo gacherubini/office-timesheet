@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, Navigate } from 'react-router-dom'
+import { useNavigate, Navigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { Clock } from 'lucide-react'
 
@@ -80,6 +80,13 @@ export function LoginPage() {
           >
             {loading ? 'Entrando...' : 'Entrar'}
           </button>
+
+          <Link
+            to="/forgot-password"
+            className="block text-center text-sm text-gray-500 hover:text-gray-700"
+          >
+            Esqueceu a senha?
+          </Link>
         </form>
       </div>
     </div>
