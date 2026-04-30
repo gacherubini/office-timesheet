@@ -18,7 +18,7 @@ export async function requireAuth(req, res, next) {
 
     const { data: profile, error: profileError } = await adminClient
       .from('profiles')
-      .select('id, name, email, role, is_active, deleted_at')
+      .select('id, name, email, role, is_active, deleted_at, position, birth_date, phone, avatar_url')
       .eq('id', data.user.id)
       .single()
 

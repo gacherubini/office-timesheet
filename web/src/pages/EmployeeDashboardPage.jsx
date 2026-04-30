@@ -4,7 +4,7 @@ import { api } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 import {
   Play, Pause, Square, RotateCcw, Eye, EyeOff,
-  Coffee, Clock, Calendar, CheckSquare, Repeat,
+  Coffee, Clock, Repeat,
 } from 'lucide-react'
 import { Avatar } from '../components/Avatar'
 import { BirthdayCalendar } from '../components/BirthdayCalendar'
@@ -383,30 +383,6 @@ export function EmployeeDashboardPage() {
 
           {/* Calendário de aniversariantes */}
           <BirthdayCalendar />
-
-          {/* Eventos */}
-          <div className="bg-white rounded-lg border p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Calendar size={16} className="text-gray-400" />
-              <h2 className="text-sm font-semibold text-gray-700">Eventos</h2>
-            </div>
-            <p className="text-xs text-gray-400 text-center py-4">
-              Nenhum evento agendado.<br />
-              Não há eventos futuros para este mês.
-            </p>
-          </div>
-
-          {/* Checklists Favoritos */}
-          <div className="bg-white rounded-lg border p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <CheckSquare size={16} className="text-gray-400" />
-              <h2 className="text-sm font-semibold text-gray-700">Checklists Favoritos</h2>
-            </div>
-            <p className="text-xs text-gray-400 text-center py-4">
-              Nenhum checklist favorito.<br />
-              Marque checklists como favoritos para vê-los aqui.
-            </p>
-          </div>
         </div>
       </div>
     </div>

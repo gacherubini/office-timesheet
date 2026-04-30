@@ -1,14 +1,111 @@
 import { Router } from 'express'
+import multer from 'multer'
 import { requireAuth } from '../middleware/auth.js'
 import { createUserClient, adminClient } from '../lib/supabase.js'
 
 const router = Router()
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true)
+    else cb(new Error('Apenas imagens são permitidas.'))
+  },
+})
+
+const profileFields = 'id, name, email, role, is_active, position, birth_date, phone, avatar_url, created_at'
 
 router.get('/me', requireAuth, async (req, res) => {
   return res.json({
     user: req.authUser,
     profile: req.profile,
   })
+})
+
+router.get('/me/profile', requireAuth, async (req, res) => {
+  const { data, error } = await adminClient
+    .from('profiles')
+    .select(profileFields)
+    .eq('id', req.profile.id)
+    .single()
+
+  if (error) return res.status(400).json({ error: error.message })
+  return res.json(data)
+})
+
+router.put('/me/profile', requireAuth, async (req, res) => {
+  const { name, phone, birth_date } = req.body
+
+  const updates = {}
+  if (name !== undefined) {
+    const trimmedName = name.trim()
+    if (!trimmedName) return res.status(400).json({ error: 'Nome é obrigatório.' })
+    updates.name = trimmedName
+  }
+  if (phone !== undefined) updates.phone = phone?.trim() || null
+  if (birth_date !== undefined) updates.birth_date = birth_date || null
+
+  if (Object.keys(updates).length === 0) {
+    return res.status(400).json({ error: 'Nenhum campo para atualizar.' })
+  }
+
+  const { data, error } = await adminClient
+    .from('profiles')
+    .update(updates)
+    .eq('id', req.profile.id)
+    .select(profileFields)
+    .single()
+
+  if (error) return res.status(400).json({ error: error.message })
+  return res.json(data)
+})
+
+router.post('/me/profile/avatar', requireAuth, upload.single('image'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'Nenhuma imagem enviada.' })
+  }
+
+  const { data: profile, error: profileError } = await adminClient
+    .from('profiles')
+    .select('id, avatar_url')
+    .eq('id', req.profile.id)
+    .single()
+
+  if (profileError || !profile) {
+    return res.status(404).json({ error: 'Perfil não encontrado.' })
+  }
+
+  if (profile.avatar_url) {
+    const oldPath = profile.avatar_url.split('/user-avatars/')[1]
+    if (oldPath) await adminClient.storage.from('user-avatars').remove([oldPath])
+  }
+
+  const ext = req.file.originalname.split('.').pop()
+  const fileName = `${req.profile.id}-${Date.now()}.${ext}`
+
+  const { error: uploadError } = await adminClient.storage
+    .from('user-avatars')
+    .upload(fileName, req.file.buffer, {
+      contentType: req.file.mimetype,
+      upsert: true,
+    })
+
+  if (uploadError) return res.status(400).json({ error: uploadError.message })
+
+  const { data: urlData } = adminClient.storage
+    .from('user-avatars')
+    .getPublicUrl(fileName)
+
+  const { data, error } = await adminClient
+    .from('profiles')
+    .update({ avatar_url: urlData.publicUrl })
+    .eq('id', req.profile.id)
+    .select(profileFields)
+    .single()
+
+  if (error) return res.status(400).json({ error: error.message })
+  return res.json(data)
 })
 
 // ─── HISTÓRICO DO COLABORADOR ─────────────────────────────────────────

@@ -42,10 +42,14 @@ export function AuthProvider({ children }) {
     setProfile(null)
   }
 
+  function updateProfile(nextProfile) {
+    setProfile(nextProfile)
+  }
+
   const isAdmin = profile?.role === 'admin'
 
   return (
-    <AuthContext.Provider value={{ user, profile, isAdmin, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, profile, isAdmin, loading, login, logout, updateProfile }}>
       {children}
     </AuthContext.Provider>
   )
