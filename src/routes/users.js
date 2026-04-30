@@ -17,6 +17,7 @@ router.post('/create-user', requireAuth, requireAdmin, async (req, res) => {
       password,
       role = 'employee',
       is_active = true,
+      position,
     } = req.body
 
     if (!name || !email || !password) {
@@ -64,6 +65,7 @@ router.post('/create-user', requireAuth, requireAdmin, async (req, res) => {
         email: email.trim().toLowerCase(),
         role,
         is_active,
+        ...(position !== undefined && { position: position.trim() }),
       })
       .eq('id', userId)
       .select('id, name, email, role, is_active')
@@ -92,11 +94,12 @@ router.post('/create-user', requireAuth, requireAdmin, async (req, res) => {
   }
 })
 
-// ─── LISTAR USUÁRIOS ──────────────────────────────────────────────────
+// ─── LISTAR USUÁRIOS (apenas não deletados) ───────────────────────────
 router.get('/users', requireAuth, requireAdmin, async (req, res) => {
   const { data, error } = await adminClient
     .from('profiles')
-    .select('id, name, email, role, hourly_rate, is_active, created_at')
+    .select('id, name, email, role, hourly_rate, is_active, position, created_at')
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -106,14 +109,52 @@ router.get('/users', requireAuth, requireAdmin, async (req, res) => {
   return res.json(data)
 })
 
+// ─── LISTAR USUÁRIOS DELETADOS ────────────────────────────────────────
+router.get('/users/deleted', requireAuth, requireAdmin, async (req, res) => {
+  const { data, error } = await adminClient
+    .from('profiles')
+    .select('id, name, email, role, hourly_rate, deleted_at, created_at')
+    .not('deleted_at', 'is', null)
+    .order('deleted_at', { ascending: false })
+
+  if (error) {
+    return res.status(400).json({ error: error.message })
+  }
+
+  return res.json(data)
+})
+
+// ─── RESTAURAR USUÁRIO ────────────────────────────────────────────────
+router.post('/users/:id/restore', requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params
+
+  const { data, error } = await adminClient
+    .from('profiles')
+    .update({ deleted_at: null, is_active: true })
+    .eq('id', id)
+    .not('deleted_at', 'is', null)
+    .select('id, name, email, role, hourly_rate, is_active')
+    .maybeSingle()
+
+  if (error) {
+    return res.status(400).json({ error: error.message })
+  }
+
+  if (!data) {
+    return res.status(404).json({ error: 'Usuário deletado não encontrado.' })
+  }
+
+  return res.json(data)
+})
+
 // ─── EDITAR USUÁRIO ───────────────────────────────────────────────────
 router.put('/users/:id', requireAuth, requireAdmin, async (req, res) => {
   const { id } = req.params
-  const { name, role, hourly_rate, is_active } = req.body
+  const { name, role, hourly_rate, is_active, position } = req.body
 
-  // Monta objeto só com campos enviados
   const updates = {}
   if (name !== undefined) updates.name = name.trim()
+  if (position !== undefined) updates.position = position.trim()
   if (role !== undefined) {
     if (!['admin', 'employee'].includes(role)) {
       return res.status(400).json({ error: 'Role inválida.' })
@@ -144,6 +185,33 @@ router.put('/users/:id', requireAuth, requireAdmin, async (req, res) => {
   }
 
   return res.json(data)
+})
+
+// ─── DELETAR USUÁRIO (soft delete) ────────────────────────────────────
+router.delete('/users/:id', requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params
+
+  if (id === req.profile.id) {
+    return res.status(400).json({ error: 'Você não pode deletar sua própria conta.' })
+  }
+
+  const { data, error } = await adminClient
+    .from('profiles')
+    .update({ deleted_at: new Date().toISOString(), is_active: false })
+    .eq('id', id)
+    .is('deleted_at', null)
+    .select('id')
+    .maybeSingle()
+
+  if (error) {
+    return res.status(400).json({ error: error.message })
+  }
+
+  if (!data) {
+    return res.status(404).json({ error: 'Usuário não encontrado ou já deletado.' })
+  }
+
+  return res.status(204).send()
 })
 
 export default router

@@ -18,12 +18,16 @@ export async function requireAuth(req, res, next) {
 
     const { data: profile, error: profileError } = await adminClient
       .from('profiles')
-      .select('id, name, email, role, is_active')
+      .select('id, name, email, role, is_active, deleted_at')
       .eq('id', data.user.id)
       .single()
 
     if (profileError || !profile) {
       return res.status(403).json({ error: 'Perfil não encontrado.' })
+    }
+
+    if (profile.deleted_at) {
+      return res.status(403).json({ error: 'Usuário deletado.' })
     }
 
     if (!profile.is_active) {

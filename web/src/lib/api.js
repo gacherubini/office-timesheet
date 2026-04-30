@@ -1,4 +1,4 @@
-const BASE_URL = '/api'
+const BASE_URL = import.meta.env.VITE_API_URL ?? '/api'
 
 async function request(endpoint, options = {}) {
   const token = localStorage.getItem('access_token')
@@ -22,10 +22,15 @@ async function request(endpoint, options = {}) {
     throw new Error('Sessão expirada.')
   }
 
-  const data = await res.json()
+  if (res.status === 204) {
+    return null
+  }
+
+  const text = await res.text()
+  const data = text ? JSON.parse(text) : null
 
   if (!res.ok) {
-    throw new Error(data.error || 'Erro na requisição.')
+    throw new Error(data?.error || 'Erro na requisição.')
   }
 
   return data

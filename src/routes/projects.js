@@ -34,11 +34,15 @@ router.get('/projects', requireAuth, async (req, res) => {
 })
 
 router.post('/projects', requireAuth, requireAdmin, async (req, res) => {
-  const { name, client, status = 'active' } = req.body
+  const { name, client, status = 'active', sale_value = 0 } = req.body
+
+  if (sale_value !== undefined && Number(sale_value) < 0) {
+    return res.status(400).json({ error: 'Valor de venda não pode ser negativo.' })
+  }
 
   const { data, error } = await adminClient
     .from('projects')
-    .insert([{ name, client, status }])
+    .insert([{ name, client, status, sale_value: Number(sale_value) || 0 }])
     .select()
     .single()
 
@@ -52,11 +56,17 @@ router.post('/projects', requireAuth, requireAdmin, async (req, res) => {
 // ─── EDITAR PROJETO ───────────────────────────────────────────────────
 router.put('/projects/:id', requireAuth, requireAdmin, async (req, res) => {
   const { id } = req.params
-  const { name, client, status } = req.body
+  const { name, client, status, sale_value } = req.body
 
   const updates = {}
   if (name !== undefined) updates.name = name.trim()
   if (client !== undefined) updates.client = client.trim()
+  if (sale_value !== undefined) {
+    if (Number(sale_value) < 0) {
+      return res.status(400).json({ error: 'Valor de venda não pode ser negativo.' })
+    }
+    updates.sale_value = Number(sale_value) || 0
+  }
   if (status !== undefined) {
     if (!['active', 'completed'].includes(status)) {
       return res.status(400).json({ error: 'Status inválido. Use "active" ou "completed".' })
