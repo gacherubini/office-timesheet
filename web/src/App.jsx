@@ -7,6 +7,7 @@ import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { TimerPage } from './pages/TimerPage'
 import { HistoryPage } from './pages/HistoryPage'
+import { EmployeeDashboardPage } from './pages/EmployeeDashboardPage'
 import { AdminLivePage } from './pages/admin/AdminLivePage'
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage'
 import { AdminTeamPage } from './pages/admin/AdminTeamPage'
@@ -14,6 +15,11 @@ import { AdminDeletedUsersPage } from './pages/admin/AdminDeletedUsersPage'
 import { AdminProjectsPage } from './pages/admin/AdminProjectsPage'
 import { AdminTimeEntriesPage } from './pages/admin/AdminTimeEntriesPage'
 import { AdminReportsPage } from './pages/admin/AdminReportsPage'
+
+function HomeRedirect() {
+  const { isAdmin } = useAuth()
+  return <Navigate to={isAdmin ? '/admin/dashboard' : '/dashboard'} replace />
+}
 
 export default function App() {
   const { loading } = useAuth()
@@ -33,7 +39,9 @@ export default function App() {
       <Route path="/reset-password" element={<ResetPasswordPage />} />
 
       {/* Rotas do colaborador */}
-      <Route path="/" element={<ProtectedRoute><Layout><TimerPage /></Layout></ProtectedRoute>} />
+      <Route path="/" element={<ProtectedRoute><HomeRedirect /></ProtectedRoute>} />
+      <Route path="/dashboard" element={<ProtectedRoute><Layout><EmployeeDashboardPage /></Layout></ProtectedRoute>} />
+      <Route path="/timer" element={<ProtectedRoute><Layout><TimerPage /></Layout></ProtectedRoute>} />
       <Route path="/history" element={<ProtectedRoute><Layout><HistoryPage /></Layout></ProtectedRoute>} />
 
       {/* Rotas do admin */}

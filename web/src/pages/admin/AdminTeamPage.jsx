@@ -1,7 +1,15 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../../lib/api'
-import { Plus, X, AlertTriangle, Trash2 } from 'lucide-react'
+import { Plus, X, AlertTriangle, Trash2, Camera, MessageCircle } from 'lucide-react'
+import { Avatar } from '../../components/Avatar'
+
+function whatsappLink(phone) {
+  if (!phone) return null
+  const digits = phone.replace(/\D/g, '')
+  const withCountry = digits.length <= 11 ? `55${digits}` : digits
+  return `https://wa.me/${withCountry}`
+}
 
 export function AdminTeamPage() {
   const [users, setUsers] = useState([])
@@ -14,7 +22,9 @@ export function AdminTeamPage() {
   const [deleting, setDeleting] = useState(false)
 
   // Form state
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'employee', hourly_rate: '', is_active: true, position: '' })
+  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'employee', hourly_rate: '', is_active: true, position: '', birth_date: '', phone: '' })
+  const [uploadingId, setUploadingId] = useState(null)
+  const fileInputRef = useRef(null)
 
   async function loadUsers() {
     try {
@@ -30,7 +40,7 @@ export function AdminTeamPage() {
   useEffect(() => { loadUsers() }, [])
 
   function resetForm() {
-    setForm({ name: '', email: '', password: '', role: 'employee', hourly_rate: '', is_active: true, position: '' })
+    setForm({ name: '', email: '', password: '', role: 'employee', hourly_rate: '', is_active: true, position: '', birth_date: '', phone: '' })
     setEditingUser(null)
     setShowForm(false)
     setError('')
@@ -45,10 +55,42 @@ export function AdminTeamPage() {
       hourly_rate: user.hourly_rate || '',
       is_active: user.is_active,
       position: user.position || '',
+      birth_date: user.birth_date || '',
+      phone: user.phone || '',
     })
     setEditingUser(user)
     setShowForm(true)
     setError('')
+  }
+
+  function triggerUpload(userId) {
+    setUploadingId(userId)
+    fileInputRef.current?.click()
+  }
+
+  async function handleAvatarUpload(e) {
+    const file = e.target.files?.[0]
+    if (!file || !uploadingId) return
+
+    const formData = new FormData()
+    formData.append('image', file)
+
+    try {
+      const token = localStorage.getItem('access_token')
+      const res = await fetch(`/api/admin/users/${uploadingId}/avatar`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      loadUsers()
+    } catch (err) {
+      alert(err.message || 'Erro ao enviar imagem.')
+    } finally {
+      setUploadingId(null)
+      e.target.value = ''
+    }
   }
 
   async function handleDelete() {
@@ -78,6 +120,8 @@ export function AdminTeamPage() {
           hourly_rate: Number(form.hourly_rate) || 0,
           is_active: form.is_active,
           position: form.position,
+          birth_date: form.birth_date,
+          phone: form.phone,
         })
       } else {
         await api.post('/admin/create-user', {
@@ -86,6 +130,8 @@ export function AdminTeamPage() {
           password: form.password,
           role: form.role,
           position: form.position,
+          birth_date: form.birth_date,
+          phone: form.phone,
         })
       }
 
@@ -150,6 +196,28 @@ export function AdminTeamPage() {
                 />
               </div>
 
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Data de Nascimento</label>
+                  <input
+                    type="date"
+                    value={form.birth_date}
+                    onChange={(e) => setForm({ ...form, birth_date: e.target.value })}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
+                  <input
+                    type="tel"
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    placeholder="(11) 99999-9999"
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                  />
+                </div>
+              </div>
+
               {!editingUser && (
                 <>
                   <div>
@@ -209,14 +277,25 @@ export function AdminTeamPage() {
         </div>
       )}
 
+      {/* Input de arquivo escondido para upload de avatar */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleAvatarUpload}
+      />
+
       {/* Tabela */}
       <div className="bg-white rounded-lg shadow-sm border overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-gray-50">
+              <th className="text-left px-4 py-3 font-medium text-gray-600">Foto</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Nome</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Cargo</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">E-mail</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-600">Contato</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Perfil</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Valor/Hora</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
@@ -225,38 +304,73 @@ export function AdminTeamPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} className="text-center py-8 text-gray-400">Carregando...</td></tr>
-            ) : users.map((user) => (
-              <tr key={user.id} className="border-b last:border-b-0 hover:bg-gray-50">
-                <td className="px-4 py-3 font-medium">{user.name}</td>
-                <td className="px-4 py-3 text-gray-500">{user.position || '-'}</td>
-                <td className="px-4 py-3 text-gray-500">{user.email}</td>
-                <td className="px-4 py-3">
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded ${user.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
-                    {user.role === 'admin' ? 'Admin' : 'Colaborador'}
-                  </span>
-                </td>
-                <td className="px-4 py-3">{formatCurrency(user.hourly_rate)}</td>
-                <td className="px-4 py-3">
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded ${user.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                    {user.is_active ? 'Ativo' : 'Inativo'}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <div className="flex items-center justify-end gap-3">
-                    <button onClick={() => startEdit(user)} className="text-sm text-gray-500 hover:text-gray-900">
-                      Editar
-                    </button>
+              <tr><td colSpan={9} className="text-center py-8 text-gray-400">Carregando...</td></tr>
+            ) : users.map((user) => {
+              const wa = whatsappLink(user.phone)
+              return (
+                <tr key={user.id} className="border-b last:border-b-0 hover:bg-gray-50">
+                  <td className="px-4 py-3">
                     <button
-                      onClick={() => { setUserToDelete(user); setDeleteError('') }}
-                      className="text-sm text-red-500 hover:text-red-700"
+                      onClick={() => triggerUpload(user.id)}
+                      title="Clique para alterar a foto"
+                      className="relative group"
                     >
-                      Excluir
+                      <Avatar name={user.name} url={user.avatar_url} size={36} />
+                      <span className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/40 flex items-center justify-center transition-colors">
+                        <Camera size={14} className="text-white opacity-0 group-hover:opacity-100" />
+                      </span>
                     </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+                  </td>
+                  <td className="px-4 py-3 font-medium">{user.name}</td>
+                  <td className="px-4 py-3 text-gray-500">{user.position || '-'}</td>
+                  <td className="px-4 py-3 text-gray-500">{user.email}</td>
+                  <td className="px-4 py-3">
+                    {user.phone ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-600 text-sm">{user.phone}</span>
+                        {wa && (
+                          <a
+                            href={wa}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="Abrir WhatsApp"
+                            className="text-green-600 hover:text-green-700 p-1 rounded hover:bg-green-50"
+                          >
+                            <MessageCircle size={16} />
+                          </a>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-gray-300">-</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded ${user.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                      {user.role === 'admin' ? 'Admin' : 'Colaborador'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">{formatCurrency(user.hourly_rate)}</td>
+                  <td className="px-4 py-3">
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded ${user.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                      {user.is_active ? 'Ativo' : 'Inativo'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-3">
+                      <button onClick={() => startEdit(user)} className="text-sm text-gray-500 hover:text-gray-900">
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => { setUserToDelete(user); setDeleteError('') }}
+                        className="text-sm text-red-500 hover:text-red-700"
+                      >
+                        Excluir
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>

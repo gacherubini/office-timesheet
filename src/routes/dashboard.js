@@ -28,7 +28,7 @@ router.get('/dashboard', requireAuth, requireAdmin, async (req, res) => {
       .lte('started_at', endIso),
     adminClient
       .from('profiles')
-      .select('id, name, position, is_active')
+      .select('id, name, position, is_active, avatar_url')
       .is('deleted_at', null),
     adminClient
       .from('projects')
@@ -84,6 +84,7 @@ router.get('/dashboard', requireAuth, requireAdmin, async (req, res) => {
       user_id: s.user_id,
       name: profileMap[s.user_id]?.name || 'Desconhecido',
       position: profileMap[s.user_id]?.position || null,
+      avatar_url: profileMap[s.user_id]?.avatar_url || null,
       total_minutes: s.total_minutes,
       project_count: s.projects.size,
     }))

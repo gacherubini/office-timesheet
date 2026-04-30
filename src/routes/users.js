@@ -1,7 +1,17 @@
 import { Router } from 'express'
+import multer from 'multer'
 import { adminClient } from '../lib/supabase.js'
 import { requireAuth } from '../middleware/auth.js'
 import { requireAdmin } from '../middleware/requireAdmin.js'
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true)
+    else cb(new Error('Apenas imagens são permitidas.'))
+  },
+})
 
 const router = Router()
 
@@ -18,6 +28,8 @@ router.post('/create-user', requireAuth, requireAdmin, async (req, res) => {
       role = 'employee',
       is_active = true,
       position,
+      birth_date,
+      phone,
     } = req.body
 
     if (!name || !email || !password) {
@@ -66,6 +78,8 @@ router.post('/create-user', requireAuth, requireAdmin, async (req, res) => {
         role,
         is_active,
         ...(position !== undefined && { position: position.trim() }),
+        ...(birth_date !== undefined && { birth_date: birth_date || null }),
+        ...(phone !== undefined && { phone: phone?.trim() || null }),
       })
       .eq('id', userId)
       .select('id, name, email, role, is_active')
@@ -98,7 +112,7 @@ router.post('/create-user', requireAuth, requireAdmin, async (req, res) => {
 router.get('/users', requireAuth, requireAdmin, async (req, res) => {
   const { data, error } = await adminClient
     .from('profiles')
-    .select('id, name, email, role, hourly_rate, is_active, position, created_at')
+    .select('id, name, email, role, hourly_rate, is_active, position, birth_date, phone, avatar_url, created_at')
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
 
@@ -150,7 +164,7 @@ router.post('/users/:id/restore', requireAuth, requireAdmin, async (req, res) =>
 // ─── EDITAR USUÁRIO ───────────────────────────────────────────────────
 router.put('/users/:id', requireAuth, requireAdmin, async (req, res) => {
   const { id } = req.params
-  const { name, role, hourly_rate, is_active, position } = req.body
+  const { name, role, hourly_rate, is_active, position, birth_date, phone } = req.body
 
   const updates = {}
   if (name !== undefined) updates.name = name.trim()
@@ -168,6 +182,8 @@ router.put('/users/:id', requireAuth, requireAdmin, async (req, res) => {
     updates.hourly_rate = hourly_rate
   }
   if (is_active !== undefined) updates.is_active = is_active
+  if (birth_date !== undefined) updates.birth_date = birth_date || null
+  if (phone !== undefined) updates.phone = phone?.trim() || null
 
   if (Object.keys(updates).length === 0) {
     return res.status(400).json({ error: 'Nenhum campo para atualizar.' })
@@ -212,6 +228,65 @@ router.delete('/users/:id', requireAuth, requireAdmin, async (req, res) => {
   }
 
   return res.status(204).send()
+})
+
+// ─── UPLOAD DE AVATAR ─────────────────────────────────────────────────
+router.post('/users/:id/avatar', requireAuth, requireAdmin, upload.single('image'), async (req, res) => {
+  const { id } = req.params
+
+  if (!req.file) {
+    return res.status(400).json({ error: 'Nenhuma imagem enviada.' })
+  }
+
+  const { data: profile, error: profileError } = await adminClient
+    .from('profiles')
+    .select('id, avatar_url')
+    .eq('id', id)
+    .single()
+
+  if (profileError || !profile) {
+    return res.status(404).json({ error: 'Usuário não encontrado.' })
+  }
+
+  if (profile.avatar_url) {
+    const oldPath = profile.avatar_url.split('/user-avatars/')[1]
+    if (oldPath) {
+      await adminClient.storage.from('user-avatars').remove([oldPath])
+    }
+  }
+
+  const ext = req.file.originalname.split('.').pop()
+  const fileName = `${id}-${Date.now()}.${ext}`
+
+  const { error: uploadError } = await adminClient.storage
+    .from('user-avatars')
+    .upload(fileName, req.file.buffer, {
+      contentType: req.file.mimetype,
+      upsert: true,
+    })
+
+  if (uploadError) {
+    return res.status(400).json({ error: uploadError.message })
+  }
+
+  const { data: urlData } = adminClient.storage
+    .from('user-avatars')
+    .getPublicUrl(fileName)
+
+  const avatarUrl = urlData.publicUrl
+
+  const { data, error } = await adminClient
+    .from('profiles')
+    .update({ avatar_url: avatarUrl })
+    .eq('id', id)
+    .select('id, name, email, role, hourly_rate, is_active, position, birth_date, phone, avatar_url')
+    .single()
+
+  if (error) {
+    return res.status(400).json({ error: error.message })
+  }
+
+  return res.json(data)
 })
 
 export default router

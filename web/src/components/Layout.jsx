@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { Clock, History, Users, FolderOpen, Radio, FileText, LogOut, BarChart3, LayoutDashboard } from 'lucide-react'
+import { Home, History, Users, FolderOpen, Radio, FileText, LogOut, BarChart3 } from 'lucide-react'
+import { Avatar } from './Avatar'
 
 export function Layout({ children }) {
   const { profile, isAdmin, logout } = useAuth()
@@ -13,12 +14,12 @@ export function Layout({ children }) {
   }
 
   const employeeLinks = [
-    { to: '/', label: 'Cronômetro', icon: Clock },
+    { to: '/dashboard', label: 'Início', icon: Home },
     { to: '/history', label: 'Histórico', icon: History },
   ]
 
   const adminLinks = [
-    { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { to: '/admin/dashboard', label: 'Início', icon: Home },
     { to: '/admin/live', label: 'Painel Live', icon: Radio },
     { to: '/admin/team', label: 'Equipe', icon: Users },
     { to: '/admin/projects', label: 'Projetos', icon: FolderOpen },
@@ -26,7 +27,7 @@ export function Layout({ children }) {
     { to: '/admin/reports', label: 'Relatórios', icon: BarChart3 },
   ]
 
-  const links = isAdmin ? [...employeeLinks, ...adminLinks] : employeeLinks
+  const links = isAdmin ? adminLinks : employeeLinks
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
@@ -52,8 +53,13 @@ export function Layout({ children }) {
         </nav>
 
         <div className="p-4 border-t border-gray-700 hidden md:block">
-          <p className="text-sm text-gray-400 truncate">{profile?.name}</p>
-          <p className="text-xs text-gray-500 truncate">{profile?.email}</p>
+          <div className="flex items-center gap-2 mb-1">
+            <Avatar name={profile?.name} url={profile?.avatar_url} size={32} />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm text-gray-300 truncate">{profile?.name}</p>
+              <p className="text-xs text-gray-500 truncate">{profile?.email}</p>
+            </div>
+          </div>
           <button
             onClick={handleLogout}
             className="mt-2 flex items-center gap-1 text-sm text-gray-400 hover:text-white transition-colors"

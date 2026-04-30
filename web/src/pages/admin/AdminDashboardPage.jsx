@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { api } from '../../lib/api'
-import { TrendingUp, Wallet, DollarSign, Clock, Users, FolderOpen } from 'lucide-react'
+import { TrendingUp, Clock, Users, FolderOpen } from 'lucide-react'
+import { BirthdayCalendar } from '../../components/BirthdayCalendar'
+import { Avatar } from '../../components/Avatar'
 
 function getMonthRange() {
   const now = new Date()
@@ -19,17 +21,6 @@ function formatHours(minutes) {
   const m = Math.floor(minutes % 60)
   const s = 0
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-}
-
-const AVATAR_COLORS = [
-  'bg-blue-500', 'bg-purple-500', 'bg-green-500', 'bg-yellow-500',
-  'bg-pink-500', 'bg-indigo-500', 'bg-teal-500', 'bg-orange-500',
-]
-
-function avatarColor(name = '') {
-  let hash = 0
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
 }
 
 function KpiCard({ label, value, sub, icon: Icon, color }) {
@@ -71,7 +62,7 @@ export function AdminDashboardPage() {
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <h1 className="text-2xl font-bold">Início</h1>
         <div className="flex items-center gap-2 text-sm">
           <input
             type="date"
@@ -96,24 +87,6 @@ export function AdminDashboardPage() {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         <KpiCard
-          label="Faturamento Potencial"
-          value={loading ? '...' : formatCurrency(kpis?.potential_revenue)}
-          icon={TrendingUp}
-          color="bg-green-500"
-        />
-        <KpiCard
-          label="Custo da Equipe"
-          value={loading ? '...' : formatCurrency(kpis?.team_cost)}
-          icon={Wallet}
-          color="bg-red-500"
-        />
-        <KpiCard
-          label="Lucro Projetado"
-          value={loading ? '...' : formatCurrency(kpis?.projected_profit)}
-          icon={DollarSign}
-          color="bg-blue-500"
-        />
-        <KpiCard
           label="Horas no Período"
           value={loading ? '...' : formatHours(kpis?.total_minutes ?? 0)}
           icon={Clock}
@@ -133,8 +106,9 @@ export function AdminDashboardPage() {
         />
       </div>
 
-      {/* Tabs */}
-      <div className="bg-white rounded-lg shadow-sm border">
+      {/* Tabs + Calendário de aniversariantes */}
+      <div className="flex flex-col lg:flex-row gap-6">
+      <div className="flex-1 bg-white rounded-lg shadow-sm border">
         <div className="flex border-b">
           {['team', 'projects'].map((t) => (
             <button
@@ -161,9 +135,7 @@ export function AdminDashboardPage() {
               data.team.map((member) => (
                 <div key={member.user_id} className="flex items-center justify-between px-5 py-4">
                   <div className="flex items-center gap-3">
-                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 ${avatarColor(member.name)}`}>
-                      {member.name.charAt(0).toUpperCase()}
-                    </div>
+                    <Avatar name={member.name} url={member.avatar_url} size={36} />
                     <div>
                       <p className="text-sm font-medium text-gray-900">{member.name}</p>
                       {member.position && (
@@ -194,6 +166,12 @@ export function AdminDashboardPage() {
             )
           )}
         </div>
+      </div>
+
+      {/* Coluna lateral: aniversariantes */}
+      <div className="lg:w-72">
+        <BirthdayCalendar />
+      </div>
       </div>
     </div>
   )
