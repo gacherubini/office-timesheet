@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { Clock, History, Users, FolderOpen, Radio, FileText, LogOut, BarChart3 } from 'lucide-react'
+import { Clock, History, Users, FolderOpen, Radio, FileText, LogOut, BarChart3, LayoutDashboard } from 'lucide-react'
 
 export function Layout({ children }) {
   const { profile, isAdmin, logout } = useAuth()
@@ -18,6 +18,7 @@ export function Layout({ children }) {
   ]
 
   const adminLinks = [
+    { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/admin/live', label: 'Painel Live', icon: Radio },
     { to: '/admin/team', label: 'Equipe', icon: Users },
     { to: '/admin/projects', label: 'Projetos', icon: FolderOpen },

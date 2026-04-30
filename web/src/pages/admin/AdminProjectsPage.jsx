@@ -8,7 +8,7 @@ export function AdminProjectsPage() {
   const [showForm, setShowForm] = useState(false)
   const [editingProject, setEditingProject] = useState(null)
   const [error, setError] = useState('')
-  const [form, setForm] = useState({ name: '', client: '', status: 'active' })
+  const [form, setForm] = useState({ name: '', client: '', status: 'active', sale_value: '' })
   const [uploading, setUploading] = useState(null) // project id being uploaded
   const fileInputRef = useRef(null)
 
@@ -26,14 +26,14 @@ export function AdminProjectsPage() {
   useEffect(() => { loadProjects() }, [])
 
   function resetForm() {
-    setForm({ name: '', client: '', status: 'active' })
+    setForm({ name: '', client: '', status: 'active', sale_value: '' })
     setEditingProject(null)
     setShowForm(false)
     setError('')
   }
 
   function startEdit(project) {
-    setForm({ name: project.name, client: project.client || '', status: project.status })
+    setForm({ name: project.name, client: project.client || '', status: project.status, sale_value: project.sale_value ?? '' })
     setEditingProject(project)
     setShowForm(true)
     setError('')
@@ -45,9 +45,9 @@ export function AdminProjectsPage() {
 
     try {
       if (editingProject) {
-        await api.put(`/projects/${editingProject.id}`, form)
+        await api.put(`/projects/${editingProject.id}`, { ...form, sale_value: Number(form.sale_value) || 0 })
       } else {
-        await api.post('/projects', form)
+        await api.post('/projects', { ...form, sale_value: Number(form.sale_value) || 0 })
       }
       resetForm()
       loadProjects()
@@ -146,15 +146,27 @@ export function AdminProjectsPage() {
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                <select
-                  value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                >
-                  <option value="active">Ativo</option>
-                  <option value="completed">Concluido</option>
-                </select>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                  <select
+                    value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                  >
+                    <option value="active">Ativo</option>
+                    <option value="completed">Concluido</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Valor de Venda (R$)</label>
+                  <input
+                    type="number" step="0.01" min="0"
+                    value={form.sale_value}
+                    onChange={(e) => setForm({ ...form, sale_value: e.target.value })}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                    placeholder="0,00"
+                  />
+                </div>
               </div>
               <button type="submit" className="w-full bg-gray-900 text-white rounded-md py-2 text-sm font-medium hover:bg-gray-800 transition-colors">
                 {editingProject ? 'Salvar' : 'Criar Projeto'}
@@ -172,6 +184,7 @@ export function AdminProjectsPage() {
               <th className="text-left px-4 py-3 font-medium text-gray-600">Nome</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Cliente</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-600">Valor de Venda</th>
               <th className="text-right px-4 py-3 font-medium text-gray-600">Acoes</th>
             </tr>
           </thead>
@@ -208,6 +221,9 @@ export function AdminProjectsPage() {
                   <span className={`text-xs font-medium px-2 py-0.5 rounded ${project.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
                     {project.status === 'active' ? 'Ativo' : 'Concluido'}
                   </span>
+                </td>
+                <td className="px-4 py-3 text-gray-500">
+                  {Number(project.sale_value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </td>
                 <td className="px-4 py-3 text-right space-x-3">
                   <button onClick={() => startEdit(project)} className="text-sm text-gray-500 hover:text-gray-900">Editar</button>

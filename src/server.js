@@ -8,6 +8,7 @@ import timeEntriesRoutes from './routes/timeEntries.js'
 import authRoutes from './routes/auth.js'
 import usersRoutes from './routes/users.js'
 import reportsRoutes from './routes/reports.js'
+import dashboardRoutes from './routes/dashboard.js'
 
 
 const app = express()
@@ -27,6 +28,7 @@ app.use(authRoutes)
 app.use(projectsRoutes)
 app.use(timeEntriesRoutes)
 app.use('/admin', reportsRoutes)
+app.use('/admin', dashboardRoutes)
 
 const port = process.env.PORT || 3333
 

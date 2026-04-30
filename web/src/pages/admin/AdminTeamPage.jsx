@@ -14,7 +14,7 @@ export function AdminTeamPage() {
   const [deleting, setDeleting] = useState(false)
 
   // Form state
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'employee', hourly_rate: '', is_active: true })
+  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'employee', hourly_rate: '', is_active: true, position: '' })
 
   async function loadUsers() {
     try {
@@ -30,7 +30,7 @@ export function AdminTeamPage() {
   useEffect(() => { loadUsers() }, [])
 
   function resetForm() {
-    setForm({ name: '', email: '', password: '', role: 'employee', hourly_rate: '', is_active: true })
+    setForm({ name: '', email: '', password: '', role: 'employee', hourly_rate: '', is_active: true, position: '' })
     setEditingUser(null)
     setShowForm(false)
     setError('')
@@ -44,6 +44,7 @@ export function AdminTeamPage() {
       role: user.role,
       hourly_rate: user.hourly_rate || '',
       is_active: user.is_active,
+      position: user.position || '',
     })
     setEditingUser(user)
     setShowForm(true)
@@ -76,6 +77,7 @@ export function AdminTeamPage() {
           role: form.role,
           hourly_rate: Number(form.hourly_rate) || 0,
           is_active: form.is_active,
+          position: form.position,
         })
       } else {
         await api.post('/admin/create-user', {
@@ -83,6 +85,7 @@ export function AdminTeamPage() {
           email: form.email,
           password: form.password,
           role: form.role,
+          position: form.position,
         })
       }
 
@@ -135,6 +138,14 @@ export function AdminTeamPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
                 <input
                   required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Cargo</label>
+                <input
+                  value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })}
+                  placeholder="Ex: Arquiteta, Estagiário"
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
                 />
               </div>
@@ -204,6 +215,7 @@ export function AdminTeamPage() {
           <thead>
             <tr className="border-b bg-gray-50">
               <th className="text-left px-4 py-3 font-medium text-gray-600">Nome</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-600">Cargo</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">E-mail</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Perfil</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Valor/Hora</th>
@@ -213,10 +225,11 @@ export function AdminTeamPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} className="text-center py-8 text-gray-400">Carregando...</td></tr>
+              <tr><td colSpan={7} className="text-center py-8 text-gray-400">Carregando...</td></tr>
             ) : users.map((user) => (
               <tr key={user.id} className="border-b last:border-b-0 hover:bg-gray-50">
                 <td className="px-4 py-3 font-medium">{user.name}</td>
+                <td className="px-4 py-3 text-gray-500">{user.position || '-'}</td>
                 <td className="px-4 py-3 text-gray-500">{user.email}</td>
                 <td className="px-4 py-3">
                   <span className={`text-xs font-medium px-2 py-0.5 rounded ${user.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>

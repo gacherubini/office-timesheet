@@ -8,6 +8,7 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { TimerPage } from './pages/TimerPage'
 import { HistoryPage } from './pages/HistoryPage'
 import { AdminLivePage } from './pages/admin/AdminLivePage'
+import { AdminDashboardPage } from './pages/admin/AdminDashboardPage'
 import { AdminTeamPage } from './pages/admin/AdminTeamPage'
 import { AdminDeletedUsersPage } from './pages/admin/AdminDeletedUsersPage'
 import { AdminProjectsPage } from './pages/admin/AdminProjectsPage'
@@ -36,6 +37,7 @@ export default function App() {
       <Route path="/history" element={<ProtectedRoute><Layout><HistoryPage /></Layout></ProtectedRoute>} />
 
       {/* Rotas do admin */}
+      <Route path="/admin/dashboard" element={<ProtectedRoute adminOnly><Layout><AdminDashboardPage /></Layout></ProtectedRoute>} />
       <Route path="/admin/live" element={<ProtectedRoute adminOnly><Layout><AdminLivePage /></Layout></ProtectedRoute>} />
       <Route path="/admin/team" element={<ProtectedRoute adminOnly><Layout><AdminTeamPage /></Layout></ProtectedRoute>} />
       <Route path="/admin/deleted-users" element={<ProtectedRoute adminOnly><Layout><AdminDeletedUsersPage /></Layout></ProtectedRoute>} />

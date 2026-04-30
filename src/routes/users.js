@@ -17,6 +17,7 @@ router.post('/create-user', requireAuth, requireAdmin, async (req, res) => {
       password,
       role = 'employee',
       is_active = true,
+      position,
     } = req.body
 
     if (!name || !email || !password) {
@@ -64,6 +65,7 @@ router.post('/create-user', requireAuth, requireAdmin, async (req, res) => {
         email: email.trim().toLowerCase(),
         role,
         is_active,
+        ...(position !== undefined && { position: position.trim() }),
       })
       .eq('id', userId)
       .select('id, name, email, role, is_active')
@@ -96,7 +98,7 @@ router.post('/create-user', requireAuth, requireAdmin, async (req, res) => {
 router.get('/users', requireAuth, requireAdmin, async (req, res) => {
   const { data, error } = await adminClient
     .from('profiles')
-    .select('id, name, email, role, hourly_rate, is_active, created_at')
+    .select('id, name, email, role, hourly_rate, is_active, position, created_at')
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
 
@@ -148,11 +150,11 @@ router.post('/users/:id/restore', requireAuth, requireAdmin, async (req, res) =>
 // ─── EDITAR USUÁRIO ───────────────────────────────────────────────────
 router.put('/users/:id', requireAuth, requireAdmin, async (req, res) => {
   const { id } = req.params
-  const { name, role, hourly_rate, is_active } = req.body
+  const { name, role, hourly_rate, is_active, position } = req.body
 
-  // Monta objeto só com campos enviados
   const updates = {}
   if (name !== undefined) updates.name = name.trim()
+  if (position !== undefined) updates.position = position.trim()
   if (role !== undefined) {
     if (!['admin', 'employee'].includes(role)) {
       return res.status(400).json({ error: 'Role inválida.' })
