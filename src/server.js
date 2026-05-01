@@ -11,6 +11,8 @@ import reportsRoutes from './routes/reports.js'
 import dashboardRoutes from './routes/dashboard.js'
 import expensesRoutes from './routes/expenses.js'
 import bonusesRoutes from './routes/bonuses.js'
+import clientsRoutes from './routes/clients.js'
+import suppliersRoutes from './routes/suppliers.js'
 
 
 const app = express()
@@ -31,6 +33,8 @@ app.use(projectsRoutes)
 app.use(timeEntriesRoutes)
 app.use(expensesRoutes)
 app.use(bonusesRoutes)
+app.use(clientsRoutes)
+app.use(suppliersRoutes)
 app.use('/admin', reportsRoutes)
 app.use('/admin', dashboardRoutes)
 

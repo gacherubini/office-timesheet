@@ -6,6 +6,8 @@ import {
   History,
   Users,
   FolderOpen,
+  Building2,
+  Truck,
   Radio,
   FileText,
   LogOut,
@@ -40,6 +42,8 @@ export function Layout({ children }) {
     { to: '/admin/live', label: 'Painel Live', icon: Radio },
     { to: '/admin/team', label: 'Equipe', icon: Users },
     { to: '/admin/projects', label: 'Projetos', icon: FolderOpen },
+    { to: '/admin/clients', label: 'Clientes', icon: Building2 },
+    { to: '/admin/suppliers', label: 'Fornecedores', icon: Truck },
     { to: '/admin/time-entries', label: 'Apontamentos', icon: FileText },
     { to: '/admin/reports', label: 'Relatórios', icon: BarChart3 },
   ]
