@@ -11,27 +11,93 @@ function formatCurrency(value) {
   return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
+function formatDate(value) {
+  if (!value) return '-'
+  return new Date(value).toLocaleDateString('pt-BR')
+}
+
+function formatDateTime(value) {
+  if (!value) return '-'
+  return new Date(value).toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function statusLabel(status) {
+  if (status === 'approved') return 'Aprovada'
+  if (status === 'pending') return 'Pendente'
+  if (status === 'rejected') return 'Rejeitada'
+  return status || '-'
+}
+
+function statusTone(status) {
+  if (status === 'approved') return 'success'
+  if (status === 'pending') return 'warning'
+  if (status === 'rejected') return 'danger'
+  return 'neutral'
+}
+
+function SummaryCard({ label, value, detail, tone = 'default' }) {
+  const toneClass =
+    tone === 'success'
+      ? 'text-emerald-600 dark:text-emerald-400'
+      : tone === 'warning'
+        ? 'text-amber-600 dark:text-amber-400'
+        : 'text-text-primary'
+
+  return (
+    <Card>
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary">
+        {label}
+      </p>
+      <p className={`font-display text-2xl mt-2 tabular-nums ${toneClass}`}>{value}</p>
+      {detail && <p className="text-xs text-text-secondary mt-1">{detail}</p>}
+    </Card>
+  )
+}
+
+function EmptyRow({ colSpan, children = 'Nenhum dado encontrado para o período.' }) {
+  return (
+    <tr>
+      <td colSpan={colSpan} className="text-center py-10 text-text-secondary">
+        {children}
+      </td>
+    </tr>
+  )
+}
+
+const headerClass =
+  'text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary'
+const rightHeaderClass =
+  'text-right px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary'
+const rowClass =
+  'border-b border-border-subtle last:border-b-0 hover:bg-surface-alt transition-colors'
+
 export function AdminReportsPage() {
-  const [tab, setTab] = useState('payroll')
+  const [tab, setTab] = useState('overview')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
-  const [payrollData, setPayrollData] = useState(null)
-  const [projectData, setProjectData] = useState(null)
+  const [financialData, setFinancialData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  async function loadPayroll() {
+  async function loadFinancialReport() {
     if (!startDate || !endDate) {
       setError('Selecione o período.')
       return
     }
+
     setError('')
     setLoading(true)
     try {
       const data = await api.get(
-        `/admin/reports/payroll?start_date=${startDate}&end_date=${endDate}`
+        `/admin/reports/financial?start_date=${startDate}&end_date=${endDate}`
       )
-      setPayrollData(data)
+      setFinancialData(data)
+      setTab('overview')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -39,45 +105,24 @@ export function AdminReportsPage() {
     }
   }
 
-  async function loadProjectCost() {
-    setError('')
-    setLoading(true)
-    try {
-      const params = new URLSearchParams()
-      if (startDate) params.set('start_date', startDate)
-      if (endDate) params.set('end_date', endDate)
-      const data = await api.get(`/admin/reports/project-cost?${params}`)
-      setProjectData(data)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
-  }
+  const summary = financialData?.summary
 
   return (
     <div>
-      <PageHeader title="Relatórios Financeiros" subtitle="Folha de pagamento e custo por projeto" />
-
-      <div className="mb-5">
-        <Tabs
-          variant="pill"
-          value={tab}
-          onChange={setTab}
-          items={[
-            { value: 'payroll', label: 'Folha de Pagamento' },
-            { value: 'project', label: 'Custo por Projeto' },
-          ]}
-        />
-      </div>
+      <PageHeader
+        title="Relatório Financeiro"
+        subtitle="Custos, pagamentos, despesas, bônus e distribuição por projeto"
+      />
 
       <Card className="mb-4">
         <div className="flex flex-wrap gap-3 items-end">
-          <DateRange from={startDate} to={endDate} onFromChange={setStartDate} onToChange={setEndDate} />
-          <Button
-            onClick={tab === 'payroll' ? loadPayroll : loadProjectCost}
-            disabled={loading}
-          >
+          <DateRange
+            from={startDate}
+            to={endDate}
+            onFromChange={setStartDate}
+            onToChange={setEndDate}
+          />
+          <Button onClick={loadFinancialReport} disabled={loading}>
             {loading ? 'Carregando...' : 'Gerar Relatório'}
           </Button>
         </div>
@@ -89,143 +134,372 @@ export function AdminReportsPage() {
         </div>
       )}
 
-      {tab === 'payroll' && payrollData && (
-        <Card padded={false} className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border-subtle bg-surface-alt">
-                <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
-                  Colaborador
-                </th>
-                <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
-                  Valor/Hora
-                </th>
-                <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
-                  Horas
-                </th>
-                <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
-                  Apontamentos
-                </th>
-                <th className="text-right px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
-                  Salário
-                </th>
-                <th className="text-right px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
-                  Despesas
-                </th>
-                <th className="text-right px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
-                  Bônus
-                </th>
-                <th className="text-right px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
-                  Total a Pagar
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {payrollData.payroll.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="text-center py-10 text-text-secondary">
-                    Nenhum dado encontrado para o período.
-                  </td>
-                </tr>
-              ) : (
-                payrollData.payroll.map((u) => (
-                  <tr
-                    key={u.id}
-                    className="border-b border-border-subtle last:border-b-0 hover:bg-surface-alt transition-colors"
-                  >
-                    <td className="px-4 py-3 font-medium text-text-primary">{u.name}</td>
-                    <td className="px-4 py-3 text-text-secondary tabular-nums">
-                      {formatCurrency(u.hourly_rate)}
-                    </td>
-                    <td className="px-4 py-3 text-text-primary tabular-nums">{u.total_hours}h</td>
-                    <td className="px-4 py-3 text-text-secondary">{u.entries_count}</td>
-                    <td className="px-4 py-3 text-right text-text-primary tabular-nums">
-                      {formatCurrency(u.total_cost)}
-                    </td>
-                    <td className="px-4 py-3 text-right text-accent tabular-nums">
-                      {formatCurrency(u.total_expenses)}
-                    </td>
-                    <td className="px-4 py-3 text-right text-emerald-500 tabular-nums">
-                      {formatCurrency(u.total_bonuses)}
-                    </td>
-                    <td className="px-4 py-3 text-right font-bold text-text-primary tabular-nums">
-                      {formatCurrency(u.total_to_pay)}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-            {payrollData.payroll.length > 0 && (
-              <tfoot>
-                <tr className="bg-surface-alt border-t-2 border-border-subtle">
-                  <td colSpan={7} className="px-4 py-3 font-bold text-text-primary">
-                    Total Geral
-                  </td>
-                  <td className="px-4 py-3 text-right font-bold font-display text-xl tabular-nums text-text-primary">
-                    {formatCurrency(payrollData.grand_total)}
-                  </td>
-                </tr>
-              </tfoot>
-            )}
-          </table>
+      {!financialData ? (
+        <Card>
+          <p className="text-center text-text-secondary py-8">
+            Selecione um período para gerar o relatório financeiro.
+          </p>
         </Card>
-      )}
+      ) : (
+        <>
+          <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
+            <SummaryCard
+              label="Total a pagar"
+              value={formatCurrency(summary.total_payable)}
+              detail="Horas + despesas aprovadas + bônus"
+              tone="success"
+            />
+            <SummaryCard
+              label="Custo de horas"
+              value={formatCurrency(summary.hours_cost)}
+              detail={`${summary.total_hours}h trabalhadas`}
+            />
+            <SummaryCard
+              label="Despesas aprovadas"
+              value={formatCurrency(summary.approved_expenses)}
+              detail={`${formatCurrency(summary.pending_expenses)} pendentes`}
+              tone={summary.pending_expenses > 0 ? 'warning' : 'default'}
+            />
+            <SummaryCard
+              label="Bônus"
+              value={formatCurrency(summary.bonuses)}
+              detail={`${summary.active_people} pessoas com movimentação`}
+            />
+          </div>
 
-      {tab === 'project' && projectData && (
-        <div className="space-y-4">
-          {projectData.projects.length === 0 ? (
-            <Card>
-              <p className="text-center text-text-secondary py-6">
-                Nenhum dado encontrado para o período.
-              </p>
-            </Card>
-          ) : (
-            projectData.projects.map((p) => (
-              <Card key={p.id}>
-                <div className="flex items-start justify-between mb-3">
-                  <div className="min-w-0">
-                    <h3 className="font-display text-xl text-text-primary">{p.name}</h3>
-                    {p.client && <p className="text-sm text-text-secondary mt-0.5">{p.client}</p>}
-                    <div className="mt-2">
-                      <Badge tone={p.status === 'active' ? 'success' : 'neutral'}>
-                        {p.status === 'active' ? 'Ativo' : 'Concluído'}
-                      </Badge>
-                    </div>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="font-display text-2xl text-text-primary tabular-nums">
-                      {formatCurrency(p.total_cost)}
-                    </p>
-                    <p className="text-sm text-text-secondary tabular-nums">
-                      {p.total_hours}h trabalhadas
-                    </p>
-                  </div>
+          {financialData.alerts.length > 0 && (
+            <div className="space-y-2 mb-5">
+              {financialData.alerts.map((alert, index) => (
+                <div
+                  key={`${alert.message}-${index}`}
+                  className="bg-amber-500/10 text-amber-700 dark:text-amber-300 text-sm rounded-lg p-3"
+                >
+                  {alert.message}
                 </div>
-
-                {p.collaborators.length > 0 && (
-                  <div className="border-t border-border-subtle pt-3 mt-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary mb-2">
-                      Detalhamento por colaborador
-                    </p>
-                    <div className="space-y-1">
-                      {p.collaborators.map((c, i) => (
-                        <div
-                          key={i}
-                          className="flex items-center justify-between py-1 text-sm"
-                        >
-                          <span className="text-text-primary">{c.name}</span>
-                          <span className="text-text-secondary tabular-nums">
-                            {c.hours}h — {formatCurrency(c.cost)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </Card>
-            ))
+              ))}
+            </div>
           )}
-        </div>
+
+          <div className="mb-4 overflow-x-auto">
+            <Tabs
+              variant="pill"
+              value={tab}
+              onChange={setTab}
+              items={[
+                { value: 'overview', label: 'Resumo' },
+                { value: 'users', label: 'Colaboradores' },
+                { value: 'projects', label: 'Projetos' },
+                { value: 'entries', label: 'Apontamentos' },
+                { value: 'expenses', label: 'Despesas' },
+                { value: 'bonuses', label: 'Bônus' },
+              ]}
+            />
+          </div>
+
+          {tab === 'overview' && (
+            <div className="grid lg:grid-cols-2 gap-4">
+              <Card padded={false} className="overflow-x-auto">
+                <div className="px-4 py-3 border-b border-border-subtle">
+                  <h2 className="font-display text-lg text-text-primary">
+                    Maiores pagamentos
+                  </h2>
+                </div>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border-subtle bg-surface-alt">
+                      <th className={headerClass}>Colaborador</th>
+                      <th className={rightHeaderClass}>Horas</th>
+                      <th className={rightHeaderClass}>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {financialData.by_user.length === 0 ? (
+                      <EmptyRow colSpan={3} />
+                    ) : (
+                      financialData.by_user.slice(0, 6).map((user) => (
+                        <tr key={user.id} className={rowClass}>
+                          <td className="px-4 py-3">
+                            <p className="font-medium text-text-primary">{user.name}</p>
+                            <p className="text-xs text-text-secondary">{user.position || '-'}</p>
+                          </td>
+                          <td className="px-4 py-3 text-right text-text-secondary tabular-nums">
+                            {user.total_hours}h
+                          </td>
+                          <td className="px-4 py-3 text-right font-semibold text-text-primary tabular-nums">
+                            {formatCurrency(user.total_payable)}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </Card>
+
+              <Card padded={false} className="overflow-x-auto">
+                <div className="px-4 py-3 border-b border-border-subtle">
+                  <h2 className="font-display text-lg text-text-primary">
+                    Projetos com maior custo
+                  </h2>
+                </div>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border-subtle bg-surface-alt">
+                      <th className={headerClass}>Projeto</th>
+                      <th className={rightHeaderClass}>Horas</th>
+                      <th className={rightHeaderClass}>Custo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {financialData.by_project.length === 0 ? (
+                      <EmptyRow colSpan={3} />
+                    ) : (
+                      financialData.by_project.slice(0, 6).map((project) => (
+                        <tr key={project.id} className={rowClass}>
+                          <td className="px-4 py-3">
+                            <p className="font-medium text-text-primary">{project.name}</p>
+                            <p className="text-xs text-text-secondary">{project.client || '-'}</p>
+                          </td>
+                          <td className="px-4 py-3 text-right text-text-secondary tabular-nums">
+                            {project.total_hours}h
+                          </td>
+                          <td className="px-4 py-3 text-right font-semibold text-text-primary tabular-nums">
+                            {formatCurrency(project.total_cost)}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </Card>
+            </div>
+          )}
+
+          {tab === 'users' && (
+            <Card padded={false} className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border-subtle bg-surface-alt">
+                    <th className={headerClass}>Colaborador</th>
+                    <th className={rightHeaderClass}>Horas</th>
+                    <th className={rightHeaderClass}>Custo horas</th>
+                    <th className={rightHeaderClass}>Despesas aprovadas</th>
+                    <th className={rightHeaderClass}>Despesas pendentes</th>
+                    <th className={rightHeaderClass}>Bônus</th>
+                    <th className={rightHeaderClass}>Total a pagar</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {financialData.by_user.length === 0 ? (
+                    <EmptyRow colSpan={7} />
+                  ) : (
+                    financialData.by_user.map((user) => (
+                      <tr key={user.id} className={rowClass}>
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-text-primary">{user.name}</p>
+                          <p className="text-xs text-text-secondary">
+                            {user.position || '-'} · {user.working_days} dia(s) · {user.projects_count} projeto(s)
+                          </p>
+                        </td>
+                        <td className="px-4 py-3 text-right text-text-primary tabular-nums">
+                          {user.total_hours}h
+                        </td>
+                        <td className="px-4 py-3 text-right text-text-primary tabular-nums">
+                          {formatCurrency(user.hours_cost)}
+                        </td>
+                        <td className="px-4 py-3 text-right text-text-primary tabular-nums">
+                          {formatCurrency(user.approved_expenses)}
+                        </td>
+                        <td className="px-4 py-3 text-right text-amber-600 dark:text-amber-400 tabular-nums">
+                          {formatCurrency(user.pending_expenses)}
+                        </td>
+                        <td className="px-4 py-3 text-right text-emerald-600 dark:text-emerald-400 tabular-nums">
+                          {formatCurrency(user.bonuses)}
+                        </td>
+                        <td className="px-4 py-3 text-right font-bold text-text-primary tabular-nums">
+                          {formatCurrency(user.total_payable)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </Card>
+          )}
+
+          {tab === 'projects' && (
+            <Card padded={false} className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border-subtle bg-surface-alt">
+                    <th className={headerClass}>Projeto</th>
+                    <th className={headerClass}>Status</th>
+                    <th className={rightHeaderClass}>Horas</th>
+                    <th className={rightHeaderClass}>Custo</th>
+                    <th className={rightHeaderClass}>Custo médio/h</th>
+                    <th className={rightHeaderClass}>% do custo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {financialData.by_project.length === 0 ? (
+                    <EmptyRow colSpan={6} />
+                  ) : (
+                    financialData.by_project.map((project) => (
+                      <tr key={project.id} className={rowClass}>
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-text-primary">{project.name}</p>
+                          <p className="text-xs text-text-secondary">
+                            {project.client || '-'} · {project.collaborators_count} colaborador(es)
+                          </p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge tone={project.status === 'active' ? 'success' : 'neutral'}>
+                            {project.status === 'active' ? 'Ativo' : 'Concluído'}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3 text-right text-text-primary tabular-nums">
+                          {project.total_hours}h
+                        </td>
+                        <td className="px-4 py-3 text-right font-semibold text-text-primary tabular-nums">
+                          {formatCurrency(project.total_cost)}
+                        </td>
+                        <td className="px-4 py-3 text-right text-text-secondary tabular-nums">
+                          {formatCurrency(project.average_hour_cost)}
+                        </td>
+                        <td className="px-4 py-3 text-right text-text-secondary tabular-nums">
+                          {project.percent_of_hours_cost}%
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </Card>
+          )}
+
+          {tab === 'entries' && (
+            <Card padded={false} className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border-subtle bg-surface-alt">
+                    <th className={headerClass}>Data</th>
+                    <th className={headerClass}>Colaborador</th>
+                    <th className={headerClass}>Projeto</th>
+                    <th className={rightHeaderClass}>Horas</th>
+                    <th className={rightHeaderClass}>Custo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {financialData.entries.length === 0 ? (
+                    <EmptyRow colSpan={5} />
+                  ) : (
+                    financialData.entries.map((entry) => (
+                      <tr key={entry.id} className={rowClass}>
+                        <td className="px-4 py-3 text-text-secondary">
+                          {formatDateTime(entry.started_at)}
+                        </td>
+                        <td className="px-4 py-3 text-text-primary">
+                          {entry.profile?.name || 'Desconhecido'}
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="text-text-primary">{entry.project?.name || 'Sem projeto'}</p>
+                          <p className="text-xs text-text-secondary">{entry.project?.client || '-'}</p>
+                        </td>
+                        <td className="px-4 py-3 text-right text-text-primary tabular-nums">
+                          {entry.hours}h
+                        </td>
+                        <td className="px-4 py-3 text-right font-medium text-text-primary tabular-nums">
+                          {formatCurrency(entry.cost)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </Card>
+          )}
+
+          {tab === 'expenses' && (
+            <Card padded={false} className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border-subtle bg-surface-alt">
+                    <th className={headerClass}>Data</th>
+                    <th className={headerClass}>Colaborador</th>
+                    <th className={headerClass}>Despesa</th>
+                    <th className={headerClass}>Status</th>
+                    <th className={rightHeaderClass}>Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {financialData.expenses.length === 0 ? (
+                    <EmptyRow colSpan={5} />
+                  ) : (
+                    financialData.expenses.map((expense) => (
+                      <tr key={expense.id} className={rowClass}>
+                        <td className="px-4 py-3 text-text-secondary">
+                          {formatDate(expense.expense_date)}
+                        </td>
+                        <td className="px-4 py-3 text-text-primary">
+                          {expense.profile?.name || 'Desconhecido'}
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-text-primary">{expense.title}</p>
+                          <p className="text-xs text-text-secondary">{expense.description || '-'}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge tone={statusTone(expense.status)}>
+                            {statusLabel(expense.status)}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3 text-right font-medium text-text-primary tabular-nums">
+                          {formatCurrency(expense.amount)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </Card>
+          )}
+
+          {tab === 'bonuses' && (
+            <Card padded={false} className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border-subtle bg-surface-alt">
+                    <th className={headerClass}>Data</th>
+                    <th className={headerClass}>Colaborador</th>
+                    <th className={headerClass}>Bônus</th>
+                    <th className={rightHeaderClass}>Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {financialData.bonuses.length === 0 ? (
+                    <EmptyRow colSpan={4} />
+                  ) : (
+                    financialData.bonuses.map((bonus) => (
+                      <tr key={bonus.id} className={rowClass}>
+                        <td className="px-4 py-3 text-text-secondary">
+                          {formatDate(bonus.bonus_date)}
+                        </td>
+                        <td className="px-4 py-3 text-text-primary">
+                          {bonus.profile?.name || 'Desconhecido'}
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-text-primary">{bonus.title}</p>
+                          <p className="text-xs text-text-secondary">{bonus.description || '-'}</p>
+                        </td>
+                        <td className="px-4 py-3 text-right font-medium text-emerald-600 dark:text-emerald-400 tabular-nums">
+                          {formatCurrency(bonus.amount)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </Card>
+          )}
+        </>
       )}
     </div>
   )
