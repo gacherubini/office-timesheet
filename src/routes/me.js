@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import multer from 'multer'
 import { requireAuth } from '../middleware/auth.js'
-import { createUserClient, adminClient } from '../lib/supabase.js'
+import { authClient, createUserClient, adminClient } from '../lib/supabase.js'
 
 const router = Router()
 
@@ -66,6 +66,37 @@ router.put('/me/profile', requireAuth, async (req, res) => {
 
   if (error) return res.status(400).json({ error: error.message })
   return res.json(data)
+})
+
+router.post('/me/password', requireAuth, async (req, res) => {
+  const { current_password, new_password } = req.body
+
+  if (!current_password || !new_password) {
+    return res.status(400).json({ error: 'Senha atual e nova senha são obrigatórias.' })
+  }
+
+  if (new_password.length < 6) {
+    return res.status(400).json({ error: 'A nova senha deve ter pelo menos 6 caracteres.' })
+  }
+
+  const { error: signInError } = await authClient.auth.signInWithPassword({
+    email: req.profile.email,
+    password: current_password,
+  })
+
+  if (signInError) {
+    return res.status(401).json({ error: 'Senha atual incorreta.' })
+  }
+
+  const { error } = await adminClient.auth.admin.updateUserById(req.profile.id, {
+    password: new_password,
+  })
+
+  if (error) {
+    return res.status(400).json({ error: error.message })
+  }
+
+  return res.json({ message: 'Senha alterada com sucesso.' })
 })
 
 router.post('/me/profile/avatar', requireAuth, upload.single('image'), async (req, res) => {

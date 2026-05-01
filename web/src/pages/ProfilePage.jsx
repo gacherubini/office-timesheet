@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Camera, Save } from 'lucide-react'
+import { Camera, KeyRound, Save } from 'lucide-react'
 import { api } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 import { Avatar } from '../components/Avatar'
@@ -26,6 +26,14 @@ export function ProfilePage() {
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [passwordForm, setPasswordForm] = useState({
+    current_password: '',
+    new_password: '',
+    confirm_password: '',
+  })
+  const [passwordSaving, setPasswordSaving] = useState(false)
+  const [passwordError, setPasswordError] = useState('')
+  const [passwordSuccess, setPasswordSuccess] = useState('')
   const fileInputRef = useRef(null)
 
   useEffect(() => {
@@ -102,6 +110,35 @@ export function ProfilePage() {
     } finally {
       setUploading(false)
       e.target.value = ''
+    }
+  }
+
+  async function handlePasswordSubmit(e) {
+    e.preventDefault()
+    setPasswordError('')
+    setPasswordSuccess('')
+
+    if (passwordForm.new_password !== passwordForm.confirm_password) {
+      setPasswordError('As senhas não coincidem.')
+      return
+    }
+
+    setPasswordSaving(true)
+    try {
+      await api.post('/me/password', {
+        current_password: passwordForm.current_password,
+        new_password: passwordForm.new_password,
+      })
+      setPasswordForm({
+        current_password: '',
+        new_password: '',
+        confirm_password: '',
+      })
+      setPasswordSuccess('Senha alterada com sucesso.')
+    } catch (err) {
+      setPasswordError(err.message)
+    } finally {
+      setPasswordSaving(false)
     }
   }
 
@@ -228,6 +265,88 @@ export function ProfilePage() {
           >
             <Save size={16} />
             {saving ? 'Salvando...' : 'Salvar alterações'}
+          </button>
+        </div>
+      </form>
+
+      <form onSubmit={handlePasswordSubmit} className="bg-surface rounded-xl border border-border-subtle shadow-card overflow-hidden mt-5">
+        <div className="p-5 border-b border-border-subtle flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-[color:var(--color-accent)]/15 text-accent flex items-center justify-center">
+            <KeyRound size={18} />
+          </div>
+          <div>
+            <h2 className="font-semibold text-text-primary">Alterar senha</h2>
+            <p className="text-sm text-text-secondary">
+              Informe sua senha atual para definir uma nova.
+            </p>
+          </div>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {passwordError && (
+            <div className="rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm p-3">
+              {passwordError}
+            </div>
+          )}
+          {passwordSuccess && (
+            <div className="rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-sm p-3">
+              {passwordSuccess}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-1">
+                Senha atual
+              </label>
+              <input
+                type="password"
+                value={passwordForm.current_password}
+                onChange={(e) => setPasswordForm({ ...passwordForm, current_password: e.target.value })}
+                className="w-full form-control rounded-lg border px-3 py-2 text-sm outline-none transition-colors"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-1">
+                Nova senha
+              </label>
+              <input
+                type="password"
+                minLength={6}
+                value={passwordForm.new_password}
+                onChange={(e) => setPasswordForm({ ...passwordForm, new_password: e.target.value })}
+                className="w-full form-control rounded-lg border px-3 py-2 text-sm outline-none transition-colors"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-1">
+                Confirmar senha
+              </label>
+              <input
+                type="password"
+                minLength={6}
+                value={passwordForm.confirm_password}
+                onChange={(e) => setPasswordForm({ ...passwordForm, confirm_password: e.target.value })}
+                className="w-full form-control rounded-lg border px-3 py-2 text-sm outline-none transition-colors"
+                required
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="px-5 py-4 border-t border-border-subtle bg-surface-alt flex justify-end">
+          <button
+            type="submit"
+            disabled={passwordSaving}
+            className="inline-flex items-center gap-2 text-white px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
+            style={{ background: 'var(--color-accent)' }}
+          >
+            <KeyRound size={16} />
+            {passwordSaving ? 'Salvando...' : 'Alterar senha'}
           </button>
         </div>
       </form>
