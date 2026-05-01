@@ -16,6 +16,13 @@ function formatDate(value) {
   return new Date(value).toLocaleDateString('pt-BR')
 }
 
+function formatDuration(minutes) {
+  const total = Number(minutes) || 0
+  const h = Math.floor(total / 60)
+  const m = total % 60
+  return `${h}h ${String(m).padStart(2, '0')}m`
+}
+
 function formatDateTime(value) {
   if (!value) return '-'
   return new Date(value).toLocaleString('pt-BR', {
@@ -189,6 +196,7 @@ export function AdminReportsPage() {
                 { value: 'overview', label: 'Resumo' },
                 { value: 'users', label: 'Colaboradores' },
                 { value: 'projects', label: 'Projetos' },
+                { value: 'daily-hours', label: 'Horas por Dia' },
                 { value: 'entries', label: 'Apontamentos' },
                 { value: 'expenses', label: 'Despesas' },
                 { value: 'bonuses', label: 'Bônus' },
@@ -367,6 +375,63 @@ export function AdminReportsPage() {
                         </td>
                         <td className="px-4 py-3 text-right text-text-secondary tabular-nums">
                           {project.percent_of_hours_cost}%
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </Card>
+          )}
+
+          {tab === 'daily-hours' && (
+            <Card padded={false} className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border-subtle bg-surface-alt">
+                    <th className={headerClass}>Data</th>
+                    <th className={headerClass}>Colaborador</th>
+                    <th className={headerClass}>Projetos</th>
+                    <th className={rightHeaderClass}>Apontamentos</th>
+                    <th className={rightHeaderClass}>Horas no dia</th>
+                    <th className={rightHeaderClass}>Custo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(financialData.daily_hours || []).length === 0 ? (
+                    <EmptyRow colSpan={6} />
+                  ) : (
+                    financialData.daily_hours.map((day) => (
+                      <tr key={day.id} className={rowClass}>
+                        <td className="px-4 py-3 text-text-secondary">
+                          {formatDate(day.date)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-text-primary">
+                            {day.profile?.name || 'Desconhecido'}
+                          </p>
+                          <p className="text-xs text-text-secondary">
+                            {day.profile?.position || day.profile?.email || '-'}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="text-text-primary">
+                            {day.projects?.[0]?.name || 'Sem projeto'}
+                          </p>
+                          <p className="text-xs text-text-secondary">
+                            {day.projects_count > 1
+                              ? `+${day.projects_count - 1} projeto(s)`
+                              : day.projects?.[0]?.client || '-'}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3 text-right text-text-secondary tabular-nums">
+                          {day.entries_count}
+                        </td>
+                        <td className="px-4 py-3 text-right font-semibold text-text-primary tabular-nums">
+                          {formatDuration(day.total_minutes)}
+                        </td>
+                        <td className="px-4 py-3 text-right text-text-primary tabular-nums">
+                          {formatCurrency(day.total_cost)}
                         </td>
                       </tr>
                     ))

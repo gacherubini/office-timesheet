@@ -25,6 +25,75 @@ function addMovementDate(set, value) {
   if (value) set.add(String(value).slice(0, 10))
 }
 
+function buildDailyHours(entries = [], profileMap = new Map(), projectMap = new Map()) {
+  const dailyMap = new Map()
+
+  for (const entry of entries || []) {
+    const day = entry.started_at?.slice(0, 10)
+    if (!day) continue
+
+    const profile = profileMap.get(entry.user_id)
+    const key = `${entry.user_id}:${day}`
+
+    if (!dailyMap.has(key)) {
+      dailyMap.set(key, {
+        id: key,
+        date: day,
+        user_id: entry.user_id,
+        profile: profile
+          ? { id: profile.id, name: profile.name, email: profile.email, position: profile.position }
+          : { id: entry.user_id, name: 'Desconhecido', email: null, position: null },
+        total_minutes: 0,
+        total_cost: 0,
+        entries_count: 0,
+        projects: new Map(),
+      })
+    }
+
+    const daily = dailyMap.get(key)
+    const minutes = Number(entry.duration_minutes) || 0
+    const cost = Number(entry.cost_snapshot) || 0
+    daily.total_minutes += minutes
+    daily.total_cost += cost
+    daily.entries_count += 1
+
+    const project = projectMap.get(entry.project_id)
+    const projectId = entry.project_id || 'sem-projeto'
+    if (!daily.projects.has(projectId)) {
+      daily.projects.set(projectId, {
+        id: projectId,
+        name: project?.name || 'Sem projeto',
+        client: project?.client || null,
+        minutes: 0,
+        cost: 0,
+      })
+    }
+
+    const dailyProject = daily.projects.get(projectId)
+    dailyProject.minutes += minutes
+    dailyProject.cost += cost
+  }
+
+  return Array.from(dailyMap.values())
+    .map((daily) => ({
+      ...daily,
+      total_hours: hoursFromMinutes(daily.total_minutes),
+      total_cost: roundMoney(daily.total_cost),
+      projects_count: daily.projects.size,
+      projects: Array.from(daily.projects.values())
+        .map((project) => ({
+          ...project,
+          hours: hoursFromMinutes(project.minutes),
+          cost: roundMoney(project.cost),
+        }))
+        .sort((a, b) => b.minutes - a.minutes),
+    }))
+    .sort((a, b) => (
+      b.date.localeCompare(a.date) ||
+      String(a.profile?.name || '').localeCompare(String(b.profile?.name || ''))
+    ))
+}
+
 router.get('/reports/financial', requireAuth, requireAdmin, async (req, res) => {
   const { start_date, end_date } = req.query
 
@@ -286,6 +355,8 @@ router.get('/reports/financial', requireAuth, requireAdmin, async (req, res) => 
     })
     .sort((a, b) => new Date(b.started_at) - new Date(a.started_at))
 
+  const dailyHours = buildDailyHours(entries, profileMap, projectMap)
+
   return res.json({
     period: { start_date, end_date },
     summary: {
@@ -303,10 +374,64 @@ router.get('/reports/financial', requireAuth, requireAdmin, async (req, res) => 
     },
     by_user: byUser,
     by_project: byProject,
+    daily_hours: dailyHours,
     entries: enrichedEntries,
     expenses: enrichedExpenses,
     bonuses: enrichedBonuses,
     alerts,
+  })
+})
+
+router.get('/reports/daily-hours', requireAuth, requireAdmin, async (req, res) => {
+  const { start_date, end_date, user_id } = req.query
+
+  if (!start_date || !end_date) {
+    return res.status(400).json({ error: 'start_date e end_date são obrigatórios.' })
+  }
+
+  let entriesQuery = adminClient
+    .from('time_entries')
+    .select('id, user_id, project_id, started_at, ended_at, duration_minutes, cost_snapshot, status')
+    .eq('status', 'completed')
+    .gte('started_at', startOfDayIso(start_date))
+    .lte('started_at', endOfDayIso(end_date))
+
+  if (user_id) entriesQuery = entriesQuery.eq('user_id', user_id)
+
+  const [
+    { data: entries, error: entriesError },
+    { data: profiles, error: profilesError },
+    { data: projects, error: projectsError },
+  ] = await Promise.all([
+    entriesQuery,
+    adminClient
+      .from('profiles')
+      .select('id, name, email, position, hourly_rate'),
+    adminClient
+      .from('projects')
+      .select('id, name, client, status'),
+  ])
+
+  if (entriesError) return res.status(400).json({ error: entriesError.message })
+  if (profilesError) return res.status(400).json({ error: profilesError.message })
+  if (projectsError) return res.status(400).json({ error: projectsError.message })
+
+  const profileMap = new Map((profiles || []).map((profile) => [profile.id, profile]))
+  const projectMap = new Map((projects || []).map((project) => [project.id, project]))
+  const dailyHours = buildDailyHours(entries, profileMap, projectMap)
+  const totalMinutes = dailyHours.reduce((sum, day) => sum + day.total_minutes, 0)
+  const totalCost = dailyHours.reduce((sum, day) => sum + day.total_cost, 0)
+
+  return res.json({
+    period: { start_date, end_date },
+    daily_hours: dailyHours,
+    summary: {
+      total_minutes: totalMinutes,
+      total_hours: hoursFromMinutes(totalMinutes),
+      total_cost: roundMoney(totalCost),
+      people_count: new Set(dailyHours.map((day) => day.user_id)).size,
+      days_count: new Set(dailyHours.map((day) => day.date)).size,
+    },
   })
 })
 
