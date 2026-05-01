@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '../../lib/api'
-import { MessageCircle, Plus } from 'lucide-react'
+import { AlertTriangle, MessageCircle, Plus } from 'lucide-react'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { Modal } from '../../components/ui/Modal'
@@ -31,6 +31,9 @@ export function AdminSuppliersPage() {
   const [error, setError] = useState('')
   const [pageError, setPageError] = useState('')
   const [form, setForm] = useState(emptyForm)
+  const [supplierToDelete, setSupplierToDelete] = useState(null)
+  const [deleteError, setDeleteError] = useState('')
+  const [deleting, setDeleting] = useState(false)
 
   async function loadSuppliers() {
     setPageError('')
@@ -85,14 +88,18 @@ export function AdminSuppliersPage() {
     }
   }
 
-  async function handleDelete(supplier) {
-    if (!confirm(`Excluir o fornecedor "${supplier.name}"?`)) return
-
+  async function handleDelete() {
+    if (!supplierToDelete) return
+    setDeleteError('')
+    setDeleting(true)
     try {
-      await api.delete(`/admin/suppliers/${supplier.id}`)
-      loadSuppliers()
+      await api.delete(`/admin/suppliers/${supplierToDelete.id}`)
+      setSuppliers((prev) => prev.filter((supplier) => supplier.id !== supplierToDelete.id))
+      setSupplierToDelete(null)
     } catch (err) {
-      alert(err.message)
+      setDeleteError(err.message)
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -199,7 +206,10 @@ export function AdminSuppliersPage() {
                         Editar
                       </button>
                       <button
-                        onClick={() => handleDelete(supplier)}
+                        onClick={() => {
+                          setSupplierToDelete(supplier)
+                          setDeleteError('')
+                        }}
                         className="text-sm text-rose-500 hover:text-rose-400 transition-colors"
                       >
                         Excluir
@@ -259,6 +269,58 @@ export function AdminSuppliersPage() {
             {editingSupplier ? 'Salvar' : 'Criar Fornecedor'}
           </Button>
         </form>
+      </Modal>
+
+      <Modal
+        open={Boolean(supplierToDelete)}
+        onClose={() => {
+          setSupplierToDelete(null)
+          setDeleteError('')
+        }}
+        size="lg"
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setSupplierToDelete(null)
+                setDeleteError('')
+              }}
+              disabled={deleting}
+            >
+              Cancelar
+            </Button>
+            <Button variant="danger" onClick={handleDelete} disabled={deleting}>
+              {deleting ? 'Excluindo...' : 'Sim, excluir'}
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col items-center text-center mb-5">
+          <div className="bg-rose-500/15 rounded-full p-4 mb-4">
+            <AlertTriangle className="text-rose-500" size={36} />
+          </div>
+          <h3 className="font-display text-2xl text-text-primary mb-2">
+            Excluir fornecedor?
+          </h3>
+          <p className="text-text-secondary">
+            Você está prestes a excluir{' '}
+            <strong className="text-text-primary">{supplierToDelete?.name}</strong>
+          </p>
+        </div>
+        <div className="bg-rose-500/10 border border-rose-500/20 rounded-lg p-4 text-sm">
+          <p className="font-medium text-text-primary mb-1">
+            Esta ação remove o cadastro.
+          </p>
+          <p className="text-text-secondary">
+            Confira se este fornecedor não será mais necessário antes de continuar.
+          </p>
+        </div>
+        {deleteError && (
+          <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mt-3">
+            {deleteError}
+          </div>
+        )}
       </Modal>
     </div>
   )

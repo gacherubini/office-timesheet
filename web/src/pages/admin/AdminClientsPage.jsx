@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '../../lib/api'
-import { MessageCircle, Plus } from 'lucide-react'
+import { AlertTriangle, MessageCircle, Plus } from 'lucide-react'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { Modal } from '../../components/ui/Modal'
@@ -30,6 +30,9 @@ export function AdminClientsPage() {
   const [error, setError] = useState('')
   const [pageError, setPageError] = useState('')
   const [form, setForm] = useState(emptyForm)
+  const [clientToDelete, setClientToDelete] = useState(null)
+  const [deleteError, setDeleteError] = useState('')
+  const [deleting, setDeleting] = useState(false)
 
   async function loadClients() {
     setPageError('')
@@ -83,14 +86,18 @@ export function AdminClientsPage() {
     }
   }
 
-  async function handleDelete(client) {
-    if (!confirm(`Excluir o cliente "${client.name}"?`)) return
-
+  async function handleDelete() {
+    if (!clientToDelete) return
+    setDeleteError('')
+    setDeleting(true)
     try {
-      await api.delete(`/admin/clients/${client.id}`)
-      loadClients()
+      await api.delete(`/admin/clients/${clientToDelete.id}`)
+      setClients((prev) => prev.filter((client) => client.id !== clientToDelete.id))
+      setClientToDelete(null)
     } catch (err) {
-      alert(err.message)
+      setDeleteError(err.message)
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -193,7 +200,10 @@ export function AdminClientsPage() {
                         Editar
                       </button>
                       <button
-                        onClick={() => handleDelete(client)}
+                        onClick={() => {
+                          setClientToDelete(client)
+                          setDeleteError('')
+                        }}
                         className="text-sm text-rose-500 hover:text-rose-400 transition-colors"
                       >
                         Excluir
@@ -247,6 +257,58 @@ export function AdminClientsPage() {
             {editingClient ? 'Salvar' : 'Criar Cliente'}
           </Button>
         </form>
+      </Modal>
+
+      <Modal
+        open={Boolean(clientToDelete)}
+        onClose={() => {
+          setClientToDelete(null)
+          setDeleteError('')
+        }}
+        size="lg"
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setClientToDelete(null)
+                setDeleteError('')
+              }}
+              disabled={deleting}
+            >
+              Cancelar
+            </Button>
+            <Button variant="danger" onClick={handleDelete} disabled={deleting}>
+              {deleting ? 'Excluindo...' : 'Sim, excluir'}
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col items-center text-center mb-5">
+          <div className="bg-rose-500/15 rounded-full p-4 mb-4">
+            <AlertTriangle className="text-rose-500" size={36} />
+          </div>
+          <h3 className="font-display text-2xl text-text-primary mb-2">
+            Excluir cliente?
+          </h3>
+          <p className="text-text-secondary">
+            Você está prestes a excluir{' '}
+            <strong className="text-text-primary">{clientToDelete?.name}</strong>
+          </p>
+        </div>
+        <div className="bg-rose-500/10 border border-rose-500/20 rounded-lg p-4 text-sm">
+          <p className="font-medium text-text-primary mb-1">
+            Esta ação remove o cadastro.
+          </p>
+          <p className="text-text-secondary">
+            Confira se este cliente não será mais necessário antes de continuar.
+          </p>
+        </div>
+        {deleteError && (
+          <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mt-3">
+            {deleteError}
+          </div>
+        )}
       </Modal>
     </div>
   )
