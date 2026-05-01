@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '../../lib/api'
-import { Plus, Trash2, Pencil } from 'lucide-react'
+import { Plus, Trash2, Pencil, Gift } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { Avatar } from '../../components/Avatar'
 import { PageHeader } from '../../components/ui/PageHeader'
@@ -75,6 +75,7 @@ export function AdminTimeEntriesPage() {
   const monthRange = getMonthRange()
   const [entries, setEntries] = useState([])
   const [expenses, setExpenses] = useState([])
+  const [bonuses, setBonuses] = useState([])
   const [summary, setSummary] = useState(null)
   const [pagination, setPagination] = useState({ page: 1, pages: 1 })
   const [users, setUsers] = useState([])
@@ -93,6 +94,18 @@ export function AdminTimeEntriesPage() {
   const [selectedPauses, setSelectedPauses] = useState(null)
   const [form, setForm] = useState({ user_id: '', project_id: '', started_at: '', ended_at: '' })
   const [error, setError] = useState('')
+
+  const [showBonusForm, setShowBonusForm] = useState(false)
+  const [editingBonus, setEditingBonus] = useState(null)
+  const [bonusForm, setBonusForm] = useState({
+    user_id: '',
+    title: '',
+    description: '',
+    amount: '',
+    bonus_date: new Date().toISOString().slice(0, 10),
+  })
+  const [bonusError, setBonusError] = useState('')
+  const [bonusSubmitting, setBonusSubmitting] = useState(false)
 
   useEffect(() => {
     Promise.all([api.get('/admin/users'), api.get('/projects')]).then(([u, p]) => {
@@ -114,6 +127,7 @@ export function AdminTimeEntriesPage() {
       const res = await api.get(`/admin/time-entries?${params}`)
       setEntries(res.data)
       setExpenses(res.expenses || [])
+      setBonuses(res.bonuses || [])
       setSummary(res.summary)
       setPagination(res.pagination)
     } catch (err) {
@@ -183,6 +197,74 @@ export function AdminTimeEntriesPage() {
     }
   }
 
+  function openBonusCreate() {
+    setEditingBonus(null)
+    setBonusForm({
+      user_id: '',
+      title: '',
+      description: '',
+      amount: '',
+      bonus_date: new Date().toISOString().slice(0, 10),
+    })
+    setBonusError('')
+    setShowBonusForm(true)
+  }
+
+  function openBonusEdit(bonus) {
+    setEditingBonus(bonus)
+    setBonusForm({
+      user_id: bonus.user_id,
+      title: bonus.title || '',
+      description: bonus.description || '',
+      amount: bonus.amount ?? '',
+      bonus_date: bonus.bonus_date || new Date().toISOString().slice(0, 10),
+    })
+    setBonusError('')
+    setShowBonusForm(true)
+  }
+
+  function closeBonusForm() {
+    setShowBonusForm(false)
+    setEditingBonus(null)
+    setBonusError('')
+  }
+
+  async function handleBonusSubmit(e) {
+    e?.preventDefault?.()
+    setBonusSubmitting(true)
+    setBonusError('')
+    try {
+      const payload = {
+        user_id: bonusForm.user_id,
+        title: bonusForm.title,
+        description: bonusForm.description || null,
+        amount: Number(bonusForm.amount),
+        bonus_date: bonusForm.bonus_date,
+      }
+      if (editingBonus) {
+        await api.put(`/admin/bonuses/${editingBonus.id}`, payload)
+      } else {
+        await api.post('/admin/bonuses', payload)
+      }
+      closeBonusForm()
+      loadEntries(pagination.page)
+    } catch (err) {
+      setBonusError(err.message)
+    } finally {
+      setBonusSubmitting(false)
+    }
+  }
+
+  async function handleBonusDelete(bonus) {
+    if (!confirm(`Excluir o bônus "${bonus.title}"?`)) return
+    try {
+      await api.delete(`/admin/bonuses/${bonus.id}`)
+      loadEntries(pagination.page)
+    } catch (err) {
+      alert(err.message)
+    }
+  }
+
   const selectedUser = users.find((user) => user.id === filters.user_id)
   const dailyTotals = (summary?.daily_totals || []).reduce((acc, item) => {
     acc[`${item.user_id}:${item.date}`] = item.minutes
@@ -204,8 +286,8 @@ export function AdminTimeEntriesPage() {
 
   const totalCost = summary?.total_cost || 0
   const reimbursements = summary?.reimbursements || 0
-  const bonuses = summary?.bonuses || 0
-  const netTotal = summary?.net_total ?? totalCost + reimbursements + bonuses
+  const bonusesTotal = summary?.bonuses || 0
+  const netTotal = summary?.net_total ?? totalCost + reimbursements + bonusesTotal
 
   return (
     <div>
@@ -213,15 +295,21 @@ export function AdminTimeEntriesPage() {
         title="Histórico da Equipe"
         subtitle={`${profile?.name || 'Administrador'} · Administrador`}
         actions={
-          <Button
-            onClick={() => {
-              resetForm()
-              setShowForm(true)
-            }}
-          >
-            <Plus size={16} />
-            Adicionar Registro
-          </Button>
+          <>
+            <Button variant="secondary" onClick={openBonusCreate}>
+              <Gift size={16} />
+              Adicionar Bônus
+            </Button>
+            <Button
+              onClick={() => {
+                resetForm()
+                setShowForm(true)
+              }}
+            >
+              <Plus size={16} />
+              Adicionar Registro
+            </Button>
+          </>
         }
       />
 
@@ -288,7 +376,7 @@ export function AdminTimeEntriesPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-7 gap-3 mb-4">
         <SummaryCard label="Salário Base / Horas" value={formatCurrency(totalCost)} />
         <SummaryCard label="Reembolso Despesas" value={formatCurrency(reimbursements)} />
-        <SummaryCard label="Adicional Bônus" value={formatCurrency(bonuses)} />
+        <SummaryCard label="Adicional Bônus" value={formatCurrency(bonusesTotal)} />
         <SummaryCard label="Total Líquido" value={formatCurrency(netTotal)} accent />
         <SummaryCard label="Horas Totais" value={formatDuration(summary?.total_minutes)} />
         <SummaryCard label="Média de Horas/Dia" value={formatDuration(summary?.average_minutes_per_day)} />
@@ -385,6 +473,82 @@ export function AdminTimeEntriesPage() {
         </Card>
       )}
 
+      {bonuses.length > 0 && (
+        <Card padded={false} className="overflow-x-auto mb-4">
+          <div className="px-4 py-3 border-b border-border-subtle bg-surface-alt">
+            <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary">
+              Bônus
+            </h2>
+          </div>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-border-subtle bg-surface-alt">
+                <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                  Data
+                </th>
+                <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                  Colaborador
+                </th>
+                <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                  Bônus
+                </th>
+                <th className="text-right px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                  Valor
+                </th>
+                <th className="text-right px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                  Ações
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {bonuses.map((bonus) => (
+                <tr
+                  key={bonus.id}
+                  className="border-b border-border-subtle last:border-b-0 hover:bg-surface-alt transition-colors"
+                >
+                  <td className="px-3 py-3 whitespace-nowrap text-text-primary">
+                    {formatDate(bonus.bonus_date)}
+                  </td>
+                  <td className="px-3 py-3 min-w-40">
+                    <p className="font-medium text-text-primary">{bonus.profile?.name || '-'}</p>
+                    {bonus.profile?.position && (
+                      <p className="text-[11px] text-text-secondary">{bonus.profile.position}</p>
+                    )}
+                  </td>
+                  <td className="px-3 py-3 min-w-56">
+                    <p className="font-medium text-text-primary">{bonus.title}</p>
+                    {bonus.description && (
+                      <p className="text-[11px] text-text-secondary mt-0.5 line-clamp-2">
+                        {bonus.description}
+                      </p>
+                    )}
+                  </td>
+                  <td className="px-3 py-3 text-right whitespace-nowrap font-medium tabular-nums text-accent">
+                    {formatCurrency(bonus.amount)}
+                  </td>
+                  <td className="px-3 py-3 text-right whitespace-nowrap">
+                    <button
+                      onClick={() => openBonusEdit(bonus)}
+                      className="text-text-secondary hover:text-text-primary mr-2 transition-colors"
+                      title="Editar"
+                    >
+                      <Pencil size={15} />
+                    </button>
+                    <button
+                      onClick={() => handleBonusDelete(bonus)}
+                      className="text-text-secondary hover:text-rose-500 transition-colors"
+                      title="Excluir"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      )}
+
       <Modal
         open={showForm}
         onClose={resetForm}
@@ -440,6 +604,69 @@ export function AdminTimeEntriesPage() {
           />
           <Button type="submit" className="w-full">
             {editingEntry ? 'Salvar' : 'Adicionar Registro'}
+          </Button>
+        </form>
+      </Modal>
+
+      <Modal
+        open={showBonusForm}
+        onClose={closeBonusForm}
+        title={editingBonus ? 'Editar Bônus' : 'Adicionar Bônus'}
+      >
+        {bonusError && (
+          <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mb-4">
+            {bonusError}
+          </div>
+        )}
+        <form onSubmit={handleBonusSubmit} className="space-y-3">
+          <Select
+            label="Colaborador"
+            required
+            value={bonusForm.user_id}
+            onChange={(e) => setBonusForm({ ...bonusForm, user_id: e.target.value })}
+          >
+            <option value="">Selecione...</option>
+            {users.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name}
+              </option>
+            ))}
+          </Select>
+          <Input
+            label="Título"
+            required
+            placeholder="Ex: Bônus por meta atingida"
+            value={bonusForm.title}
+            onChange={(e) => setBonusForm({ ...bonusForm, title: e.target.value })}
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Valor (R$)"
+              type="number"
+              step="0.01"
+              min="0.01"
+              required
+              value={bonusForm.amount}
+              onChange={(e) => setBonusForm({ ...bonusForm, amount: e.target.value })}
+            />
+            <Input
+              label="Data do bônus"
+              type="date"
+              required
+              value={bonusForm.bonus_date}
+              onChange={(e) => setBonusForm({ ...bonusForm, bonus_date: e.target.value })}
+            />
+          </div>
+          <Input
+            label="Descrição (opcional)"
+            as="textarea"
+            rows={3}
+            className="!min-h-20"
+            value={bonusForm.description}
+            onChange={(e) => setBonusForm({ ...bonusForm, description: e.target.value })}
+          />
+          <Button type="submit" disabled={bonusSubmitting} className="w-full">
+            {bonusSubmitting ? 'Salvando...' : editingBonus ? 'Salvar' : 'Criar Bônus'}
           </Button>
         </form>
       </Modal>

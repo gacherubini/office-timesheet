@@ -16,6 +16,7 @@ router.get('/reports/payroll', requireAuth, requireAdmin, async (req, res) => {
   const [
     { data: entries, error: entriesError },
     { data: expenses, error: expensesError },
+    { data: bonuses, error: bonusesError },
     { data: profiles, error: profilesError },
   ] = await Promise.all([
     adminClient
@@ -31,12 +32,18 @@ router.get('/reports/payroll', requireAuth, requireAdmin, async (req, res) => {
       .gte('expense_date', start_date)
       .lte('expense_date', end_date),
     adminClient
+      .from('bonuses')
+      .select('user_id, amount')
+      .gte('bonus_date', start_date)
+      .lte('bonus_date', end_date),
+    adminClient
       .from('profiles')
       .select('id, name, email, hourly_rate'),
   ])
 
   if (entriesError) return res.status(400).json({ error: entriesError.message })
   if (expensesError) return res.status(400).json({ error: expensesError.message })
+  if (bonusesError) return res.status(400).json({ error: bonusesError.message })
   if (profilesError) return res.status(400).json({ error: profilesError.message })
 
   const userMap = {}
@@ -50,6 +57,7 @@ router.get('/reports/payroll', requireAuth, requireAdmin, async (req, res) => {
       total_hours: 0,
       total_cost: 0,
       total_expenses: 0,
+      total_bonuses: 0,
       entries_count: 0,
     }
   }
@@ -68,14 +76,21 @@ router.get('/reports/payroll', requireAuth, requireAdmin, async (req, res) => {
     }
   }
 
+  for (const bonus of bonuses || []) {
+    if (userMap[bonus.user_id]) {
+      userMap[bonus.user_id].total_bonuses += Number(bonus.amount) || 0
+    }
+  }
+
   const payroll = Object.values(userMap)
-    .filter((u) => u.entries_count > 0 || u.total_expenses > 0)
+    .filter((u) => u.entries_count > 0 || u.total_expenses > 0 || u.total_bonuses > 0)
     .map((u) => ({
       ...u,
       total_hours: Number((u.total_minutes / 60).toFixed(2)),
       total_cost: Number(u.total_cost.toFixed(2)),
       total_expenses: Number(u.total_expenses.toFixed(2)),
-      total_to_pay: Number((u.total_cost + u.total_expenses).toFixed(2)),
+      total_bonuses: Number(u.total_bonuses.toFixed(2)),
+      total_to_pay: Number((u.total_cost + u.total_expenses + u.total_bonuses).toFixed(2)),
     }))
     .sort((a, b) => a.name.localeCompare(b.name))
 

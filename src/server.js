@@ -10,6 +10,7 @@ import usersRoutes from './routes/users.js'
 import reportsRoutes from './routes/reports.js'
 import dashboardRoutes from './routes/dashboard.js'
 import expensesRoutes from './routes/expenses.js'
+import bonusesRoutes from './routes/bonuses.js'
 
 
 const app = express()
@@ -29,6 +30,7 @@ app.use(authRoutes)
 app.use(projectsRoutes)
 app.use(timeEntriesRoutes)
 app.use(expensesRoutes)
+app.use(bonusesRoutes)
 app.use('/admin', reportsRoutes)
 app.use('/admin', dashboardRoutes)
 

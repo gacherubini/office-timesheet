@@ -113,6 +113,9 @@ export function AdminReportsPage() {
                   Despesas
                 </th>
                 <th className="text-right px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                  Bônus
+                </th>
+                <th className="text-right px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
                   Total a Pagar
                 </th>
               </tr>
@@ -120,7 +123,7 @@ export function AdminReportsPage() {
             <tbody>
               {payrollData.payroll.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-10 text-text-secondary">
+                  <td colSpan={8} className="text-center py-10 text-text-secondary">
                     Nenhum dado encontrado para o período.
                   </td>
                 </tr>
@@ -142,6 +145,9 @@ export function AdminReportsPage() {
                     <td className="px-4 py-3 text-right text-accent tabular-nums">
                       {formatCurrency(u.total_expenses)}
                     </td>
+                    <td className="px-4 py-3 text-right text-emerald-500 tabular-nums">
+                      {formatCurrency(u.total_bonuses)}
+                    </td>
                     <td className="px-4 py-3 text-right font-bold text-text-primary tabular-nums">
                       {formatCurrency(u.total_to_pay)}
                     </td>
@@ -152,7 +158,7 @@ export function AdminReportsPage() {
             {payrollData.payroll.length > 0 && (
               <tfoot>
                 <tr className="bg-surface-alt border-t-2 border-border-subtle">
-                  <td colSpan={6} className="px-4 py-3 font-bold text-text-primary">
+                  <td colSpan={7} className="px-4 py-3 font-bold text-text-primary">
                     Total Geral
                   </td>
                   <td className="px-4 py-3 text-right font-bold font-display text-xl tabular-nums text-text-primary">

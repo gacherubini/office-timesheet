@@ -701,6 +701,7 @@ router.get('/admin/time-entries', requireAuth, requireAdmin, async (req, res) =>
   }
 
   let approvedExpenses = []
+  let bonusList = []
 
   if (!project_id) {
     let expensesQuery = adminClient
@@ -713,29 +714,51 @@ router.get('/admin/time-entries', requireAuth, requireAdmin, async (req, res) =>
     if (start_date) expensesQuery = expensesQuery.gte('expense_date', start_date)
     if (end_date) expensesQuery = expensesQuery.lte('expense_date', end_date)
 
-    const { data: expenses, error: expensesError } = await expensesQuery
+    let bonusesQuery = adminClient
+      .from('bonuses')
+      .select('id, user_id, title, description, amount, bonus_date, created_at')
+      .order('bonus_date', { ascending: false })
 
-    if (expensesError) {
-      return res.status(400).json({ error: expensesError.message })
-    }
+    if (user_id) bonusesQuery = bonusesQuery.eq('user_id', user_id)
+    if (start_date) bonusesQuery = bonusesQuery.gte('bonus_date', start_date)
+    if (end_date) bonusesQuery = bonusesQuery.lte('bonus_date', end_date)
+
+    const [
+      { data: expenses, error: expensesError },
+      { data: bonuses, error: bonusesError },
+    ] = await Promise.all([expensesQuery, bonusesQuery])
+
+    if (expensesError) return res.status(400).json({ error: expensesError.message })
+    if (bonusesError) return res.status(400).json({ error: bonusesError.message })
 
     approvedExpenses = expenses || []
+    bonusList = bonuses || []
 
-    const expenseUserIds = [...new Set(approvedExpenses.map((expense) => expense.user_id).filter(Boolean))]
-    if (expenseUserIds.length > 0) {
-      const { data: expenseProfiles, error: expenseProfilesError } = await adminClient
+    const profileIds = [
+      ...new Set([
+        ...approvedExpenses.map((e) => e.user_id),
+        ...bonusList.map((b) => b.user_id),
+      ].filter(Boolean)),
+    ]
+
+    if (profileIds.length > 0) {
+      const { data: relatedProfiles, error: profilesError } = await adminClient
         .from('profiles')
         .select('id, name, email, position, avatar_url')
-        .in('id', expenseUserIds)
+        .in('id', profileIds)
 
-      if (expenseProfilesError) {
-        return res.status(400).json({ error: expenseProfilesError.message })
+      if (profilesError) {
+        return res.status(400).json({ error: profilesError.message })
       }
 
-      const expenseProfileMap = new Map((expenseProfiles || []).map((profile) => [profile.id, profile]))
+      const profileMap = new Map((relatedProfiles || []).map((p) => [p.id, p]))
       approvedExpenses = approvedExpenses.map((expense) => ({
         ...expense,
-        profile: expenseProfileMap.get(expense.user_id) || null,
+        profile: profileMap.get(expense.user_id) || null,
+      }))
+      bonusList = bonusList.map((bonus) => ({
+        ...bonus,
+        profile: profileMap.get(bonus.user_id) || null,
       }))
     }
   }
@@ -760,7 +783,7 @@ router.get('/admin/time-entries', requireAuth, requireAdmin, async (req, res) =>
   const reimbursements = approvedExpenses.reduce((sum, expense) => (
     sum + (expense.status === 'approved' ? (Number(expense.amount) || 0) : 0)
   ), 0)
-  const bonuses = 0
+  const bonuses = bonusList.reduce((sum, bonus) => sum + (Number(bonus.amount) || 0), 0)
   const netTotal = totalCost + reimbursements + bonuses
 
   return res.json({
@@ -774,7 +797,7 @@ router.get('/admin/time-entries', requireAuth, requireAdmin, async (req, res) =>
       average_minutes_per_day: averageMinutesPerDay,
       working_days: workingDays,
       reimbursements: Number(reimbursements.toFixed(2)),
-      bonuses,
+      bonuses: Number(bonuses.toFixed(2)),
       net_total: Number(netTotal.toFixed(2)),
       daily_totals: Object.entries(dailyTotalsMap).map(([key, minutes]) => {
         const [userId, date] = key.split(':')
@@ -782,6 +805,7 @@ router.get('/admin/time-entries', requireAuth, requireAdmin, async (req, res) =>
       }),
     },
     expenses: approvedExpenses,
+    bonuses: bonusList,
     pagination: {
       page,
       limit,
