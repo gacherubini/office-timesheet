@@ -3,6 +3,11 @@ import { api } from '../../lib/api'
 import { Check, Clock, FolderOpen, Receipt, Users, X } from 'lucide-react'
 import { BirthdayCalendar } from '../../components/BirthdayCalendar'
 import { Avatar } from '../../components/Avatar'
+import { PageHeader } from '../../components/ui/PageHeader'
+import { DateRange } from '../../components/ui/DateRange'
+import { MetricCard } from '../../components/ui/MetricCard'
+import { Card } from '../../components/ui/Card'
+import { Tabs } from '../../components/ui/Tabs'
 
 function getMonthRange() {
   const now = new Date()
@@ -17,10 +22,9 @@ function formatCurrency(value) {
 }
 
 function formatHours(minutes) {
-  const h = Math.floor(minutes / 60)
-  const m = Math.floor(minutes % 60)
-  const s = 0
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  const h = Math.floor((minutes || 0) / 60)
+  const m = Math.floor((minutes || 0) % 60)
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`
 }
 
 function formatDateTime(iso) {
@@ -37,21 +41,6 @@ function formatDateTime(iso) {
 function formatDate(value) {
   if (!value) return '-'
   return new Date(`${value}T00:00:00`).toLocaleDateString('pt-BR')
-}
-
-function KpiCard({ label, value, sub, icon: Icon, color }) {
-  return (
-    <div className="bg-white rounded-lg shadow-sm border p-5">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-sm text-gray-500">{label}</span>
-        <div className={`p-2 rounded-lg ${color}`}>
-          <Icon size={18} className="text-white" />
-        </div>
-      </div>
-      <p className="text-2xl font-bold text-gray-900">{value}</p>
-      {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
-    </div>
-  )
 }
 
 export function AdminDashboardPage() {
@@ -73,7 +62,8 @@ export function AdminDashboardPage() {
     if (!startDate || !endDate) return
     setLoading(true)
     setError('')
-    api.get(`/admin/dashboard?start_date=${startDate}&end_date=${endDate}`)
+    api
+      .get(`/admin/dashboard?start_date=${startDate}&end_date=${endDate}`)
       .then(setData)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
@@ -176,262 +166,285 @@ export function AdminDashboardPage() {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <h1 className="text-2xl font-bold">Início</h1>
-        <div className="flex items-center gap-2 text-sm">
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+      <PageHeader
+        title="Início"
+        subtitle="Visão geral do período selecionado"
+        actions={
+          <DateRange
+            from={startDate}
+            to={endDate}
+            onFromChange={setStartDate}
+            onToChange={setEndDate}
+            fromLabel={null}
+            toLabel={null}
           />
-          <span className="text-gray-400">→</span>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-          />
-        </div>
-      </div>
+        }
+      />
 
       {error && (
-        <div className="bg-red-50 text-red-700 text-sm rounded-md p-3 mb-6">{error}</div>
+        <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mb-6">
+          {error}
+        </div>
       )}
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-        <KpiCard
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-7">
+        <MetricCard
           label="Horas no Período"
-          value={loading ? '...' : formatHours(kpis?.total_minutes ?? 0)}
+          value={loading ? '—' : formatHours(kpis?.total_minutes ?? 0)}
           icon={Clock}
-          color="bg-slate-500"
+          iconColor="var(--color-accent)"
         />
-        <KpiCard
+        <MetricCard
           label="Usuários Ativos"
-          value={loading ? '...' : `${kpis?.active_users ?? 0} de ${kpis?.total_users ?? 0}`}
+          value={loading ? '—' : `${kpis?.active_users ?? 0} de ${kpis?.total_users ?? 0}`}
           icon={Users}
-          color="bg-slate-500"
+          iconColor="#8B7355"
         />
-        <KpiCard
+        <MetricCard
           label="Projetos Ativos"
-          value={loading ? '...' : `${kpis?.active_projects ?? 0} de ${kpis?.total_projects ?? 0}`}
+          value={loading ? '—' : `${kpis?.active_projects ?? 0} de ${kpis?.total_projects ?? 0}`}
           icon={FolderOpen}
-          color="bg-slate-500"
+          iconColor="#3D5C5C"
         />
       </div>
 
-      {/* Tabs + Calendário de aniversariantes */}
-      <div className="flex flex-col lg:flex-row gap-6">
-      <div className="flex-1 bg-white rounded-lg shadow-sm border">
-        <div className="flex border-b">
-          {['team', 'projects'].map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                tab === t
-                  ? 'border-gray-900 text-gray-900'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {t === 'team' ? 'Equipe' : 'Projetos'}
-            </button>
-          ))}
-        </div>
-
-        <div className="divide-y">
-          {loading ? (
-            <div className="py-10 text-center text-gray-400 text-sm">Carregando...</div>
-          ) : tab === 'team' ? (
-            (data?.team ?? []).length === 0 ? (
-              <div className="py-10 text-center text-gray-400 text-sm">Nenhum apontamento no período.</div>
-            ) : (
-              data.team.map((member) => (
-                <div key={member.user_id} className="flex items-center justify-between px-5 py-4">
-                  <div className="flex items-center gap-3">
-                    <Avatar name={member.name} url={member.avatar_url} size={36} />
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{member.name}</p>
-                      {member.position && (
-                        <p className="text-xs text-gray-400">{member.position}</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-gray-900">{formatHours(member.total_minutes)}</p>
-                    <p className="text-xs text-gray-400">{member.project_count} {member.project_count === 1 ? 'Projeto' : 'Projetos'}</p>
-                  </div>
-                </div>
-              ))
-            )
-          ) : (
-            (data?.projects ?? []).length === 0 ? (
-              <div className="py-10 text-center text-gray-400 text-sm">Nenhum apontamento no período.</div>
-            ) : (
-              data.projects.map((project) => (
-                <div key={project.project_id} className="flex items-center justify-between px-5 py-4">
-                  <p className="text-sm font-medium text-gray-900">{project.name}</p>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-gray-900">{formatHours(project.total_minutes)}</p>
-                    <p className="text-xs text-gray-400">{project.member_count} {project.member_count === 1 ? 'Membro' : 'Membros'}</p>
-                  </div>
-                </div>
-              ))
-            )
-          )}
-        </div>
-      </div>
-
-      {/* Coluna lateral: solicitações e aniversariantes */}
-      <div className="lg:w-80 space-y-6">
-        <div className="bg-white rounded-lg shadow-sm border">
-          <div className="px-5 py-4 border-b">
-            <h2 className="text-sm font-semibold text-gray-900">Solicitações</h2>
+      <div className="flex flex-col lg:flex-row gap-5">
+        <Card padded={false} className="flex-1 overflow-hidden lg:self-start">
+          <div className="px-2 pt-2">
+            <Tabs
+              value={tab}
+              onChange={setTab}
+              items={[
+                { value: 'team', label: 'Equipe' },
+                { value: 'projects', label: 'Projetos' },
+              ]}
+            />
           </div>
 
-          <div className="divide-y">
-            {requestsLoading ? (
-              <div className="py-8 text-center text-sm text-gray-400">Carregando...</div>
-            ) : requests.length === 0 ? (
-              <div className="py-8 px-5 text-center text-sm text-gray-400">
-                Nenhuma solicitação pendente.
-              </div>
-            ) : (
-              requests.map((request) => (
-                <div key={request.id} className="p-4 space-y-3">
-                  <div className="flex items-center gap-3">
-                    <Avatar
-                      name={request.profile?.name}
-                      url={request.profile?.avatar_url}
-                      size={34}
-                    />
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {request.profile?.name || 'Colaborador'}
+          <div className="divide-y divide-border-subtle">
+            {loading ? (
+              <div className="py-10 text-center text-text-secondary text-sm">Carregando...</div>
+            ) : tab === 'team' ? (
+              (data?.team ?? []).length === 0 ? (
+                <div className="py-10 text-center text-text-secondary text-sm">
+                  Nenhum apontamento no período.
+                </div>
+              ) : (
+                data.team.map((member) => (
+                  <div
+                    key={member.user_id}
+                    className="flex items-center justify-between px-5 py-4 hover:bg-surface-alt transition-colors"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Avatar name={member.name} url={member.avatar_url} size={36} />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-text-primary truncate">
+                          {member.name}
+                        </p>
+                        {member.position && (
+                          <p className="text-xs text-text-secondary truncate">{member.position}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-text-primary tabular-nums">
+                        {formatHours(member.total_minutes)}
                       </p>
-                      <p className="text-xs text-gray-400">
-                        {formatDateTime(request.created_at)}
+                      <p className="text-xs text-text-secondary">
+                        {member.project_count} {member.project_count === 1 ? 'Projeto' : 'Projetos'}
                       </p>
                     </div>
                   </div>
-
-                  <div className="text-xs text-gray-500 space-y-1">
-                    <p>
-                      <span className="font-medium text-gray-700">Atual:</span>{' '}
-                      {request.time_entry?.projects?.name || '-'} · {formatDateTime(request.time_entry?.started_at)}
-                    </p>
-                    <p>
-                      <span className="font-medium text-gray-700">Pedido:</span>{' '}
-                      {request.requested_project?.name || '-'} · {formatDateTime(request.requested_started_at)}
-                    </p>
-                    <p className="line-clamp-3">{request.reason}</p>
+                ))
+              )
+            ) : (data?.projects ?? []).length === 0 ? (
+              <div className="py-10 text-center text-text-secondary text-sm">
+                Nenhum apontamento no período.
+              </div>
+            ) : (
+              data.projects.map((project) => (
+                <div
+                  key={project.project_id}
+                  className="flex items-center justify-between px-5 py-4 hover:bg-surface-alt transition-colors"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-lg bg-surface-alt flex items-center justify-center flex-shrink-0">
+                      <FolderOpen size={18} className="text-accent" />
+                    </div>
+                    <p className="text-sm font-medium text-text-primary truncate">{project.name}</p>
                   </div>
-
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => approveRequest(request.id)}
-                      disabled={decidingId === request.id}
-                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md bg-gray-900 px-3 py-2 text-xs font-medium text-white hover:bg-gray-800 disabled:opacity-60"
-                    >
-                      <Check size={14} />
-                      Aprovar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => rejectRequest(request.id)}
-                      disabled={decidingId === request.id}
-                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-xs font-medium hover:bg-gray-50 disabled:opacity-60"
-                    >
-                      <X size={14} />
-                      Rejeitar
-                    </button>
+                  <div className="text-right">
+                    <p className="text-sm font-semibold text-text-primary tabular-nums">
+                      {formatHours(project.total_minutes)}
+                    </p>
+                    <p className="text-xs text-text-secondary">
+                      {project.member_count} {project.member_count === 1 ? 'Membro' : 'Membros'}
+                    </p>
                   </div>
                 </div>
               ))
             )}
           </div>
-        </div>
+        </Card>
 
-        <div className="bg-white rounded-lg shadow-sm border">
-          <div className="px-5 py-4 border-b flex items-center gap-2">
-            <Receipt size={16} className="text-gray-500" />
-            <h2 className="text-sm font-semibold text-gray-900">Despesas</h2>
-          </div>
+        <div className="lg:w-80 space-y-5">
+          <Card padded={false} className="overflow-hidden">
+            <div className="px-5 py-4 border-b border-border-subtle">
+              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary">
+                Solicitações
+              </h2>
+            </div>
 
-          <div className="divide-y">
-            {expensesLoading ? (
-              <div className="py-8 text-center text-sm text-gray-400">Carregando...</div>
-            ) : expenses.length === 0 ? (
-              <div className="py-8 px-5 text-center text-sm text-gray-400">
-                Nenhuma despesa pendente.
-              </div>
-            ) : (
-              expenses.map((expense) => (
-                <div key={expense.id} className="p-4 space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
+            <div className="divide-y divide-border-subtle">
+              {requestsLoading ? (
+                <div className="py-8 text-center text-sm text-text-secondary">Carregando...</div>
+              ) : requests.length === 0 ? (
+                <div className="py-8 px-5 text-center text-sm text-text-secondary">
+                  Nenhuma solicitação pendente.
+                </div>
+              ) : (
+                requests.map((request) => (
+                  <div key={request.id} className="p-4 space-y-3">
+                    <div className="flex items-center gap-3">
                       <Avatar
-                        name={expense.profile?.name}
-                        url={expense.profile?.avatar_url}
+                        name={request.profile?.name}
+                        url={request.profile?.avatar_url}
                         size={34}
                       />
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">
-                          {expense.profile?.name || 'Colaborador'}
+                        <p className="text-sm font-medium text-text-primary truncate">
+                          {request.profile?.name || 'Colaborador'}
                         </p>
-                        <p className="text-xs text-gray-400">{formatDate(expense.expense_date)}</p>
+                        <p className="text-xs text-text-secondary">
+                          {formatDateTime(request.created_at)}
+                        </p>
                       </div>
                     </div>
-                    <p className="text-sm font-semibold text-gray-900 whitespace-nowrap">
-                      {formatCurrency(expense.amount)}
-                    </p>
-                  </div>
 
-                  <div className="text-xs text-gray-500 space-y-1">
-                    <p className="font-medium text-gray-800">{expense.title}</p>
-                    {expense.description && <p className="line-clamp-3">{expense.description}</p>}
-                    {expense.receipt_url && (
-                      <a
-                        href={expense.receipt_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-block text-gray-700 underline hover:text-gray-900"
+                    <div className="text-xs text-text-secondary space-y-1">
+                      <p>
+                        <span className="font-medium text-text-primary">Atual:</span>{' '}
+                        {request.time_entry?.projects?.name || '-'} ·{' '}
+                        {formatDateTime(request.time_entry?.started_at)}
+                      </p>
+                      <p>
+                        <span className="font-medium text-text-primary">Pedido:</span>{' '}
+                        {request.requested_project?.name || '-'} ·{' '}
+                        {formatDateTime(request.requested_started_at)}
+                      </p>
+                      <p className="line-clamp-3">{request.reason}</p>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => approveRequest(request.id)}
+                        disabled={decidingId === request.id}
+                        className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium text-white hover:opacity-90 disabled:opacity-60 transition-opacity"
+                        style={{ background: 'var(--color-accent)' }}
                       >
-                        Abrir comprovante
-                      </a>
-                    )}
+                        <Check size={14} />
+                        Aprovar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => rejectRequest(request.id)}
+                        disabled={decidingId === request.id}
+                        className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border-subtle px-3 py-2 text-xs font-medium text-text-primary hover:bg-surface-alt disabled:opacity-60 transition-colors"
+                      >
+                        <X size={14} />
+                        Rejeitar
+                      </button>
+                    </div>
                   </div>
+                ))
+              )}
+            </div>
+          </Card>
 
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => approveExpense(expense.id)}
-                      disabled={decidingExpenseId === expense.id}
-                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md bg-gray-900 px-3 py-2 text-xs font-medium text-white hover:bg-gray-800 disabled:opacity-60"
-                    >
-                      <Check size={14} />
-                      Aprovar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => rejectExpense(expense.id)}
-                      disabled={decidingExpenseId === expense.id}
-                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-xs font-medium hover:bg-gray-50 disabled:opacity-60"
-                    >
-                      <X size={14} />
-                      Rejeitar
-                    </button>
-                  </div>
+          <Card padded={false} className="overflow-hidden">
+            <div className="px-5 py-4 border-b border-border-subtle flex items-center gap-2">
+              <Receipt size={14} className="text-text-secondary" />
+              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary">
+                Despesas
+              </h2>
+            </div>
+
+            <div className="divide-y divide-border-subtle">
+              {expensesLoading ? (
+                <div className="py-8 text-center text-sm text-text-secondary">Carregando...</div>
+              ) : expenses.length === 0 ? (
+                <div className="py-8 px-5 text-center text-sm text-text-secondary">
+                  Nenhuma despesa pendente.
                 </div>
-              ))
-            )}
-          </div>
-        </div>
+              ) : (
+                expenses.map((expense) => (
+                  <div key={expense.id} className="p-4 space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Avatar
+                          name={expense.profile?.name}
+                          url={expense.profile?.avatar_url}
+                          size={34}
+                        />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-text-primary truncate">
+                            {expense.profile?.name || 'Colaborador'}
+                          </p>
+                          <p className="text-xs text-text-secondary">
+                            {formatDate(expense.expense_date)}
+                          </p>
+                        </div>
+                      </div>
+                      <p className="text-sm font-semibold text-text-primary whitespace-nowrap tabular-nums">
+                        {formatCurrency(expense.amount)}
+                      </p>
+                    </div>
 
-        <BirthdayCalendar />
-      </div>
+                    <div className="text-xs text-text-secondary space-y-1">
+                      <p className="font-medium text-text-primary">{expense.title}</p>
+                      {expense.description && <p className="line-clamp-3">{expense.description}</p>}
+                      {expense.receipt_url && (
+                        <a
+                          href={expense.receipt_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-block text-accent underline hover:opacity-80"
+                        >
+                          Abrir comprovante
+                        </a>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => approveExpense(expense.id)}
+                        disabled={decidingExpenseId === expense.id}
+                        className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium text-white hover:opacity-90 disabled:opacity-60 transition-opacity"
+                        style={{ background: 'var(--color-accent)' }}
+                      >
+                        <Check size={14} />
+                        Aprovar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => rejectExpense(expense.id)}
+                        disabled={decidingExpenseId === expense.id}
+                        className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border-subtle px-3 py-2 text-xs font-medium text-text-primary hover:bg-surface-alt disabled:opacity-60 transition-colors"
+                      >
+                        <X size={14} />
+                        Rejeitar
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </Card>
+
+          <BirthdayCalendar />
+        </div>
       </div>
     </div>
   )

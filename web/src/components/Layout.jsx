@@ -1,10 +1,26 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { Home, History, Users, FolderOpen, Radio, FileText, LogOut, BarChart3, User, Receipt } from 'lucide-react'
+import { useTheme } from '../contexts/ThemeContext'
+import {
+  Home,
+  History,
+  Users,
+  FolderOpen,
+  Radio,
+  FileText,
+  LogOut,
+  BarChart3,
+  User,
+  Receipt,
+  Sun,
+  Moon,
+} from 'lucide-react'
 import { Avatar } from './Avatar'
+import { Logo } from './Logo'
 
 export function Layout({ children }) {
   const { profile, isAdmin, logout } = useAuth()
+  const { isDark, toggleTheme } = useTheme()
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -32,48 +48,73 @@ export function Layout({ children }) {
   const menuLinks = [...links, { to: '/profile', label: 'Perfil', icon: User }]
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row">
-      {/* Sidebar */}
-      <aside className="w-full md:w-60 bg-gray-900 text-white flex md:flex-col flex-row md:h-screen md:sticky md:top-0">
-        <div className="p-4 font-bold text-lg hidden md:block border-b border-gray-700">
-          Timesheet
+    <div className="min-h-screen flex flex-col md:flex-row bg-bg text-text-primary">
+      <aside
+        className="w-full md:w-60 md:min-w-60 md:h-screen md:sticky md:top-0 flex md:flex-col flex-row py-0 md:py-6 transition-colors"
+        style={{ background: 'var(--color-sidebar)' }}
+      >
+        <div className="hidden md:flex items-center gap-3 px-6 mb-10">
+          <Logo size={28} color="#FFFFFF" />
+          <span className="text-white text-sm font-semibold tracking-wider uppercase">
+            Gestão VOID
+          </span>
         </div>
 
-        <nav className="flex md:flex-col flex-row flex-1 overflow-x-auto md:overflow-x-visible md:overflow-y-auto">
-          {menuLinks.map(({ to, label, icon: Icon }) => (
-            <Link
-              key={to}
-              to={to}
-              className={`flex items-center gap-2 px-4 py-3 text-sm transition-colors hover:bg-gray-800 ${
-                location.pathname === to ? 'bg-gray-800 text-white' : 'text-gray-400'
-              }`}
-            >
-              <Icon size={18} />
-              <span className="hidden md:inline">{label}</span>
-            </Link>
-          ))}
+        <nav className="flex md:flex-col flex-row flex-1 md:gap-0.5 overflow-x-auto md:overflow-x-visible md:overflow-y-auto">
+          {menuLinks.map(({ to, label, icon: Icon }) => {
+            const active = location.pathname === to
+            return (
+              <Link
+                key={to}
+                to={to}
+                className={`flex items-center gap-3 px-4 md:px-6 py-3 text-sm transition-all whitespace-nowrap ${
+                  active
+                    ? 'text-white font-medium md:border-l-[3px] bg-white/10'
+                    : 'text-white/60 hover:text-white hover:bg-white/5 md:border-l-[3px] md:border-transparent'
+                }`}
+                style={active ? { borderLeftColor: 'var(--color-accent)' } : undefined}
+              >
+                <Icon size={18} />
+                <span className="hidden md:inline">{label}</span>
+              </Link>
+            )
+          })}
         </nav>
 
-        <div className="p-4 border-t border-gray-700 hidden md:block">
-          <Link to="/profile" className="flex items-center gap-2 mb-1 group">
-            <Avatar name={profile?.name} url={profile?.avatar_url} size={32} />
+        <div className="hidden md:block px-6 pt-4 mt-2 border-t border-white/10">
+          <Link to="/profile" className="flex items-center gap-3 group">
+            <Avatar name={profile?.name} url={profile?.avatar_url} size={36} />
             <div className="min-w-0 flex-1">
-              <p className="text-sm text-gray-300 truncate group-hover:text-white transition-colors">{profile?.name}</p>
-              <p className="text-xs text-gray-500 truncate">{profile?.email}</p>
+              <p className="text-white text-sm font-medium truncate">
+                {profile?.name || 'Usuário'}
+              </p>
+              <p className="text-white/60 text-[11px] truncate">{profile?.email}</p>
             </div>
           </Link>
-          <button
-            onClick={handleLogout}
-            className="mt-2 flex items-center gap-1 text-sm text-gray-400 hover:text-white transition-colors"
-          >
-            <LogOut size={14} />
-            Sair
-          </button>
+
+          <div className="flex items-center gap-3 mt-3">
+            <button
+              onClick={toggleTheme}
+              className="flex items-center gap-2 text-white/60 hover:text-white text-[13px] transition-colors"
+              aria-label={isDark ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
+            >
+              {isDark ? <Sun size={16} /> : <Moon size={16} />}
+              <span>{isDark ? 'Claro' : 'Escuro'}</span>
+            </button>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 text-white/60 hover:text-white text-[13px] transition-colors ml-auto"
+            >
+              <LogOut size={16} />
+              Sair
+            </button>
+          </div>
         </div>
       </aside>
 
-      {/* Main content */}
-      <main className="flex-1 p-4 md:p-8">{children}</main>
+      <main className="flex-1 bg-bg text-text-primary p-4 md:p-8 overflow-x-hidden transition-colors">
+        {children}
+      </main>
     </div>
   )
 }

@@ -1,10 +1,34 @@
 import { useState, useEffect } from 'react'
 import { api } from '../../lib/api'
-import { Radio } from 'lucide-react'
+import { PageHeader } from '../../components/ui/PageHeader'
+import { Card } from '../../components/ui/Card'
+import { Avatar } from '../../components/Avatar'
+
+const REFRESH_INTERVAL_S = 15
+
+const STATUS_META = {
+  running: { label: 'Em andamento', color: '#4CAF50' },
+  paused: { label: 'Pausado', color: 'var(--color-accent)' },
+  offline: { label: 'Offline', color: '#A09A90' },
+}
+
+function StatusPill({ status }) {
+  const meta = STATUS_META[status] || STATUS_META.offline
+  return (
+    <div className="inline-flex items-center gap-2 text-xs text-text-secondary">
+      <span
+        className="w-2 h-2 rounded-full inline-block"
+        style={{ background: meta.color }}
+      />
+      {meta.label}
+    </div>
+  )
+}
 
 export function AdminLivePage() {
   const [team, setTeam] = useState([])
   const [loading, setLoading] = useState(true)
+  const [countdown, setCountdown] = useState(REFRESH_INTERVAL_S)
 
   async function loadLive() {
     try {
@@ -19,65 +43,124 @@ export function AdminLivePage() {
 
   useEffect(() => {
     loadLive()
-    const interval = setInterval(loadLive, 15000) // atualiza a cada 15s
-    return () => clearInterval(interval)
   }, [])
 
-  function statusBadge(status) {
-    const map = {
-      running: { text: 'Em andamento', cls: 'bg-green-100 text-green-700', dot: 'bg-green-500' },
-      paused: { text: 'Pausado', cls: 'bg-yellow-100 text-yellow-700', dot: 'bg-yellow-500' },
-      offline: { text: 'Offline', cls: 'bg-gray-100 text-gray-500', dot: 'bg-gray-400' },
-    }
-    const s = map[status] || map.offline
-    return (
-      <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded ${s.cls}`}>
-        <span className={`w-2 h-2 rounded-full ${s.dot}`} />
-        {s.text}
-      </span>
-    )
-  }
-
-  if (loading) {
-    return <div className="text-gray-400 text-center py-12">Carregando...</div>
-  }
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCountdown((c) => {
+        if (c <= 1) {
+          loadLive()
+          return REFRESH_INTERVAL_S
+        }
+        return c - 1
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [])
 
   const online = team.filter((m) => m.status !== 'offline')
   const offline = team.filter((m) => m.status === 'offline')
 
+  function UserRow({ user, last }) {
+    const meta = STATUS_META[user.status] || STATUS_META.offline
+    return (
+      <div
+        className={`flex items-center justify-between px-5 py-3.5 hover:bg-surface-alt transition-colors ${
+          last ? '' : 'border-b border-border-subtle'
+        }`}
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="relative flex-shrink-0">
+            <Avatar name={user.name} url={user.avatar_url} size={36} />
+            {user.status !== 'offline' && (
+              <span
+                className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-surface"
+                style={{ background: meta.color }}
+              />
+            )}
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-text-primary truncate">{user.name}</p>
+            {user.project && (
+              <p className="text-xs text-text-secondary truncate">{user.project}</p>
+            )}
+          </div>
+        </div>
+        <StatusPill status={user.status} />
+      </div>
+    )
+  }
+
   return (
     <div>
-      <div className="flex items-center gap-2 mb-6">
-        <Radio size={24} className="text-green-600" />
-        <h1 className="text-2xl font-bold">Painel Live</h1>
-        <span className="text-sm text-gray-400 ml-2">Atualiza a cada 15s</span>
-      </div>
+      <PageHeader
+        title="Painel Live"
+        subtitle="Monitoramento em tempo real da equipe"
+        badge={
+          <span className="text-[11px] text-text-secondary bg-surface-alt px-2.5 py-1 rounded-full">
+            Atualiza em {countdown}s
+          </span>
+        }
+      />
 
-      <div className="grid gap-3">
-        {online.map((member) => (
-          <div key={member.id} className="bg-white rounded-lg shadow-sm border p-4 flex items-center justify-between">
-            <div>
-              <p className="font-medium">{member.name}</p>
-              {member.project && (
-                <p className="text-sm text-gray-500">{member.project}</p>
-              )}
-            </div>
-            {statusBadge(member.status)}
+      {loading ? (
+        <div className="py-16 text-center text-text-secondary text-sm">Carregando...</div>
+      ) : (
+        <>
+          <div className="grid grid-cols-3 gap-4 mb-7">
+            <Card>
+              <p className="text-[11px] uppercase tracking-wider font-medium text-text-secondary mb-2">
+                Total
+              </p>
+              <p className="font-display text-2xl text-text-primary">{team.length}</p>
+            </Card>
+            <Card>
+              <p className="text-[11px] uppercase tracking-wider font-medium text-text-secondary mb-2">
+                Online
+              </p>
+              <p className="font-display text-2xl text-emerald-500">{online.length}</p>
+            </Card>
+            <Card>
+              <p className="text-[11px] uppercase tracking-wider font-medium text-text-secondary mb-2">
+                Offline
+              </p>
+              <p className="font-display text-2xl text-text-secondary">{offline.length}</p>
+            </Card>
           </div>
-        ))}
 
-        {offline.length > 0 && (
-          <>
-            <p className="text-sm text-gray-400 mt-4 mb-1">Offline</p>
-            {offline.map((member) => (
-              <div key={member.id} className="bg-white rounded-lg shadow-sm border p-4 flex items-center justify-between opacity-60">
-                <p className="font-medium">{member.name}</p>
-                {statusBadge('offline')}
-              </div>
-            ))}
-          </>
-        )}
-      </div>
+          {online.length > 0 && (
+            <div className="mb-5">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-500 mb-2.5">
+                Online
+              </p>
+              <Card padded={false} className="overflow-hidden">
+                {online.map((u, i) => (
+                  <UserRow key={`on-${u.id}`} user={u} last={i === online.length - 1} />
+                ))}
+              </Card>
+            </div>
+          )}
+
+          {offline.length > 0 && (
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary mb-2.5">
+                Offline
+              </p>
+              <Card padded={false} className="overflow-hidden">
+                {offline.map((u, i) => (
+                  <UserRow key={`off-${u.id}`} user={u} last={i === offline.length - 1} />
+                ))}
+              </Card>
+            </div>
+          )}
+
+          {team.length === 0 && (
+            <div className="py-16 text-center text-text-secondary text-sm">
+              Nenhum colaborador encontrado.
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }

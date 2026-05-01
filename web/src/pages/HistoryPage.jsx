@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '../lib/api'
+import { PageHeader } from '../components/ui/PageHeader'
+import { Card } from '../components/ui/Card'
+import { Modal } from '../components/ui/Modal'
+import { Input, Select } from '../components/ui/Input'
+import { Button } from '../components/ui/Button'
+import { Badge } from '../components/ui/Badge'
 
 function formatDate(iso) {
   if (!iso) return '-'
@@ -32,24 +38,28 @@ function toLocalInputValue(iso) {
   return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16)
 }
 
-function statusLabel(status) {
-  const map = {
-    completed: { text: 'Concluído', cls: 'bg-green-100 text-green-700' },
-    running: { text: 'Em andamento', cls: 'bg-blue-100 text-blue-700' },
-    paused: { text: 'Pausado', cls: 'bg-yellow-100 text-yellow-700' },
-  }
-  const s = map[status] || { text: status, cls: 'bg-gray-100 text-gray-700' }
-  return <span className={`text-xs font-medium px-2 py-0.5 rounded ${s.cls}`}>{s.text}</span>
+const STATUS_TONE = {
+  completed: 'success',
+  running: 'info',
+  paused: 'warning',
 }
 
-function requestStatusLabel(status) {
-  const map = {
-    pending: { text: 'Pendente', cls: 'bg-amber-100 text-amber-700' },
-    approved: { text: 'Aprovada', cls: 'bg-green-100 text-green-700' },
-    rejected: { text: 'Recusada', cls: 'bg-red-100 text-red-700' },
-  }
-  const s = map[status] || { text: status, cls: 'bg-gray-100 text-gray-700' }
-  return <span className={`text-xs font-medium px-2 py-0.5 rounded ${s.cls}`}>{s.text}</span>
+const STATUS_LABEL = {
+  completed: 'Concluído',
+  running: 'Em andamento',
+  paused: 'Pausado',
+}
+
+const REQUEST_TONE = {
+  pending: 'warning',
+  approved: 'success',
+  rejected: 'danger',
+}
+
+const REQUEST_LABEL = {
+  pending: 'Pendente',
+  approved: 'Aprovada',
+  rejected: 'Recusada',
 }
 
 export function HistoryPage() {
@@ -155,39 +165,64 @@ export function HistoryPage() {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-        <h1 className="text-2xl font-bold">Meu Histórico</h1>
-        {success && <p className="text-sm text-green-700 bg-green-50 px-3 py-2 rounded-md">{success}</p>}
-      </div>
+      <PageHeader
+        title="Meu Histórico"
+        subtitle="Apontamentos e solicitações de alteração"
+        badge={
+          success && (
+            <span className="text-sm text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-md">
+              {success}
+            </span>
+          )
+        }
+      />
 
       {error && (
-        <div className="bg-red-50 text-red-700 text-sm rounded-md p-3 mb-4">{error}</div>
+        <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mb-4">
+          {error}
+        </div>
       )}
 
-      <div className="bg-white rounded-lg shadow-sm border overflow-x-auto">
+      <Card padded={false} className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b bg-gray-50">
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Data</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Projeto</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Início</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Saída</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Duração</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Solicitação</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-600">Ações</th>
+            <tr className="border-b border-border-subtle bg-surface-alt">
+              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                Data
+              </th>
+              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                Projeto
+              </th>
+              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                Início
+              </th>
+              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                Saída
+              </th>
+              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                Duração
+              </th>
+              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                Status
+              </th>
+              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                Solicitação
+              </th>
+              <th className="text-right px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                Ações
+              </th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={8} className="text-center py-8 text-gray-400">
+                <td colSpan={8} className="text-center py-10 text-text-secondary">
                   Carregando...
                 </td>
               </tr>
             ) : entries.length === 0 ? (
               <tr>
-                <td colSpan={8} className="text-center py-8 text-gray-400">
+                <td colSpan={8} className="text-center py-10 text-text-secondary">
                   Nenhum apontamento encontrado.
                 </td>
               </tr>
@@ -198,25 +233,48 @@ export function HistoryPage() {
                 const canRequest = entry.status === 'completed' && !hasPendingRequest
 
                 return (
-                  <tr key={entry.id} className="border-b last:border-b-0 hover:bg-gray-50">
-                    <td className="px-4 py-3 whitespace-nowrap">{formatDate(entry.started_at)}</td>
-                    <td className="px-4 py-3 min-w-40">{entry.projects?.name || '-'}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">{formatTime(entry.started_at)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">{formatTime(entry.ended_at)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">{formatDuration(entry.duration_minutes)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">{statusLabel(entry.status)}</td>
+                  <tr
+                    key={entry.id}
+                    className="border-b border-border-subtle last:border-b-0 hover:bg-surface-alt transition-colors"
+                  >
+                    <td className="px-4 py-3 whitespace-nowrap text-text-primary">
+                      {formatDate(entry.started_at)}
+                    </td>
+                    <td className="px-4 py-3 min-w-40 text-text-primary">
+                      {entry.projects?.name || '-'}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap tabular-nums text-text-primary">
+                      {formatTime(entry.started_at)}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap tabular-nums text-text-primary">
+                      {formatTime(entry.ended_at)}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap tabular-nums text-text-primary">
+                      {formatDuration(entry.duration_minutes)}
+                    </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      {request ? requestStatusLabel(request.status) : <span className="text-gray-400">-</span>}
+                      <Badge tone={STATUS_TONE[entry.status] || 'neutral'}>
+                        {STATUS_LABEL[entry.status] || entry.status}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {request ? (
+                        <Badge tone={REQUEST_TONE[request.status] || 'neutral'}>
+                          {REQUEST_LABEL[request.status] || request.status}
+                        </Badge>
+                      ) : (
+                        <span className="text-text-secondary">-</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button
-                        type="button"
+                      <Button
+                        variant="secondary"
+                        size="sm"
                         onClick={() => openRequestModal(entry)}
                         disabled={!canRequest}
-                        className="px-3 py-1.5 rounded-md border text-xs font-medium hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         Solicitar alteração
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 )
@@ -224,111 +282,101 @@ export function HistoryPage() {
             )}
           </tbody>
         </table>
-      </div>
+      </Card>
 
       {pagination.pages > 1 && (
         <div className="flex justify-center gap-2 mt-4">
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => loadHistory(pagination.page - 1)}
             disabled={pagination.page <= 1}
-            className="px-3 py-1 text-sm border rounded hover:bg-gray-50 disabled:opacity-30"
           >
             Anterior
-          </button>
-          <span className="px-3 py-1 text-sm text-gray-500">
+          </Button>
+          <span className="px-3 py-1 text-sm text-text-secondary">
             {pagination.page} de {pagination.pages}
           </span>
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => loadHistory(pagination.page + 1)}
             disabled={pagination.page >= pagination.pages}
-            className="px-3 py-1 text-sm border rounded hover:bg-gray-50 disabled:opacity-30"
           >
             Próximo
-          </button>
+          </Button>
         </div>
       )}
 
-      {selectedEntry && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-xl border w-full max-w-lg">
-            <div className="px-5 py-4 border-b">
-              <h2 className="text-lg font-semibold text-gray-900">Solicitar alteração de ponto</h2>
-              <p className="text-sm text-gray-500 mt-1">
-                {formatDate(selectedEntry.started_at)} · {selectedEntry.projects?.name || 'Sem projeto'}
-              </p>
-            </div>
+      <Modal
+        open={Boolean(selectedEntry)}
+        onClose={closeRequestModal}
+        title="Solicitar alteração de ponto"
+        size="lg"
+        footer={
+          <>
+            <Button variant="ghost" onClick={closeRequestModal}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSubmit} disabled={submitting}>
+              {submitting ? 'Enviando...' : 'Enviar solicitação'}
+            </Button>
+          </>
+        }
+      >
+        {selectedEntry && (
+          <p className="text-sm text-text-secondary mb-4">
+            {formatDate(selectedEntry.started_at)} ·{' '}
+            {selectedEntry.projects?.name || 'Sem projeto'}
+          </p>
+        )}
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <Select
+            label="Projeto correto"
+            value={form.requested_project_id}
+            onChange={(e) => setForm((prev) => ({ ...prev, requested_project_id: e.target.value }))}
+            required
+          >
+            <option value="">Selecione um projeto</option>
+            {projects.map((project) => (
+              <option key={project.id} value={project.id}>
+                {project.name}
+              </option>
+            ))}
+          </Select>
 
-            <div className="p-5 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Projeto correto</label>
-                <select
-                  value={form.requested_project_id}
-                  onChange={(e) => setForm((prev) => ({ ...prev, requested_project_id: e.target.value }))}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                  required
-                >
-                  <option value="">Selecione um projeto</option>
-                  {projects.map((project) => (
-                    <option key={project.id} value={project.id}>
-                      {project.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input
+              label="Início correto"
+              type="datetime-local"
+              value={form.requested_started_at}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, requested_started_at: e.target.value }))
+              }
+              required
+            />
+            <Input
+              label="Saída correta"
+              type="datetime-local"
+              value={form.requested_ended_at}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, requested_ended_at: e.target.value }))
+              }
+              required
+            />
+          </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Início correto</label>
-                  <input
-                    type="datetime-local"
-                    value={form.requested_started_at}
-                    onChange={(e) => setForm((prev) => ({ ...prev, requested_started_at: e.target.value }))}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Saída correta</label>
-                  <input
-                    type="datetime-local"
-                    value={form.requested_ended_at}
-                    onChange={(e) => setForm((prev) => ({ ...prev, requested_ended_at: e.target.value }))}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Motivo</label>
-                <textarea
-                  value={form.reason}
-                  onChange={(e) => setForm((prev) => ({ ...prev, reason: e.target.value }))}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm min-h-24 resize-y focus:outline-none focus:ring-2 focus:ring-gray-900"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="px-5 py-4 border-t flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={closeRequestModal}
-                className="px-4 py-2 rounded-md border text-sm font-medium hover:bg-gray-50"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="px-4 py-2 rounded-md bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 disabled:opacity-60"
-              >
-                {submitting ? 'Enviando...' : 'Enviar solicitação'}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+          <Input
+            label="Motivo"
+            as="textarea"
+            value={form.reason}
+            onChange={(e) => setForm((prev) => ({ ...prev, reason: e.target.value }))}
+            className="!min-h-24"
+            rows={4}
+            required
+          />
+        </form>
+      </Modal>
     </div>
   )
 }

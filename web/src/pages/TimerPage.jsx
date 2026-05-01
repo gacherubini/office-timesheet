@@ -125,26 +125,26 @@ export function TimerPage() {
 
   return (
     <div className="max-w-md mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Apontamento</h1>
+      <h1 className="text-2xl font-bold text-text-primary mb-6">Apontamento</h1>
 
       {error && (
-        <div className="bg-red-50 text-red-700 text-sm rounded-md p-3 mb-4">
+        <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mb-4">
           {error}
         </div>
       )}
 
       {/* Timer display */}
-      <div className="bg-white rounded-lg shadow-sm border p-8 text-center mb-6">
+      <div className="bg-surface rounded-xl shadow-card border border-border-subtle p-8 text-center mb-6">
         {currentEntry && (
           <div className="flex flex-col items-center gap-2 mb-2">
             {currentEntry.project_image && (
               <img src={currentEntry.project_image} alt="" className="w-12 h-12 rounded-md object-cover" />
             )}
-            <p className="text-sm text-gray-500">{currentEntry.project_name}</p>
+            <p className="text-sm text-text-secondary">{currentEntry.project_name}</p>
           </div>
         )}
 
-        <p className="text-5xl font-mono font-bold tabular-nums mb-2">
+        <p className="text-5xl font-mono font-bold tabular-nums text-text-primary mb-2">
           {formatTime(elapsed)}
         </p>
 
@@ -163,7 +163,7 @@ export function TimerPage() {
       {/* Seleção de projeto (só aparece quando idle) */}
       {isIdle && (
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Projeto</label>
+          <label className="block text-sm font-medium text-text-secondary mb-2">Projeto</label>
           <div className="grid gap-2 max-h-60 overflow-y-auto">
             {projects.map((p) => (
               <button
@@ -172,18 +172,18 @@ export function TimerPage() {
                 onClick={() => setSelectedProject(p.id)}
                 className={`flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-lg border transition-colors ${
                   selectedProject === p.id
-                    ? 'border-gray-900 bg-gray-50 ring-1 ring-gray-900'
-                    : 'border-gray-200 hover:border-gray-400'
+                    ? 'border-accent bg-surface-alt ring-1 ring-accent'
+                    : 'border-border-subtle bg-surface hover:border-accent'
                 }`}
               >
                 {p.image_url ? (
                   <img src={p.image_url} alt="" className="w-9 h-9 rounded-md object-cover flex-shrink-0" />
                 ) : (
-                  <div className="w-9 h-9 rounded-md bg-gray-100 flex-shrink-0" />
+                  <div className="w-9 h-9 rounded-md bg-surface-alt flex-shrink-0" />
                 )}
                 <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">{p.name}</p>
-                  {p.client && <p className="text-xs text-gray-400 truncate">{p.client}</p>}
+                  <p className="text-sm font-medium text-text-primary truncate">{p.name}</p>
+                  {p.client && <p className="text-xs text-text-secondary truncate">{p.client}</p>}
                 </div>
               </button>
             ))}

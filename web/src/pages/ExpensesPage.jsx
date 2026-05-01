@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../lib/api'
+import { PageHeader } from '../components/ui/PageHeader'
+import { Card } from '../components/ui/Card'
+import { Input } from '../components/ui/Input'
+import { Button } from '../components/ui/Button'
+import { Badge } from '../components/ui/Badge'
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? '/api'
 
@@ -16,14 +21,16 @@ function formatCurrency(value) {
   return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
-function statusLabel(status) {
-  const map = {
-    pending: { text: 'Pendente', cls: 'bg-amber-100 text-amber-700' },
-    approved: { text: 'Aprovada', cls: 'bg-green-100 text-green-700' },
-    rejected: { text: 'Recusada', cls: 'bg-red-100 text-red-700' },
-  }
-  const s = map[status] || { text: status, cls: 'bg-gray-100 text-gray-700' }
-  return <span className={`text-xs font-medium px-2 py-0.5 rounded ${s.cls}`}>{s.text}</span>
+const STATUS_TONE = {
+  pending: 'warning',
+  approved: 'success',
+  rejected: 'danger',
+}
+
+const STATUS_LABEL = {
+  pending: 'Pendente',
+  approved: 'Aprovada',
+  rejected: 'Recusada',
 }
 
 export function ExpensesPage() {
@@ -123,138 +130,162 @@ export function ExpensesPage() {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-        <h1 className="text-2xl font-bold">Despesas</h1>
-        {success && <p className="text-sm text-green-700 bg-green-50 px-3 py-2 rounded-md">{success}</p>}
-      </div>
+      <PageHeader
+        title="Despesas"
+        subtitle="Envie comprovantes para reembolso"
+        badge={
+          success && (
+            <span className="text-sm text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-md">
+              {success}
+            </span>
+          )
+        }
+      />
 
       {error && (
-        <div className="bg-red-50 text-red-700 text-sm rounded-md p-3 mb-4">{error}</div>
+        <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mb-4">
+          {error}
+        </div>
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-[380px_1fr] gap-6">
-        <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm border p-5 space-y-4">
-          <div>
-            <h2 className="text-sm font-semibold text-gray-900">Nova despesa</h2>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Título</label>
-            <input
+      <div className="grid grid-cols-1 xl:grid-cols-[380px_1fr] gap-5">
+        <Card>
+          <h2 className="font-display text-lg text-text-primary mb-4">Nova despesa</h2>
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <Input
+              label="Título"
               value={form.title}
               onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
               required
             />
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Valor</label>
-              <input
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-3">
+              <Input
+                label="Valor"
                 type="number"
                 min="0.01"
                 step="0.01"
                 value={form.amount}
                 onChange={(e) => setForm((prev) => ({ ...prev, amount: e.target.value }))}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                required
+              />
+
+              <Input
+                label="Data da compra"
+                type="date"
+                value={form.expense_date}
+                onChange={(e) => setForm((prev) => ({ ...prev, expense_date: e.target.value }))}
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Data da compra</label>
+              <label className="block text-xs font-medium text-text-secondary mb-1.5">
+                Comprovante
+              </label>
               <input
-                type="date"
-                value={form.expense_date}
-                onChange={(e) => setForm((prev) => ({ ...prev, expense_date: e.target.value }))}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                required
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,application/pdf"
+                onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
+                className="w-full form-control border rounded-lg px-3 py-2 text-sm file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-surface-alt file:text-text-primary hover:file:bg-surface-alt/70"
               />
+              {receiptFile && (
+                <p className="text-xs text-text-secondary mt-1 truncate">{receiptFile.name}</p>
+              )}
             </div>
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Comprovante</label>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*,application/pdf"
-              onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-            />
-            {receiptFile && (
-              <p className="text-xs text-gray-500 mt-1 truncate">{receiptFile.name}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
-            <textarea
+            <Input
+              label="Descrição"
+              as="textarea"
               value={form.description}
               onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm min-h-24 resize-y focus:outline-none focus:ring-2 focus:ring-gray-900"
+              rows={4}
+              className="!min-h-24"
             />
-          </div>
 
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full bg-gray-900 text-white rounded-md py-2 text-sm font-medium hover:bg-gray-800 disabled:opacity-60"
-          >
-            {submitting ? 'Enviando...' : 'Enviar despesa'}
-          </button>
-        </form>
+            <Button type="submit" disabled={submitting} className="w-full">
+              {submitting ? 'Enviando...' : 'Enviar despesa'}
+            </Button>
+          </form>
+        </Card>
 
-        <div className="bg-white rounded-lg shadow-sm border overflow-x-auto">
+        <Card padded={false} className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b bg-gray-50">
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Data</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Despesa</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Valor</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Comprovante</th>
+              <tr className="border-b border-border-subtle bg-surface-alt">
+                <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                  Data
+                </th>
+                <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                  Despesa
+                </th>
+                <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                  Valor
+                </th>
+                <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                  Status
+                </th>
+                <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                  Comprovante
+                </th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-8 text-gray-400">Carregando...</td>
+                  <td colSpan={5} className="text-center py-10 text-text-secondary">
+                    Carregando...
+                  </td>
                 </tr>
               ) : expenses.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-8 text-gray-400">
+                  <td colSpan={5} className="text-center py-10 text-text-secondary">
                     Nenhuma despesa enviada.
                   </td>
                 </tr>
               ) : (
                 expenses.map((expense) => (
-                  <tr key={expense.id} className="border-b last:border-b-0 hover:bg-gray-50">
-                    <td className="px-4 py-3 whitespace-nowrap">{formatDate(expense.expense_date)}</td>
+                  <tr
+                    key={expense.id}
+                    className="border-b border-border-subtle last:border-b-0 hover:bg-surface-alt transition-colors"
+                  >
+                    <td className="px-4 py-3 whitespace-nowrap text-text-primary">
+                      {formatDate(expense.expense_date)}
+                    </td>
                     <td className="px-4 py-3 min-w-52">
-                      <p className="font-medium text-gray-900">{expense.title}</p>
+                      <p className="font-medium text-text-primary">{expense.title}</p>
                       {expense.description && (
-                        <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{expense.description}</p>
+                        <p className="text-xs text-text-secondary mt-0.5 line-clamp-2">
+                          {expense.description}
+                        </p>
                       )}
                       {expense.admin_note && (
-                        <p className="text-xs text-gray-500 mt-1">Admin: {expense.admin_note}</p>
+                        <p className="text-xs text-text-secondary mt-1">
+                          Admin: {expense.admin_note}
+                        </p>
                       )}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap font-medium">{formatCurrency(expense.amount)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">{statusLabel(expense.status)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap font-medium tabular-nums text-text-primary">
+                      {formatCurrency(expense.amount)}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <Badge tone={STATUS_TONE[expense.status] || 'neutral'}>
+                        {STATUS_LABEL[expense.status] || expense.status}
+                      </Badge>
+                    </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       {expense.receipt_url ? (
                         <a
                           href={expense.receipt_url}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-gray-700 underline hover:text-gray-900"
+                          className="text-accent underline hover:opacity-80"
                         >
                           Abrir
                         </a>
                       ) : (
-                        <span className="text-gray-400">-</span>
+                        <span className="text-text-secondary">-</span>
                       )}
                     </td>
                   </tr>
@@ -262,7 +293,7 @@ export function ExpensesPage() {
               )}
             </tbody>
           </table>
-        </div>
+        </Card>
       </div>
     </div>
   )

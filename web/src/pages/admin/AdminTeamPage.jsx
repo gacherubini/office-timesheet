@@ -1,14 +1,24 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../../lib/api'
-import { Plus, X, AlertTriangle, Trash2, Camera, MessageCircle } from 'lucide-react'
+import { Plus, AlertTriangle, Trash2, Camera, MessageCircle } from 'lucide-react'
 import { Avatar } from '../../components/Avatar'
+import { PageHeader } from '../../components/ui/PageHeader'
+import { Card } from '../../components/ui/Card'
+import { Modal } from '../../components/ui/Modal'
+import { Input, Select } from '../../components/ui/Input'
+import { Button } from '../../components/ui/Button'
+import { Badge } from '../../components/ui/Badge'
 
 function whatsappLink(phone) {
   if (!phone) return null
   const digits = phone.replace(/\D/g, '')
   const withCountry = digits.length <= 11 ? `55${digits}` : digits
   return `https://wa.me/${withCountry}`
+}
+
+function formatCurrency(value) {
+  return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
 export function AdminTeamPage() {
@@ -21,8 +31,17 @@ export function AdminTeamPage() {
   const [deleteError, setDeleteError] = useState('')
   const [deleting, setDeleting] = useState(false)
 
-  // Form state
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'employee', hourly_rate: '', is_active: true, position: '', birth_date: '', phone: '' })
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'employee',
+    hourly_rate: '',
+    is_active: true,
+    position: '',
+    birth_date: '',
+    phone: '',
+  })
   const [uploadingId, setUploadingId] = useState(null)
   const fileInputRef = useRef(null)
 
@@ -37,10 +56,22 @@ export function AdminTeamPage() {
     }
   }
 
-  useEffect(() => { loadUsers() }, [])
+  useEffect(() => {
+    loadUsers()
+  }, [])
 
   function resetForm() {
-    setForm({ name: '', email: '', password: '', role: 'employee', hourly_rate: '', is_active: true, position: '', birth_date: '', phone: '' })
+    setForm({
+      name: '',
+      email: '',
+      password: '',
+      role: 'employee',
+      hourly_rate: '',
+      is_active: true,
+      position: '',
+      birth_date: '',
+      phone: '',
+    })
     setEditingUser(null)
     setShowForm(false)
     setError('')
@@ -142,142 +173,33 @@ export function AdminTeamPage() {
     }
   }
 
-  function formatCurrency(value) {
-    return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-  }
-
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Equipe</h1>
-        <div className="flex items-center gap-3">
-          <Link
-            to="/admin/deleted-users"
-            className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900"
-          >
-            <Trash2 size={14} />
-            Excluídos
-          </Link>
-          <button
-            onClick={() => { resetForm(); setShowForm(true) }}
-            className="flex items-center gap-1 bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
-          >
-            <Plus size={16} />
-            Novo Colaborador
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Equipe"
+        subtitle="Gerencie colaboradores, perfis e taxas horárias"
+        actions={
+          <>
+            <Link
+              to="/admin/deleted-users"
+              className="inline-flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors"
+            >
+              <Trash2 size={14} />
+              Excluídos
+            </Link>
+            <Button
+              onClick={() => {
+                resetForm()
+                setShowForm(true)
+              }}
+            >
+              <Plus size={16} />
+              Novo Colaborador
+            </Button>
+          </>
+        }
+      />
 
-      {/* Modal / Form */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold">{editingUser ? 'Editar Colaborador' : 'Novo Colaborador'}</h2>
-              <button onClick={resetForm} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
-            </div>
-
-            {error && <div className="bg-red-50 text-red-700 text-sm rounded-md p-3 mb-4">{error}</div>}
-
-            <form onSubmit={handleSubmit} className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
-                <input
-                  required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Cargo</label>
-                <input
-                  value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })}
-                  placeholder="Ex: Arquiteta, Estagiário"
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Data de Nascimento</label>
-                  <input
-                    type="date"
-                    value={form.birth_date}
-                    onChange={(e) => setForm({ ...form, birth_date: e.target.value })}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
-                  <input
-                    type="tel"
-                    value={form.phone}
-                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                    placeholder="(11) 99999-9999"
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                  />
-                </div>
-              </div>
-
-              {!editingUser && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
-                    <input
-                      type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
-                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Senha</label>
-                    <input
-                      type="password" required minLength={6} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
-                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                    />
-                  </div>
-                </>
-              )}
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Perfil</label>
-                  <select
-                    value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                  >
-                    <option value="employee">Colaborador</option>
-                    <option value="admin">Administrador</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Valor/Hora (R$)</label>
-                  <input
-                    type="number" step="0.01" min="0" value={form.hourly_rate}
-                    onChange={(e) => setForm({ ...form, hourly_rate: e.target.value })}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                  />
-                </div>
-              </div>
-
-              {editingUser && (
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox" checked={form.is_active}
-                    onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
-                    className="rounded border-gray-300"
-                  />
-                  Ativo
-                </label>
-              )}
-
-              <button type="submit" className="w-full bg-gray-900 text-white rounded-md py-2 text-sm font-medium hover:bg-gray-800 transition-colors">
-                {editingUser ? 'Salvar' : 'Criar Colaborador'}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Input de arquivo escondido para upload de avatar */}
       <input
         ref={fileInputRef}
         type="file"
@@ -286,145 +208,284 @@ export function AdminTeamPage() {
         onChange={handleAvatarUpload}
       />
 
-      {/* Tabela */}
-      <div className="bg-white rounded-lg shadow-sm border overflow-x-auto">
+      <Card padded={false} className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b bg-gray-50">
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Foto</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Nome</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Cargo</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">E-mail</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Contato</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Perfil</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Valor/Hora</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-600">Ações</th>
+            <tr className="border-b border-border-subtle bg-surface-alt">
+              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                Foto
+              </th>
+              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                Nome
+              </th>
+              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                Cargo
+              </th>
+              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                E-mail
+              </th>
+              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                Contato
+              </th>
+              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                Perfil
+              </th>
+              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                Valor/Hora
+              </th>
+              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                Status
+              </th>
+              <th className="text-right px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                Ações
+              </th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} className="text-center py-8 text-gray-400">Carregando...</td></tr>
-            ) : users.map((user) => {
-              const wa = whatsappLink(user.phone)
-              return (
-                <tr key={user.id} className="border-b last:border-b-0 hover:bg-gray-50">
-                  <td className="px-4 py-3">
-                    <button
-                      onClick={() => triggerUpload(user.id)}
-                      title="Clique para alterar a foto"
-                      className="relative group"
-                    >
-                      <Avatar name={user.name} url={user.avatar_url} size={36} />
-                      <span className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/40 flex items-center justify-center transition-colors">
-                        <Camera size={14} className="text-white opacity-0 group-hover:opacity-100" />
-                      </span>
-                    </button>
-                  </td>
-                  <td className="px-4 py-3 font-medium">{user.name}</td>
-                  <td className="px-4 py-3 text-gray-500">{user.position || '-'}</td>
-                  <td className="px-4 py-3 text-gray-500">{user.email}</td>
-                  <td className="px-4 py-3">
-                    {user.phone ? (
-                      <div className="flex items-center gap-2">
-                        <span className="text-gray-600 text-sm">{user.phone}</span>
-                        {wa && (
-                          <a
-                            href={wa}
-                            target="_blank"
-                            rel="noreferrer"
-                            title="Abrir WhatsApp"
-                            className="text-green-600 hover:text-green-700 p-1 rounded hover:bg-green-50"
-                          >
-                            <MessageCircle size={16} />
-                          </a>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-gray-300">-</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded ${user.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
-                      {user.role === 'admin' ? 'Admin' : 'Colaborador'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">{formatCurrency(user.hourly_rate)}</td>
-                  <td className="px-4 py-3">
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded ${user.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                      {user.is_active ? 'Ativo' : 'Inativo'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-3">
-                      <button onClick={() => startEdit(user)} className="text-sm text-gray-500 hover:text-gray-900">
-                        Editar
-                      </button>
+              <tr>
+                <td colSpan={9} className="text-center py-10 text-text-secondary">
+                  Carregando...
+                </td>
+              </tr>
+            ) : users.length === 0 ? (
+              <tr>
+                <td colSpan={9} className="text-center py-10 text-text-secondary">
+                  Nenhum colaborador cadastrado.
+                </td>
+              </tr>
+            ) : (
+              users.map((user) => {
+                const wa = whatsappLink(user.phone)
+                return (
+                  <tr
+                    key={user.id}
+                    className="border-b border-border-subtle last:border-b-0 hover:bg-surface-alt transition-colors"
+                  >
+                    <td className="px-4 py-3">
                       <button
-                        onClick={() => { setUserToDelete(user); setDeleteError('') }}
-                        className="text-sm text-red-500 hover:text-red-700"
+                        onClick={() => triggerUpload(user.id)}
+                        title="Clique para alterar a foto"
+                        className="relative group"
                       >
-                        Excluir
+                        <Avatar name={user.name} url={user.avatar_url} size={36} />
+                        <span className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/40 flex items-center justify-center transition-colors">
+                          <Camera size={14} className="text-white opacity-0 group-hover:opacity-100" />
+                        </span>
                       </button>
-                    </div>
-                  </td>
-                </tr>
-              )
-            })}
+                    </td>
+                    <td className="px-4 py-3 font-medium text-text-primary">{user.name}</td>
+                    <td className="px-4 py-3 text-text-secondary">{user.position || '-'}</td>
+                    <td className="px-4 py-3 text-text-secondary">{user.email}</td>
+                    <td className="px-4 py-3">
+                      {user.phone ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-text-primary text-sm">{user.phone}</span>
+                          {wa && (
+                            <a
+                              href={wa}
+                              target="_blank"
+                              rel="noreferrer"
+                              title="Abrir WhatsApp"
+                              className="text-emerald-500 hover:text-emerald-400 p-1 rounded hover:bg-emerald-500/10 transition-colors"
+                            >
+                              <MessageCircle size={16} />
+                            </a>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-text-secondary">-</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge tone={user.role === 'admin' ? 'accent' : 'info'}>
+                        {user.role === 'admin' ? 'Admin' : 'Colaborador'}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 tabular-nums text-text-primary">
+                      {formatCurrency(user.hourly_rate)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge tone={user.is_active ? 'success' : 'danger'}>
+                        {user.is_active ? 'Ativo' : 'Inativo'}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-3">
+                        <button
+                          onClick={() => startEdit(user)}
+                          className="text-sm text-text-secondary hover:text-text-primary transition-colors"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => {
+                            setUserToDelete(user)
+                            setDeleteError('')
+                          }}
+                          className="text-sm text-rose-500 hover:text-rose-400 transition-colors"
+                        >
+                          Excluir
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })
+            )}
           </tbody>
         </table>
-      </div>
+      </Card>
 
-      {/* Modal de confirmação de exclusão */}
-      {userToDelete && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
-            <div className="bg-red-50 px-6 py-8 flex flex-col items-center text-center border-b border-red-100">
-              <div className="bg-red-100 rounded-full p-4 mb-4">
-                <AlertTriangle className="text-red-600" size={40} />
-              </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                Excluir colaborador?
-              </h2>
-              <p className="text-gray-600">
-                Você está prestes a excluir{' '}
-                <strong className="text-gray-900">{userToDelete.name}</strong>
-              </p>
-            </div>
-
-            <div className="px-6 py-5 space-y-3">
-              <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 text-sm text-blue-900">
-                <p className="font-medium mb-1">Os apontamentos serão preservados.</p>
-                <p className="text-blue-700">
-                  Você pode restaurar este colaborador a qualquer momento na página de{' '}
-                  <strong>Excluídos</strong>.
-                </p>
-              </div>
-
-              {deleteError && (
-                <div className="bg-red-50 text-red-700 text-sm rounded-md p-3">{deleteError}</div>
-              )}
-            </div>
-
-            <div className="px-6 py-4 bg-gray-50 flex items-center justify-end gap-3 border-t">
-              <button
-                onClick={() => { setUserToDelete(null); setDeleteError('') }}
-                disabled={deleting}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 rounded-md transition-colors disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors disabled:opacity-50"
-              >
-                {deleting ? 'Excluindo...' : 'Sim, excluir'}
-              </button>
-            </div>
+      <Modal
+        open={showForm}
+        onClose={resetForm}
+        title={editingUser ? 'Editar Colaborador' : 'Novo Colaborador'}
+      >
+        {error && (
+          <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mb-4">
+            {error}
           </div>
+        )}
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <Input
+            label="Nome"
+            required
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+          />
+          <Input
+            label="Cargo"
+            placeholder="Ex: Arquiteta, Estagiário"
+            value={form.position}
+            onChange={(e) => setForm({ ...form, position: e.target.value })}
+          />
+
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Data de Nascimento"
+              type="date"
+              value={form.birth_date}
+              onChange={(e) => setForm({ ...form, birth_date: e.target.value })}
+            />
+            <Input
+              label="Telefone"
+              type="tel"
+              placeholder="(11) 99999-9999"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            />
+          </div>
+
+          {!editingUser && (
+            <>
+              <Input
+                label="E-mail"
+                type="email"
+                required
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+              />
+              <Input
+                label="Senha"
+                type="password"
+                required
+                minLength={6}
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+              />
+            </>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <Select
+              label="Perfil"
+              value={form.role}
+              onChange={(e) => setForm({ ...form, role: e.target.value })}
+            >
+              <option value="employee">Colaborador</option>
+              <option value="admin">Administrador</option>
+            </Select>
+            <Input
+              label="Valor/Hora (R$)"
+              type="number"
+              step="0.01"
+              min="0"
+              value={form.hourly_rate}
+              onChange={(e) => setForm({ ...form, hourly_rate: e.target.value })}
+            />
+          </div>
+
+          {editingUser && (
+            <label className="flex items-center gap-2 text-sm text-text-primary">
+              <input
+                type="checkbox"
+                checked={form.is_active}
+                onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
+                className="rounded border-border-subtle"
+              />
+              Ativo
+            </label>
+          )}
+
+          <Button type="submit" className="w-full">
+            {editingUser ? 'Salvar' : 'Criar Colaborador'}
+          </Button>
+        </form>
+      </Modal>
+
+      <Modal
+        open={Boolean(userToDelete)}
+        onClose={() => {
+          setUserToDelete(null)
+          setDeleteError('')
+        }}
+        size="lg"
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setUserToDelete(null)
+                setDeleteError('')
+              }}
+              disabled={deleting}
+            >
+              Cancelar
+            </Button>
+            <Button variant="danger" onClick={handleDelete} disabled={deleting}>
+              {deleting ? 'Excluindo...' : 'Sim, excluir'}
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col items-center text-center mb-5">
+          <div className="bg-rose-500/15 rounded-full p-4 mb-4">
+            <AlertTriangle className="text-rose-500" size={36} />
+          </div>
+          <h3 className="font-display text-2xl text-text-primary mb-2">
+            Excluir colaborador?
+          </h3>
+          <p className="text-text-secondary">
+            Você está prestes a excluir{' '}
+            <strong className="text-text-primary">{userToDelete?.name}</strong>
+          </p>
         </div>
-      )}
+        <div className="bg-sky-500/10 border border-sky-500/20 rounded-lg p-4 text-sm">
+          <p className="font-medium text-text-primary mb-1">
+            Os apontamentos serão preservados.
+          </p>
+          <p className="text-text-secondary">
+            Você pode restaurar este colaborador a qualquer momento na página de{' '}
+            <strong className="text-text-primary">Excluídos</strong>.
+          </p>
+        </div>
+        {deleteError && (
+          <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mt-3">
+            {deleteError}
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }

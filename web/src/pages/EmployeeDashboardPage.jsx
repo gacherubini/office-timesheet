@@ -2,12 +2,11 @@ import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
-import {
-  Play, Pause, Square, RotateCcw, Eye, EyeOff,
-  Coffee, Clock, Repeat,
-} from 'lucide-react'
+import { Play, Pause, Square, RotateCcw, Eye, EyeOff, Coffee, Clock, Repeat } from 'lucide-react'
 import { Avatar } from '../components/Avatar'
 import { BirthdayCalendar } from '../components/BirthdayCalendar'
+import { PageHeader } from '../components/ui/PageHeader'
+import { Card } from '../components/ui/Card'
 
 function formatTime(totalSeconds) {
   const h = Math.floor(totalSeconds / 3600)
@@ -17,8 +16,8 @@ function formatTime(totalSeconds) {
 }
 
 function formatHours(minutes) {
-  const h = Math.floor(minutes / 60)
-  const m = Math.floor(minutes % 60)
+  const h = Math.floor((minutes || 0) / 60)
+  const m = Math.floor((minutes || 0) % 60)
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`
 }
 
@@ -26,25 +25,31 @@ function formatCurrency(value) {
   return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
-function KpiCard({ label, value, sub }) {
+function KpiCard({ label, value, sub, action }) {
   return (
-    <div className="bg-white rounded-lg border p-4 flex flex-col gap-1">
-      <span className="text-xs text-gray-400 uppercase tracking-wide">{label}</span>
-      <p className="text-xl font-bold text-gray-900 truncate">{value}</p>
-      {sub && <p className="text-xs text-gray-400">{sub}</p>}
-    </div>
+    <Card className="!p-4 flex flex-col gap-1">
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] uppercase tracking-wider font-medium text-text-secondary">
+          {label}
+        </span>
+        {action}
+      </div>
+      <p className="font-display text-2xl text-text-primary truncate">{value}</p>
+      {sub && <p className="text-xs text-text-secondary">{sub}</p>}
+    </Card>
   )
 }
+
+const TIMER_BTN =
+  'inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50'
 
 export function EmployeeDashboardPage() {
   const { profile } = useAuth()
 
-  // ── Stats ────────────────────────────────────────────────────────────
   const [stats, setStats] = useState(null)
   const [statsLoading, setStatsLoading] = useState(true)
   const [showCost, setShowCost] = useState(false)
 
-  // ── Timer ────────────────────────────────────────────────────────────
   const [projects, setProjects] = useState([])
   const [selectedProject, setSelectedProject] = useState('')
   const [currentEntry, setCurrentEntry] = useState(null)
@@ -55,7 +60,8 @@ export function EmployeeDashboardPage() {
 
   function loadStats() {
     setStatsLoading(true)
-    api.get('/me/stats')
+    api
+      .get('/me/stats')
       .then(setStats)
       .catch(() => {})
       .finally(() => setStatsLoading(false))
@@ -80,7 +86,6 @@ export function EmployeeDashboardPage() {
     })
   }, [])
 
-  // Timer visual
   useEffect(() => {
     if (currentEntry?.status === 'running') {
       const start = new Date(currentEntry.started_at).getTime()
@@ -94,16 +99,28 @@ export function EmployeeDashboardPage() {
   }, [currentEntry?.status, currentEntry?.started_at])
 
   async function handleStart() {
-    if (!selectedProject) { setTimerError('Selecione um projeto.'); return }
+    if (!selectedProject) {
+      setTimerError('Selecione um projeto.')
+      return
+    }
     setTimerError('')
     setTimerLoading(true)
     try {
       const entry = await api.post('/time-entries/start', { projectId: selectedProject })
       const proj = projects.find((p) => p.id === selectedProject)
-      setCurrentEntry({ id: entry.id, status: 'running', started_at: entry.started_at, project_name: proj?.name || 'Projeto', project_id: selectedProject })
+      setCurrentEntry({
+        id: entry.id,
+        status: 'running',
+        started_at: entry.started_at,
+        project_name: proj?.name || 'Projeto',
+        project_id: selectedProject,
+      })
       setElapsed(0)
-    } catch (err) { setTimerError(err.message) }
-    finally { setTimerLoading(false) }
+    } catch (err) {
+      setTimerError(err.message)
+    } finally {
+      setTimerLoading(false)
+    }
   }
 
   async function handlePause() {
@@ -111,8 +128,11 @@ export function EmployeeDashboardPage() {
     try {
       await api.post('/time-entries/pause')
       setCurrentEntry((prev) => ({ ...prev, status: 'paused' }))
-    } catch (err) { setTimerError(err.message) }
-    finally { setTimerLoading(false) }
+    } catch (err) {
+      setTimerError(err.message)
+    } finally {
+      setTimerLoading(false)
+    }
   }
 
   async function handleResume() {
@@ -120,8 +140,11 @@ export function EmployeeDashboardPage() {
     try {
       await api.post('/time-entries/resume')
       setCurrentEntry((prev) => ({ ...prev, status: 'running' }))
-    } catch (err) { setTimerError(err.message) }
-    finally { setTimerLoading(false) }
+    } catch (err) {
+      setTimerError(err.message)
+    } finally {
+      setTimerLoading(false)
+    }
   }
 
   async function handleStop() {
@@ -131,8 +154,11 @@ export function EmployeeDashboardPage() {
       setCurrentEntry(null)
       setElapsed(0)
       loadStats()
-    } catch (err) { setTimerError(err.message) }
-    finally { setTimerLoading(false) }
+    } catch (err) {
+      setTimerError(err.message)
+    } finally {
+      setTimerLoading(false)
+    }
   }
 
   function handleTrocar() {
@@ -144,104 +170,123 @@ export function EmployeeDashboardPage() {
   const isRunning = currentEntry?.status === 'running'
   const isPaused = currentEntry?.status === 'paused'
 
-  const goalPct = stats?.goal_minutes > 0
-    ? Math.min(100, Math.round((stats.total_minutes / stats.goal_minutes) * 100))
-    : 0
+  const goalPct =
+    stats?.goal_minutes > 0
+      ? Math.min(100, Math.round((stats.total_minutes / stats.goal_minutes) * 100))
+      : 0
 
   return (
     <div className="max-w-6xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Início</h1>
+      <PageHeader title="Início" subtitle="Sua produtividade e timer atual" />
 
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* ── Coluna principal ─────────────────────────────────────── */}
+      <div className="flex flex-col lg:flex-row gap-5">
         <div className="flex-1 flex flex-col gap-5">
-
-          {/* Card de perfil + timer */}
-          <div className="bg-white rounded-lg border p-5 flex items-center gap-4">
+          <Card className="flex items-center gap-4">
             <Avatar name={profile?.name} url={profile?.avatar_url} size={56} />
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-gray-900 truncate">{profile?.name}</p>
-              {profile?.position && <p className="text-sm text-gray-400 truncate">{profile.position}</p>}
+              <p className="font-semibold text-text-primary truncate">{profile?.name}</p>
+              {profile?.position && (
+                <p className="text-sm text-text-secondary truncate">{profile.position}</p>
+              )}
             </div>
             <div className="text-right">
-              <p className="text-3xl font-mono font-bold tabular-nums text-gray-900">{formatTime(elapsed)}</p>
-              {isRunning && <span className="text-xs text-green-600 font-medium">Em andamento</span>}
-              {isPaused && <span className="text-xs text-yellow-600 font-medium">Pausado</span>}
-              {isIdle && <span className="text-xs text-gray-400">Aguardando</span>}
+              <p className="font-display text-3xl tabular-nums text-text-primary">
+                {formatTime(elapsed)}
+              </p>
+              {isRunning && <span className="text-xs text-emerald-500 font-medium">Em andamento</span>}
+              {isPaused && <span className="text-xs text-accent font-medium">Pausado</span>}
+              {isIdle && <span className="text-xs text-text-secondary">Aguardando</span>}
             </div>
-          </div>
+          </Card>
 
-          {/* KPI Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <KpiCard
               label="Horas (Mês)"
-              value={statsLoading ? '...' : formatHours(stats?.total_minutes ?? 0)}
+              value={statsLoading ? '—' : formatHours(stats?.total_minutes ?? 0)}
             />
             <KpiCard
               label="Média Horas/Dia"
-              value={statsLoading ? '...' : formatHours(stats?.avg_minutes_per_day ?? 0)}
+              value={statsLoading ? '—' : formatHours(stats?.avg_minutes_per_day ?? 0)}
             />
             <KpiCard
               label="Projetos (Mês)"
-              value={statsLoading ? '...' : String(stats?.project_count ?? 0)}
+              value={statsLoading ? '—' : String(stats?.project_count ?? 0)}
             />
-            <div className="bg-white rounded-lg border p-4 flex flex-col gap-1">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-400 uppercase tracking-wide">Recebido (Mês)</span>
-                <button onClick={() => setShowCost((v) => !v)} className="text-gray-400 hover:text-gray-600">
+            <KpiCard
+              label="Recebido (Mês)"
+              value={
+                statsLoading
+                  ? '—'
+                  : showCost
+                    ? formatCurrency(stats?.total_cost)
+                    : 'R$ ••••••'
+              }
+              action={
+                <button
+                  onClick={() => setShowCost((v) => !v)}
+                  className="text-text-secondary hover:text-text-primary transition-colors"
+                >
                   {showCost ? <EyeOff size={14} /> : <Eye size={14} />}
                 </button>
-              </div>
-              <p className="text-xl font-bold text-gray-900 truncate">
-                {statsLoading ? '...' : showCost ? formatCurrency(stats?.total_cost) : 'R$ ••••••'}
-              </p>
-            </div>
+              }
+            />
             <KpiCard
               label="Meta (Mês)"
-              value={statsLoading ? '...' : `${goalPct}%`}
+              value={statsLoading ? '—' : `${goalPct}%`}
               sub={statsLoading ? '' : `${stats?.business_days_in_month ?? 0} dias úteis`}
             />
             <KpiCard
               label="Dias (Mês)"
-              value={statsLoading ? '...' : String(stats?.working_days ?? 0)}
+              value={statsLoading ? '—' : String(stats?.working_days ?? 0)}
             />
           </div>
 
-          {/* Tabela de Horas por Projeto */}
-          <div className="bg-white rounded-lg border overflow-hidden">
-            <div className="px-5 py-3 border-b">
-              <h2 className="text-sm font-semibold text-gray-700">Registro de Horas por Projeto</h2>
+          <Card padded={false} className="overflow-hidden">
+            <div className="px-5 py-3 border-b border-border-subtle bg-surface-alt">
+              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary">
+                Registro de Horas por Projeto
+              </h2>
             </div>
-            <div className="divide-y">
+            <div className="divide-y divide-border-subtle">
               {(stats?.project_breakdown ?? []).length === 0 && !statsLoading ? (
-                <p className="text-sm text-gray-400 text-center py-6">Nenhum apontamento este mês.</p>
+                <p className="text-sm text-text-secondary text-center py-6">
+                  Nenhum apontamento este mês.
+                </p>
               ) : statsLoading ? (
-                <p className="text-sm text-gray-400 text-center py-6">Carregando...</p>
+                <p className="text-sm text-text-secondary text-center py-6">Carregando...</p>
               ) : (
                 stats.project_breakdown.map((proj) => {
                   const isCurrent = currentEntry?.project_id === proj.project_id
                   return (
                     <div key={proj.project_id} className="flex items-center gap-3 px-5 py-3">
                       {proj.project_image ? (
-                        <img src={proj.project_image} alt="" className="w-8 h-8 rounded object-cover flex-shrink-0" />
+                        <img
+                          src={proj.project_image}
+                          alt=""
+                          className="w-9 h-9 rounded-lg object-cover flex-shrink-0"
+                        />
                       ) : (
-                        <div className="w-8 h-8 rounded bg-gray-100 flex-shrink-0" />
+                        <div className="w-9 h-9 rounded-lg bg-surface-alt flex-shrink-0" />
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{proj.project_name}</p>
+                        <p className="text-sm font-medium text-text-primary truncate">
+                          {proj.project_name}
+                        </p>
                         {isCurrent && (
-                          <span className="text-xs text-green-600 font-medium">
+                          <span className="text-xs text-emerald-500 font-medium">
                             {isRunning ? '● Sessão atual' : isPaused ? '⏸ Pausado' : ''}
                           </span>
                         )}
                       </div>
-                      <div className="text-right shrink-0 text-sm text-gray-600">
-                        <p className="font-medium">{formatHours(proj.total_minutes)}</p>
-                        <p className="text-xs text-gray-400">Hoje: {formatHours(proj.today_minutes)}</p>
+                      <div className="text-right shrink-0 text-sm text-text-primary">
+                        <p className="font-medium tabular-nums">{formatHours(proj.total_minutes)}</p>
+                        <p className="text-xs text-text-secondary tabular-nums">
+                          Hoje: {formatHours(proj.today_minutes)}
+                        </p>
                       </div>
                       <Link
                         to="/history"
-                        className="text-xs text-gray-400 hover:text-gray-700 underline ml-2 shrink-0"
+                        className="text-xs text-text-secondary hover:text-text-primary underline ml-2 shrink-0 transition-colors"
                       >
                         Ver
                       </Link>
@@ -250,18 +295,20 @@ export function EmployeeDashboardPage() {
                 })
               )}
             </div>
-          </div>
+          </Card>
 
-          {/* Timer + Controles */}
-          <div className="bg-white rounded-lg border p-5">
+          <Card>
             {timerError && (
-              <div className="bg-red-50 text-red-700 text-sm rounded p-3 mb-4">{timerError}</div>
+              <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mb-4">
+                {timerError}
+              </div>
             )}
 
-            {/* Seletor de projeto (idle) */}
             {isIdle && (
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Selecionar Projeto</label>
+                <label className="block text-sm font-medium text-text-primary mb-2">
+                  Selecionar Projeto
+                </label>
                 <div className="grid gap-2 max-h-48 overflow-y-auto">
                   {projects.map((p) => (
                     <button
@@ -270,18 +317,24 @@ export function EmployeeDashboardPage() {
                       onClick={() => setSelectedProject(p.id)}
                       className={`flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-lg border transition-colors ${
                         selectedProject === p.id
-                          ? 'border-gray-900 bg-gray-50 ring-1 ring-gray-900'
-                          : 'border-gray-200 hover:border-gray-400'
+                          ? 'border-accent bg-[color:var(--color-accent)]/10'
+                          : 'border-border-subtle hover:border-text-secondary'
                       }`}
                     >
                       {p.image_url ? (
-                        <img src={p.image_url} alt="" className="w-8 h-8 rounded object-cover flex-shrink-0" />
+                        <img
+                          src={p.image_url}
+                          alt=""
+                          className="w-8 h-8 rounded object-cover flex-shrink-0"
+                        />
                       ) : (
-                        <div className="w-8 h-8 rounded bg-gray-100 flex-shrink-0" />
+                        <div className="w-8 h-8 rounded bg-surface-alt flex-shrink-0" />
                       )}
                       <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{p.name}</p>
-                        {p.client && <p className="text-xs text-gray-400 truncate">{p.client}</p>}
+                        <p className="text-sm font-medium text-text-primary truncate">{p.name}</p>
+                        {p.client && (
+                          <p className="text-xs text-text-secondary truncate">{p.client}</p>
+                        )}
                       </div>
                     </button>
                   ))}
@@ -289,20 +342,20 @@ export function EmployeeDashboardPage() {
               </div>
             )}
 
-            {/* Projeto atual */}
             {!isIdle && currentEntry?.project_name && (
-              <p className="text-sm text-gray-500 mb-3 text-center">
-                Projeto: <span className="font-medium text-gray-900">{currentEntry.project_name}</span>
+              <p className="text-sm text-text-secondary mb-3 text-center">
+                Projeto:{' '}
+                <span className="font-medium text-text-primary">{currentEntry.project_name}</span>
               </p>
             )}
 
-            {/* Botões de ação */}
             <div className="flex flex-wrap gap-2 justify-center">
               {isIdle && (
                 <button
                   onClick={handleStart}
                   disabled={timerLoading || !selectedProject}
-                  className="flex items-center gap-2 bg-green-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
+                  className={TIMER_BTN}
+                  style={{ background: '#16a34a' }}
                 >
                   <Play size={16} />
                   Iniciar
@@ -314,7 +367,8 @@ export function EmployeeDashboardPage() {
                   <button
                     onClick={handlePause}
                     disabled={timerLoading}
-                    className="flex items-center gap-2 bg-yellow-500 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-yellow-600 transition-colors disabled:opacity-50"
+                    className={TIMER_BTN}
+                    style={{ background: 'var(--color-accent)' }}
                   >
                     <Pause size={16} />
                     Volto Logo
@@ -322,7 +376,8 @@ export function EmployeeDashboardPage() {
                   <button
                     onClick={handlePause}
                     disabled={timerLoading}
-                    className="flex items-center gap-2 bg-yellow-500 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-yellow-600 transition-colors disabled:opacity-50"
+                    className={TIMER_BTN}
+                    style={{ background: 'var(--color-accent)' }}
                   >
                     <Coffee size={16} />
                     Café
@@ -330,7 +385,8 @@ export function EmployeeDashboardPage() {
                   <button
                     onClick={handlePause}
                     disabled={timerLoading}
-                    className="flex items-center gap-2 bg-yellow-500 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-yellow-600 transition-colors disabled:opacity-50"
+                    className={TIMER_BTN}
+                    style={{ background: 'var(--color-accent)' }}
                   >
                     <Clock size={16} />
                     Almoço
@@ -338,7 +394,8 @@ export function EmployeeDashboardPage() {
                   <button
                     onClick={handleTrocar}
                     disabled={timerLoading}
-                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+                    className={TIMER_BTN}
+                    style={{ background: '#3D5C5C' }}
                   >
                     <Repeat size={16} />
                     Trocar
@@ -346,7 +403,8 @@ export function EmployeeDashboardPage() {
                   <button
                     onClick={handleStop}
                     disabled={timerLoading}
-                    className="flex items-center gap-2 bg-red-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
+                    className={TIMER_BTN}
+                    style={{ background: '#dc2626' }}
                   >
                     <Square size={16} />
                     Encerrar
@@ -359,7 +417,8 @@ export function EmployeeDashboardPage() {
                   <button
                     onClick={handleResume}
                     disabled={timerLoading}
-                    className="flex items-center gap-2 bg-green-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
+                    className={TIMER_BTN}
+                    style={{ background: '#16a34a' }}
                   >
                     <RotateCcw size={16} />
                     Retomar
@@ -367,7 +426,8 @@ export function EmployeeDashboardPage() {
                   <button
                     onClick={handleStop}
                     disabled={timerLoading}
-                    className="flex items-center gap-2 bg-red-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
+                    className={TIMER_BTN}
+                    style={{ background: '#dc2626' }}
                   >
                     <Square size={16} />
                     Encerrar
@@ -375,13 +435,10 @@ export function EmployeeDashboardPage() {
                 </>
               )}
             </div>
-          </div>
+          </Card>
         </div>
 
-        {/* ── Coluna lateral ───────────────────────────────────────── */}
         <div className="lg:w-72 flex flex-col gap-5">
-
-          {/* Calendário de aniversariantes */}
           <BirthdayCalendar />
         </div>
       </div>

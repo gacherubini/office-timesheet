@@ -1,6 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
 import { api } from '../../lib/api'
-import { Plus, X, Upload, Image } from 'lucide-react'
+import { Plus, Upload } from 'lucide-react'
+import { PageHeader } from '../../components/ui/PageHeader'
+import { Card } from '../../components/ui/Card'
+import { Modal } from '../../components/ui/Modal'
+import { Input, Select } from '../../components/ui/Input'
+import { Button } from '../../components/ui/Button'
+import { Badge } from '../../components/ui/Badge'
+
+function formatCurrency(value) {
+  return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
 
 export function AdminProjectsPage() {
   const [projects, setProjects] = useState([])
@@ -9,7 +19,7 @@ export function AdminProjectsPage() {
   const [editingProject, setEditingProject] = useState(null)
   const [error, setError] = useState('')
   const [form, setForm] = useState({ name: '', client: '', status: 'active', sale_value: '' })
-  const [uploading, setUploading] = useState(null) // project id being uploaded
+  const [uploading, setUploading] = useState(null)
   const fileInputRef = useRef(null)
 
   async function loadProjects() {
@@ -23,7 +33,9 @@ export function AdminProjectsPage() {
     }
   }
 
-  useEffect(() => { loadProjects() }, [])
+  useEffect(() => {
+    loadProjects()
+  }, [])
 
   function resetForm() {
     setForm({ name: '', client: '', status: 'active', sale_value: '' })
@@ -33,7 +45,12 @@ export function AdminProjectsPage() {
   }
 
   function startEdit(project) {
-    setForm({ name: project.name, client: project.client || '', status: project.status, sale_value: project.sale_value ?? '' })
+    setForm({
+      name: project.name,
+      client: project.client || '',
+      status: project.status,
+      sale_value: project.sale_value ?? '',
+    })
     setEditingProject(project)
     setShowForm(true)
     setError('')
@@ -45,7 +62,10 @@ export function AdminProjectsPage() {
 
     try {
       if (editingProject) {
-        await api.put(`/projects/${editingProject.id}`, { ...form, sale_value: Number(form.sale_value) || 0 })
+        await api.put(`/projects/${editingProject.id}`, {
+          ...form,
+          sale_value: Number(form.sale_value) || 0,
+        })
       } else {
         await api.post('/projects', { ...form, sale_value: Number(form.sale_value) || 0 })
       }
@@ -101,18 +121,22 @@ export function AdminProjectsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Projetos</h1>
-        <button
-          onClick={() => { resetForm(); setShowForm(true) }}
-          className="flex items-center gap-1 bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
-        >
-          <Plus size={16} />
-          Novo Projeto
-        </button>
-      </div>
+      <PageHeader
+        title="Projetos"
+        subtitle="Cadastro de projetos, clientes e valores de venda"
+        actions={
+          <Button
+            onClick={() => {
+              resetForm()
+              setShowForm(true)
+            }}
+          >
+            <Plus size={16} />
+            Novo Projeto
+          </Button>
+        }
+      />
 
-      {/* Input de arquivo escondido */}
       <input
         ref={fileInputRef}
         type="file"
@@ -121,119 +145,153 @@ export function AdminProjectsPage() {
         onChange={handleImageUpload}
       />
 
-      {showForm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold">{editingProject ? 'Editar Projeto' : 'Novo Projeto'}</h2>
-              <button onClick={resetForm} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
-            </div>
-
-            {error && <div className="bg-red-50 text-red-700 text-sm rounded-md p-3 mb-4">{error}</div>}
-
-            <form onSubmit={handleSubmit} className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Projeto</label>
-                <input
-                  required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Cliente</label>
-                <input
-                  value={form.client} onChange={(e) => setForm({ ...form, client: e.target.value })}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                  <select
-                    value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                  >
-                    <option value="active">Ativo</option>
-                    <option value="completed">Concluido</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Valor de Venda (R$)</label>
-                  <input
-                    type="number" step="0.01" min="0"
-                    value={form.sale_value}
-                    onChange={(e) => setForm({ ...form, sale_value: e.target.value })}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                    placeholder="0,00"
-                  />
-                </div>
-              </div>
-              <button type="submit" className="w-full bg-gray-900 text-white rounded-md py-2 text-sm font-medium hover:bg-gray-800 transition-colors">
-                {editingProject ? 'Salvar' : 'Criar Projeto'}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      <div className="bg-white rounded-lg shadow-sm border overflow-x-auto">
+      <Card padded={false} className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b bg-gray-50">
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Imagem</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Nome</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Cliente</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Valor de Venda</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-600">Acoes</th>
+            <tr className="border-b border-border-subtle bg-surface-alt">
+              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                Imagem
+              </th>
+              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                Nome
+              </th>
+              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                Cliente
+              </th>
+              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                Status
+              </th>
+              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                Valor de Venda
+              </th>
+              <th className="text-right px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                Ações
+              </th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} className="text-center py-8 text-gray-400">Carregando...</td></tr>
-            ) : projects.length === 0 ? (
-              <tr><td colSpan={5} className="text-center py-8 text-gray-400">Nenhum projeto cadastrado.</td></tr>
-            ) : projects.map((project) => (
-              <tr key={project.id} className="border-b last:border-b-0 hover:bg-gray-50">
-                <td className="px-4 py-3">
-                  <button
-                    onClick={() => triggerUpload(project.id)}
-                    className="group relative w-10 h-10 rounded-md overflow-hidden cursor-pointer"
-                    title="Clique para trocar a imagem"
-                  >
-                    {project.image_url ? (
-                      <>
-                        <img src={project.image_url} alt={project.name} className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 flex items-center justify-center transition-colors">
-                          <Upload size={14} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </div>
-                      </>
-                    ) : (
-                      <div className="w-full h-full bg-gray-100 flex items-center justify-center group-hover:bg-gray-200 transition-colors">
-                        <Upload size={14} className="text-gray-400" />
-                      </div>
-                    )}
-                  </button>
-                </td>
-                <td className="px-4 py-3 font-medium">{project.name}</td>
-                <td className="px-4 py-3 text-gray-500">{project.client || '-'}</td>
-                <td className="px-4 py-3">
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded ${project.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                    {project.status === 'active' ? 'Ativo' : 'Concluido'}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-gray-500">
-                  {Number(project.sale_value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                </td>
-                <td className="px-4 py-3 text-right space-x-3">
-                  <button onClick={() => startEdit(project)} className="text-sm text-gray-500 hover:text-gray-900">Editar</button>
-                  <button onClick={() => handleDelete(project)} className="text-sm text-red-500 hover:text-red-700">Excluir</button>
+              <tr>
+                <td colSpan={6} className="text-center py-10 text-text-secondary">
+                  Carregando...
                 </td>
               </tr>
-            ))}
+            ) : projects.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="text-center py-10 text-text-secondary">
+                  Nenhum projeto cadastrado.
+                </td>
+              </tr>
+            ) : (
+              projects.map((project) => (
+                <tr
+                  key={project.id}
+                  className="border-b border-border-subtle last:border-b-0 hover:bg-surface-alt transition-colors"
+                >
+                  <td className="px-4 py-3">
+                    <button
+                      onClick={() => triggerUpload(project.id)}
+                      className="group relative w-10 h-10 rounded-md overflow-hidden cursor-pointer"
+                      title="Clique para trocar a imagem"
+                    >
+                      {project.image_url ? (
+                        <>
+                          <img
+                            src={project.image_url}
+                            alt={project.name}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 flex items-center justify-center transition-colors">
+                            <Upload
+                              size={14}
+                              className="text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                            />
+                          </div>
+                        </>
+                      ) : (
+                        <div className="w-full h-full bg-surface-alt flex items-center justify-center group-hover:opacity-80 transition-opacity">
+                          <Upload size={14} className="text-text-secondary" />
+                        </div>
+                      )}
+                    </button>
+                  </td>
+                  <td className="px-4 py-3 font-medium text-text-primary">{project.name}</td>
+                  <td className="px-4 py-3 text-text-secondary">{project.client || '-'}</td>
+                  <td className="px-4 py-3">
+                    <Badge tone={project.status === 'active' ? 'success' : 'neutral'}>
+                      {project.status === 'active' ? 'Ativo' : 'Concluído'}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-3 text-text-primary tabular-nums">
+                    {formatCurrency(project.sale_value)}
+                  </td>
+                  <td className="px-4 py-3 text-right space-x-3">
+                    <button
+                      onClick={() => startEdit(project)}
+                      className="text-sm text-text-secondary hover:text-text-primary transition-colors"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => handleDelete(project)}
+                      className="text-sm text-rose-500 hover:text-rose-400 transition-colors"
+                    >
+                      Excluir
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
-      </div>
+      </Card>
+
+      <Modal
+        open={showForm}
+        onClose={resetForm}
+        title={editingProject ? 'Editar Projeto' : 'Novo Projeto'}
+      >
+        {error && (
+          <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mb-4">
+            {error}
+          </div>
+        )}
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <Input
+            label="Nome do Projeto"
+            required
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+          />
+          <Input
+            label="Cliente"
+            value={form.client}
+            onChange={(e) => setForm({ ...form, client: e.target.value })}
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <Select
+              label="Status"
+              value={form.status}
+              onChange={(e) => setForm({ ...form, status: e.target.value })}
+            >
+              <option value="active">Ativo</option>
+              <option value="completed">Concluído</option>
+            </Select>
+            <Input
+              label="Valor de Venda (R$)"
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="0,00"
+              value={form.sale_value}
+              onChange={(e) => setForm({ ...form, sale_value: e.target.value })}
+            />
+          </div>
+          <Button type="submit" className="w-full">
+            {editingProject ? 'Salvar' : 'Criar Projeto'}
+          </Button>
+        </form>
+      </Modal>
     </div>
   )
 }

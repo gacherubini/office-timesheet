@@ -1,5 +1,15 @@
 import { useState } from 'react'
 import { api } from '../../lib/api'
+import { PageHeader } from '../../components/ui/PageHeader'
+import { Card } from '../../components/ui/Card'
+import { Tabs } from '../../components/ui/Tabs'
+import { DateRange } from '../../components/ui/DateRange'
+import { Button } from '../../components/ui/Button'
+import { Badge } from '../../components/ui/Badge'
+
+function formatCurrency(value) {
+  return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
 
 export function AdminReportsPage() {
   const [tab, setTab] = useState('payroll')
@@ -11,11 +21,16 @@ export function AdminReportsPage() {
   const [error, setError] = useState('')
 
   async function loadPayroll() {
-    if (!startDate || !endDate) { setError('Selecione o período.'); return }
+    if (!startDate || !endDate) {
+      setError('Selecione o período.')
+      return
+    }
     setError('')
     setLoading(true)
     try {
-      const data = await api.get(`/admin/reports/payroll?start_date=${startDate}&end_date=${endDate}`)
+      const data = await api.get(
+        `/admin/reports/payroll?start_date=${startDate}&end_date=${endDate}`
+      )
       setPayrollData(data)
     } catch (err) {
       setError(err.message)
@@ -40,123 +55,169 @@ export function AdminReportsPage() {
     }
   }
 
-  function formatCurrency(value) {
-    return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-  }
-
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Relatórios Financeiros</h1>
+      <PageHeader title="Relatórios Financeiros" subtitle="Folha de pagamento e custo por projeto" />
 
-      {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-gray-100 rounded-lg p-1 w-fit">
-        <button
-          onClick={() => setTab('payroll')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${tab === 'payroll' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
-        >
-          Folha de Pagamento
-        </button>
-        <button
-          onClick={() => setTab('project')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${tab === 'project' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
-        >
-          Custo por Projeto
-        </button>
+      <div className="mb-5">
+        <Tabs
+          variant="pill"
+          value={tab}
+          onChange={setTab}
+          items={[
+            { value: 'payroll', label: 'Folha de Pagamento' },
+            { value: 'project', label: 'Custo por Projeto' },
+          ]}
+        />
       </div>
 
-      {/* Filtro de período */}
-      <div className="bg-white rounded-lg shadow-sm border p-4 mb-4 flex flex-wrap gap-3 items-end">
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">De</label>
-          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
-            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm" />
+      <Card className="mb-4">
+        <div className="flex flex-wrap gap-3 items-end">
+          <DateRange from={startDate} to={endDate} onFromChange={setStartDate} onToChange={setEndDate} />
+          <Button
+            onClick={tab === 'payroll' ? loadPayroll : loadProjectCost}
+            disabled={loading}
+          >
+            {loading ? 'Carregando...' : 'Gerar Relatório'}
+          </Button>
         </div>
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Até</label>
-          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
-            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm" />
-        </div>
-        <button
-          onClick={tab === 'payroll' ? loadPayroll : loadProjectCost}
-          disabled={loading}
-          className="bg-gray-900 text-white px-4 py-1.5 rounded-md text-sm font-medium hover:bg-gray-800 disabled:opacity-50"
-        >
-          {loading ? 'Carregando...' : 'Gerar Relatório'}
-        </button>
-      </div>
+      </Card>
 
-      {error && <div className="bg-red-50 text-red-700 text-sm rounded-md p-3 mb-4">{error}</div>}
-
-      {/* Folha de Pagamento */}
-      {tab === 'payroll' && payrollData && (
-        <div className="bg-white rounded-lg shadow-sm border overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-gray-50">
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Colaborador</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Valor/Hora</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Horas</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Apontamentos</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-600">Salário</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-600">Despesas</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-600">Total a Pagar</th>
-              </tr>
-            </thead>
-            <tbody>
-              {payrollData.payroll.map((u) => (
-                <tr key={u.id} className="border-b last:border-b-0 hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium">{u.name}</td>
-                  <td className="px-4 py-3 text-gray-500">{formatCurrency(u.hourly_rate)}</td>
-                  <td className="px-4 py-3">{u.total_hours}h</td>
-                  <td className="px-4 py-3 text-gray-500">{u.entries_count}</td>
-                  <td className="px-4 py-3 text-right">{formatCurrency(u.total_cost)}</td>
-                  <td className="px-4 py-3 text-right text-blue-700">{formatCurrency(u.total_expenses)}</td>
-                  <td className="px-4 py-3 text-right font-bold">{formatCurrency(u.total_to_pay)}</td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="bg-gray-50 border-t-2">
-                <td colSpan={6} className="px-4 py-3 font-bold">Total Geral</td>
-                <td className="px-4 py-3 text-right font-bold text-lg">{formatCurrency(payrollData.grand_total)}</td>
-              </tr>
-            </tfoot>
-          </table>
+      {error && (
+        <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mb-4">
+          {error}
         </div>
       )}
 
-      {/* Custo por Projeto */}
+      {tab === 'payroll' && payrollData && (
+        <Card padded={false} className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border-subtle bg-surface-alt">
+                <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                  Colaborador
+                </th>
+                <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                  Valor/Hora
+                </th>
+                <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                  Horas
+                </th>
+                <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                  Apontamentos
+                </th>
+                <th className="text-right px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                  Salário
+                </th>
+                <th className="text-right px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                  Despesas
+                </th>
+                <th className="text-right px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                  Total a Pagar
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {payrollData.payroll.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="text-center py-10 text-text-secondary">
+                    Nenhum dado encontrado para o período.
+                  </td>
+                </tr>
+              ) : (
+                payrollData.payroll.map((u) => (
+                  <tr
+                    key={u.id}
+                    className="border-b border-border-subtle last:border-b-0 hover:bg-surface-alt transition-colors"
+                  >
+                    <td className="px-4 py-3 font-medium text-text-primary">{u.name}</td>
+                    <td className="px-4 py-3 text-text-secondary tabular-nums">
+                      {formatCurrency(u.hourly_rate)}
+                    </td>
+                    <td className="px-4 py-3 text-text-primary tabular-nums">{u.total_hours}h</td>
+                    <td className="px-4 py-3 text-text-secondary">{u.entries_count}</td>
+                    <td className="px-4 py-3 text-right text-text-primary tabular-nums">
+                      {formatCurrency(u.total_cost)}
+                    </td>
+                    <td className="px-4 py-3 text-right text-accent tabular-nums">
+                      {formatCurrency(u.total_expenses)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-bold text-text-primary tabular-nums">
+                      {formatCurrency(u.total_to_pay)}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+            {payrollData.payroll.length > 0 && (
+              <tfoot>
+                <tr className="bg-surface-alt border-t-2 border-border-subtle">
+                  <td colSpan={6} className="px-4 py-3 font-bold text-text-primary">
+                    Total Geral
+                  </td>
+                  <td className="px-4 py-3 text-right font-bold font-display text-xl tabular-nums text-text-primary">
+                    {formatCurrency(payrollData.grand_total)}
+                  </td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </Card>
+      )}
+
       {tab === 'project' && projectData && (
         <div className="space-y-4">
-          {projectData.projects.map((p) => (
-            <div key={p.id} className="bg-white rounded-lg shadow-sm border p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <h3 className="font-bold">{p.name}</h3>
-                  {p.client && <p className="text-sm text-gray-500">{p.client}</p>}
-                </div>
-                <div className="text-right">
-                  <p className="text-lg font-bold">{formatCurrency(p.total_cost)}</p>
-                  <p className="text-sm text-gray-500">{p.total_hours}h trabalhadas</p>
-                </div>
-              </div>
-
-              {p.collaborators.length > 0 && (
-                <div className="border-t pt-3 mt-3">
-                  <p className="text-xs text-gray-400 mb-2">Detalhamento por colaborador</p>
-                  {p.collaborators.map((c, i) => (
-                    <div key={i} className="flex items-center justify-between py-1 text-sm">
-                      <span className="text-gray-600">{c.name}</span>
-                      <span className="text-gray-500">{c.hours}h — {formatCurrency(c.cost)}</span>
+          {projectData.projects.length === 0 ? (
+            <Card>
+              <p className="text-center text-text-secondary py-6">
+                Nenhum dado encontrado para o período.
+              </p>
+            </Card>
+          ) : (
+            projectData.projects.map((p) => (
+              <Card key={p.id}>
+                <div className="flex items-start justify-between mb-3">
+                  <div className="min-w-0">
+                    <h3 className="font-display text-xl text-text-primary">{p.name}</h3>
+                    {p.client && <p className="text-sm text-text-secondary mt-0.5">{p.client}</p>}
+                    <div className="mt-2">
+                      <Badge tone={p.status === 'active' ? 'success' : 'neutral'}>
+                        {p.status === 'active' ? 'Ativo' : 'Concluído'}
+                      </Badge>
                     </div>
-                  ))}
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="font-display text-2xl text-text-primary tabular-nums">
+                      {formatCurrency(p.total_cost)}
+                    </p>
+                    <p className="text-sm text-text-secondary tabular-nums">
+                      {p.total_hours}h trabalhadas
+                    </p>
+                  </div>
                 </div>
-              )}
-            </div>
-          ))}
 
-          {projectData.projects.length === 0 && (
-            <p className="text-center text-gray-400 py-8">Nenhum dado encontrado para o período.</p>
+                {p.collaborators.length > 0 && (
+                  <div className="border-t border-border-subtle pt-3 mt-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary mb-2">
+                      Detalhamento por colaborador
+                    </p>
+                    <div className="space-y-1">
+                      {p.collaborators.map((c, i) => (
+                        <div
+                          key={i}
+                          className="flex items-center justify-between py-1 text-sm"
+                        >
+                          <span className="text-text-primary">{c.name}</span>
+                          <span className="text-text-secondary tabular-nums">
+                            {c.hours}h — {formatCurrency(c.cost)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </Card>
+            ))
           )}
         </div>
       )}

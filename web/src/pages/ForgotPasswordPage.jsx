@@ -25,39 +25,39 @@ export function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-bg text-text-primary px-4">
       <div className="w-full max-w-sm">
         <div className="flex items-center justify-center gap-2 mb-8">
-          <Clock className="text-gray-900" size={32} />
-          <h1 className="text-2xl font-bold text-gray-900">Timesheet</h1>
+          <Clock className="text-accent" size={32} />
+          <h1 className="text-2xl font-bold text-text-primary">Timesheet</h1>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border p-6 space-y-4">
+        <div className="bg-surface rounded-xl shadow-card border border-border-subtle p-6 space-y-4">
           {submitted ? (
             <div className="text-center space-y-3">
-              <p className="text-sm text-gray-700">
+              <p className="text-sm text-text-primary">
                 Se o e-mail <strong>{email}</strong> estiver cadastrado, você receberá um link para redefinir sua senha.
               </p>
-              <Link to="/login" className="block text-sm text-gray-500 hover:text-gray-700 underline">
+              <Link to="/login" className="block text-sm text-text-secondary hover:text-text-primary underline transition-colors">
                 Voltar ao login
               </Link>
             </div>
           ) : (
             <>
               <div>
-                <h2 className="text-base font-semibold text-gray-900">Esqueceu a senha?</h2>
-                <p className="text-sm text-gray-500 mt-1">
+                <h2 className="text-base font-semibold text-text-primary">Esqueceu a senha?</h2>
+                <p className="text-sm text-text-secondary mt-1">
                   Informe seu e-mail e enviaremos um link de redefinição.
                 </p>
               </div>
 
               {error && (
-                <div className="bg-red-50 text-red-700 text-sm rounded-md p-3">{error}</div>
+                <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3">{error}</div>
               )}
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="email" className="block text-sm font-medium text-text-secondary mb-1">
                     E-mail
                   </label>
                   <input
@@ -66,7 +66,7 @@ export function ForgotPasswordPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                    className="w-full form-control rounded-lg border px-3 py-2 text-sm outline-none transition-colors"
                     placeholder="seu@email.com"
                   />
                 </div>
@@ -74,13 +74,14 @@ export function ForgotPasswordPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-gray-900 text-white rounded-md py-2 text-sm font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full text-white rounded-lg py-2 text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ background: 'var(--color-accent)' }}
                 >
                   {loading ? 'Enviando...' : 'Enviar link'}
                 </button>
               </form>
 
-              <Link to="/login" className="block text-center text-sm text-gray-500 hover:text-gray-700">
+              <Link to="/login" className="block text-center text-sm text-text-secondary hover:text-text-primary transition-colors">
                 Voltar ao login
               </Link>
             </>

@@ -1,8 +1,14 @@
 import { useState, useEffect } from 'react'
 import { api } from '../../lib/api'
-import { Plus, X, Trash2, Pencil } from 'lucide-react'
+import { Plus, Trash2, Pencil } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { Avatar } from '../../components/Avatar'
+import { PageHeader } from '../../components/ui/PageHeader'
+import { Card } from '../../components/ui/Card'
+import { Modal } from '../../components/ui/Modal'
+import { Input, Select } from '../../components/ui/Input'
+import { Button } from '../../components/ui/Button'
+import { Badge } from '../../components/ui/Badge'
 
 function getMonthRange() {
   const now = new Date()
@@ -47,12 +53,20 @@ function statusLabel(status) {
   return status || '-'
 }
 
-function SummaryCard({ label, value }) {
+function SummaryCard({ label, value, accent }) {
   return (
-    <div className="bg-white rounded-lg border p-4">
-      <p className="text-xs text-gray-500 font-medium mb-2">{label}</p>
-      <p className="text-xl font-bold text-gray-900 tabular-nums">{value}</p>
-    </div>
+    <Card className="!p-4">
+      <p className="text-[11px] uppercase tracking-wider font-medium text-text-secondary mb-2">
+        {label}
+      </p>
+      <p
+        className={`font-display text-xl tabular-nums ${
+          accent ? 'text-accent' : 'text-text-primary'
+        }`}
+      >
+        {value}
+      </p>
+    </Card>
   )
 }
 
@@ -81,10 +95,7 @@ export function AdminTimeEntriesPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    Promise.all([
-      api.get('/admin/users'),
-      api.get('/projects'),
-    ]).then(([u, p]) => {
+    Promise.all([api.get('/admin/users'), api.get('/projects')]).then(([u, p]) => {
       setUsers(u)
       setProjects(p)
     })
@@ -112,7 +123,10 @@ export function AdminTimeEntriesPage() {
     }
   }
 
-  useEffect(() => { loadEntries() }, [])
+  useEffect(() => {
+    loadEntries()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function handleFilter(e) {
     e.preventDefault()
@@ -191,150 +205,164 @@ export function AdminTimeEntriesPage() {
   const totalCost = summary?.total_cost || 0
   const reimbursements = summary?.reimbursements || 0
   const bonuses = summary?.bonuses || 0
-  const netTotal = summary?.net_total ?? (totalCost + reimbursements + bonuses)
+  const netTotal = summary?.net_total ?? totalCost + reimbursements + bonuses
 
   return (
     <div>
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
-        <div className="flex items-center gap-3">
-          <Avatar name={profile?.name} url={profile?.avatar_url} size={44} />
-          <div>
-            <h1 className="text-2xl font-bold">Histórico da Equipe</h1>
-            <p className="text-sm text-gray-500">
-              {profile?.name || 'Administrador'} · Administrador
+      <PageHeader
+        title="Histórico da Equipe"
+        subtitle={`${profile?.name || 'Administrador'} · Administrador`}
+        actions={
+          <Button
+            onClick={() => {
+              resetForm()
+              setShowForm(true)
+            }}
+          >
+            <Plus size={16} />
+            Adicionar Registro
+          </Button>
+        }
+      />
+
+      <Card className="mb-4">
+        <form onSubmit={handleFilter} className="flex flex-col xl:flex-row xl:items-end gap-3">
+          <Select
+            className="xl:w-64"
+            label="Histórico"
+            value={filters.user_id}
+            onChange={(e) => setFilters({ ...filters, user_id: e.target.value })}
+          >
+            <option value="">Toda a equipe</option>
+            {users.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name}
+              </option>
+            ))}
+          </Select>
+
+          <Select
+            className="xl:w-56"
+            label="Projeto"
+            value={filters.project_id}
+            onChange={(e) => setFilters({ ...filters, project_id: e.target.value })}
+          >
+            <option value="">Todos os projetos</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </Select>
+
+          <Input
+            label="De"
+            type="date"
+            value={filters.start_date}
+            onChange={(e) => setFilters({ ...filters, start_date: e.target.value })}
+          />
+          <div className="hidden xl:block pb-2 text-text-secondary">→</div>
+          <Input
+            label="Até"
+            type="date"
+            value={filters.end_date}
+            onChange={(e) => setFilters({ ...filters, end_date: e.target.value })}
+          />
+
+          <Button type="submit">Filtrar</Button>
+        </form>
+
+        <div className="mt-4 flex items-center gap-3 pt-4 border-t border-border-subtle">
+          <Avatar name={selectedUser?.name || 'Equipe'} url={selectedUser?.avatar_url} size={36} />
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-text-primary truncate">
+              {selectedUser?.name || 'Toda a equipe'}
+            </p>
+            <p className="text-xs text-text-secondary truncate">
+              {selectedUser?.position || 'Histórico consolidado'}
             </p>
           </div>
         </div>
-
-        <button
-          type="button"
-          onClick={() => { resetForm(); setShowForm(true) }}
-          className="inline-flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
-        >
-          <Plus size={16} />
-          Adicionar Registro
-        </button>
-      </div>
-
-      <form onSubmit={handleFilter} className="bg-white rounded-lg shadow-sm border p-4 mb-4">
-        <div className="flex flex-col xl:flex-row xl:items-end gap-3">
-          <div className="min-w-0 xl:w-64">
-            <label className="block text-xs text-gray-500 mb-1">Histórico</label>
-            <select
-              value={filters.user_id}
-              onChange={(e) => setFilters({ ...filters, user_id: e.target.value })}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-            >
-              <option value="">Toda a equipe</option>
-              {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-            </select>
-          </div>
-
-          <div className="min-w-0 xl:w-56">
-            <label className="block text-xs text-gray-500 mb-1">Projeto</label>
-            <select
-              value={filters.project_id}
-              onChange={(e) => setFilters({ ...filters, project_id: e.target.value })}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-            >
-              <option value="">Todos os projetos</option>
-              {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">De</label>
-            <input
-              type="date"
-              value={filters.start_date}
-              onChange={(e) => setFilters({ ...filters, start_date: e.target.value })}
-              className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-            />
-          </div>
-
-          <div className="hidden xl:block pb-2 text-gray-400">→</div>
-
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Até</label>
-            <input
-              type="date"
-              value={filters.end_date}
-              onChange={(e) => setFilters({ ...filters, end_date: e.target.value })}
-              className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="bg-gray-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-800"
-          >
-            Histórico
-          </button>
-
-          <button
-            type="button"
-            className="border border-gray-300 px-4 py-2 rounded-md text-sm font-medium text-gray-600 hover:bg-gray-50"
-          >
-            Solicitações
-          </button>
-        </div>
-
-        <div className="mt-4 flex items-center gap-3">
-          <Avatar name={selectedUser?.name || 'Equipe'} url={selectedUser?.avatar_url} size={36} />
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-gray-900 truncate">{selectedUser?.name || 'Toda a equipe'}</p>
-            <p className="text-xs text-gray-500 truncate">{selectedUser?.position || 'Histórico consolidado'}</p>
-          </div>
-        </div>
-      </form>
+      </Card>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-7 gap-3 mb-4">
         <SummaryCard label="Salário Base / Horas" value={formatCurrency(totalCost)} />
         <SummaryCard label="Reembolso Despesas" value={formatCurrency(reimbursements)} />
         <SummaryCard label="Adicional Bônus" value={formatCurrency(bonuses)} />
-        <SummaryCard label="Total Líquido" value={formatCurrency(netTotal)} />
+        <SummaryCard label="Total Líquido" value={formatCurrency(netTotal)} accent />
         <SummaryCard label="Horas Totais" value={formatDuration(summary?.total_minutes)} />
         <SummaryCard label="Média de Horas/Dia" value={formatDuration(summary?.average_minutes_per_day)} />
         <SummaryCard label="Dias Trabalhados" value={String(summary?.working_days || 0)} />
       </div>
 
-      {error && <div className="bg-red-50 text-red-700 text-sm rounded-md p-3 mb-4">{error}</div>}
+      {error && (
+        <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mb-4">
+          {error}
+        </div>
+      )}
 
       {expenses.length > 0 && (
-        <div className="bg-white rounded-lg shadow-sm border overflow-x-auto mb-4">
-          <div className="px-4 py-3 border-b bg-gray-50">
-            <h2 className="text-sm font-semibold text-gray-900">Despesas</h2>
+        <Card padded={false} className="overflow-x-auto mb-4">
+          <div className="px-4 py-3 border-b border-border-subtle bg-surface-alt">
+            <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary">
+              Despesas
+            </h2>
           </div>
           <table className="w-full text-xs">
             <thead>
-              <tr className="border-b bg-gray-50 whitespace-nowrap">
-                <th className="text-left px-3 py-3 font-medium text-gray-600">Data</th>
-                <th className="text-left px-3 py-3 font-medium text-gray-600">Colaborador</th>
-                <th className="text-left px-3 py-3 font-medium text-gray-600">Despesa</th>
-                <th className="text-left px-3 py-3 font-medium text-gray-600">Valor</th>
-                <th className="text-left px-3 py-3 font-medium text-gray-600">Status</th>
-                <th className="text-left px-3 py-3 font-medium text-gray-600">Comprovante</th>
+              <tr className="border-b border-border-subtle bg-surface-alt">
+                <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                  Data
+                </th>
+                <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                  Colaborador
+                </th>
+                <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                  Despesa
+                </th>
+                <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                  Valor
+                </th>
+                <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                  Status
+                </th>
+                <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                  Comprovante
+                </th>
               </tr>
             </thead>
             <tbody>
               {expenses.map((expense) => (
-                <tr key={expense.id} className="border-b last:border-b-0 hover:bg-gray-50">
-                  <td className="px-3 py-3 whitespace-nowrap">{formatDate(expense.expense_date)}</td>
+                <tr
+                  key={expense.id}
+                  className="border-b border-border-subtle last:border-b-0 hover:bg-surface-alt transition-colors"
+                >
+                  <td className="px-3 py-3 whitespace-nowrap text-text-primary">
+                    {formatDate(expense.expense_date)}
+                  </td>
                   <td className="px-3 py-3 min-w-40">
-                    <p className="font-medium text-gray-900">{expense.profile?.name || '-'}</p>
-                    {expense.profile?.position && <p className="text-[11px] text-gray-400">{expense.profile.position}</p>}
+                    <p className="font-medium text-text-primary">
+                      {expense.profile?.name || '-'}
+                    </p>
+                    {expense.profile?.position && (
+                      <p className="text-[11px] text-text-secondary">{expense.profile.position}</p>
+                    )}
                   </td>
                   <td className="px-3 py-3 min-w-56">
-                    <p className="font-medium text-gray-900">{expense.title}</p>
-                    {expense.description && <p className="text-[11px] text-gray-500 mt-0.5 line-clamp-2">{expense.description}</p>}
-                  </td>
-                  <td className="px-3 py-3 whitespace-nowrap font-medium">{formatCurrency(expense.amount)}</td>
-                  <td className="px-3 py-3 whitespace-nowrap">
-                    {expense.status === 'approved' ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700">Aprovada</span>
-                    ) : (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-yellow-100 text-yellow-700">Pendente</span>
+                    <p className="font-medium text-text-primary">{expense.title}</p>
+                    {expense.description && (
+                      <p className="text-[11px] text-text-secondary mt-0.5 line-clamp-2">
+                        {expense.description}
+                      </p>
                     )}
+                  </td>
+                  <td className="px-3 py-3 whitespace-nowrap font-medium text-text-primary tabular-nums">
+                    {formatCurrency(expense.amount)}
+                  </td>
+                  <td className="px-3 py-3 whitespace-nowrap">
+                    <Badge tone={expense.status === 'approved' ? 'success' : 'warning'}>
+                      {expense.status === 'approved' ? 'Aprovada' : 'Pendente'}
+                    </Badge>
                   </td>
                   <td className="px-3 py-3 whitespace-nowrap">
                     {expense.receipt_url ? (
@@ -342,194 +370,269 @@ export function AdminTimeEntriesPage() {
                         href={expense.receipt_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-gray-700 underline hover:text-gray-900"
+                        className="text-accent underline hover:opacity-80"
                       >
                         Abrir
                       </a>
                     ) : (
-                      <span className="text-gray-400">-</span>
+                      <span className="text-text-secondary">-</span>
                     )}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+        </Card>
       )}
 
-      {showForm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold">{editingEntry ? 'Editar Registro' : 'Adicionar Registro'}</h2>
-              <button onClick={resetForm} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
-            </div>
-
-            {error && <div className="bg-red-50 text-red-700 text-sm rounded-md p-3 mb-4">{error}</div>}
-
-            <form onSubmit={handleSubmit} className="space-y-3">
-              {!editingEntry && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Colaborador</label>
-                  <select
-                    required
-                    value={form.user_id}
-                    onChange={(e) => setForm({ ...form, user_id: e.target.value })}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                  >
-                    <option value="">Selecione...</option>
-                    {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-                  </select>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Projeto</label>
-                <select
-                  required
-                  value={form.project_id}
-                  onChange={(e) => setForm({ ...form, project_id: e.target.value })}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                >
-                  <option value="">Selecione...</option>
-                  {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Início</label>
-                <input
-                  type="datetime-local"
-                  required
-                  value={form.started_at}
-                  onChange={(e) => setForm({ ...form, started_at: e.target.value })}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Saída</label>
-                <input
-                  type="datetime-local"
-                  required
-                  value={form.ended_at}
-                  onChange={(e) => setForm({ ...form, ended_at: e.target.value })}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                />
-              </div>
-
-              <button type="submit" className="w-full bg-gray-900 text-white rounded-md py-2 text-sm font-medium hover:bg-gray-800">
-                {editingEntry ? 'Salvar' : 'Adicionar Registro'}
-              </button>
-            </form>
+      <Modal
+        open={showForm}
+        onClose={resetForm}
+        title={editingEntry ? 'Editar Registro' : 'Adicionar Registro'}
+      >
+        {error && (
+          <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mb-4">
+            {error}
           </div>
-        </div>
-      )}
-
-      {selectedPauses && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold">Pausas</h2>
-              <button onClick={() => setSelectedPauses(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
-            </div>
-            <div className="divide-y border rounded-lg overflow-hidden">
-              {selectedPauses.map((pause, index) => (
-                <div key={pause.id || index} className="grid grid-cols-3 gap-3 px-4 py-3 text-sm">
-                  <span className="text-gray-500">Pausa {index + 1}</span>
-                  <span>{formatTime(pause.paused_at)}</span>
-                  <span>{pause.resumed_at ? formatTime(pause.resumed_at) : 'Aberta'}</span>
-                </div>
+        )}
+        <form onSubmit={handleSubmit} className="space-y-3">
+          {!editingEntry && (
+            <Select
+              label="Colaborador"
+              required
+              value={form.user_id}
+              onChange={(e) => setForm({ ...form, user_id: e.target.value })}
+            >
+              <option value="">Selecione...</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name}
+                </option>
               ))}
-            </div>
-          </div>
-        </div>
-      )}
+            </Select>
+          )}
+          <Select
+            label="Projeto"
+            required
+            value={form.project_id}
+            onChange={(e) => setForm({ ...form, project_id: e.target.value })}
+          >
+            <option value="">Selecione...</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </Select>
+          <Input
+            label="Início"
+            type="datetime-local"
+            required
+            value={form.started_at}
+            onChange={(e) => setForm({ ...form, started_at: e.target.value })}
+          />
+          <Input
+            label="Saída"
+            type="datetime-local"
+            required
+            value={form.ended_at}
+            onChange={(e) => setForm({ ...form, ended_at: e.target.value })}
+          />
+          <Button type="submit" className="w-full">
+            {editingEntry ? 'Salvar' : 'Adicionar Registro'}
+          </Button>
+        </form>
+      </Modal>
 
-      <div className="bg-white rounded-lg shadow-sm border overflow-x-auto">
+      <Modal
+        open={Boolean(selectedPauses)}
+        onClose={() => setSelectedPauses(null)}
+        title="Pausas"
+        size="lg"
+      >
+        <div className="divide-y divide-border-subtle border border-border-subtle rounded-lg overflow-hidden">
+          {selectedPauses?.map((pause, index) => (
+            <div
+              key={pause.id || index}
+              className="grid grid-cols-3 gap-3 px-4 py-3 text-sm text-text-primary"
+            >
+              <span className="text-text-secondary">Pausa {index + 1}</span>
+              <span className="tabular-nums">{formatTime(pause.paused_at)}</span>
+              <span className="tabular-nums">
+                {pause.resumed_at ? formatTime(pause.resumed_at) : 'Aberta'}
+              </span>
+            </div>
+          ))}
+        </div>
+      </Modal>
+
+      <Card padded={false} className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
-            <tr className="border-b bg-gray-50 whitespace-nowrap">
-              <th className="text-left px-3 py-3 font-medium text-gray-600">Data</th>
-              <th className="text-left px-3 py-3 font-medium text-gray-600">Colaborador</th>
-              <th className="text-left px-3 py-3 font-medium text-gray-600">Projeto</th>
-              <th className="text-left px-3 py-3 font-medium text-gray-600">Início</th>
-              <th className="text-left px-3 py-3 font-medium text-gray-600">Pausas</th>
-              <th className="text-left px-3 py-3 font-medium text-gray-600">Saída</th>
-              <th className="text-left px-3 py-3 font-medium text-gray-600">Total</th>
-              <th className="text-left px-3 py-3 font-medium text-gray-600">Total/Dia</th>
-              <th className="text-left px-3 py-3 font-medium text-gray-600">Saldo</th>
-              <th className="text-left px-3 py-3 font-medium text-gray-600">Bônus</th>
-              <th className="text-left px-3 py-3 font-medium text-gray-600">Off Auto</th>
-              <th className="text-left px-3 py-3 font-medium text-gray-600">Editado</th>
-              <th className="text-left px-3 py-3 font-medium text-gray-600">Status</th>
-              <th className="text-right px-3 py-3 font-medium text-gray-600">Ações</th>
+            <tr className="border-b border-border-subtle bg-surface-alt whitespace-nowrap">
+              <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                Data
+              </th>
+              <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                Colaborador
+              </th>
+              <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                Projeto
+              </th>
+              <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                Início
+              </th>
+              <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                Pausas
+              </th>
+              <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                Saída
+              </th>
+              <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                Total
+              </th>
+              <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                Total/Dia
+              </th>
+              <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                Saldo
+              </th>
+              <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                Editado
+              </th>
+              <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                Status
+              </th>
+              <th className="text-right px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                Ações
+              </th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={14} className="text-center py-8 text-gray-400">Carregando...</td></tr>
-            ) : tableEntries.length === 0 ? (
-              <tr><td colSpan={14} className="text-center py-8 text-gray-400">Nenhum registro encontrado.</td></tr>
-            ) : tableEntries.map((entry) => (
-              <tr key={entry.id} className="border-b last:border-b-0 hover:bg-gray-50 align-top">
-                <td className="px-3 py-3 whitespace-nowrap">{formatDate(entry.started_at)}</td>
-                <td className="px-3 py-3 min-w-40">
-                  <p className="font-medium text-gray-900">{entry.profiles?.name || '-'}</p>
-                  {entry.profiles?.position && <p className="text-[11px] text-gray-400">{entry.profiles.position}</p>}
-                </td>
-                <td className="px-3 py-3 min-w-48">{entry.projects?.name || '-'}</td>
-                <td className="px-3 py-3 whitespace-nowrap">{formatTime(entry.started_at)}</td>
-                <td className="px-3 py-3 whitespace-nowrap">
-                  {entry.pauses?.length ? (
-                    <button
-                      type="button"
-                      onClick={() => setSelectedPauses(entry.pauses)}
-                      className="text-gray-700 underline hover:text-gray-900"
-                    >
-                      Visualizar ({entry.pauses.length})
-                    </button>
-                  ) : '—'}
-                </td>
-                <td className="px-3 py-3 whitespace-nowrap">{formatTime(entry.ended_at)}</td>
-                <td className="px-3 py-3 whitespace-nowrap font-medium">{formatDuration(entry.duration_minutes)}</td>
-                <td className="px-3 py-3 whitespace-nowrap">{entry.dailyTotalMinutes === null ? '' : formatDuration(entry.dailyTotalMinutes)}</td>
-                <td className="px-3 py-3 whitespace-nowrap font-medium">{formatCurrency(entry.cost_snapshot)}</td>
-                <td className="px-3 py-3 whitespace-nowrap">Não</td>
-                <td className="px-3 py-3 whitespace-nowrap">Não</td>
-                <td className="px-3 py-3 whitespace-nowrap">{entry.edited_at ? 'Sim' : 'Não'}</td>
-                <td className="px-3 py-3 whitespace-nowrap">{statusLabel(entry.status)}</td>
-                <td className="px-3 py-3 text-right whitespace-nowrap">
-                  <button onClick={() => startEdit(entry)} className="text-gray-400 hover:text-gray-700 mr-2" title="Editar">
-                    <Pencil size={15} />
-                  </button>
-                  <button onClick={() => handleDelete(entry.id)} className="text-gray-400 hover:text-red-600" title="Excluir">
-                    <Trash2 size={15} />
-                  </button>
+              <tr>
+                <td colSpan={12} className="text-center py-10 text-text-secondary">
+                  Carregando...
                 </td>
               </tr>
-            ))}
+            ) : tableEntries.length === 0 ? (
+              <tr>
+                <td colSpan={12} className="text-center py-10 text-text-secondary">
+                  Nenhum registro encontrado.
+                </td>
+              </tr>
+            ) : (
+              tableEntries.map((entry) => (
+                <tr
+                  key={entry.id}
+                  className="border-b border-border-subtle last:border-b-0 hover:bg-surface-alt transition-colors align-top"
+                >
+                  <td className="px-3 py-3 whitespace-nowrap text-text-primary">
+                    {formatDate(entry.started_at)}
+                  </td>
+                  <td className="px-3 py-3 min-w-40">
+                    <p className="font-medium text-text-primary">
+                      {entry.profiles?.name || '-'}
+                    </p>
+                    {entry.profiles?.position && (
+                      <p className="text-[11px] text-text-secondary">{entry.profiles.position}</p>
+                    )}
+                  </td>
+                  <td className="px-3 py-3 min-w-48 text-text-primary">
+                    {entry.projects?.name || '-'}
+                  </td>
+                  <td className="px-3 py-3 whitespace-nowrap tabular-nums text-text-primary">
+                    {formatTime(entry.started_at)}
+                  </td>
+                  <td className="px-3 py-3 whitespace-nowrap">
+                    {entry.pauses?.length ? (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedPauses(entry.pauses)}
+                        className="text-accent underline hover:opacity-80"
+                      >
+                        Visualizar ({entry.pauses.length})
+                      </button>
+                    ) : (
+                      <span className="text-text-secondary">—</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-3 whitespace-nowrap tabular-nums text-text-primary">
+                    {formatTime(entry.ended_at)}
+                  </td>
+                  <td className="px-3 py-3 whitespace-nowrap font-medium tabular-nums text-text-primary">
+                    {formatDuration(entry.duration_minutes)}
+                  </td>
+                  <td className="px-3 py-3 whitespace-nowrap tabular-nums text-text-secondary">
+                    {entry.dailyTotalMinutes === null
+                      ? ''
+                      : formatDuration(entry.dailyTotalMinutes)}
+                  </td>
+                  <td className="px-3 py-3 whitespace-nowrap font-medium tabular-nums text-text-primary">
+                    {formatCurrency(entry.cost_snapshot)}
+                  </td>
+                  <td className="px-3 py-3 whitespace-nowrap text-text-secondary">
+                    {entry.edited_at ? 'Sim' : 'Não'}
+                  </td>
+                  <td className="px-3 py-3 whitespace-nowrap">
+                    <Badge
+                      tone={
+                        entry.status === 'completed'
+                          ? 'success'
+                          : entry.status === 'running'
+                            ? 'info'
+                            : entry.status === 'paused'
+                              ? 'warning'
+                              : 'neutral'
+                      }
+                    >
+                      {statusLabel(entry.status)}
+                    </Badge>
+                  </td>
+                  <td className="px-3 py-3 text-right whitespace-nowrap">
+                    <button
+                      onClick={() => startEdit(entry)}
+                      className="text-text-secondary hover:text-text-primary mr-2 transition-colors"
+                      title="Editar"
+                    >
+                      <Pencil size={15} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(entry.id)}
+                      className="text-text-secondary hover:text-rose-500 transition-colors"
+                      title="Excluir"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
-      </div>
+      </Card>
 
       {pagination.pages > 1 && (
         <div className="flex justify-center gap-2 mt-4">
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => loadEntries(pagination.page - 1)}
             disabled={pagination.page <= 1}
-            className="px-3 py-1 text-sm border rounded hover:bg-gray-50 disabled:opacity-30"
           >
             Anterior
-          </button>
-          <span className="px-3 py-1 text-sm text-gray-500">{pagination.page} de {pagination.pages}</span>
-          <button
+          </Button>
+          <span className="px-3 py-1 text-sm text-text-secondary">
+            {pagination.page} de {pagination.pages}
+          </span>
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => loadEntries(pagination.page + 1)}
             disabled={pagination.page >= pagination.pages}
-            className="px-3 py-1 text-sm border rounded hover:bg-gray-50 disabled:opacity-30"
           >
             Próximo
-          </button>
+          </Button>
         </div>
       )}
     </div>

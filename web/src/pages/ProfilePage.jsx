@@ -108,7 +108,7 @@ export function ProfilePage() {
   if (loading) {
     return (
       <div className="max-w-3xl mx-auto">
-        <p className="text-sm text-gray-400">Carregando perfil...</p>
+        <p className="text-sm text-text-secondary">Carregando perfil...</p>
       </div>
     )
   }
@@ -117,20 +117,21 @@ export function ProfilePage() {
     <div className="max-w-3xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Meu Perfil</h1>
-          <p className="text-sm text-gray-500 mt-1">Gerencie suas informações pessoais.</p>
+          <h1 className="text-2xl font-bold text-text-primary">Meu Perfil</h1>
+          <p className="text-sm text-text-secondary mt-1">Gerencie suas informações pessoais.</p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-lg border shadow-sm overflow-hidden">
-        <div className="p-5 border-b flex flex-col sm:flex-row items-start sm:items-center gap-4">
+      <form onSubmit={handleSubmit} className="bg-surface rounded-xl border border-border-subtle shadow-card overflow-hidden">
+        <div className="p-5 border-b border-border-subtle flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <div className="relative">
             <Avatar name={form.name || profile?.name} url={form.avatar_url} size={72} />
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-gray-900 text-white flex items-center justify-center hover:bg-gray-700 disabled:opacity-50"
+              className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full text-white flex items-center justify-center hover:opacity-90 disabled:opacity-50 transition-opacity"
+              style={{ background: 'var(--color-accent)' }}
               title="Alterar foto"
             >
               <Camera size={15} />
@@ -145,84 +146,85 @@ export function ProfilePage() {
           </div>
 
           <div className="min-w-0">
-            <p className="font-semibold text-gray-900 truncate">{form.name}</p>
-            <p className="text-sm text-gray-500 truncate">{form.email}</p>
-            <span className="inline-flex mt-2 text-xs font-medium px-2 py-0.5 rounded bg-gray-100 text-gray-700">
+            <p className="font-semibold text-text-primary truncate">{form.name}</p>
+            <p className="text-sm text-text-secondary truncate">{form.email}</p>
+            <span className="inline-flex mt-2 text-xs font-medium px-2 py-0.5 rounded bg-surface-alt text-text-secondary">
               {roleLabel(form.role)}
             </span>
           </div>
         </div>
 
         <div className="p-5 space-y-4">
-          {error && <div className="rounded-md bg-red-50 text-red-700 text-sm p-3">{error}</div>}
-          {success && <div className="rounded-md bg-green-50 text-green-700 text-sm p-3">{success}</div>}
+          {error && <div className="rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm p-3">{error}</div>}
+          {success && <div className="rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-sm p-3">{success}</div>}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
+              <label className="block text-sm font-medium text-text-secondary mb-1">Nome</label>
               <input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                className="w-full form-control rounded-lg border px-3 py-2 text-sm outline-none transition-colors"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
+              <label className="block text-sm font-medium text-text-secondary mb-1">E-mail</label>
               <input
                 value={form.email}
-                className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500"
+                className="w-full form-control-muted rounded-lg border px-3 py-2 text-sm"
                 disabled
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
+              <label className="block text-sm font-medium text-text-secondary mb-1">Telefone</label>
               <input
                 type="tel"
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 placeholder="(11) 99999-9999"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                className="w-full form-control rounded-lg border px-3 py-2 text-sm outline-none transition-colors"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Data de nascimento</label>
+              <label className="block text-sm font-medium text-text-secondary mb-1">Data de nascimento</label>
               <input
                 type="date"
                 value={form.birth_date}
                 onChange={(e) => setForm({ ...form, birth_date: e.target.value })}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                className="w-full form-control rounded-lg border px-3 py-2 text-sm outline-none transition-colors"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Cargo</label>
+              <label className="block text-sm font-medium text-text-secondary mb-1">Cargo</label>
               <input
                 value={form.position || 'Não informado'}
-                className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500"
+                className="w-full form-control-muted rounded-lg border px-3 py-2 text-sm"
                 disabled
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Perfil</label>
+              <label className="block text-sm font-medium text-text-secondary mb-1">Perfil</label>
               <input
                 value={roleLabel(form.role)}
-                className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500"
+                className="w-full form-control-muted rounded-lg border px-3 py-2 text-sm"
                 disabled
               />
             </div>
           </div>
         </div>
 
-        <div className="px-5 py-4 border-t bg-gray-50 flex justify-end">
+        <div className="px-5 py-4 border-t border-border-subtle bg-surface-alt flex justify-end">
           <button
             type="submit"
             disabled={saving || uploading}
-            className="inline-flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-700 disabled:opacity-50"
+            className="inline-flex items-center gap-2 text-white px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
+            style={{ background: 'var(--color-accent)' }}
           >
             <Save size={16} />
             {saving ? 'Salvando...' : 'Salvar alterações'}

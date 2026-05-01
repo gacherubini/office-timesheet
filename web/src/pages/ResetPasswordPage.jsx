@@ -50,18 +50,18 @@ export function ResetPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-bg text-text-primary px-4">
       <div className="w-full max-w-sm">
         <div className="flex items-center justify-center gap-2 mb-8">
-          <Clock className="text-gray-900" size={32} />
-          <h1 className="text-2xl font-bold text-gray-900">Timesheet</h1>
+          <Clock className="text-accent" size={32} />
+          <h1 className="text-2xl font-bold text-text-primary">Timesheet</h1>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border p-6 space-y-4">
+        <div className="bg-surface rounded-xl shadow-card border border-border-subtle p-6 space-y-4">
           {invalidLink && (
             <div className="text-center space-y-3">
-              <p className="text-sm text-red-600">Link inválido ou expirado.</p>
-              <Link to="/forgot-password" className="block text-sm text-gray-500 hover:text-gray-700 underline">
+              <p className="text-sm text-rose-600 dark:text-rose-400">Link inválido ou expirado.</p>
+              <Link to="/forgot-password" className="block text-sm text-text-secondary hover:text-text-primary underline transition-colors">
                 Solicitar novo link
               </Link>
             </div>
@@ -69,10 +69,11 @@ export function ResetPasswordPage() {
 
           {done && (
             <div className="text-center space-y-3">
-              <p className="text-sm text-gray-700">Senha redefinida com sucesso!</p>
+              <p className="text-sm text-text-primary">Senha redefinida com sucesso!</p>
               <button
                 onClick={() => navigate('/login')}
-                className="w-full bg-gray-900 text-white rounded-md py-2 text-sm font-medium hover:bg-gray-800 transition-colors"
+                className="w-full text-white rounded-lg py-2 text-sm font-medium hover:opacity-90 transition-opacity"
+                style={{ background: 'var(--color-accent)' }}
               >
                 Ir para o login
               </button>
@@ -82,17 +83,17 @@ export function ResetPasswordPage() {
           {!invalidLink && !done && (
             <>
               <div>
-                <h2 className="text-base font-semibold text-gray-900">Nova senha</h2>
-                <p className="text-sm text-gray-500 mt-1">Escolha uma nova senha para sua conta.</p>
+                <h2 className="text-base font-semibold text-text-primary">Nova senha</h2>
+                <p className="text-sm text-text-secondary mt-1">Escolha uma nova senha para sua conta.</p>
               </div>
 
               {error && (
-                <div className="bg-red-50 text-red-700 text-sm rounded-md p-3">{error}</div>
+                <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3">{error}</div>
               )}
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="newPassword" className="block text-sm font-medium text-text-secondary mb-1">
                     Nova senha
                   </label>
                   <input
@@ -102,13 +103,13 @@ export function ResetPasswordPage() {
                     minLength={6}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                    className="w-full form-control rounded-lg border px-3 py-2 text-sm outline-none transition-colors"
                     placeholder="Mínimo 6 caracteres"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="confirm" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="confirm" className="block text-sm font-medium text-text-secondary mb-1">
                     Confirmar senha
                   </label>
                   <input
@@ -118,7 +119,7 @@ export function ResetPasswordPage() {
                     minLength={6}
                     value={confirm}
                     onChange={(e) => setConfirm(e.target.value)}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                    className="w-full form-control rounded-lg border px-3 py-2 text-sm outline-none transition-colors"
                     placeholder="Repita a senha"
                   />
                 </div>
@@ -126,7 +127,8 @@ export function ResetPasswordPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-gray-900 text-white rounded-md py-2 text-sm font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full text-white rounded-lg py-2 text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ background: 'var(--color-accent)' }}
                 >
                   {loading ? 'Salvando...' : 'Redefinir senha'}
                 </button>
