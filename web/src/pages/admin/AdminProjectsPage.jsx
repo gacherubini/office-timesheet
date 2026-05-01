@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../../lib/api'
-import { Plus, Upload } from 'lucide-react'
+import { AlertTriangle, Plus, Trash2, Upload } from 'lucide-react'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { Modal } from '../../components/ui/Modal'
@@ -20,6 +21,9 @@ export function AdminProjectsPage() {
   const [error, setError] = useState('')
   const [form, setForm] = useState({ name: '', client: '', status: 'active', sale_value: '' })
   const [uploading, setUploading] = useState(null)
+  const [projectToDelete, setProjectToDelete] = useState(null)
+  const [deleteError, setDeleteError] = useState('')
+  const [deleting, setDeleting] = useState(false)
   const fileInputRef = useRef(null)
 
   async function loadProjects() {
@@ -76,14 +80,18 @@ export function AdminProjectsPage() {
     }
   }
 
-  async function handleDelete(project) {
-    if (!confirm(`Excluir o projeto "${project.name}"?`)) return
-
+  async function handleDelete() {
+    if (!projectToDelete) return
+    setDeleteError('')
+    setDeleting(true)
     try {
-      await api.delete(`/projects/${project.id}`)
-      loadProjects()
+      await api.delete(`/projects/${projectToDelete.id}`)
+      setProjects((prev) => prev.filter((project) => project.id !== projectToDelete.id))
+      setProjectToDelete(null)
     } catch (err) {
-      alert(err.message)
+      setDeleteError(err.message)
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -125,15 +133,24 @@ export function AdminProjectsPage() {
         title="Projetos"
         subtitle="Cadastro de projetos, clientes e valores de venda"
         actions={
-          <Button
-            onClick={() => {
-              resetForm()
-              setShowForm(true)
-            }}
-          >
-            <Plus size={16} />
-            Novo Projeto
-          </Button>
+          <>
+            <Link
+              to="/admin/deleted-projects"
+              className="inline-flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors"
+            >
+              <Trash2 size={14} />
+              Excluídos
+            </Link>
+            <Button
+              onClick={() => {
+                resetForm()
+                setShowForm(true)
+              }}
+            >
+              <Plus size={16} />
+              Novo Projeto
+            </Button>
+          </>
         }
       />
 
@@ -233,7 +250,10 @@ export function AdminProjectsPage() {
                       Editar
                     </button>
                     <button
-                      onClick={() => handleDelete(project)}
+                      onClick={() => {
+                        setProjectToDelete(project)
+                        setDeleteError('')
+                      }}
                       className="text-sm text-rose-500 hover:text-rose-400 transition-colors"
                     >
                       Excluir
@@ -291,6 +311,59 @@ export function AdminProjectsPage() {
             {editingProject ? 'Salvar' : 'Criar Projeto'}
           </Button>
         </form>
+      </Modal>
+
+      <Modal
+        open={Boolean(projectToDelete)}
+        onClose={() => {
+          setProjectToDelete(null)
+          setDeleteError('')
+        }}
+        size="lg"
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setProjectToDelete(null)
+                setDeleteError('')
+              }}
+              disabled={deleting}
+            >
+              Cancelar
+            </Button>
+            <Button variant="danger" onClick={handleDelete} disabled={deleting}>
+              {deleting ? 'Excluindo...' : 'Sim, excluir'}
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col items-center text-center mb-5">
+          <div className="bg-rose-500/15 rounded-full p-4 mb-4">
+            <AlertTriangle className="text-rose-500" size={36} />
+          </div>
+          <h3 className="font-display text-2xl text-text-primary mb-2">
+            Excluir projeto?
+          </h3>
+          <p className="text-text-secondary">
+            Você está prestes a excluir{' '}
+            <strong className="text-text-primary">{projectToDelete?.name}</strong>
+          </p>
+        </div>
+        <div className="bg-sky-500/10 border border-sky-500/20 rounded-lg p-4 text-sm">
+          <p className="font-medium text-text-primary mb-1">
+            Os apontamentos serão preservados.
+          </p>
+          <p className="text-text-secondary">
+            Você pode restaurar este projeto a qualquer momento na página de{' '}
+            <strong className="text-text-primary">Excluídos</strong>.
+          </p>
+        </div>
+        {deleteError && (
+          <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mt-3">
+            {deleteError}
+          </div>
+        )}
       </Modal>
     </div>
   )

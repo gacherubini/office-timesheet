@@ -24,6 +24,7 @@ router.get('/projects', requireAuth, async (req, res) => {
   const { data, error } = await userClient
     .from('projects')
     .select('*')
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -31,6 +32,20 @@ router.get('/projects', requireAuth, async (req, res) => {
   }
 
   return res.json(data)
+})
+
+router.get('/projects/deleted', requireAuth, requireAdmin, async (_req, res) => {
+  const { data, error } = await adminClient
+    .from('projects')
+    .select('id, name, client, status, sale_value, image_url, deleted_at, created_at')
+    .not('deleted_at', 'is', null)
+    .order('deleted_at', { ascending: false })
+
+  if (error) {
+    return res.status(400).json({ error: error.message })
+  }
+
+  return res.json(data || [])
 })
 
 router.post('/projects', requireAuth, requireAdmin, async (req, res) => {
@@ -53,7 +68,6 @@ router.post('/projects', requireAuth, requireAdmin, async (req, res) => {
   return res.status(201).json(data)
 })
 
-// ─── EDITAR PROJETO ───────────────────────────────────────────────────
 router.put('/projects/:id', requireAuth, requireAdmin, async (req, res) => {
   const { id } = req.params
   const { name, client, status, sale_value } = req.body
@@ -82,49 +96,65 @@ router.put('/projects/:id', requireAuth, requireAdmin, async (req, res) => {
     .from('projects')
     .update(updates)
     .eq('id', id)
+    .is('deleted_at', null)
     .select()
-    .single()
+    .maybeSingle()
 
   if (error) {
     return res.status(400).json({ error: error.message })
+  }
+
+  if (!data) {
+    return res.status(404).json({ error: 'Projeto não encontrado.' })
   }
 
   return res.json(data)
 })
 
-// ─── EXCLUIR PROJETO ──────────────────────────────────────────────────
-router.delete('/projects/:id', requireAuth, requireAdmin, async (req, res) => {
+router.post('/projects/:id/restore', requireAuth, requireAdmin, async (req, res) => {
   const { id } = req.params
 
-  // Verifica se existem apontamentos vinculados ao projeto
-  const { count, error: countError } = await adminClient
-    .from('time_entries')
-    .select('id', { count: 'exact', head: true })
-    .eq('project_id', id)
-
-  if (countError) {
-    return res.status(400).json({ error: countError.message })
-  }
-
-  if (count > 0) {
-    return res.status(409).json({
-      error: `Projeto possui ${count} apontamento(s). Não é possível excluir. Considere alterar o status para "completed".`,
-    })
-  }
-
-  const { error } = await adminClient
+  const { data, error } = await adminClient
     .from('projects')
-    .delete()
+    .update({ deleted_at: null })
     .eq('id', id)
+    .not('deleted_at', 'is', null)
+    .select('id, name, client, status, sale_value, image_url, created_at')
+    .maybeSingle()
 
   if (error) {
     return res.status(400).json({ error: error.message })
   }
 
-  return res.json({ message: 'Projeto excluído com sucesso.' })
+  if (!data) {
+    return res.status(404).json({ error: 'Projeto excluído não encontrado.' })
+  }
+
+  return res.json(data)
 })
 
-// ─── UPLOAD DE IMAGEM DO PROJETO ──────────────────────────────────────
+router.delete('/projects/:id', requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params
+
+  const { data, error } = await adminClient
+    .from('projects')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', id)
+    .is('deleted_at', null)
+    .select('id')
+    .maybeSingle()
+
+  if (error) {
+    return res.status(400).json({ error: error.message })
+  }
+
+  if (!data) {
+    return res.status(404).json({ error: 'Projeto não encontrado ou já excluído.' })
+  }
+
+  return res.status(204).send()
+})
+
 router.post('/projects/:id/image', requireAuth, requireAdmin, upload.single('image'), async (req, res) => {
   const { id } = req.params
 
@@ -132,18 +162,17 @@ router.post('/projects/:id/image', requireAuth, requireAdmin, upload.single('ima
     return res.status(400).json({ error: 'Nenhuma imagem enviada.' })
   }
 
-  // Verifica se o projeto existe
   const { data: project, error: projectError } = await adminClient
     .from('projects')
     .select('id, image_url')
     .eq('id', id)
-    .single()
+    .is('deleted_at', null)
+    .maybeSingle()
 
   if (projectError || !project) {
     return res.status(404).json({ error: 'Projeto não encontrado.' })
   }
 
-  // Se já tinha imagem, remove a antiga do storage
   if (project.image_url) {
     const oldPath = project.image_url.split('/project-images/')[1]
     if (oldPath) {
@@ -151,7 +180,6 @@ router.post('/projects/:id/image', requireAuth, requireAdmin, upload.single('ima
     }
   }
 
-  // Upload para o Supabase Storage
   const ext = req.file.originalname.split('.').pop()
   const fileName = `${id}-${Date.now()}.${ext}`
 
@@ -166,18 +194,17 @@ router.post('/projects/:id/image', requireAuth, requireAdmin, upload.single('ima
     return res.status(400).json({ error: uploadError.message })
   }
 
-  // Gera URL pública
   const { data: urlData } = adminClient.storage
     .from('project-images')
     .getPublicUrl(fileName)
 
   const imageUrl = urlData.publicUrl
 
-  // Salva a URL no banco
   const { data, error } = await adminClient
     .from('projects')
     .update({ image_url: imageUrl })
     .eq('id', id)
+    .is('deleted_at', null)
     .select()
     .single()
 

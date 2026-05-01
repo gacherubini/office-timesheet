@@ -32,7 +32,8 @@ router.get('/dashboard', requireAuth, requireAdmin, async (req, res) => {
       .is('deleted_at', null),
     adminClient
       .from('projects')
-      .select('id, name, status, sale_value'),
+      .select('id, name, status, sale_value')
+      .is('deleted_at', null),
   ])
 
   if (entriesError) return res.status(400).json({ error: entriesError.message })

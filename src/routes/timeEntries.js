@@ -69,6 +69,7 @@ router.post('/time-entries/start', requireAuth, async (req, res) => {
     .from('projects')
     .select('id, status')
     .eq('id', projectId)
+    .is('deleted_at', null)
     .single()
 
   if (projectError || !project) {

@@ -15,6 +15,7 @@ import { AdminDashboardPage } from './pages/admin/AdminDashboardPage'
 import { AdminTeamPage } from './pages/admin/AdminTeamPage'
 import { AdminDeletedUsersPage } from './pages/admin/AdminDeletedUsersPage'
 import { AdminProjectsPage } from './pages/admin/AdminProjectsPage'
+import { AdminDeletedProjectsPage } from './pages/admin/AdminDeletedProjectsPage'
 import { AdminClientsPage } from './pages/admin/AdminClientsPage'
 import { AdminSuppliersPage } from './pages/admin/AdminSuppliersPage'
 import { AdminTimeEntriesPage } from './pages/admin/AdminTimeEntriesPage'
@@ -56,6 +57,7 @@ export default function App() {
       <Route path="/admin/team" element={<ProtectedRoute adminOnly><Layout><AdminTeamPage /></Layout></ProtectedRoute>} />
       <Route path="/admin/deleted-users" element={<ProtectedRoute adminOnly><Layout><AdminDeletedUsersPage /></Layout></ProtectedRoute>} />
       <Route path="/admin/projects" element={<ProtectedRoute adminOnly><Layout><AdminProjectsPage /></Layout></ProtectedRoute>} />
+      <Route path="/admin/deleted-projects" element={<ProtectedRoute adminOnly><Layout><AdminDeletedProjectsPage /></Layout></ProtectedRoute>} />
       <Route path="/admin/clients" element={<ProtectedRoute adminOnly><Layout><AdminClientsPage /></Layout></ProtectedRoute>} />
       <Route path="/admin/suppliers" element={<ProtectedRoute adminOnly><Layout><AdminSuppliersPage /></Layout></ProtectedRoute>} />
       <Route path="/admin/time-entries" element={<ProtectedRoute adminOnly><Layout><AdminTimeEntriesPage /></Layout></ProtectedRoute>} />
