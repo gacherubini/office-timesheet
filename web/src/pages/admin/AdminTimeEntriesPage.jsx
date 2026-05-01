@@ -303,7 +303,7 @@ export function AdminTimeEntriesPage() {
       {expenses.length > 0 && (
         <div className="bg-white rounded-lg shadow-sm border overflow-x-auto mb-4">
           <div className="px-4 py-3 border-b bg-gray-50">
-            <h2 className="text-sm font-semibold text-gray-900">Despesas Aprovadas</h2>
+            <h2 className="text-sm font-semibold text-gray-900">Despesas</h2>
           </div>
           <table className="w-full text-xs">
             <thead>
@@ -312,6 +312,7 @@ export function AdminTimeEntriesPage() {
                 <th className="text-left px-3 py-3 font-medium text-gray-600">Colaborador</th>
                 <th className="text-left px-3 py-3 font-medium text-gray-600">Despesa</th>
                 <th className="text-left px-3 py-3 font-medium text-gray-600">Valor</th>
+                <th className="text-left px-3 py-3 font-medium text-gray-600">Status</th>
                 <th className="text-left px-3 py-3 font-medium text-gray-600">Comprovante</th>
               </tr>
             </thead>
@@ -328,6 +329,13 @@ export function AdminTimeEntriesPage() {
                     {expense.description && <p className="text-[11px] text-gray-500 mt-0.5 line-clamp-2">{expense.description}</p>}
                   </td>
                   <td className="px-3 py-3 whitespace-nowrap font-medium">{formatCurrency(expense.amount)}</td>
+                  <td className="px-3 py-3 whitespace-nowrap">
+                    {expense.status === 'approved' ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700">Aprovada</span>
+                    ) : (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-yellow-100 text-yellow-700">Pendente</span>
+                    )}
+                  </td>
                   <td className="px-3 py-3 whitespace-nowrap">
                     {expense.receipt_url ? (
                       <a

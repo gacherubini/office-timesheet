@@ -706,7 +706,7 @@ router.get('/admin/time-entries', requireAuth, requireAdmin, async (req, res) =>
     let expensesQuery = adminClient
       .from('expense_requests')
       .select('id, user_id, title, description, amount, expense_date, receipt_url, status, created_at')
-      .eq('status', 'approved')
+      .in('status', ['pending', 'approved'])
       .order('expense_date', { ascending: false })
 
     if (user_id) expensesQuery = expensesQuery.eq('user_id', user_id)
@@ -758,7 +758,7 @@ router.get('/admin/time-entries', requireAuth, requireAdmin, async (req, res) =>
   const workingDays = Object.keys(dailyTotalsMap).length
   const averageMinutesPerDay = workingDays > 0 ? Math.round(totalMinutes / workingDays) : 0
   const reimbursements = approvedExpenses.reduce((sum, expense) => (
-    sum + (Number(expense.amount) || 0)
+    sum + (expense.status === 'approved' ? (Number(expense.amount) || 0) : 0)
   ), 0)
   const bonuses = 0
   const netTotal = totalCost + reimbursements + bonuses

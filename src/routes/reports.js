@@ -13,28 +13,32 @@ router.get('/reports/payroll', requireAuth, requireAdmin, async (req, res) => {
     return res.status(400).json({ error: 'start_date e end_date são obrigatórios.' })
   }
 
-  // Busca todos os apontamentos completed no período
-  const { data: entries, error: entriesError } = await adminClient
-    .from('time_entries')
-    .select('user_id, duration_minutes, cost_snapshot')
-    .eq('status', 'completed')
-    .gte('started_at', new Date(start_date).toISOString())
-    .lte('started_at', new Date(end_date).toISOString())
+  const [
+    { data: entries, error: entriesError },
+    { data: expenses, error: expensesError },
+    { data: profiles, error: profilesError },
+  ] = await Promise.all([
+    adminClient
+      .from('time_entries')
+      .select('user_id, duration_minutes, cost_snapshot')
+      .eq('status', 'completed')
+      .gte('started_at', new Date(start_date).toISOString())
+      .lte('started_at', new Date(end_date).toISOString()),
+    adminClient
+      .from('expense_requests')
+      .select('user_id, amount')
+      .eq('status', 'approved')
+      .gte('expense_date', start_date)
+      .lte('expense_date', end_date),
+    adminClient
+      .from('profiles')
+      .select('id, name, email, hourly_rate'),
+  ])
 
-  if (entriesError) {
-    return res.status(400).json({ error: entriesError.message })
-  }
+  if (entriesError) return res.status(400).json({ error: entriesError.message })
+  if (expensesError) return res.status(400).json({ error: expensesError.message })
+  if (profilesError) return res.status(400).json({ error: profilesError.message })
 
-  // Busca todos os colaboradores
-  const { data: profiles, error: profilesError } = await adminClient
-    .from('profiles')
-    .select('id, name, email, hourly_rate')
-
-  if (profilesError) {
-    return res.status(400).json({ error: profilesError.message })
-  }
-
-  // Agrupa por colaborador
   const userMap = {}
   for (const profile of profiles) {
     userMap[profile.id] = {
@@ -45,6 +49,7 @@ router.get('/reports/payroll', requireAuth, requireAdmin, async (req, res) => {
       total_minutes: 0,
       total_hours: 0,
       total_cost: 0,
+      total_expenses: 0,
       entries_count: 0,
     }
   }
@@ -57,17 +62,24 @@ router.get('/reports/payroll', requireAuth, requireAdmin, async (req, res) => {
     }
   }
 
-  // Monta resultado só com quem tem apontamentos
+  for (const expense of expenses || []) {
+    if (userMap[expense.user_id]) {
+      userMap[expense.user_id].total_expenses += Number(expense.amount) || 0
+    }
+  }
+
   const payroll = Object.values(userMap)
-    .filter((u) => u.entries_count > 0)
+    .filter((u) => u.entries_count > 0 || u.total_expenses > 0)
     .map((u) => ({
       ...u,
       total_hours: Number((u.total_minutes / 60).toFixed(2)),
       total_cost: Number(u.total_cost.toFixed(2)),
+      total_expenses: Number(u.total_expenses.toFixed(2)),
+      total_to_pay: Number((u.total_cost + u.total_expenses).toFixed(2)),
     }))
     .sort((a, b) => a.name.localeCompare(b.name))
 
-  const grandTotal = payroll.reduce((sum, u) => sum + u.total_cost, 0)
+  const grandTotal = payroll.reduce((sum, u) => sum + u.total_to_pay, 0)
 
   return res.json({
     period: { start_date, end_date },

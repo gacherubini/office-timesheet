@@ -97,6 +97,8 @@ export function AdminReportsPage() {
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Valor/Hora</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Horas</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Apontamentos</th>
+                <th className="text-right px-4 py-3 font-medium text-gray-600">Salário</th>
+                <th className="text-right px-4 py-3 font-medium text-gray-600">Despesas</th>
                 <th className="text-right px-4 py-3 font-medium text-gray-600">Total a Pagar</th>
               </tr>
             </thead>
@@ -107,13 +109,15 @@ export function AdminReportsPage() {
                   <td className="px-4 py-3 text-gray-500">{formatCurrency(u.hourly_rate)}</td>
                   <td className="px-4 py-3">{u.total_hours}h</td>
                   <td className="px-4 py-3 text-gray-500">{u.entries_count}</td>
-                  <td className="px-4 py-3 text-right font-bold">{formatCurrency(u.total_cost)}</td>
+                  <td className="px-4 py-3 text-right">{formatCurrency(u.total_cost)}</td>
+                  <td className="px-4 py-3 text-right text-blue-700">{formatCurrency(u.total_expenses)}</td>
+                  <td className="px-4 py-3 text-right font-bold">{formatCurrency(u.total_to_pay)}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr className="bg-gray-50 border-t-2">
-                <td colSpan={4} className="px-4 py-3 font-bold">Total Geral</td>
+                <td colSpan={6} className="px-4 py-3 font-bold">Total Geral</td>
                 <td className="px-4 py-3 text-right font-bold text-lg">{formatCurrency(payrollData.grand_total)}</td>
               </tr>
             </tfoot>
