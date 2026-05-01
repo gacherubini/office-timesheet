@@ -16,7 +16,8 @@ function getMonthRange() {
 
 function formatDate(iso) {
   if (!iso) return '-'
-  return new Date(iso).toLocaleDateString('pt-BR')
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(iso) ? new Date(`${iso}T00:00:00`) : new Date(iso)
+  return date.toLocaleDateString('pt-BR')
 }
 
 function formatTime(iso) {
@@ -59,6 +60,7 @@ export function AdminTimeEntriesPage() {
   const { profile } = useAuth()
   const monthRange = getMonthRange()
   const [entries, setEntries] = useState([])
+  const [expenses, setExpenses] = useState([])
   const [summary, setSummary] = useState(null)
   const [pagination, setPagination] = useState({ page: 1, pages: 1 })
   const [users, setUsers] = useState([])
@@ -100,6 +102,7 @@ export function AdminTimeEntriesPage() {
 
       const res = await api.get(`/admin/time-entries?${params}`)
       setEntries(res.data)
+      setExpenses(res.expenses || [])
       setSummary(res.summary)
       setPagination(res.pagination)
     } catch (err) {
@@ -296,6 +299,55 @@ export function AdminTimeEntriesPage() {
       </div>
 
       {error && <div className="bg-red-50 text-red-700 text-sm rounded-md p-3 mb-4">{error}</div>}
+
+      {expenses.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border overflow-x-auto mb-4">
+          <div className="px-4 py-3 border-b bg-gray-50">
+            <h2 className="text-sm font-semibold text-gray-900">Despesas Aprovadas</h2>
+          </div>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b bg-gray-50 whitespace-nowrap">
+                <th className="text-left px-3 py-3 font-medium text-gray-600">Data</th>
+                <th className="text-left px-3 py-3 font-medium text-gray-600">Colaborador</th>
+                <th className="text-left px-3 py-3 font-medium text-gray-600">Despesa</th>
+                <th className="text-left px-3 py-3 font-medium text-gray-600">Valor</th>
+                <th className="text-left px-3 py-3 font-medium text-gray-600">Comprovante</th>
+              </tr>
+            </thead>
+            <tbody>
+              {expenses.map((expense) => (
+                <tr key={expense.id} className="border-b last:border-b-0 hover:bg-gray-50">
+                  <td className="px-3 py-3 whitespace-nowrap">{formatDate(expense.expense_date)}</td>
+                  <td className="px-3 py-3 min-w-40">
+                    <p className="font-medium text-gray-900">{expense.profile?.name || '-'}</p>
+                    {expense.profile?.position && <p className="text-[11px] text-gray-400">{expense.profile.position}</p>}
+                  </td>
+                  <td className="px-3 py-3 min-w-56">
+                    <p className="font-medium text-gray-900">{expense.title}</p>
+                    {expense.description && <p className="text-[11px] text-gray-500 mt-0.5 line-clamp-2">{expense.description}</p>}
+                  </td>
+                  <td className="px-3 py-3 whitespace-nowrap font-medium">{formatCurrency(expense.amount)}</td>
+                  <td className="px-3 py-3 whitespace-nowrap">
+                    {expense.receipt_url ? (
+                      <a
+                        href={expense.receipt_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-gray-700 underline hover:text-gray-900"
+                      >
+                        Abrir
+                      </a>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {showForm && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">

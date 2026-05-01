@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { Home, History, Users, FolderOpen, Radio, FileText, LogOut, BarChart3, User } from 'lucide-react'
+import { Home, History, Users, FolderOpen, Radio, FileText, LogOut, BarChart3, User, Receipt } from 'lucide-react'
 import { Avatar } from './Avatar'
 
 export function Layout({ children }) {
@@ -16,6 +16,7 @@ export function Layout({ children }) {
   const employeeLinks = [
     { to: '/dashboard', label: 'Início', icon: Home },
     { to: '/history', label: 'Histórico', icon: History },
+    { to: '/expenses', label: 'Despesas', icon: Receipt },
   ]
 
   const adminLinks = [

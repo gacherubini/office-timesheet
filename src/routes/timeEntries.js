@@ -700,6 +700,46 @@ router.get('/admin/time-entries', requireAuth, requireAdmin, async (req, res) =>
     return res.status(400).json({ error: summaryError.message })
   }
 
+  let approvedExpenses = []
+
+  if (!project_id) {
+    let expensesQuery = adminClient
+      .from('expense_requests')
+      .select('id, user_id, title, description, amount, expense_date, receipt_url, status, created_at')
+      .eq('status', 'approved')
+      .order('expense_date', { ascending: false })
+
+    if (user_id) expensesQuery = expensesQuery.eq('user_id', user_id)
+    if (start_date) expensesQuery = expensesQuery.gte('expense_date', start_date)
+    if (end_date) expensesQuery = expensesQuery.lte('expense_date', end_date)
+
+    const { data: expenses, error: expensesError } = await expensesQuery
+
+    if (expensesError) {
+      return res.status(400).json({ error: expensesError.message })
+    }
+
+    approvedExpenses = expenses || []
+
+    const expenseUserIds = [...new Set(approvedExpenses.map((expense) => expense.user_id).filter(Boolean))]
+    if (expenseUserIds.length > 0) {
+      const { data: expenseProfiles, error: expenseProfilesError } = await adminClient
+        .from('profiles')
+        .select('id, name, email, position, avatar_url')
+        .in('id', expenseUserIds)
+
+      if (expenseProfilesError) {
+        return res.status(400).json({ error: expenseProfilesError.message })
+      }
+
+      const expenseProfileMap = new Map((expenseProfiles || []).map((profile) => [profile.id, profile]))
+      approvedExpenses = approvedExpenses.map((expense) => ({
+        ...expense,
+        profile: expenseProfileMap.get(expense.user_id) || null,
+      }))
+    }
+  }
+
   const dailyTotalsMap = {}
   let totalMinutes = 0
   let totalCost = 0
@@ -717,6 +757,11 @@ router.get('/admin/time-entries', requireAuth, requireAdmin, async (req, res) =>
 
   const workingDays = Object.keys(dailyTotalsMap).length
   const averageMinutesPerDay = workingDays > 0 ? Math.round(totalMinutes / workingDays) : 0
+  const reimbursements = approvedExpenses.reduce((sum, expense) => (
+    sum + (Number(expense.amount) || 0)
+  ), 0)
+  const bonuses = 0
+  const netTotal = totalCost + reimbursements + bonuses
 
   return res.json({
     data: (data || []).map((entry) => ({
@@ -728,14 +773,15 @@ router.get('/admin/time-entries', requireAuth, requireAdmin, async (req, res) =>
       total_cost: Number(totalCost.toFixed(2)),
       average_minutes_per_day: averageMinutesPerDay,
       working_days: workingDays,
-      reimbursements: 0,
-      bonuses: 0,
-      net_total: Number(totalCost.toFixed(2)),
+      reimbursements: Number(reimbursements.toFixed(2)),
+      bonuses,
+      net_total: Number(netTotal.toFixed(2)),
       daily_totals: Object.entries(dailyTotalsMap).map(([key, minutes]) => {
         const [userId, date] = key.split(':')
         return { user_id: userId, date, minutes }
       }),
     },
+    expenses: approvedExpenses,
     pagination: {
       page,
       limit,

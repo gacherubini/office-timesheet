@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '../../lib/api'
-import { Check, Clock, FolderOpen, Users, X } from 'lucide-react'
+import { Check, Clock, FolderOpen, Receipt, Users, X } from 'lucide-react'
 import { BirthdayCalendar } from '../../components/BirthdayCalendar'
 import { Avatar } from '../../components/Avatar'
 
@@ -34,6 +34,11 @@ function formatDateTime(iso) {
   })
 }
 
+function formatDate(value) {
+  if (!value) return '-'
+  return new Date(`${value}T00:00:00`).toLocaleDateString('pt-BR')
+}
+
 function KpiCard({ label, value, sub, icon: Icon, color }) {
   return (
     <div className="bg-white rounded-lg shadow-sm border p-5">
@@ -59,7 +64,10 @@ export function AdminDashboardPage() {
   const [tab, setTab] = useState('team')
   const [requests, setRequests] = useState([])
   const [requestsLoading, setRequestsLoading] = useState(true)
+  const [expenses, setExpenses] = useState([])
+  const [expensesLoading, setExpensesLoading] = useState(true)
   const [decidingId, setDecidingId] = useState(null)
+  const [decidingExpenseId, setDecidingExpenseId] = useState(null)
 
   useEffect(() => {
     if (!startDate || !endDate) return
@@ -83,8 +91,21 @@ export function AdminDashboardPage() {
     }
   }
 
+  async function loadExpenseRequests() {
+    setExpensesLoading(true)
+    try {
+      const data = await api.get('/admin/expense-requests?status=pending')
+      setExpenses(data)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setExpensesLoading(false)
+    }
+  }
+
   useEffect(() => {
     loadChangeRequests()
+    loadExpenseRequests()
   }, [])
 
   async function refreshDashboard() {
@@ -119,6 +140,35 @@ export function AdminDashboardPage() {
       setError(err.message)
     } finally {
       setDecidingId(null)
+    }
+  }
+
+  async function approveExpense(expenseId) {
+    setDecidingExpenseId(expenseId)
+    setError('')
+    try {
+      await api.post(`/admin/expense-requests/${expenseId}/approve`, {})
+      await Promise.all([loadExpenseRequests(), refreshDashboard()])
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setDecidingExpenseId(null)
+    }
+  }
+
+  async function rejectExpense(expenseId) {
+    const adminNote = window.prompt('Motivo da rejeição (opcional):')
+    if (adminNote === null) return
+
+    setDecidingExpenseId(expenseId)
+    setError('')
+    try {
+      await api.post(`/admin/expense-requests/${expenseId}/reject`, { admin_note: adminNote })
+      await loadExpenseRequests()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setDecidingExpenseId(null)
     }
   }
 
@@ -292,6 +342,82 @@ export function AdminDashboardPage() {
                       type="button"
                       onClick={() => rejectRequest(request.id)}
                       disabled={decidingId === request.id}
+                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-xs font-medium hover:bg-gray-50 disabled:opacity-60"
+                    >
+                      <X size={14} />
+                      Rejeitar
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm border">
+          <div className="px-5 py-4 border-b flex items-center gap-2">
+            <Receipt size={16} className="text-gray-500" />
+            <h2 className="text-sm font-semibold text-gray-900">Despesas</h2>
+          </div>
+
+          <div className="divide-y">
+            {expensesLoading ? (
+              <div className="py-8 text-center text-sm text-gray-400">Carregando...</div>
+            ) : expenses.length === 0 ? (
+              <div className="py-8 px-5 text-center text-sm text-gray-400">
+                Nenhuma despesa pendente.
+              </div>
+            ) : (
+              expenses.map((expense) => (
+                <div key={expense.id} className="p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Avatar
+                        name={expense.profile?.name}
+                        url={expense.profile?.avatar_url}
+                        size={34}
+                      />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {expense.profile?.name || 'Colaborador'}
+                        </p>
+                        <p className="text-xs text-gray-400">{formatDate(expense.expense_date)}</p>
+                      </div>
+                    </div>
+                    <p className="text-sm font-semibold text-gray-900 whitespace-nowrap">
+                      {formatCurrency(expense.amount)}
+                    </p>
+                  </div>
+
+                  <div className="text-xs text-gray-500 space-y-1">
+                    <p className="font-medium text-gray-800">{expense.title}</p>
+                    {expense.description && <p className="line-clamp-3">{expense.description}</p>}
+                    {expense.receipt_url && (
+                      <a
+                        href={expense.receipt_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-block text-gray-700 underline hover:text-gray-900"
+                      >
+                        Abrir comprovante
+                      </a>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => approveExpense(expense.id)}
+                      disabled={decidingExpenseId === expense.id}
+                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md bg-gray-900 px-3 py-2 text-xs font-medium text-white hover:bg-gray-800 disabled:opacity-60"
+                    >
+                      <Check size={14} />
+                      Aprovar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => rejectExpense(expense.id)}
+                      disabled={decidingExpenseId === expense.id}
                       className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-xs font-medium hover:bg-gray-50 disabled:opacity-60"
                     >
                       <X size={14} />

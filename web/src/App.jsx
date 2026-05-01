@@ -7,6 +7,7 @@ import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { TimerPage } from './pages/TimerPage'
 import { HistoryPage } from './pages/HistoryPage'
+import { ExpensesPage } from './pages/ExpensesPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { EmployeeDashboardPage } from './pages/EmployeeDashboardPage'
 import { AdminLivePage } from './pages/admin/AdminLivePage'
@@ -44,6 +45,7 @@ export default function App() {
       <Route path="/dashboard" element={<ProtectedRoute><Layout><EmployeeDashboardPage /></Layout></ProtectedRoute>} />
       <Route path="/timer" element={<ProtectedRoute><Layout><TimerPage /></Layout></ProtectedRoute>} />
       <Route path="/history" element={<ProtectedRoute><Layout><HistoryPage /></Layout></ProtectedRoute>} />
+      <Route path="/expenses" element={<ProtectedRoute><Layout><ExpensesPage /></Layout></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Layout><ProfilePage /></Layout></ProtectedRoute>} />
 
       {/* Rotas do admin */}
