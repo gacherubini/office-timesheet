@@ -451,17 +451,19 @@ router.get('/admin/time-entries', requireAuth, requireAdmin, async (req, res) =>
   const page = Math.max(1, parseInt(req.query.page) || 1)
   const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 30))
   const offset = (page - 1) * limit
+  const startIso = start_date ? new Date(`${start_date}T00:00:00`).toISOString() : null
+  const endIso = end_date ? new Date(`${end_date}T23:59:59`).toISOString() : null
 
   let query = adminClient
     .from('time_entries')
-    .select('*, profiles!time_entries_user_id_fkey(name, email), projects(name, client)', { count: 'exact' })
+    .select('*, profiles!time_entries_user_id_fkey(name, email, position), projects(name, client)', { count: 'exact' })
     .order('started_at', { ascending: false })
     .range(offset, offset + limit - 1)
 
   if (user_id) query = query.eq('user_id', user_id)
   if (project_id) query = query.eq('project_id', project_id)
-  if (start_date) query = query.gte('started_at', new Date(start_date).toISOString())
-  if (end_date) query = query.lte('started_at', new Date(end_date).toISOString())
+  if (startIso) query = query.gte('started_at', startIso)
+  if (endIso) query = query.lte('started_at', endIso)
 
   const { data, error, count } = await query
 
@@ -469,8 +471,78 @@ router.get('/admin/time-entries', requireAuth, requireAdmin, async (req, res) =>
     return res.status(400).json({ error: error.message })
   }
 
+  const entryIds = (data || []).map((entry) => entry.id)
+  let pausesByEntry = {}
+
+  if (entryIds.length > 0) {
+    const { data: pauses, error: pausesError } = await adminClient
+      .from('time_entry_pauses')
+      .select('id, time_entry_id, paused_at, resumed_at')
+      .in('time_entry_id', entryIds)
+      .order('paused_at', { ascending: true })
+
+    if (pausesError) {
+      return res.status(400).json({ error: pausesError.message })
+    }
+
+    pausesByEntry = (pauses || []).reduce((acc, pause) => {
+      if (!acc[pause.time_entry_id]) acc[pause.time_entry_id] = []
+      acc[pause.time_entry_id].push(pause)
+      return acc
+    }, {})
+  }
+
+  let summaryQuery = adminClient
+    .from('time_entries')
+    .select('id, user_id, started_at, duration_minutes, cost_snapshot')
+
+  if (user_id) summaryQuery = summaryQuery.eq('user_id', user_id)
+  if (project_id) summaryQuery = summaryQuery.eq('project_id', project_id)
+  if (startIso) summaryQuery = summaryQuery.gte('started_at', startIso)
+  if (endIso) summaryQuery = summaryQuery.lte('started_at', endIso)
+
+  const { data: summaryEntries, error: summaryError } = await summaryQuery
+
+  if (summaryError) {
+    return res.status(400).json({ error: summaryError.message })
+  }
+
+  const dailyTotalsMap = {}
+  let totalMinutes = 0
+  let totalCost = 0
+
+  for (const entry of summaryEntries || []) {
+    const minutes = entry.duration_minutes || 0
+    const cost = Number(entry.cost_snapshot) || 0
+    const date = entry.started_at?.slice(0, 10)
+    const key = `${entry.user_id}:${date}`
+
+    totalMinutes += minutes
+    totalCost += cost
+    dailyTotalsMap[key] = (dailyTotalsMap[key] || 0) + minutes
+  }
+
+  const workingDays = Object.keys(dailyTotalsMap).length
+  const averageMinutesPerDay = workingDays > 0 ? Math.round(totalMinutes / workingDays) : 0
+
   return res.json({
-    data,
+    data: (data || []).map((entry) => ({
+      ...entry,
+      pauses: pausesByEntry[entry.id] || [],
+    })),
+    summary: {
+      total_minutes: totalMinutes,
+      total_cost: Number(totalCost.toFixed(2)),
+      average_minutes_per_day: averageMinutesPerDay,
+      working_days: workingDays,
+      reimbursements: 0,
+      bonuses: 0,
+      net_total: Number(totalCost.toFixed(2)),
+      daily_totals: Object.entries(dailyTotalsMap).map(([key, minutes]) => {
+        const [userId, date] = key.split(':')
+        return { user_id: userId, date, minutes }
+      }),
+    },
     pagination: {
       page,
       limit,
