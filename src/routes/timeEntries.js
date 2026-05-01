@@ -5,6 +5,56 @@ import { createUserClient, adminClient } from '../lib/supabase.js'
 
 const router = Router()
 
+function calculateDurationMinutes(start, end) {
+  return Math.max(0, Math.round((end.getTime() - start.getTime()) / 60000))
+}
+
+function calculateCostSnapshot(durationMinutes, hourlyRate) {
+  return Number(((durationMinutes / 60) * (Number(hourlyRate) || 0)).toFixed(2))
+}
+
+async function enrichChangeRequests(requests) {
+  const rows = requests || []
+  if (rows.length === 0) return []
+
+  const userIds = [...new Set(rows.map((request) => request.user_id).filter(Boolean))]
+  const entryIds = [...new Set(rows.map((request) => request.time_entry_id).filter(Boolean))]
+  const requestedProjectIds = [...new Set(rows.map((request) => request.requested_project_id).filter(Boolean))]
+
+  const [
+    { data: profiles, error: profilesError },
+    { data: entries, error: entriesError },
+    { data: requestedProjects, error: projectsError },
+  ] = await Promise.all([
+    userIds.length
+      ? adminClient.from('profiles').select('id, name, email, position, avatar_url').in('id', userIds)
+      : Promise.resolve({ data: [], error: null }),
+    entryIds.length
+      ? adminClient
+        .from('time_entries')
+        .select('id, user_id, project_id, started_at, ended_at, duration_minutes, cost_snapshot, status, projects(name, client)')
+        .in('id', entryIds)
+      : Promise.resolve({ data: [], error: null }),
+    requestedProjectIds.length
+      ? adminClient.from('projects').select('id, name, client').in('id', requestedProjectIds)
+      : Promise.resolve({ data: [], error: null }),
+  ])
+
+  const firstError = profilesError || entriesError || projectsError
+  if (firstError) throw firstError
+
+  const profileMap = new Map((profiles || []).map((profile) => [profile.id, profile]))
+  const entryMap = new Map((entries || []).map((entry) => [entry.id, entry]))
+  const requestedProjectMap = new Map((requestedProjects || []).map((project) => [project.id, project]))
+
+  return rows.map((request) => ({
+    ...request,
+    profile: profileMap.get(request.user_id) || null,
+    time_entry: entryMap.get(request.time_entry_id) || null,
+    requested_project: requestedProjectMap.get(request.requested_project_id) || null,
+  }))
+}
+
 router.post('/time-entries/start', requireAuth, async (req, res) => {
   const { projectId } = req.body
 
@@ -255,6 +305,149 @@ router.post('/time-entries/stop', requireAuth, async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════
 // ROTAS ADMIN — Ajuste manual de horas
 // ═══════════════════════════════════════════════════════════════════════
+
+// ─── ADMIN: SOLICITAÇÕES DE ALTERAÇÃO DE PONTO ───────────────────────
+router.get('/admin/time-entry-change-requests', requireAuth, requireAdmin, async (req, res) => {
+  const status = req.query.status || 'pending'
+
+  let query = adminClient
+    .from('time_entry_change_requests')
+    .select('id, time_entry_id, user_id, requested_project_id, requested_started_at, requested_ended_at, reason, status, admin_note, decided_by, decided_at, created_at, updated_at')
+    .order('created_at', { ascending: false })
+
+  if (status !== 'all') query = query.eq('status', status)
+
+  const { data, error } = await query
+
+  if (error) {
+    return res.status(400).json({ error: error.message })
+  }
+
+  try {
+    const enriched = await enrichChangeRequests(data || [])
+    return res.json(enriched)
+  } catch (err) {
+    return res.status(400).json({ error: err.message })
+  }
+})
+
+router.post('/admin/time-entry-change-requests/:id/approve', requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params
+  const adminNote = req.body?.admin_note?.trim() || null
+
+  const { data: request, error: requestError } = await adminClient
+    .from('time_entry_change_requests')
+    .select('*')
+    .eq('id', id)
+    .single()
+
+  if (requestError || !request) {
+    return res.status(404).json({ error: 'Solicitação não encontrada.' })
+  }
+
+  if (request.status !== 'pending') {
+    return res.status(400).json({ error: 'Esta solicitação já foi decidida.' })
+  }
+
+  const requestedStart = new Date(request.requested_started_at)
+  const requestedEnd = new Date(request.requested_ended_at)
+
+  if (Number.isNaN(requestedStart.getTime()) || Number.isNaN(requestedEnd.getTime())) {
+    return res.status(400).json({ error: 'Datas solicitadas inválidas.' })
+  }
+
+  if (requestedEnd <= requestedStart) {
+    return res.status(400).json({ error: 'A saída solicitada deve ser posterior ao início.' })
+  }
+
+  const { data: entry, error: entryError } = await adminClient
+    .from('time_entries')
+    .select('id, user_id')
+    .eq('id', request.time_entry_id)
+    .eq('user_id', request.user_id)
+    .single()
+
+  if (entryError || !entry) {
+    return res.status(404).json({ error: 'Apontamento vinculado não encontrado.' })
+  }
+
+  const { data: profile, error: profileError } = await adminClient
+    .from('profiles')
+    .select('hourly_rate')
+    .eq('id', request.user_id)
+    .single()
+
+  if (profileError || !profile) {
+    return res.status(404).json({ error: 'Colaborador não encontrado.' })
+  }
+
+  const durationMinutes = calculateDurationMinutes(requestedStart, requestedEnd)
+  const costSnapshot = calculateCostSnapshot(durationMinutes, profile.hourly_rate)
+  const decidedAt = new Date().toISOString()
+
+  const { error: updateEntryError } = await adminClient
+    .from('time_entries')
+    .update({
+      project_id: request.requested_project_id,
+      started_at: requestedStart.toISOString(),
+      ended_at: requestedEnd.toISOString(),
+      duration_minutes: durationMinutes,
+      cost_snapshot: costSnapshot,
+      status: 'completed',
+      edited_by: req.profile.id,
+      edited_at: decidedAt,
+    })
+    .eq('id', request.time_entry_id)
+
+  if (updateEntryError) {
+    return res.status(400).json({ error: updateEntryError.message })
+  }
+
+  const { data, error } = await adminClient
+    .from('time_entry_change_requests')
+    .update({
+      status: 'approved',
+      admin_note: adminNote,
+      decided_by: req.profile.id,
+      decided_at: decidedAt,
+      updated_at: decidedAt,
+    })
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) {
+    return res.status(400).json({ error: error.message })
+  }
+
+  return res.json(data)
+})
+
+router.post('/admin/time-entry-change-requests/:id/reject', requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params
+  const adminNote = req.body?.admin_note?.trim() || null
+  const decidedAt = new Date().toISOString()
+
+  const { data, error } = await adminClient
+    .from('time_entry_change_requests')
+    .update({
+      status: 'rejected',
+      admin_note: adminNote,
+      decided_by: req.profile.id,
+      decided_at: decidedAt,
+      updated_at: decidedAt,
+    })
+    .eq('id', id)
+    .eq('status', 'pending')
+    .select()
+    .single()
+
+  if (error || !data) {
+    return res.status(404).json({ error: 'Solicitação pendente não encontrada.' })
+  }
+
+  return res.json(data)
+})
 
 // ─── ADMIN: CRIAR APONTAMENTO MANUAL ──────────────────────────────────
 router.post('/admin/time-entries', requireAuth, requireAdmin, async (req, res) => {

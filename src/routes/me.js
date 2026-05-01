@@ -119,7 +119,7 @@ router.get('/me/history', requireAuth, async (req, res) => {
 
   const query = userClient
     .from('time_entries')
-    .select('id, started_at, ended_at, duration_minutes, status, projects(name, client)', { count: 'exact' })
+    .select('id, project_id, started_at, ended_at, duration_minutes, status, projects(name, client)', { count: 'exact' })
     .eq('user_id', userId)
     .order('started_at', { ascending: false })
     .range(offset, offset + limit - 1)
@@ -139,6 +139,105 @@ router.get('/me/history', requireAuth, async (req, res) => {
       pages: Math.ceil(count / limit),
     },
   })
+})
+
+// ─── SOLICITAÇÕES DE ALTERAÇÃO DE PONTO (COLABORADOR) ────────────────
+router.get('/me/time-entry-change-requests', requireAuth, async (req, res) => {
+  const userId = req.profile.id
+  const status = req.query.status
+
+  let query = adminClient
+    .from('time_entry_change_requests')
+    .select('id, time_entry_id, user_id, requested_project_id, requested_started_at, requested_ended_at, reason, status, admin_note, decided_at, created_at, updated_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+
+  if (status) query = query.eq('status', status)
+
+  const { data, error } = await query
+
+  if (error) return res.status(400).json({ error: error.message })
+  return res.json(data || [])
+})
+
+router.post('/me/time-entry-change-requests', requireAuth, async (req, res) => {
+  const userId = req.profile.id
+  const {
+    time_entry_id,
+    requested_project_id,
+    requested_started_at,
+    requested_ended_at,
+    reason,
+  } = req.body
+
+  if (!time_entry_id || !requested_project_id || !requested_started_at || !requested_ended_at) {
+    return res.status(400).json({
+      error: 'Apontamento, projeto, início e saída solicitados são obrigatórios.',
+    })
+  }
+
+  const trimmedReason = reason?.trim()
+  if (!trimmedReason) {
+    return res.status(400).json({ error: 'Informe o motivo da solicitação.' })
+  }
+
+  const requestedStart = new Date(requested_started_at)
+  const requestedEnd = new Date(requested_ended_at)
+
+  if (Number.isNaN(requestedStart.getTime()) || Number.isNaN(requestedEnd.getTime())) {
+    return res.status(400).json({ error: 'Datas inválidas.' })
+  }
+
+  if (requestedEnd <= requestedStart) {
+    return res.status(400).json({ error: 'A saída deve ser posterior ao início.' })
+  }
+
+  const { data: entry, error: entryError } = await adminClient
+    .from('time_entries')
+    .select('id, user_id, status')
+    .eq('id', time_entry_id)
+    .eq('user_id', userId)
+    .single()
+
+  if (entryError || !entry) {
+    return res.status(404).json({ error: 'Apontamento não encontrado.' })
+  }
+
+  if (entry.status !== 'completed') {
+    return res.status(400).json({ error: 'Somente apontamentos finalizados podem ser alterados.' })
+  }
+
+  const { data: project, error: projectError } = await adminClient
+    .from('projects')
+    .select('id')
+    .eq('id', requested_project_id)
+    .single()
+
+  if (projectError || !project) {
+    return res.status(404).json({ error: 'Projeto solicitado não encontrado.' })
+  }
+
+  const { data, error } = await adminClient
+    .from('time_entry_change_requests')
+    .insert([{
+      time_entry_id,
+      user_id: userId,
+      requested_project_id,
+      requested_started_at: requestedStart.toISOString(),
+      requested_ended_at: requestedEnd.toISOString(),
+      reason: trimmedReason,
+    }])
+    .select()
+    .single()
+
+  if (error) {
+    if (error.code === '23505') {
+      return res.status(409).json({ error: 'Já existe uma solicitação pendente para este apontamento.' })
+    }
+    return res.status(400).json({ error: error.message })
+  }
+
+  return res.status(201).json(data)
 })
 
 // ─── STATS DO COLABORADOR (KPIs do mês) ──────────────────────────────
