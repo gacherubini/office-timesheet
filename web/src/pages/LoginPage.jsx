@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Navigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { Clock } from 'lucide-react'
+import { Logo } from '../components/Logo'
 
 export function LoginPage() {
   const { profile, login } = useAuth()
@@ -32,8 +32,8 @@ export function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-bg text-text-primary px-4">
       <div className="w-full max-w-sm">
         <div className="flex items-center justify-center gap-2 mb-8">
-          <Clock className="text-accent" size={32} />
-          <h1 className="text-2xl font-bold text-text-primary">Timesheet</h1>
+          <Logo size={32} />
+          <h1 className="text-2xl font-bold text-text-primary">Gestão VOID</h1>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-surface rounded-xl shadow-card border border-border-subtle p-6 space-y-4">
