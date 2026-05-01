@@ -10,6 +10,7 @@ import { HistoryPage } from './pages/HistoryPage'
 import { ExpensesPage } from './pages/ExpensesPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { EmployeeDashboardPage } from './pages/EmployeeDashboardPage'
+import { FinancialPerspectivePage } from './pages/FinancialPerspectivePage'
 import { AdminLivePage } from './pages/admin/AdminLivePage'
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage'
 import { AdminTeamPage } from './pages/admin/AdminTeamPage'
@@ -47,6 +48,7 @@ export default function App() {
       <Route path="/" element={<ProtectedRoute><HomeRedirect /></ProtectedRoute>} />
       <Route path="/dashboard" element={<ProtectedRoute><Layout><EmployeeDashboardPage /></Layout></ProtectedRoute>} />
       <Route path="/timer" element={<ProtectedRoute><Layout><TimerPage /></Layout></ProtectedRoute>} />
+      <Route path="/financial-perspective" element={<ProtectedRoute><Layout><FinancialPerspectivePage /></Layout></ProtectedRoute>} />
       <Route path="/history" element={<ProtectedRoute><Layout><HistoryPage /></Layout></ProtectedRoute>} />
       <Route path="/expenses" element={<ProtectedRoute><Layout><ExpensesPage /></Layout></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Layout><ProfilePage /></Layout></ProtectedRoute>} />

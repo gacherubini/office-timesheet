@@ -14,6 +14,7 @@ import {
   LogOut,
   BarChart3,
   Receipt,
+  Target,
   Sun,
   Moon,
   BriefcaseBusiness,
@@ -134,6 +135,13 @@ export function Layout({ children }) {
       icon: CalendarDays,
       links: [
         { to: '/history', label: 'Histórico', icon: History },
+      ],
+    },
+    {
+      label: 'Financeiro',
+      icon: CircleDollarSign,
+      links: [
+        { to: '/financial-perspective', label: 'Perspectiva', icon: Target },
         { to: '/expenses', label: 'Despesas', icon: Receipt },
       ],
     },

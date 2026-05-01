@@ -14,7 +14,7 @@ const upload = multer({
   },
 })
 
-const profileFields = 'id, name, email, role, is_active, position, birth_date, phone, avatar_url, created_at'
+const profileFields = 'id, name, email, role, is_active, position, birth_date, phone, avatar_url, monthly_income_goal, created_at'
 
 router.get('/me', requireAuth, async (req, res) => {
   return res.json({
@@ -35,7 +35,7 @@ router.get('/me/profile', requireAuth, async (req, res) => {
 })
 
 router.put('/me/profile', requireAuth, async (req, res) => {
-  const { name, phone, birth_date } = req.body
+  const { name, phone, birth_date, monthly_income_goal } = req.body
 
   const updates = {}
   if (name !== undefined) {
@@ -45,6 +45,13 @@ router.put('/me/profile', requireAuth, async (req, res) => {
   }
   if (phone !== undefined) updates.phone = phone?.trim() || null
   if (birth_date !== undefined) updates.birth_date = birth_date || null
+  if (monthly_income_goal !== undefined) {
+    const goal = Number(monthly_income_goal)
+    if (!Number.isFinite(goal) || goal < 0) {
+      return res.status(400).json({ error: 'Meta financeira deve ser maior ou igual a zero.' })
+    }
+    updates.monthly_income_goal = Number(goal.toFixed(2))
+  }
 
   if (Object.keys(updates).length === 0) {
     return res.status(400).json({ error: 'Nenhum campo para atualizar.' })
@@ -269,11 +276,29 @@ router.get('/me/stats', requireAuth, async (req, res) => {
 
   if (error) return res.status(400).json({ error: error.message })
 
+  const { data: profile, error: profileError } = await adminClient
+    .from('profiles')
+    .select('hourly_rate, monthly_income_goal')
+    .eq('id', userId)
+    .single()
+
+  if (profileError || !profile) {
+    return res.status(400).json({ error: 'Perfil não encontrado para cálculo da perspectiva.' })
+  }
+
   const total_minutes = entries.reduce((sum, e) => sum + (e.duration_minutes || 0), 0)
   const total_cost = entries.reduce((sum, e) => sum + (e.cost_snapshot || 0), 0)
+  const hourly_rate = Number(profile.hourly_rate) || 0
+  const monthly_income_goal = Number(profile.monthly_income_goal) || 0
 
   const workingDaysSet = new Set(entries.map((e) => e.started_at.slice(0, 10)))
   const working_days = workingDaysSet.size
+  const dailyTotalsMap = {}
+
+  for (const entry of entries) {
+    const date = entry.started_at.slice(0, 10)
+    dailyTotalsMap[date] = (dailyTotalsMap[date] || 0) + (entry.duration_minutes || 0)
+  }
 
   const avg_minutes_per_day = working_days > 0 ? Math.round(total_minutes / working_days) : 0
   const project_count = new Set(entries.map((e) => e.project_id)).size
@@ -284,6 +309,17 @@ router.get('/me/stats', requireAuth, async (req, res) => {
     if (dow !== 0 && dow !== 6) business_days_in_month++
   }
   const goal_minutes = business_days_in_month * 8 * 60
+  const goal_amount_pct =
+    monthly_income_goal > 0 ? Math.min(100, Math.round((total_cost / monthly_income_goal) * 100)) : 0
+  const remaining_goal_amount = Math.max(0, monthly_income_goal - total_cost)
+  const required_goal_minutes =
+    hourly_rate > 0 ? Math.ceil((monthly_income_goal / hourly_rate) * 60) : 0
+  const remaining_goal_minutes =
+    hourly_rate > 0 ? Math.ceil((remaining_goal_amount / hourly_rate) * 60) : 0
+  const projected_monthly_income =
+    working_days > 0
+      ? Number(((total_cost / working_days) * business_days_in_month).toFixed(2))
+      : 0
 
   const projectMap = {}
   for (const entry of entries) {
@@ -306,11 +342,24 @@ router.get('/me/stats', requireAuth, async (req, res) => {
   return res.json({
     total_minutes,
     total_cost,
+    hourly_rate,
+    monthly_income_goal,
+    goal_amount_pct,
+    remaining_goal_amount,
+    required_goal_minutes,
+    remaining_goal_minutes,
+    projected_monthly_income,
     working_days,
     avg_minutes_per_day,
     project_count,
     goal_minutes,
     business_days_in_month,
+    year,
+    month,
+    daily_totals: Object.entries(dailyTotalsMap).map(([date, minutes]) => ({
+      date,
+      minutes,
+    })),
     project_breakdown: Object.values(projectMap),
   })
 })

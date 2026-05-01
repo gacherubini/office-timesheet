@@ -170,11 +170,6 @@ export function EmployeeDashboardPage() {
   const isRunning = currentEntry?.status === 'running'
   const isPaused = currentEntry?.status === 'paused'
 
-  const goalPct =
-    stats?.goal_minutes > 0
-      ? Math.min(100, Math.round((stats.total_minutes / stats.goal_minutes) * 100))
-      : 0
-
   return (
     <div className="max-w-6xl mx-auto">
       <PageHeader title="Início" subtitle="Sua produtividade e timer atual" />
@@ -199,7 +194,7 @@ export function EmployeeDashboardPage() {
             </div>
           </Card>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <KpiCard
               label="Horas (Mês)"
               value={statsLoading ? '—' : formatHours(stats?.total_minutes ?? 0)}
@@ -229,15 +224,6 @@ export function EmployeeDashboardPage() {
                   {showCost ? <EyeOff size={14} /> : <Eye size={14} />}
                 </button>
               }
-            />
-            <KpiCard
-              label="Meta (Mês)"
-              value={statsLoading ? '—' : `${goalPct}%`}
-              sub={statsLoading ? '' : `${stats?.business_days_in_month ?? 0} dias úteis`}
-            />
-            <KpiCard
-              label="Dias (Mês)"
-              value={statsLoading ? '—' : String(stats?.working_days ?? 0)}
             />
           </div>
 
