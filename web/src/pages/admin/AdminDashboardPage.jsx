@@ -4,18 +4,12 @@ import { Check, Clock, FolderOpen, Receipt, Users, X } from 'lucide-react'
 import { BirthdayCalendar } from '../../components/BirthdayCalendar'
 import { Avatar } from '../../components/Avatar'
 import { PageHeader } from '../../components/ui/PageHeader'
-import { DateRange } from '../../components/ui/DateRange'
 import { MetricCard } from '../../components/ui/MetricCard'
 import { Card } from '../../components/ui/Card'
 import { Tabs } from '../../components/ui/Tabs'
 
-function getMonthRange() {
-  const now = new Date()
-  const start = new Date(now.getFullYear(), now.getMonth(), 1)
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-  const fmt = (d) => d.toISOString().slice(0, 10)
-  return { start: fmt(start), end: fmt(end) }
-}
+const FULL_RANGE_START = '2000-01-01'
+const FULL_RANGE_END = '2099-12-31'
 
 function formatCurrency(value) {
   return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -44,9 +38,8 @@ function formatDate(value) {
 }
 
 export function AdminDashboardPage() {
-  const { start: defaultStart, end: defaultEnd } = getMonthRange()
-  const [startDate, setStartDate] = useState(defaultStart)
-  const [endDate, setEndDate] = useState(defaultEnd)
+  const startDate = FULL_RANGE_START
+  const endDate = FULL_RANGE_END
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -166,20 +159,7 @@ export function AdminDashboardPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Início"
-        subtitle="Visão geral do período selecionado"
-        actions={
-          <DateRange
-            from={startDate}
-            to={endDate}
-            onFromChange={setStartDate}
-            onToChange={setEndDate}
-            fromLabel={null}
-            toLabel={null}
-          />
-        }
-      />
+      <PageHeader title="Início" subtitle="Visão geral da operação" />
 
       {error && (
         <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mb-6">
