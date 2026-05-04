@@ -31,11 +31,24 @@ function formatDuration(minutes) {
   return `${h}h ${m}min`
 }
 
-function toLocalInputValue(iso) {
-  if (!iso) return ''
+function toLocalParts(iso) {
+  if (!iso) return { date: '', time: '' }
   const date = new Date(iso)
   const offsetMs = date.getTimezoneOffset() * 60000
-  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16)
+  const local = new Date(date.getTime() - offsetMs).toISOString()
+  return { date: local.slice(0, 10), time: local.slice(11, 16) }
+}
+
+function maskTime(value) {
+  const digits = value.replace(/\D/g, '').slice(0, 4)
+  if (digits.length <= 2) return digits
+  return `${digits.slice(0, 2)}:${digits.slice(2)}`
+}
+
+function isValidTime(value) {
+  if (!/^\d{2}:\d{2}$/.test(value)) return false
+  const [h, m] = value.split(':').map(Number)
+  return h >= 0 && h <= 23 && m >= 0 && m <= 59
 }
 
 const STATUS_TONE = {
@@ -72,11 +85,13 @@ export function HistoryPage() {
   const [selectedEntry, setSelectedEntry] = useState(null)
   const [form, setForm] = useState({
     requested_project_id: '',
-    requested_started_at: '',
-    requested_ended_at: '',
+    requested_date: '',
+    requested_start_time: '',
+    requested_end_time: '',
     reason: '',
   })
   const [error, setError] = useState('')
+  const [formError, setFormError] = useState('')
   const [success, setSuccess] = useState('')
 
   const requestsByEntryId = useMemo(() => {
@@ -118,24 +133,29 @@ export function HistoryPage() {
   }, [])
 
   function openRequestModal(entry) {
+    const startParts = toLocalParts(entry.started_at)
+    const endParts = toLocalParts(entry.ended_at)
     setSelectedEntry(entry)
     setForm({
       requested_project_id: entry.project_id || '',
-      requested_started_at: toLocalInputValue(entry.started_at),
-      requested_ended_at: toLocalInputValue(entry.ended_at),
+      requested_date: startParts.date,
+      requested_start_time: startParts.time,
+      requested_end_time: endParts.time,
       reason: '',
     })
-    setError('')
+    setFormError('')
     setSuccess('')
   }
 
   function closeRequestModal() {
     setSelectedEntry(null)
     setSubmitting(false)
+    setFormError('')
     setForm({
       requested_project_id: '',
-      requested_started_at: '',
-      requested_ended_at: '',
+      requested_date: '',
+      requested_start_time: '',
+      requested_end_time: '',
       reason: '',
     })
   }
@@ -145,19 +165,36 @@ export function HistoryPage() {
     if (!selectedEntry) return
 
     setSubmitting(true)
-    setError('')
+    setFormError('')
     setSuccess('')
 
+    if (!isValidTime(form.requested_start_time) || !isValidTime(form.requested_end_time)) {
+      setFormError('Informe os horários no formato HH:MM (24h).')
+      setSubmitting(false)
+      return
+    }
+
     try {
+      const startedAt = `${form.requested_date}T${form.requested_start_time}`
+      let endedAt = `${form.requested_date}T${form.requested_end_time}`
+      if (form.requested_end_time < form.requested_start_time) {
+        const next = new Date(`${form.requested_date}T00:00`)
+        next.setDate(next.getDate() + 1)
+        const nextDate = next.toISOString().slice(0, 10)
+        endedAt = `${nextDate}T${form.requested_end_time}`
+      }
       await api.post('/me/time-entry-change-requests', {
         time_entry_id: selectedEntry.id,
-        ...form,
+        requested_project_id: form.requested_project_id,
+        requested_started_at: startedAt,
+        requested_ended_at: endedAt,
+        reason: form.reason,
       })
       await loadRequests()
       setSuccess('Solicitação enviada para aprovação do administrador.')
       closeRequestModal()
     } catch (err) {
-      setError(err.message)
+      setFormError(err.message)
     } finally {
       setSubmitting(false)
     }
@@ -330,6 +367,11 @@ export function HistoryPage() {
             {selectedEntry.projects?.name || 'Sem projeto'}
           </p>
         )}
+        {formError && (
+          <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mb-4">
+            {formError}
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="space-y-3">
           <Select
             label="Projeto correto"
@@ -345,22 +387,37 @@ export function HistoryPage() {
             ))}
           </Select>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Input
+            label="Data"
+            type="date"
+            lang="pt-BR"
+            value={form.requested_date}
+            onChange={(e) => setForm((prev) => ({ ...prev, requested_date: e.target.value }))}
+            required
+          />
+
+          <div className="grid grid-cols-2 gap-3">
             <Input
-              label="Início correto"
-              type="datetime-local"
-              value={form.requested_started_at}
+              label="Início (hh:mm)"
+              type="text"
+              inputMode="numeric"
+              placeholder="08:00"
+              maxLength={5}
+              value={form.requested_start_time}
               onChange={(e) =>
-                setForm((prev) => ({ ...prev, requested_started_at: e.target.value }))
+                setForm((prev) => ({ ...prev, requested_start_time: maskTime(e.target.value) }))
               }
               required
             />
             <Input
-              label="Saída correta"
-              type="datetime-local"
-              value={form.requested_ended_at}
+              label="Saída (hh:mm)"
+              type="text"
+              inputMode="numeric"
+              placeholder="17:00"
+              maxLength={5}
+              value={form.requested_end_time}
               onChange={(e) =>
-                setForm((prev) => ({ ...prev, requested_ended_at: e.target.value }))
+                setForm((prev) => ({ ...prev, requested_end_time: maskTime(e.target.value) }))
               }
               required
             />

@@ -37,6 +37,24 @@ function formatDate(value) {
   return new Date(`${value}T00:00:00`).toLocaleDateString('pt-BR')
 }
 
+function formatTime(iso) {
+  if (!iso) return '-'
+  return new Date(iso).toLocaleTimeString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function formatRange(startedAt, endedAt) {
+  if (!startedAt) return '-'
+  return `${formatTime(startedAt)} → ${formatTime(endedAt)}`
+}
+
+function isoToDateKey(iso) {
+  if (!iso) return ''
+  return new Date(iso).toLocaleDateString('pt-BR')
+}
+
 export function AdminDashboardPage() {
   const startDate = FULL_RANGE_START
   const endDate = FULL_RANGE_END
@@ -301,19 +319,48 @@ export function AdminDashboardPage() {
                       </div>
                     </div>
 
-                    <div className="text-xs text-text-secondary space-y-1">
-                      <p>
-                        <span className="font-medium text-text-primary">Atual:</span>{' '}
-                        {request.time_entry?.projects?.name || '-'} ·{' '}
-                        {formatDateTime(request.time_entry?.started_at)}
-                      </p>
-                      <p>
-                        <span className="font-medium text-text-primary">Pedido:</span>{' '}
-                        {request.requested_project?.name || '-'} ·{' '}
-                        {formatDateTime(request.requested_started_at)}
-                      </p>
-                      <p className="line-clamp-3">{request.reason}</p>
-                    </div>
+                    {(() => {
+                      const currentProject = request.time_entry?.projects?.name || '-'
+                      const requestedProject = request.requested_project?.name || '-'
+                      const currentDate = isoToDateKey(request.time_entry?.started_at)
+                      const requestedDate = isoToDateKey(request.requested_started_at)
+                      const sameProject = currentProject === requestedProject
+                      const sameDate = currentDate === requestedDate
+
+                      return (
+                        <div className="text-xs text-text-secondary space-y-1">
+                          {sameProject && sameDate ? (
+                            <>
+                              <p className="text-text-primary font-medium">
+                                {currentProject} · {currentDate}
+                              </p>
+                              <p>
+                                <span className="font-medium text-text-primary">Atual:</span>{' '}
+                                {formatRange(request.time_entry?.started_at, request.time_entry?.ended_at)}
+                              </p>
+                              <p>
+                                <span className="font-medium text-text-primary">Pedido:</span>{' '}
+                                {formatRange(request.requested_started_at, request.requested_ended_at)}
+                              </p>
+                            </>
+                          ) : (
+                            <>
+                              <p>
+                                <span className="font-medium text-text-primary">Atual:</span>{' '}
+                                {currentProject} · {currentDate},{' '}
+                                {formatRange(request.time_entry?.started_at, request.time_entry?.ended_at)}
+                              </p>
+                              <p>
+                                <span className="font-medium text-text-primary">Pedido:</span>{' '}
+                                {requestedProject} · {requestedDate},{' '}
+                                {formatRange(request.requested_started_at, request.requested_ended_at)}
+                              </p>
+                            </>
+                          )}
+                          <p className="line-clamp-3">{request.reason}</p>
+                        </div>
+                      )
+                    })()}
 
                     <div className="flex gap-2">
                       <button
