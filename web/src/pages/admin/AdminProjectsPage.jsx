@@ -174,21 +174,23 @@ export function AdminProjectsPage() {
               <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
                 Status
               </th>
-              <th className="text-right px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
-                Ações
-              </th>
+              {isAdmin && (
+                <th className="text-right px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                  Ações
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={5} className="text-center py-10 text-text-secondary">
+                <td colSpan={isAdmin ? 5 : 4} className="text-center py-10 text-text-secondary">
                   Carregando...
                 </td>
               </tr>
             ) : projects.length === 0 ? (
               <tr>
-                <td colSpan={5} className="text-center py-10 text-text-secondary">
+                <td colSpan={isAdmin ? 5 : 4} className="text-center py-10 text-text-secondary">
                   Nenhum projeto cadastrado.
                 </td>
               </tr>
@@ -232,14 +234,14 @@ export function AdminProjectsPage() {
                       {project.status === 'active' ? 'Ativo' : 'Concluído'}
                     </Badge>
                   </td>
-                  <td className="px-4 py-3 text-right space-x-3">
-                    <button
-                      onClick={() => startEdit(project)}
-                      className="text-sm text-text-secondary hover:text-text-primary transition-colors"
-                    >
-                      Editar
-                    </button>
-                    {isAdmin && (
+                  {isAdmin && (
+                    <td className="px-4 py-3 text-right space-x-3">
+                      <button
+                        onClick={() => startEdit(project)}
+                        className="text-sm text-text-secondary hover:text-text-primary transition-colors"
+                      >
+                        Editar
+                      </button>
                       <button
                         onClick={() => {
                           setProjectToDelete(project)
@@ -249,8 +251,8 @@ export function AdminProjectsPage() {
                       >
                         Excluir
                       </button>
-                    )}
-                  </td>
+                    </td>
+                  )}
                 </tr>
               ))
             )}
