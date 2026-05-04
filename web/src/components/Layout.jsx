@@ -282,16 +282,18 @@ export function Layout({ children }) {
               Gestão VOID
             </span>
           </div>
-          <button
-            type="button"
-            onClick={() => setIsSidebarPinned((current) => !current)}
-            className="flex h-8 w-8 items-center justify-center rounded-md text-white/65 transition-colors hover:bg-white/10 hover:text-white"
-            aria-pressed={isSidebarPinned}
-            aria-label={isSidebarPinned ? 'Desafixar menu lateral' : 'Fixar menu lateral'}
-            title={isSidebarPinned ? 'Desafixar menu' : 'Fixar menu'}
-          >
-            {isSidebarPinned ? <PinOff size={16} /> : <Pin size={16} />}
-          </button>
+          {isSidebarExpanded && (
+            <button
+              type="button"
+              onClick={() => setIsSidebarPinned((current) => !current)}
+              className="flex h-8 w-8 items-center justify-center rounded-md text-white/65 transition-colors hover:bg-white/10 hover:text-white"
+              aria-pressed={isSidebarPinned}
+              aria-label={isSidebarPinned ? 'Desafixar menu lateral' : 'Fixar menu lateral'}
+              title={isSidebarPinned ? 'Desafixar menu' : 'Fixar menu'}
+            >
+              {isSidebarPinned ? <PinOff size={16} /> : <Pin size={16} />}
+            </button>
+          )}
         </div>
 
         <nav className="flex md:flex-col flex-row flex-1 md:gap-0.5 overflow-x-auto md:overflow-x-visible md:overflow-y-auto">
