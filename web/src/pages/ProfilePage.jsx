@@ -3,12 +3,9 @@ import { Camera, KeyRound, Save } from 'lucide-react'
 import { api } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 import { Avatar } from '../components/Avatar'
+import { roleLabel } from '../lib/permissions'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? '/api'
-
-function roleLabel(role) {
-  return role === 'admin' ? 'Administrador' : 'Colaborador'
-}
 
 export function ProfilePage() {
   const { profile, updateProfile } = useAuth()

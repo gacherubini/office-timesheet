@@ -15,10 +15,6 @@ function formatDate(iso) {
   })
 }
 
-function formatCurrency(value) {
-  return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
-
 export function AdminDeletedProjectsPage() {
   const [projects, setProjects] = useState([])
   const [loading, setLoading] = useState(true)
@@ -88,9 +84,6 @@ export function AdminDeletedProjectsPage() {
                 Status
               </th>
               <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
-                Valor de Venda
-              </th>
-              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
                 Excluído em
               </th>
               <th className="text-right px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
@@ -101,13 +94,13 @@ export function AdminDeletedProjectsPage() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} className="text-center py-10 text-text-secondary">
+                <td colSpan={5} className="text-center py-10 text-text-secondary">
                   Carregando...
                 </td>
               </tr>
             ) : projects.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center py-10 text-text-secondary">
+                <td colSpan={5} className="text-center py-10 text-text-secondary">
                   Nenhum projeto excluído.
                 </td>
               </tr>
@@ -123,9 +116,6 @@ export function AdminDeletedProjectsPage() {
                     <Badge tone={project.status === 'active' ? 'success' : 'neutral'}>
                       {project.status === 'active' ? 'Ativo' : 'Concluído'}
                     </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-text-primary tabular-nums">
-                    {formatCurrency(project.sale_value)}
                   </td>
                   <td className="px-4 py-3 text-text-secondary">{formatDate(project.deleted_at)}</td>
                   <td className="px-4 py-3 text-right">

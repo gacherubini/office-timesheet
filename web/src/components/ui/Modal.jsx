@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { X } from 'lucide-react'
 
-export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
+export function Modal({ open, onClose, title, children, footer, size = 'md', closeOnBackdrop = true }) {
   useEffect(() => {
     if (!open) return
     function onKey(e) {
@@ -19,7 +19,9 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
   return (
     <div
       className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-      onClick={onClose}
+      onClick={(e) => {
+        if (closeOnBackdrop && e.target === e.currentTarget) onClose?.()
+      }}
     >
       <div
         className={`bg-surface rounded-xl shadow-2xl w-full ${sizeClass} border border-border-subtle overflow-hidden`}

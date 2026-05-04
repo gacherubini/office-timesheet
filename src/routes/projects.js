@@ -2,6 +2,7 @@ import { Router } from 'express'
 import multer from 'multer'
 import { requireAuth } from '../middleware/auth.js'
 import { requireAdmin } from '../middleware/requireAdmin.js'
+import { requireOperationalAccess } from '../middleware/requireOperationalAccess.js'
 import { createUserClient, adminClient } from '../lib/supabase.js'
 
 const upload = multer({
@@ -23,7 +24,7 @@ router.get('/projects', requireAuth, async (req, res) => {
 
   const { data, error } = await userClient
     .from('projects')
-    .select('*')
+    .select('id, name, client, status, image_url, created_at, updated_at')
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
 
@@ -37,7 +38,7 @@ router.get('/projects', requireAuth, async (req, res) => {
 router.get('/projects/deleted', requireAuth, requireAdmin, async (_req, res) => {
   const { data, error } = await adminClient
     .from('projects')
-    .select('id, name, client, status, sale_value, image_url, deleted_at, created_at')
+    .select('id, name, client, status, image_url, deleted_at, created_at')
     .not('deleted_at', 'is', null)
     .order('deleted_at', { ascending: false })
 
@@ -48,17 +49,13 @@ router.get('/projects/deleted', requireAuth, requireAdmin, async (_req, res) => 
   return res.json(data || [])
 })
 
-router.post('/projects', requireAuth, requireAdmin, async (req, res) => {
-  const { name, client, status = 'active', sale_value = 0 } = req.body
-
-  if (sale_value !== undefined && Number(sale_value) < 0) {
-    return res.status(400).json({ error: 'Valor de venda não pode ser negativo.' })
-  }
+router.post('/projects', requireAuth, requireOperationalAccess, async (req, res) => {
+  const { name, client, status = 'active' } = req.body
 
   const { data, error } = await adminClient
     .from('projects')
-    .insert([{ name, client, status, sale_value: Number(sale_value) || 0 }])
-    .select()
+    .insert([{ name, client, status, sale_value: 0 }])
+    .select('id, name, client, status, image_url, created_at, updated_at')
     .single()
 
   if (error) {
@@ -68,19 +65,13 @@ router.post('/projects', requireAuth, requireAdmin, async (req, res) => {
   return res.status(201).json(data)
 })
 
-router.put('/projects/:id', requireAuth, requireAdmin, async (req, res) => {
+router.put('/projects/:id', requireAuth, requireOperationalAccess, async (req, res) => {
   const { id } = req.params
-  const { name, client, status, sale_value } = req.body
+  const { name, client, status } = req.body
 
   const updates = {}
   if (name !== undefined) updates.name = name.trim()
   if (client !== undefined) updates.client = client.trim()
-  if (sale_value !== undefined) {
-    if (Number(sale_value) < 0) {
-      return res.status(400).json({ error: 'Valor de venda não pode ser negativo.' })
-    }
-    updates.sale_value = Number(sale_value) || 0
-  }
   if (status !== undefined) {
     if (!['active', 'completed'].includes(status)) {
       return res.status(400).json({ error: 'Status inválido. Use "active" ou "completed".' })
@@ -97,7 +88,7 @@ router.put('/projects/:id', requireAuth, requireAdmin, async (req, res) => {
     .update(updates)
     .eq('id', id)
     .is('deleted_at', null)
-    .select()
+    .select('id, name, client, status, image_url, created_at, updated_at')
     .maybeSingle()
 
   if (error) {
@@ -119,7 +110,7 @@ router.post('/projects/:id/restore', requireAuth, requireAdmin, async (req, res)
     .update({ deleted_at: null })
     .eq('id', id)
     .not('deleted_at', 'is', null)
-    .select('id, name, client, status, sale_value, image_url, created_at')
+    .select('id, name, client, status, image_url, created_at')
     .maybeSingle()
 
   if (error) {
@@ -155,7 +146,7 @@ router.delete('/projects/:id', requireAuth, requireAdmin, async (req, res) => {
   return res.status(204).send()
 })
 
-router.post('/projects/:id/image', requireAuth, requireAdmin, upload.single('image'), async (req, res) => {
+router.post('/projects/:id/image', requireAuth, requireOperationalAccess, upload.single('image'), async (req, res) => {
   const { id } = req.params
 
   if (!req.file) {
@@ -205,7 +196,7 @@ router.post('/projects/:id/image', requireAuth, requireAdmin, upload.single('ima
     .update({ image_url: imageUrl })
     .eq('id', id)
     .is('deleted_at', null)
-    .select()
+    .select('id, name, client, status, image_url, created_at, updated_at')
     .single()
 
   if (error) {

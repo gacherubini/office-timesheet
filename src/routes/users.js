@@ -3,6 +3,8 @@ import multer from 'multer'
 import { adminClient } from '../lib/supabase.js'
 import { requireAuth } from '../middleware/auth.js'
 import { requireAdmin } from '../middleware/requireAdmin.js'
+import { requireOperationalAccess } from '../middleware/requireOperationalAccess.js'
+import { ROLES, VALID_ROLES, canAccessMoney, roleLabel } from '../lib/permissions.js'
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -26,6 +28,8 @@ router.post('/create-user', requireAuth, requireAdmin, async (req, res) => {
       email,
       password,
       role = 'employee',
+      hourly_rate = 0,
+      fixed_salary = 0,
       is_active = true,
       position,
       birth_date,
@@ -38,10 +42,18 @@ router.post('/create-user', requireAuth, requireAdmin, async (req, res) => {
       })
     }
 
-    if (!['admin', 'employee'].includes(role)) {
+    if (!VALID_ROLES.includes(role)) {
       return res.status(400).json({
         error: 'Role inválida.',
       })
+    }
+
+    if (Number(hourly_rate) < 0) {
+      return res.status(400).json({ error: 'Valor/hora nÃ£o pode ser negativo.' })
+    }
+
+    if (Number(fixed_salary) < 0) {
+      return res.status(400).json({ error: 'SalÃ¡rio fixo nÃ£o pode ser negativo.' })
     }
 
     if (password.length < 6) {
@@ -76,16 +88,20 @@ router.post('/create-user', requireAuth, requireAdmin, async (req, res) => {
         name: name.trim(),
         email: email.trim().toLowerCase(),
         role,
+        hourly_rate: role === ROLES.ADMINISTRATIVE_INTERN ? 0 : Number(hourly_rate) || 0,
+        fixed_salary: role === ROLES.ADMINISTRATIVE_INTERN ? Number(fixed_salary) || 0 : 0,
         is_active,
-        ...(position !== undefined && { position: position.trim() }),
+        position: roleLabel(role),
         ...(birth_date !== undefined && { birth_date: birth_date || null }),
         ...(phone !== undefined && { phone: phone?.trim() || null }),
       })
       .eq('id', userId)
-      .select('id, name, email, role, is_active')
+      .select('id, name, email, role, hourly_rate, fixed_salary, is_active')
       .single()
 
     if (profileError) {
+      await adminClient.auth.admin.deleteUser(userId)
+
       return res.status(500).json({
         error: 'Usuário criado no Auth, mas falhou ao atualizar profile.',
         details: profileError.message,
@@ -109,10 +125,14 @@ router.post('/create-user', requireAuth, requireAdmin, async (req, res) => {
 })
 
 // ─── LISTAR USUÁRIOS (apenas não deletados) ───────────────────────────
-router.get('/users', requireAuth, requireAdmin, async (req, res) => {
+router.get('/users', requireAuth, requireOperationalAccess, async (req, res) => {
+  const fields = canAccessMoney(req.profile)
+    ? 'id, name, email, role, hourly_rate, fixed_salary, is_active, position, birth_date, phone, avatar_url, created_at'
+    : 'id, name, email, role, is_active, position, birth_date, phone, avatar_url, created_at'
+
   const { data, error } = await adminClient
     .from('profiles')
-    .select('id, name, email, role, hourly_rate, is_active, position, birth_date, phone, avatar_url, created_at')
+    .select(fields)
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
 
@@ -127,7 +147,7 @@ router.get('/users', requireAuth, requireAdmin, async (req, res) => {
 router.get('/users/deleted', requireAuth, requireAdmin, async (req, res) => {
   const { data, error } = await adminClient
     .from('profiles')
-    .select('id, name, email, role, hourly_rate, deleted_at, created_at')
+    .select('id, name, email, role, hourly_rate, fixed_salary, deleted_at, created_at')
     .not('deleted_at', 'is', null)
     .order('deleted_at', { ascending: false })
 
@@ -147,7 +167,7 @@ router.post('/users/:id/restore', requireAuth, requireAdmin, async (req, res) =>
     .update({ deleted_at: null, is_active: true })
     .eq('id', id)
     .not('deleted_at', 'is', null)
-    .select('id, name, email, role, hourly_rate, is_active')
+    .select('id, name, email, role, hourly_rate, fixed_salary, is_active')
     .maybeSingle()
 
   if (error) {
@@ -164,22 +184,37 @@ router.post('/users/:id/restore', requireAuth, requireAdmin, async (req, res) =>
 // ─── EDITAR USUÁRIO ───────────────────────────────────────────────────
 router.put('/users/:id', requireAuth, requireAdmin, async (req, res) => {
   const { id } = req.params
-  const { name, role, hourly_rate, is_active, position, birth_date, phone } = req.body
+  const { name, role, hourly_rate, fixed_salary, is_active, position, birth_date, phone } = req.body
 
   const updates = {}
   if (name !== undefined) updates.name = name.trim()
-  if (position !== undefined) updates.position = position.trim()
   if (role !== undefined) {
-    if (!['admin', 'employee'].includes(role)) {
+    if (!VALID_ROLES.includes(role)) {
       return res.status(400).json({ error: 'Role inválida.' })
     }
     updates.role = role
+    updates.position = roleLabel(role)
+    if (role === ROLES.ADMINISTRATIVE_INTERN) {
+      updates.hourly_rate = 0
+    } else {
+      updates.fixed_salary = 0
+    }
   }
   if (hourly_rate !== undefined) {
     if (Number(hourly_rate) < 0) {
       return res.status(400).json({ error: 'Valor/hora não pode ser negativo.' })
     }
-    updates.hourly_rate = hourly_rate
+    if (role !== ROLES.ADMINISTRATIVE_INTERN && updates.role !== ROLES.ADMINISTRATIVE_INTERN) {
+      updates.hourly_rate = Number(hourly_rate) || 0
+    }
+  }
+  if (fixed_salary !== undefined) {
+    if (Number(fixed_salary) < 0) {
+      return res.status(400).json({ error: 'SalÃ¡rio fixo nÃ£o pode ser negativo.' })
+    }
+    if (role === ROLES.ADMINISTRATIVE_INTERN || updates.role === ROLES.ADMINISTRATIVE_INTERN) {
+      updates.fixed_salary = Number(fixed_salary) || 0
+    }
   }
   if (is_active !== undefined) updates.is_active = is_active
   if (birth_date !== undefined) updates.birth_date = birth_date || null
@@ -193,7 +228,7 @@ router.put('/users/:id', requireAuth, requireAdmin, async (req, res) => {
     .from('profiles')
     .update(updates)
     .eq('id', id)
-    .select('id, name, email, role, hourly_rate, is_active')
+    .select('id, name, email, role, hourly_rate, fixed_salary, is_active')
     .single()
 
   if (error) {
@@ -279,7 +314,7 @@ router.post('/users/:id/avatar', requireAuth, requireAdmin, upload.single('image
     .from('profiles')
     .update({ avatar_url: avatarUrl })
     .eq('id', id)
-    .select('id, name, email, role, hourly_rate, is_active, position, birth_date, phone, avatar_url')
+    .select('id, name, email, role, hourly_rate, fixed_salary, is_active, position, birth_date, phone, avatar_url')
     .single()
 
   if (error) {

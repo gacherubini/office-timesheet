@@ -21,10 +21,13 @@ import { AdminClientsPage } from './pages/admin/AdminClientsPage'
 import { AdminSuppliersPage } from './pages/admin/AdminSuppliersPage'
 import { AdminTimeEntriesPage } from './pages/admin/AdminTimeEntriesPage'
 import { AdminReportsPage } from './pages/admin/AdminReportsPage'
+import { AdminApprovalsPage } from './pages/admin/AdminApprovalsPage'
 
 function HomeRedirect() {
-  const { isAdmin } = useAuth()
-  return <Navigate to={isAdmin ? '/admin/dashboard' : '/dashboard'} replace />
+  const { isAdmin, isAdministrativeIntern } = useAuth()
+  if (isAdmin) return <Navigate to="/admin/dashboard" replace />
+  if (isAdministrativeIntern) return <Navigate to="/admin/approvals" replace />
+  return <Navigate to="/dashboard" replace />
 }
 
 export default function App() {
@@ -46,22 +49,23 @@ export default function App() {
 
       {/* Rotas do colaborador */}
       <Route path="/" element={<ProtectedRoute><HomeRedirect /></ProtectedRoute>} />
-      <Route path="/dashboard" element={<ProtectedRoute><Layout><EmployeeDashboardPage /></Layout></ProtectedRoute>} />
+      <Route path="/dashboard" element={<ProtectedRoute disallowAdministrativeIntern><Layout><EmployeeDashboardPage /></Layout></ProtectedRoute>} />
       <Route path="/timer" element={<ProtectedRoute><Layout><TimerPage /></Layout></ProtectedRoute>} />
-      <Route path="/financial-perspective" element={<ProtectedRoute><Layout><FinancialPerspectivePage /></Layout></ProtectedRoute>} />
+      <Route path="/financial-perspective" element={<ProtectedRoute disallowAdministrativeIntern><Layout><FinancialPerspectivePage /></Layout></ProtectedRoute>} />
       <Route path="/history" element={<ProtectedRoute><Layout><HistoryPage /></Layout></ProtectedRoute>} />
-      <Route path="/expenses" element={<ProtectedRoute><Layout><ExpensesPage /></Layout></ProtectedRoute>} />
+      <Route path="/expenses" element={<ProtectedRoute disallowAdministrativeIntern><Layout><ExpensesPage /></Layout></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Layout><ProfilePage /></Layout></ProtectedRoute>} />
 
       {/* Rotas do admin */}
+      <Route path="/admin/approvals" element={<ProtectedRoute approverOnly><Layout><AdminApprovalsPage /></Layout></ProtectedRoute>} />
       <Route path="/admin/dashboard" element={<ProtectedRoute adminOnly><Layout><AdminDashboardPage /></Layout></ProtectedRoute>} />
-      <Route path="/admin/live" element={<ProtectedRoute adminOnly><Layout><AdminLivePage /></Layout></ProtectedRoute>} />
-      <Route path="/admin/team" element={<ProtectedRoute adminOnly><Layout><AdminTeamPage /></Layout></ProtectedRoute>} />
+      <Route path="/admin/live" element={<ProtectedRoute approverOnly><Layout><AdminLivePage /></Layout></ProtectedRoute>} />
+      <Route path="/admin/team" element={<ProtectedRoute approverOnly><Layout><AdminTeamPage /></Layout></ProtectedRoute>} />
       <Route path="/admin/deleted-users" element={<ProtectedRoute adminOnly><Layout><AdminDeletedUsersPage /></Layout></ProtectedRoute>} />
-      <Route path="/admin/projects" element={<ProtectedRoute adminOnly><Layout><AdminProjectsPage /></Layout></ProtectedRoute>} />
+      <Route path="/admin/projects" element={<ProtectedRoute approverOnly><Layout><AdminProjectsPage /></Layout></ProtectedRoute>} />
       <Route path="/admin/deleted-projects" element={<ProtectedRoute adminOnly><Layout><AdminDeletedProjectsPage /></Layout></ProtectedRoute>} />
-      <Route path="/admin/clients" element={<ProtectedRoute adminOnly><Layout><AdminClientsPage /></Layout></ProtectedRoute>} />
-      <Route path="/admin/suppliers" element={<ProtectedRoute adminOnly><Layout><AdminSuppliersPage /></Layout></ProtectedRoute>} />
+      <Route path="/admin/clients" element={<ProtectedRoute approverOnly><Layout><AdminClientsPage /></Layout></ProtectedRoute>} />
+      <Route path="/admin/suppliers" element={<ProtectedRoute approverOnly><Layout><AdminSuppliersPage /></Layout></ProtectedRoute>} />
       <Route path="/admin/time-entries" element={<ProtectedRoute adminOnly><Layout><AdminTimeEntriesPage /></Layout></ProtectedRoute>} />
       <Route path="/admin/reports" element={<ProtectedRoute adminOnly><Layout><AdminReportsPage /></Layout></ProtectedRoute>} />
 

@@ -146,7 +146,7 @@ function NavSection({ section, pathname, open, active, expanded, onToggle }) {
 }
 
 export function Layout({ children }) {
-  const { profile, isAdmin, logout } = useAuth()
+  const { profile, isAdmin, isAdministrativeIntern, logout } = useAuth()
   const { isDark, toggleTheme } = useTheme()
   const location = useLocation()
   const navigate = useNavigate()
@@ -169,6 +169,8 @@ export function Layout({ children }) {
 
   const employeeHomeLink = { to: '/dashboard', label: 'Início', icon: Home }
   const adminHomeLink = { to: '/admin/dashboard', label: 'Início', icon: Home }
+
+  const administrativeInternHomeLink = { to: '/admin/approvals', label: 'Início', icon: Home }
 
   const employeeSections = [
     {
@@ -216,8 +218,36 @@ export function Layout({ children }) {
     },
   ]
 
-  const homeLink = isAdmin ? adminHomeLink : employeeHomeLink
-  const sections = isAdmin ? adminSections : employeeSections
+  const administrativeInternSections = [
+    {
+      label: 'Operação',
+      icon: Sparkles,
+      links: [
+        { to: '/admin/live', label: 'Painel Live', icon: Radio },
+      ],
+    },
+    {
+      label: 'Gerenciamento',
+      icon: BriefcaseBusiness,
+      links: [
+        { to: '/admin/team', label: 'Equipe', icon: Users },
+        { to: '/admin/projects', label: 'Projetos', icon: FolderOpen },
+        { to: '/admin/clients', label: 'Clientes', icon: Building2 },
+        { to: '/admin/suppliers', label: 'Fornecedores', icon: Truck },
+      ],
+    },
+  ]
+
+  const homeLink = isAdmin
+    ? adminHomeLink
+    : isAdministrativeIntern
+      ? administrativeInternHomeLink
+      : employeeHomeLink
+  const sections = isAdmin
+    ? adminSections
+    : isAdministrativeIntern
+      ? administrativeInternSections
+      : employeeSections
   const isSidebarExpanded = isSidebarPinned || isSidebarHovered
 
   function toggleSection(label) {

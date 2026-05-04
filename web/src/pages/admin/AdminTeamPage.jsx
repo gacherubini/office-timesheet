@@ -9,6 +9,8 @@ import { Modal } from '../../components/ui/Modal'
 import { Input, Select } from '../../components/ui/Input'
 import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
+import { ROLES, roleLabel } from '../../lib/permissions'
+import { useAuth } from '../../contexts/AuthContext'
 
 function whatsappLink(phone) {
   if (!phone) return null
@@ -21,12 +23,28 @@ function formatCurrency(value) {
   return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
+function roleBadgeTone(role) {
+  if (role === ROLES.ADMIN) return 'accent'
+  if (role === ROLES.ADMINISTRATIVE_INTERN) return 'warning'
+  return 'info'
+}
+
+function compensationLabel(user) {
+  if (user.role === ROLES.ADMINISTRATIVE_INTERN) {
+    return `${formatCurrency(user.fixed_salary)} / mês`
+  }
+
+  return `${formatCurrency(user.hourly_rate)} / hora`
+}
+
 export function AdminTeamPage() {
+  const { isAdmin, canAccessMoney } = useAuth()
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingUser, setEditingUser] = useState(null)
   const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
   const [userToDelete, setUserToDelete] = useState(null)
   const [deleteError, setDeleteError] = useState('')
   const [deleting, setDeleting] = useState(false)
@@ -35,8 +53,9 @@ export function AdminTeamPage() {
     name: '',
     email: '',
     password: '',
-    role: 'employee',
+    role: ROLES.EMPLOYEE,
     hourly_rate: '',
+    fixed_salary: '',
     is_active: true,
     position: '',
     birth_date: '',
@@ -65,8 +84,9 @@ export function AdminTeamPage() {
       name: '',
       email: '',
       password: '',
-      role: 'employee',
+      role: ROLES.EMPLOYEE,
       hourly_rate: '',
+      fixed_salary: '',
       is_active: true,
       position: '',
       birth_date: '',
@@ -84,6 +104,7 @@ export function AdminTeamPage() {
       password: '',
       role: user.role,
       hourly_rate: user.hourly_rate || '',
+      fixed_salary: user.fixed_salary || '',
       is_active: user.is_active,
       position: user.position || '',
       birth_date: user.birth_date || '',
@@ -142,36 +163,41 @@ export function AdminTeamPage() {
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
+    setSaving(true)
+
+    const isAdministrativeIntern = form.role === ROLES.ADMINISTRATIVE_INTERN
+    const payload = {
+      name: form.name,
+      role: form.role,
+      hourly_rate: isAdministrativeIntern ? 0 : Number(form.hourly_rate) || 0,
+      fixed_salary: isAdministrativeIntern ? Number(form.fixed_salary) || 0 : 0,
+      is_active: form.is_active,
+      position: roleLabel(form.role),
+      birth_date: form.birth_date,
+      phone: form.phone,
+    }
 
     try {
       if (editingUser) {
-        await api.put(`/admin/users/${editingUser.id}`, {
-          name: form.name,
-          role: form.role,
-          hourly_rate: Number(form.hourly_rate) || 0,
-          is_active: form.is_active,
-          position: form.position,
-          birth_date: form.birth_date,
-          phone: form.phone,
-        })
+        await api.put(`/admin/users/${editingUser.id}`, payload)
       } else {
         await api.post('/admin/create-user', {
-          name: form.name,
+          ...payload,
           email: form.email,
           password: form.password,
-          role: form.role,
-          position: form.position,
-          birth_date: form.birth_date,
-          phone: form.phone,
         })
       }
 
+      await loadUsers()
       resetForm()
-      loadUsers()
     } catch (err) {
       setError(err.message)
+    } finally {
+      setSaving(false)
     }
   }
+
+  const tableColSpan = 6 + (canAccessMoney ? 1 : 0) + (isAdmin ? 1 : 0)
 
   return (
     <div>
@@ -179,7 +205,8 @@ export function AdminTeamPage() {
         title="Equipe"
         subtitle="Gerencie colaboradores, perfis e taxas horárias"
         actions={
-          <>
+          isAdmin ? (
+            <>
             <Link
               to="/admin/deleted-users"
               className="inline-flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors"
@@ -196,7 +223,8 @@ export function AdminTeamPage() {
               <Plus size={16} />
               Novo Colaborador
             </Button>
-          </>
+            </>
+          ) : null
         }
       />
 
@@ -219,9 +247,6 @@ export function AdminTeamPage() {
                 Nome
               </th>
               <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
-                Cargo
-              </th>
-              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
                 E-mail
               </th>
               <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
@@ -230,27 +255,31 @@ export function AdminTeamPage() {
               <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
                 Perfil
               </th>
-              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
-                Valor/Hora
-              </th>
+              {canAccessMoney && (
+                <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                  Remuneracao
+                </th>
+              )}
               <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
                 Status
               </th>
-              <th className="text-right px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
-                Ações
-              </th>
+              {isAdmin && (
+                <th className="text-right px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                  Acoes
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={9} className="text-center py-10 text-text-secondary">
+                <td colSpan={tableColSpan} className="text-center py-10 text-text-secondary">
                   Carregando...
                 </td>
               </tr>
             ) : users.length === 0 ? (
               <tr>
-                <td colSpan={9} className="text-center py-10 text-text-secondary">
+                <td colSpan={tableColSpan} className="text-center py-10 text-text-secondary">
                   Nenhum colaborador cadastrado.
                 </td>
               </tr>
@@ -263,19 +292,22 @@ export function AdminTeamPage() {
                     className="border-b border-border-subtle last:border-b-0 hover:bg-surface-alt transition-colors"
                   >
                     <td className="px-4 py-3">
-                      <button
-                        onClick={() => triggerUpload(user.id)}
-                        title="Clique para alterar a foto"
-                        className="relative group"
-                      >
+                      {isAdmin ? (
+                        <button
+                          onClick={() => triggerUpload(user.id)}
+                          title="Clique para alterar a foto"
+                          className="relative group"
+                        >
+                          <Avatar name={user.name} url={user.avatar_url} size={36} />
+                          <span className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/40 flex items-center justify-center transition-colors">
+                            <Camera size={14} className="text-white opacity-0 group-hover:opacity-100" />
+                          </span>
+                        </button>
+                      ) : (
                         <Avatar name={user.name} url={user.avatar_url} size={36} />
-                        <span className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/40 flex items-center justify-center transition-colors">
-                          <Camera size={14} className="text-white opacity-0 group-hover:opacity-100" />
-                        </span>
-                      </button>
+                      )}
                     </td>
                     <td className="px-4 py-3 font-medium text-text-primary">{user.name}</td>
-                    <td className="px-4 py-3 text-text-secondary">{user.position || '-'}</td>
                     <td className="px-4 py-3 text-text-secondary">{user.email}</td>
                     <td className="px-4 py-3">
                       {user.phone ? (
@@ -298,37 +330,41 @@ export function AdminTeamPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <Badge tone={user.role === 'admin' ? 'accent' : 'info'}>
-                        {user.role === 'admin' ? 'Admin' : 'Colaborador'}
+                      <Badge tone={roleBadgeTone(user.role)}>
+                        {roleLabel(user.role)}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3 tabular-nums text-text-primary">
-                      {formatCurrency(user.hourly_rate)}
-                    </td>
+                    {canAccessMoney && (
+                      <td className="px-4 py-3 tabular-nums text-text-primary">
+                        {compensationLabel(user)}
+                      </td>
+                    )}
                     <td className="px-4 py-3">
                       <Badge tone={user.is_active ? 'success' : 'danger'}>
                         {user.is_active ? 'Ativo' : 'Inativo'}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-3">
-                        <button
-                          onClick={() => startEdit(user)}
-                          className="text-sm text-text-secondary hover:text-text-primary transition-colors"
-                        >
-                          Editar
-                        </button>
-                        <button
-                          onClick={() => {
-                            setUserToDelete(user)
-                            setDeleteError('')
-                          }}
-                          className="text-sm text-rose-500 hover:text-rose-400 transition-colors"
-                        >
-                          Excluir
-                        </button>
-                      </div>
-                    </td>
+                    {isAdmin && (
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-3">
+                          <button
+                            onClick={() => startEdit(user)}
+                            className="text-sm text-text-secondary hover:text-text-primary transition-colors"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => {
+                              setUserToDelete(user)
+                              setDeleteError('')
+                            }}
+                            className="text-sm text-rose-500 hover:text-rose-400 transition-colors"
+                          >
+                            Excluir
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 )
               })
@@ -339,7 +375,10 @@ export function AdminTeamPage() {
 
       <Modal
         open={showForm}
-        onClose={resetForm}
+        onClose={() => {
+          if (!saving) resetForm()
+        }}
+        closeOnBackdrop={false}
         title={editingUser ? 'Editar Colaborador' : 'Novo Colaborador'}
       >
         {error && (
@@ -347,18 +386,12 @@ export function AdminTeamPage() {
             {error}
           </div>
         )}
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit} className="space-y-3" autoComplete="off">
           <Input
             label="Nome"
             required
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
-          <Input
-            label="Cargo"
-            placeholder="Ex: Arquiteta, Estagiário"
-            value={form.position}
-            onChange={(e) => setForm({ ...form, position: e.target.value })}
           />
 
           <div className="grid grid-cols-2 gap-3">
@@ -382,6 +415,7 @@ export function AdminTeamPage() {
               <Input
                 label="E-mail"
                 type="email"
+                autoComplete="new-email"
                 required
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -389,6 +423,7 @@ export function AdminTeamPage() {
               <Input
                 label="Senha"
                 type="password"
+                autoComplete="new-password"
                 required
                 minLength={6}
                 value={form.password}
@@ -403,17 +438,29 @@ export function AdminTeamPage() {
               value={form.role}
               onChange={(e) => setForm({ ...form, role: e.target.value })}
             >
-              <option value="employee">Colaborador</option>
-              <option value="admin">Administrador</option>
+              <option value={ROLES.EMPLOYEE}>Colaborador</option>
+              <option value={ROLES.ADMINISTRATIVE_INTERN}>Estagiário Administrativo</option>
+              <option value={ROLES.ADMIN}>Administrador</option>
             </Select>
-            <Input
-              label="Valor/Hora (R$)"
-              type="number"
-              step="0.01"
-              min="0"
-              value={form.hourly_rate}
-              onChange={(e) => setForm({ ...form, hourly_rate: e.target.value })}
-            />
+            {form.role === ROLES.ADMINISTRATIVE_INTERN ? (
+              <Input
+                label="Salário fixo mensal (R$)"
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.fixed_salary}
+                onChange={(e) => setForm({ ...form, fixed_salary: e.target.value })}
+              />
+            ) : (
+              <Input
+                label="Valor/Hora (R$)"
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.hourly_rate}
+                onChange={(e) => setForm({ ...form, hourly_rate: e.target.value })}
+              />
+            )}
           </div>
 
           {editingUser && (
@@ -428,8 +475,14 @@ export function AdminTeamPage() {
             </label>
           )}
 
-          <Button type="submit" className="w-full">
-            {editingUser ? 'Salvar' : 'Criar Colaborador'}
+          <Button type="submit" className="w-full" disabled={saving}>
+            {saving
+              ? editingUser
+                ? 'Salvando...'
+                : 'Criando...'
+              : editingUser
+                ? 'Salvar'
+                : 'Criar Colaborador'}
           </Button>
         </form>
       </Modal>

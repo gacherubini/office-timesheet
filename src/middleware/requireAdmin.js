@@ -1,5 +1,7 @@
+import { isAdmin } from '../lib/permissions.js'
+
 export function requireAdmin(req, res, next) {
-  if (req.profile?.role !== 'admin') {
+  if (!isAdmin(req.profile)) {
     return res.status(403).json({ error: 'Acesso restrito a administradores.' })
   }
 

@@ -5,6 +5,7 @@ import { ArrowLeft, RotateCcw } from 'lucide-react'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
+import { ROLES, roleLabel } from '../../lib/permissions'
 
 function formatDate(iso) {
   if (!iso) return '-'
@@ -17,6 +18,20 @@ function formatDate(iso) {
 
 function formatCurrency(value) {
   return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
+function roleBadgeTone(role) {
+  if (role === ROLES.ADMIN) return 'accent'
+  if (role === ROLES.ADMINISTRATIVE_INTERN) return 'warning'
+  return 'info'
+}
+
+function compensationLabel(user) {
+  if (user.role === ROLES.ADMINISTRATIVE_INTERN) {
+    return `${formatCurrency(user.fixed_salary)} / mês`
+  }
+
+  return `${formatCurrency(user.hourly_rate)} / hora`
 }
 
 export function AdminDeletedUsersPage() {
@@ -88,7 +103,7 @@ export function AdminDeletedUsersPage() {
                 Perfil
               </th>
               <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
-                Valor/Hora
+                Remuneração
               </th>
               <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
                 Excluído em
@@ -120,12 +135,12 @@ export function AdminDeletedUsersPage() {
                   <td className="px-4 py-3 font-medium text-text-primary">{user.name}</td>
                   <td className="px-4 py-3 text-text-secondary">{user.email}</td>
                   <td className="px-4 py-3">
-                    <Badge tone={user.role === 'admin' ? 'accent' : 'info'}>
-                      {user.role === 'admin' ? 'Admin' : 'Colaborador'}
+                    <Badge tone={roleBadgeTone(user.role)}>
+                      {roleLabel(user.role)}
                     </Badge>
                   </td>
                   <td className="px-4 py-3 text-text-primary tabular-nums">
-                    {formatCurrency(user.hourly_rate)}
+                    {compensationLabel(user)}
                   </td>
                   <td className="px-4 py-3 text-text-secondary">{formatDate(user.deleted_at)}</td>
                   <td className="px-4 py-3 text-right">

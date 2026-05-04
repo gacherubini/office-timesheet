@@ -3,6 +3,7 @@ import crypto from 'crypto'
 import multer from 'multer'
 import { requireAuth } from '../middleware/auth.js'
 import { requireAdmin } from '../middleware/requireAdmin.js'
+import { requireApprover } from '../middleware/requireApprover.js'
 import { adminClient } from '../lib/supabase.js'
 
 const router = Router()
@@ -94,6 +95,10 @@ async function enrichExpenseRequests(expenses) {
 
 // ─── COLABORADOR: DESPESAS ───────────────────────────────────────────
 router.get('/me/expense-requests', requireAuth, async (req, res) => {
+  if (req.profile?.role === 'administrative_intern') {
+    return res.status(403).json({ error: 'Acesso restrito a despesas administrativas.' })
+  }
+
   const status = req.query.status
 
   let query = adminClient
@@ -112,6 +117,10 @@ router.get('/me/expense-requests', requireAuth, async (req, res) => {
 })
 
 router.post('/me/expense-requests', requireAuth, upload.single('receipt'), async (req, res) => {
+  if (req.profile?.role === 'administrative_intern') {
+    return res.status(403).json({ error: 'Acesso restrito a despesas administrativas.' })
+  }
+
   const parsed = parseExpensePayload(req.body)
   if (parsed.error) return res.status(400).json({ error: parsed.error })
 
@@ -139,7 +148,7 @@ router.post('/me/expense-requests', requireAuth, upload.single('receipt'), async
 })
 
 // ─── ADMIN: DESPESAS ─────────────────────────────────────────────────
-router.get('/admin/expense-requests', requireAuth, requireAdmin, async (req, res) => {
+router.get('/admin/expense-requests', requireAuth, requireApprover, async (req, res) => {
   const status = req.query.status || 'pending'
 
   let query = adminClient
@@ -161,7 +170,7 @@ router.get('/admin/expense-requests', requireAuth, requireAdmin, async (req, res
   }
 })
 
-router.post('/admin/expense-requests/:id/approve', requireAuth, requireAdmin, async (req, res) => {
+router.post('/admin/expense-requests/:id/approve', requireAuth, requireApprover, async (req, res) => {
   const adminNote = req.body?.admin_note?.trim() || null
   const decidedAt = new Date().toISOString()
 
@@ -186,7 +195,7 @@ router.post('/admin/expense-requests/:id/approve', requireAuth, requireAdmin, as
   return res.json(data)
 })
 
-router.post('/admin/expense-requests/:id/reject', requireAuth, requireAdmin, async (req, res) => {
+router.post('/admin/expense-requests/:id/reject', requireAuth, requireApprover, async (req, res) => {
   const adminNote = req.body?.admin_note?.trim() || null
   const decidedAt = new Date().toISOString()
 

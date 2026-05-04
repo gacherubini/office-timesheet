@@ -1,5 +1,11 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { api } from '../lib/api'
+import {
+  canAccessMoneyRole,
+  canApproveRequestsRole,
+  isAdministrativeInternRole,
+  isAdminRole,
+} from '../lib/permissions'
 
 const AuthContext = createContext(null)
 
@@ -46,10 +52,28 @@ export function AuthProvider({ children }) {
     setProfile(nextProfile)
   }
 
-  const isAdmin = profile?.role === 'admin'
+  const isAdmin = isAdminRole(profile?.role)
+  const isAdministrativeIntern = isAdministrativeInternRole(profile?.role)
+  const canApproveRequests = canApproveRequestsRole(profile?.role)
+  const canAccessAdminArea = isAdmin || isAdministrativeIntern
+  const canAccessMoney = canAccessMoneyRole(profile?.role)
 
   return (
-    <AuthContext.Provider value={{ user, profile, isAdmin, loading, login, logout, updateProfile }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        profile,
+        isAdmin,
+        isAdministrativeIntern,
+        canApproveRequests,
+        canAccessAdminArea,
+        canAccessMoney,
+        loading,
+        login,
+        logout,
+        updateProfile,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )

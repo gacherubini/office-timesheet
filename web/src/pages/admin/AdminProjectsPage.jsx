@@ -8,18 +8,16 @@ import { Modal } from '../../components/ui/Modal'
 import { Input, Select } from '../../components/ui/Input'
 import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
-
-function formatCurrency(value) {
-  return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
+import { useAuth } from '../../contexts/AuthContext'
 
 export function AdminProjectsPage() {
+  const { isAdmin } = useAuth()
   const [projects, setProjects] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingProject, setEditingProject] = useState(null)
   const [error, setError] = useState('')
-  const [form, setForm] = useState({ name: '', client: '', status: 'active', sale_value: '' })
+  const [form, setForm] = useState({ name: '', client: '', status: 'active' })
   const [uploading, setUploading] = useState(null)
   const [projectToDelete, setProjectToDelete] = useState(null)
   const [deleteError, setDeleteError] = useState('')
@@ -42,7 +40,7 @@ export function AdminProjectsPage() {
   }, [])
 
   function resetForm() {
-    setForm({ name: '', client: '', status: 'active', sale_value: '' })
+    setForm({ name: '', client: '', status: 'active' })
     setEditingProject(null)
     setShowForm(false)
     setError('')
@@ -53,7 +51,6 @@ export function AdminProjectsPage() {
       name: project.name,
       client: project.client || '',
       status: project.status,
-      sale_value: project.sale_value ?? '',
     })
     setEditingProject(project)
     setShowForm(true)
@@ -66,12 +63,9 @@ export function AdminProjectsPage() {
 
     try {
       if (editingProject) {
-        await api.put(`/projects/${editingProject.id}`, {
-          ...form,
-          sale_value: Number(form.sale_value) || 0,
-        })
+        await api.put(`/projects/${editingProject.id}`, form)
       } else {
-        await api.post('/projects', { ...form, sale_value: Number(form.sale_value) || 0 })
+        await api.post('/projects', form)
       }
       resetForm()
       loadProjects()
@@ -131,9 +125,10 @@ export function AdminProjectsPage() {
     <div>
       <PageHeader
         title="Projetos"
-        subtitle="Cadastro de projetos, clientes e valores de venda"
+        subtitle="Cadastro de projetos e clientes"
         actions={
           <>
+            {isAdmin && (
             <Link
               to="/admin/deleted-projects"
               className="inline-flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors"
@@ -141,6 +136,7 @@ export function AdminProjectsPage() {
               <Trash2 size={14} />
               Excluídos
             </Link>
+            )}
             <Button
               onClick={() => {
                 resetForm()
@@ -178,9 +174,6 @@ export function AdminProjectsPage() {
               <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
                 Status
               </th>
-              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
-                Valor de Venda
-              </th>
               <th className="text-right px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
                 Ações
               </th>
@@ -189,13 +182,13 @@ export function AdminProjectsPage() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} className="text-center py-10 text-text-secondary">
+                <td colSpan={5} className="text-center py-10 text-text-secondary">
                   Carregando...
                 </td>
               </tr>
             ) : projects.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center py-10 text-text-secondary">
+                <td colSpan={5} className="text-center py-10 text-text-secondary">
                   Nenhum projeto cadastrado.
                 </td>
               </tr>
@@ -239,9 +232,6 @@ export function AdminProjectsPage() {
                       {project.status === 'active' ? 'Ativo' : 'Concluído'}
                     </Badge>
                   </td>
-                  <td className="px-4 py-3 text-text-primary tabular-nums">
-                    {formatCurrency(project.sale_value)}
-                  </td>
                   <td className="px-4 py-3 text-right space-x-3">
                     <button
                       onClick={() => startEdit(project)}
@@ -249,15 +239,17 @@ export function AdminProjectsPage() {
                     >
                       Editar
                     </button>
-                    <button
-                      onClick={() => {
-                        setProjectToDelete(project)
-                        setDeleteError('')
-                      }}
-                      className="text-sm text-rose-500 hover:text-rose-400 transition-colors"
-                    >
-                      Excluir
-                    </button>
+                    {isAdmin && (
+                      <button
+                        onClick={() => {
+                          setProjectToDelete(project)
+                          setDeleteError('')
+                        }}
+                        className="text-sm text-rose-500 hover:text-rose-400 transition-colors"
+                      >
+                        Excluir
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))
@@ -288,7 +280,7 @@ export function AdminProjectsPage() {
             value={form.client}
             onChange={(e) => setForm({ ...form, client: e.target.value })}
           />
-          <div className="grid grid-cols-2 gap-3">
+          <div>
             <Select
               label="Status"
               value={form.status}
@@ -297,15 +289,6 @@ export function AdminProjectsPage() {
               <option value="active">Ativo</option>
               <option value="completed">Concluído</option>
             </Select>
-            <Input
-              label="Valor de Venda (R$)"
-              type="number"
-              step="0.01"
-              min="0"
-              placeholder="0,00"
-              value={form.sale_value}
-              onChange={(e) => setForm({ ...form, sale_value: e.target.value })}
-            />
           </div>
           <Button type="submit" className="w-full">
             {editingProject ? 'Salvar' : 'Criar Projeto'}

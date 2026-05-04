@@ -1,6 +1,9 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
 import { requireAdmin } from '../middleware/requireAdmin.js'
+import { requireApprover } from '../middleware/requireApprover.js'
+import { requireOperationalAccess } from '../middleware/requireOperationalAccess.js'
+import { canAccessMoney } from '../lib/permissions.js'
 import { createUserClient, adminClient } from '../lib/supabase.js'
 
 const router = Router()
@@ -53,6 +56,18 @@ async function enrichChangeRequests(requests) {
     time_entry: entryMap.get(request.time_entry_id) || null,
     requested_project: requestedProjectMap.get(request.requested_project_id) || null,
   }))
+}
+
+function sanitizeChangeRequestsForProfile(requests, profile) {
+  if (canAccessMoney(profile)) return requests
+
+  return (requests || []).map((request) => {
+    const { cost_snapshot: _costSnapshot, ...timeEntry } = request.time_entry || {}
+    return {
+      ...request,
+      time_entry: request.time_entry ? timeEntry : null,
+    }
+  })
 }
 
 router.post('/time-entries/start', requireAuth, async (req, res) => {
@@ -308,7 +323,7 @@ router.post('/time-entries/stop', requireAuth, async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════
 
 // ─── ADMIN: SOLICITAÇÕES DE ALTERAÇÃO DE PONTO ───────────────────────
-router.get('/admin/time-entry-change-requests', requireAuth, requireAdmin, async (req, res) => {
+router.get('/admin/time-entry-change-requests', requireAuth, requireApprover, async (req, res) => {
   const status = req.query.status || 'pending'
 
   let query = adminClient
@@ -326,13 +341,13 @@ router.get('/admin/time-entry-change-requests', requireAuth, requireAdmin, async
 
   try {
     const enriched = await enrichChangeRequests(data || [])
-    return res.json(enriched)
+    return res.json(sanitizeChangeRequestsForProfile(enriched, req.profile))
   } catch (err) {
     return res.status(400).json({ error: err.message })
   }
 })
 
-router.post('/admin/time-entry-change-requests/:id/approve', requireAuth, requireAdmin, async (req, res) => {
+router.post('/admin/time-entry-change-requests/:id/approve', requireAuth, requireApprover, async (req, res) => {
   const { id } = req.params
   const adminNote = req.body?.admin_note?.trim() || null
 
@@ -424,7 +439,7 @@ router.post('/admin/time-entry-change-requests/:id/approve', requireAuth, requir
   return res.json(data)
 })
 
-router.post('/admin/time-entry-change-requests/:id/reject', requireAuth, requireAdmin, async (req, res) => {
+router.post('/admin/time-entry-change-requests/:id/reject', requireAuth, requireApprover, async (req, res) => {
   const { id } = req.params
   const adminNote = req.body?.admin_note?.trim() || null
   const decidedAt = new Date().toISOString()
@@ -591,7 +606,7 @@ router.delete('/admin/time-entries/:id', requireAuth, requireAdmin, async (req, 
 })
 
 // ─── ADMIN: PAINEL LIVE ──────────────────────────────────────────────
-router.get('/admin/live', requireAuth, requireAdmin, async (req, res) => {
+router.get('/admin/live', requireAuth, requireOperationalAccess, async (req, res) => {
   // Busca todos os colaboradores ativos
   const { data: profiles, error: profilesError } = await adminClient
     .from('profiles')

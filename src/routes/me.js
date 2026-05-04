@@ -2,6 +2,7 @@ import { Router } from 'express'
 import multer from 'multer'
 import { requireAuth } from '../middleware/auth.js'
 import { authClient, createUserClient, adminClient } from '../lib/supabase.js'
+import { canAccessMoney } from '../lib/permissions.js'
 
 const router = Router()
 
@@ -280,6 +281,10 @@ router.post('/me/time-entry-change-requests', requireAuth, async (req, res) => {
 
 // ─── STATS DO COLABORADOR (KPIs do mês) ──────────────────────────────
 router.get('/me/stats', requireAuth, async (req, res) => {
+  if (!canAccessMoney(req.profile) && req.profile?.role === 'administrative_intern') {
+    return res.status(403).json({ error: 'Acesso restrito a dados financeiros.' })
+  }
+
   const userClient = createUserClient(req.accessToken)
   const userId = req.profile.id
 
