@@ -5,6 +5,8 @@ import { Card } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
+import { Modal } from '../components/ui/Modal'
+import { CheckCircle2 } from 'lucide-react'
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? '/api'
 
@@ -133,13 +135,6 @@ export function ExpensesPage() {
       <PageHeader
         title="Despesas"
         subtitle="Envie comprovantes para reembolso"
-        badge={
-          success && (
-            <span className="text-sm text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-md">
-              {success}
-            </span>
-          )
-        }
       />
 
       {error && (
@@ -295,6 +290,22 @@ export function ExpensesPage() {
           </table>
         </Card>
       </div>
+
+      <Modal
+        open={Boolean(success)}
+        onClose={() => setSuccess('')}
+        size="sm"
+        footer={
+          <Button onClick={() => setSuccess('')}>OK</Button>
+        }
+      >
+        <div className="flex flex-col items-center text-center py-2">
+          <div className="bg-emerald-500/15 rounded-full p-4 mb-4">
+            <CheckCircle2 className="text-emerald-500" size={36} />
+          </div>
+          <p className="text-text-primary font-medium">{success}</p>
+        </div>
+      </Modal>
     </div>
   )
 }

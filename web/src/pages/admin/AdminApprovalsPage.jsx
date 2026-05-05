@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Check, FileText, Receipt, X } from 'lucide-react'
+import { Check, CheckCircle2, FileText, Receipt, X } from 'lucide-react'
 import { api } from '../../lib/api'
 import { Avatar } from '../../components/Avatar'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
+import { Modal } from '../../components/ui/Modal'
+import { Button } from '../../components/ui/Button'
 
 function formatCurrency(value) {
   return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -51,6 +53,7 @@ export function AdminApprovalsPage() {
   const [decidingRequestId, setDecidingRequestId] = useState(null)
   const [decidingExpenseId, setDecidingExpenseId] = useState(null)
   const [error, setError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
 
   async function loadChangeRequests() {
     setRequestsLoading(true)
@@ -87,6 +90,7 @@ export function AdminApprovalsPage() {
     try {
       await api.post(`/admin/time-entry-change-requests/${requestId}/approve`, {})
       await loadChangeRequests()
+      setSuccessMessage('Solicitação aprovada com sucesso!')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -103,6 +107,7 @@ export function AdminApprovalsPage() {
     try {
       await api.post(`/admin/time-entry-change-requests/${requestId}/reject`, { admin_note: adminNote })
       await loadChangeRequests()
+      setSuccessMessage('Solicitação rejeitada com sucesso!')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -116,6 +121,7 @@ export function AdminApprovalsPage() {
     try {
       await api.post(`/admin/expense-requests/${expenseId}/approve`, {})
       await loadExpenseRequests()
+      setSuccessMessage('Despesa aprovada com sucesso!')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -132,6 +138,7 @@ export function AdminApprovalsPage() {
     try {
       await api.post(`/admin/expense-requests/${expenseId}/reject`, { admin_note: adminNote })
       await loadExpenseRequests()
+      setSuccessMessage('Despesa rejeitada com sucesso!')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -323,6 +330,22 @@ export function AdminApprovalsPage() {
           </div>
         </Card>
       </div>
+
+      <Modal
+        open={Boolean(successMessage)}
+        onClose={() => setSuccessMessage('')}
+        size="sm"
+        footer={
+          <Button onClick={() => setSuccessMessage('')}>OK</Button>
+        }
+      >
+        <div className="flex flex-col items-center text-center py-2">
+          <div className="bg-emerald-500/15 rounded-full p-4 mb-4">
+            <CheckCircle2 className="text-emerald-500" size={36} />
+          </div>
+          <p className="text-text-primary font-medium">{successMessage}</p>
+        </div>
+      </Modal>
     </div>
   )
 }

@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
 import { api } from '../../lib/api'
-import { Check, Clock, FolderOpen, Receipt, Users, X } from 'lucide-react'
+import { Check, CheckCircle2, Clock, FolderOpen, Receipt, Users, X } from 'lucide-react'
 import { BirthdayCalendar } from '../../components/BirthdayCalendar'
 import { Avatar } from '../../components/Avatar'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { MetricCard } from '../../components/ui/MetricCard'
 import { Card } from '../../components/ui/Card'
 import { Tabs } from '../../components/ui/Tabs'
+import { Modal } from '../../components/ui/Modal'
+import { Button } from '../../components/ui/Button'
 
 const FULL_RANGE_START = '2000-01-01'
 const FULL_RANGE_END = '2099-12-31'
@@ -68,6 +70,7 @@ export function AdminDashboardPage() {
   const [expensesLoading, setExpensesLoading] = useState(true)
   const [decidingId, setDecidingId] = useState(null)
   const [decidingExpenseId, setDecidingExpenseId] = useState(null)
+  const [successMessage, setSuccessMessage] = useState('')
 
   useEffect(() => {
     if (!startDate || !endDate) return
@@ -121,6 +124,7 @@ export function AdminDashboardPage() {
     try {
       await api.post(`/admin/time-entry-change-requests/${requestId}/approve`, {})
       await Promise.all([loadChangeRequests(), refreshDashboard()])
+      setSuccessMessage('Solicitação aprovada com sucesso!')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -137,6 +141,7 @@ export function AdminDashboardPage() {
     try {
       await api.post(`/admin/time-entry-change-requests/${requestId}/reject`, { admin_note: adminNote })
       await loadChangeRequests()
+      setSuccessMessage('Solicitação rejeitada com sucesso!')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -150,6 +155,7 @@ export function AdminDashboardPage() {
     try {
       await api.post(`/admin/expense-requests/${expenseId}/approve`, {})
       await Promise.all([loadExpenseRequests(), refreshDashboard()])
+      setSuccessMessage('Despesa aprovada com sucesso!')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -166,6 +172,7 @@ export function AdminDashboardPage() {
     try {
       await api.post(`/admin/expense-requests/${expenseId}/reject`, { admin_note: adminNote })
       await loadExpenseRequests()
+      setSuccessMessage('Despesa rejeitada com sucesso!')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -473,6 +480,22 @@ export function AdminDashboardPage() {
           <BirthdayCalendar />
         </div>
       </div>
+
+      <Modal
+        open={Boolean(successMessage)}
+        onClose={() => setSuccessMessage('')}
+        size="sm"
+        footer={
+          <Button onClick={() => setSuccessMessage('')}>OK</Button>
+        }
+      >
+        <div className="flex flex-col items-center text-center py-2">
+          <div className="bg-emerald-500/15 rounded-full p-4 mb-4">
+            <CheckCircle2 className="text-emerald-500" size={36} />
+          </div>
+          <p className="text-text-primary font-medium">{successMessage}</p>
+        </div>
+      </Modal>
     </div>
   )
 }
