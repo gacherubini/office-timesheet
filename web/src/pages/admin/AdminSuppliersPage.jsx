@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '../../lib/api'
-import { AlertTriangle, MessageCircle, Plus } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, MessageCircle, Plus } from 'lucide-react'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { Modal } from '../../components/ui/Modal'
@@ -34,6 +34,7 @@ export function AdminSuppliersPage() {
   const [supplierToDelete, setSupplierToDelete] = useState(null)
   const [deleteError, setDeleteError] = useState('')
   const [deleting, setDeleting] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('')
 
   async function loadSuppliers() {
     setPageError('')
@@ -76,13 +77,15 @@ export function AdminSuppliersPage() {
     setError('')
 
     try {
-      if (editingSupplier) {
+      const wasEditing = Boolean(editingSupplier)
+      if (wasEditing) {
         await api.put(`/admin/suppliers/${editingSupplier.id}`, form)
       } else {
         await api.post('/admin/suppliers', form)
       }
       resetForm()
       loadSuppliers()
+      setSuccessMessage(wasEditing ? 'Fornecedor atualizado com sucesso!' : 'Fornecedor cadastrado com sucesso!')
     } catch (err) {
       setError(err.message)
     }
@@ -321,6 +324,22 @@ export function AdminSuppliersPage() {
             {deleteError}
           </div>
         )}
+      </Modal>
+
+      <Modal
+        open={Boolean(successMessage)}
+        onClose={() => setSuccessMessage('')}
+        size="sm"
+        footer={
+          <Button onClick={() => setSuccessMessage('')}>OK</Button>
+        }
+      >
+        <div className="flex flex-col items-center text-center py-2">
+          <div className="bg-emerald-500/15 rounded-full p-4 mb-4">
+            <CheckCircle2 className="text-emerald-500" size={36} />
+          </div>
+          <p className="text-text-primary font-medium">{successMessage}</p>
+        </div>
       </Modal>
     </div>
   )

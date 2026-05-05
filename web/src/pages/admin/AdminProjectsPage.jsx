@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../../lib/api'
-import { AlertTriangle, Plus, Trash2, Upload } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Plus, Trash2, Upload } from 'lucide-react'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { Modal } from '../../components/ui/Modal'
@@ -22,6 +22,7 @@ export function AdminProjectsPage() {
   const [projectToDelete, setProjectToDelete] = useState(null)
   const [deleteError, setDeleteError] = useState('')
   const [deleting, setDeleting] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('')
   const fileInputRef = useRef(null)
 
   async function loadProjects() {
@@ -62,13 +63,15 @@ export function AdminProjectsPage() {
     setError('')
 
     try {
-      if (editingProject) {
+      const wasEditing = Boolean(editingProject)
+      if (wasEditing) {
         await api.put(`/projects/${editingProject.id}`, form)
       } else {
         await api.post('/projects', form)
       }
       resetForm()
       loadProjects()
+      setSuccessMessage(wasEditing ? 'Projeto atualizado com sucesso!' : 'Projeto cadastrado com sucesso!')
     } catch (err) {
       setError(err.message)
     }
@@ -349,6 +352,22 @@ export function AdminProjectsPage() {
             {deleteError}
           </div>
         )}
+      </Modal>
+
+      <Modal
+        open={Boolean(successMessage)}
+        onClose={() => setSuccessMessage('')}
+        size="sm"
+        footer={
+          <Button onClick={() => setSuccessMessage('')}>OK</Button>
+        }
+      >
+        <div className="flex flex-col items-center text-center py-2">
+          <div className="bg-emerald-500/15 rounded-full p-4 mb-4">
+            <CheckCircle2 className="text-emerald-500" size={36} />
+          </div>
+          <p className="text-text-primary font-medium">{successMessage}</p>
+        </div>
       </Modal>
     </div>
   )

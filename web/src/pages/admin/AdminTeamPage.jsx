@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../../lib/api'
-import { Plus, AlertTriangle, Trash2, Camera, MessageCircle } from 'lucide-react'
+import { Plus, AlertTriangle, CheckCircle2, Trash2, Camera, MessageCircle } from 'lucide-react'
 import { Avatar } from '../../components/Avatar'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
@@ -48,6 +48,7 @@ export function AdminTeamPage() {
   const [userToDelete, setUserToDelete] = useState(null)
   const [deleteError, setDeleteError] = useState('')
   const [deleting, setDeleting] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('')
 
   const [form, setForm] = useState({
     name: '',
@@ -178,7 +179,8 @@ export function AdminTeamPage() {
     }
 
     try {
-      if (editingUser) {
+      const wasEditing = Boolean(editingUser)
+      if (wasEditing) {
         await api.put(`/admin/users/${editingUser.id}`, payload)
       } else {
         await api.post('/admin/create-user', {
@@ -190,6 +192,7 @@ export function AdminTeamPage() {
 
       await loadUsers()
       resetForm()
+      setSuccessMessage(wasEditing ? 'Colaborador atualizado com sucesso!' : 'Colaborador cadastrado com sucesso!')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -538,6 +541,22 @@ export function AdminTeamPage() {
             {deleteError}
           </div>
         )}
+      </Modal>
+
+      <Modal
+        open={Boolean(successMessage)}
+        onClose={() => setSuccessMessage('')}
+        size="sm"
+        footer={
+          <Button onClick={() => setSuccessMessage('')}>OK</Button>
+        }
+      >
+        <div className="flex flex-col items-center text-center py-2">
+          <div className="bg-emerald-500/15 rounded-full p-4 mb-4">
+            <CheckCircle2 className="text-emerald-500" size={36} />
+          </div>
+          <p className="text-text-primary font-medium">{successMessage}</p>
+        </div>
       </Modal>
     </div>
   )

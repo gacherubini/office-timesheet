@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '../../lib/api'
-import { AlertTriangle, MessageCircle, Plus } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, MessageCircle, Plus } from 'lucide-react'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { Modal } from '../../components/ui/Modal'
@@ -33,6 +33,7 @@ export function AdminClientsPage() {
   const [clientToDelete, setClientToDelete] = useState(null)
   const [deleteError, setDeleteError] = useState('')
   const [deleting, setDeleting] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('')
 
   async function loadClients() {
     setPageError('')
@@ -74,13 +75,15 @@ export function AdminClientsPage() {
     setError('')
 
     try {
-      if (editingClient) {
+      const wasEditing = Boolean(editingClient)
+      if (wasEditing) {
         await api.put(`/admin/clients/${editingClient.id}`, form)
       } else {
         await api.post('/admin/clients', form)
       }
       resetForm()
       loadClients()
+      setSuccessMessage(wasEditing ? 'Cliente atualizado com sucesso!' : 'Cliente cadastrado com sucesso!')
     } catch (err) {
       setError(err.message)
     }
@@ -309,6 +312,22 @@ export function AdminClientsPage() {
             {deleteError}
           </div>
         )}
+      </Modal>
+
+      <Modal
+        open={Boolean(successMessage)}
+        onClose={() => setSuccessMessage('')}
+        size="sm"
+        footer={
+          <Button onClick={() => setSuccessMessage('')}>OK</Button>
+        }
+      >
+        <div className="flex flex-col items-center text-center py-2">
+          <div className="bg-emerald-500/15 rounded-full p-4 mb-4">
+            <CheckCircle2 className="text-emerald-500" size={36} />
+          </div>
+          <p className="text-text-primary font-medium">{successMessage}</p>
+        </div>
       </Modal>
     </div>
   )
