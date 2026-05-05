@@ -10,6 +10,7 @@ import usersRoutes from './routes/users.js'
 import reportsRoutes from './routes/reports.js'
 import dashboardRoutes from './routes/dashboard.js'
 import expensesRoutes from './routes/expenses.js'
+import vacationsRoutes from './routes/vacations.js'
 import bonusesRoutes from './routes/bonuses.js'
 import clientsRoutes from './routes/clients.js'
 import suppliersRoutes from './routes/suppliers.js'
@@ -32,6 +33,7 @@ app.use(authRoutes)
 app.use(projectsRoutes)
 app.use(timeEntriesRoutes)
 app.use(expensesRoutes)
+app.use(vacationsRoutes)
 app.use(bonusesRoutes)
 app.use(clientsRoutes)
 app.use(suppliersRoutes)

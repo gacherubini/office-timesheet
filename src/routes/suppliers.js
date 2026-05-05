@@ -27,7 +27,7 @@ function parseSupplierPayload(body = {}) {
   }
 }
 
-router.get('/admin/suppliers', requireAuth, requireOperationalAccess, async (req, res) => {
+router.get('/admin/suppliers', requireAuth, async (req, res) => {
   const q = req.query.q?.trim()
 
   let query = adminClient
@@ -43,7 +43,7 @@ router.get('/admin/suppliers', requireAuth, requireOperationalAccess, async (req
   return res.json(data || [])
 })
 
-router.post('/admin/suppliers', requireAuth, requireOperationalAccess, async (req, res) => {
+router.post('/admin/suppliers', requireAuth, async (req, res) => {
   const parsed = parseSupplierPayload(req.body)
   if (parsed.error) return res.status(400).json({ error: parsed.error })
 
@@ -57,7 +57,7 @@ router.post('/admin/suppliers', requireAuth, requireOperationalAccess, async (re
   return res.status(201).json(data)
 })
 
-router.put('/admin/suppliers/:id', requireAuth, requireOperationalAccess, async (req, res) => {
+router.put('/admin/suppliers/:id', requireAuth, async (req, res) => {
   const parsed = parseSupplierPayload(req.body)
   if (parsed.error) return res.status(400).json({ error: parsed.error })
 

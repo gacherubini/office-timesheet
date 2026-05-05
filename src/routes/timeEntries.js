@@ -16,6 +16,47 @@ function calculateCostSnapshot(durationMinutes, hourlyRate) {
   return Number(((durationMinutes / 60) * (Number(hourlyRate) || 0)).toFixed(2))
 }
 
+function todayValue() {
+  const today = new Date()
+  const year = today.getFullYear()
+  const month = String(today.getMonth() + 1).padStart(2, '0')
+  const day = String(today.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+async function getApprovedVacationForToday(userId) {
+  const today = todayValue()
+
+  const { data, error } = await adminClient
+    .from('vacation_requests')
+    .select('id, start_date, end_date')
+    .eq('user_id', userId)
+    .eq('status', 'approved')
+    .lte('start_date', today)
+    .gte('end_date', today)
+    .maybeSingle()
+
+  if (error) throw error
+  return data
+}
+
+async function blockTimerDuringVacation(req, res, next) {
+  try {
+    const vacation = await getApprovedVacationForToday(req.profile.id)
+
+    if (vacation) {
+      return res.status(403).json({
+        error: 'Timer bloqueado durante férias aprovadas.',
+        vacation,
+      })
+    }
+
+    return next()
+  } catch (err) {
+    return res.status(400).json({ error: err.message })
+  }
+}
+
 async function enrichChangeRequests(requests) {
   const rows = requests || []
   if (rows.length === 0) return []
@@ -70,7 +111,7 @@ function sanitizeChangeRequestsForProfile(requests, profile) {
   })
 }
 
-router.post('/time-entries/start', requireAuth, async (req, res) => {
+router.post('/time-entries/start', requireAuth, blockTimerDuringVacation, async (req, res) => {
   const { projectId } = req.body
 
   if (!projectId) {
@@ -178,7 +219,7 @@ router.post('/time-entries/pause', requireAuth, async (req, res) => {
 })
 
 // ─── RESUME ───────────────────────────────────────────────────────────
-router.post('/time-entries/resume', requireAuth, async (req, res) => {
+router.post('/time-entries/resume', requireAuth, blockTimerDuringVacation, async (req, res) => {
   const userClient = createUserClient(req.accessToken)
   const userId = req.profile.id
 

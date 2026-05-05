@@ -21,6 +21,7 @@ import {
   CircleDollarSign,
   Sparkles,
   CalendarDays,
+  CalendarOff,
   ChevronDown,
   Pin,
   PinOff,
@@ -178,6 +179,8 @@ export function Layout({ children }) {
       icon: CalendarDays,
       links: [
         { to: '/history', label: 'Histórico', icon: History },
+        { to: '/vacations', label: 'Férias', icon: CalendarOff },
+        { to: '/vacation-calendar', label: 'Calendário', icon: CalendarDays },
       ],
     },
     {
@@ -188,6 +191,14 @@ export function Layout({ children }) {
         { to: '/expenses', label: 'Despesas', icon: Receipt },
       ],
     },
+    {
+      label: 'Gerenciamento',
+      icon: BriefcaseBusiness,
+      links: [
+        { to: '/clients', label: 'Clientes', icon: Building2 },
+        { to: '/suppliers', label: 'Fornecedores', icon: Truck },
+      ],
+    },
   ]
 
   const adminSections = [
@@ -196,6 +207,8 @@ export function Layout({ children }) {
       icon: Sparkles,
       links: [
         { to: '/admin/live', label: 'Painel Live', icon: Radio },
+        { to: '/vacations', label: 'Férias', icon: CalendarOff },
+        { to: '/vacation-calendar', label: 'Calendário', icon: CalendarDays },
       ],
     },
     {
@@ -224,6 +237,8 @@ export function Layout({ children }) {
       icon: Sparkles,
       links: [
         { to: '/admin/live', label: 'Painel Live', icon: Radio },
+        { to: '/vacations', label: 'Férias', icon: CalendarOff },
+        { to: '/vacation-calendar', label: 'Calendário', icon: CalendarDays },
       ],
     },
     {

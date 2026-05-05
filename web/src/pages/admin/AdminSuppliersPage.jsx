@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api } from '../../lib/api'
 import { AlertTriangle, CheckCircle2, MessageCircle, Plus } from 'lucide-react'
+import { useAuth } from '../../contexts/AuthContext'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { Modal } from '../../components/ui/Modal'
@@ -24,6 +25,7 @@ function whatsappLink(phone) {
 }
 
 export function AdminSuppliersPage() {
+  const { canAccessAdminArea } = useAuth()
   const [suppliers, setSuppliers] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -208,15 +210,17 @@ export function AdminSuppliersPage() {
                       >
                         Editar
                       </button>
-                      <button
-                        onClick={() => {
-                          setSupplierToDelete(supplier)
-                          setDeleteError('')
-                        }}
-                        className="text-sm text-rose-500 hover:text-rose-400 transition-colors"
-                      >
-                        Excluir
-                      </button>
+                      {canAccessAdminArea && (
+                        <button
+                          onClick={() => {
+                            setSupplierToDelete(supplier)
+                            setDeleteError('')
+                          }}
+                          className="text-sm text-rose-500 hover:text-rose-400 transition-colors"
+                        >
+                          Excluir
+                        </button>
+                      )}
                     </td>
                   </tr>
                 )

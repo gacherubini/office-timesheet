@@ -8,6 +8,8 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { TimerPage } from './pages/TimerPage'
 import { HistoryPage } from './pages/HistoryPage'
 import { ExpensesPage } from './pages/ExpensesPage'
+import { VacationsPage } from './pages/VacationsPage'
+import { VacationCalendarPage } from './pages/VacationCalendarPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { EmployeeDashboardPage } from './pages/EmployeeDashboardPage'
 import { FinancialPerspectivePage } from './pages/FinancialPerspectivePage'
@@ -54,6 +56,10 @@ export default function App() {
       <Route path="/financial-perspective" element={<ProtectedRoute disallowAdministrativeIntern><Layout><FinancialPerspectivePage /></Layout></ProtectedRoute>} />
       <Route path="/history" element={<ProtectedRoute><Layout><HistoryPage /></Layout></ProtectedRoute>} />
       <Route path="/expenses" element={<ProtectedRoute disallowAdministrativeIntern><Layout><ExpensesPage /></Layout></ProtectedRoute>} />
+      <Route path="/vacations" element={<ProtectedRoute><Layout><VacationsPage /></Layout></ProtectedRoute>} />
+      <Route path="/vacation-calendar" element={<ProtectedRoute><Layout><VacationCalendarPage /></Layout></ProtectedRoute>} />
+      <Route path="/clients" element={<ProtectedRoute><Layout><AdminClientsPage /></Layout></ProtectedRoute>} />
+      <Route path="/suppliers" element={<ProtectedRoute><Layout><AdminSuppliersPage /></Layout></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Layout><ProfilePage /></Layout></ProtectedRoute>} />
 
       {/* Rotas do admin */}
