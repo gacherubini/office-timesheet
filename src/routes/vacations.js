@@ -1,8 +1,14 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
-import { requireApprover } from '../middleware/requireApprover.js'
 import { adminClient } from '../lib/supabase.js'
-import { isAdmin, isAdministrativeIntern } from '../lib/permissions.js'
+import {
+  canApproveVacationRequest,
+  canAutoApproveOwnVacationRequest,
+  canCreateOwnVacationRequest,
+  canDeleteOwnVacationRequest,
+  canViewVacationApprovals,
+  isAdmin,
+} from '../lib/permissions.js'
 
 const router = Router()
 const ACTIVE_VACATION_STATUSES = ['pending', 'approved']
@@ -140,6 +146,10 @@ router.get('/vacation-calendar', requireAuth, async (req, res) => {
 
 // ─── COLABORADOR: FÉRIAS ─────────────────────────────────────────────
 router.get('/me/vacation-requests', requireAuth, async (req, res) => {
+  if (!canCreateOwnVacationRequest(req.profile)) {
+    return res.status(403).json({ error: 'Acesso restrito a solicitações de férias.' })
+  }
+
   const status = req.query.status
 
   let query = adminClient
@@ -158,6 +168,10 @@ router.get('/me/vacation-requests', requireAuth, async (req, res) => {
 })
 
 router.post('/me/vacation-requests', requireAuth, async (req, res) => {
+  if (!canCreateOwnVacationRequest(req.profile)) {
+    return res.status(403).json({ error: 'Acesso restrito a solicitações de férias.' })
+  }
+
   const parsed = parseVacationPayload(req.body)
   if (parsed.error) return res.status(400).json({ error: parsed.error })
 
@@ -177,19 +191,23 @@ router.post('/me/vacation-requests', requireAuth, async (req, res) => {
     return res.status(400).json({ error: err.message })
   }
 
-  const isAdminRequest = isAdmin(req.profile)
-  const decidedAt = isAdminRequest ? new Date().toISOString() : null
+  const shouldAutoApprove = canAutoApproveOwnVacationRequest(req.profile)
+  const decidedAt = shouldAutoApprove ? new Date().toISOString() : null
+  const insertPayload = {
+    user_id: req.profile.id,
+    ...parsed.data,
+    status: shouldAutoApprove ? 'approved' : 'pending',
+    decided_by: shouldAutoApprove ? req.profile.id : null,
+    decided_at: decidedAt,
+  }
+
+  if (decidedAt) {
+    insertPayload.updated_at = decidedAt
+  }
 
   const { data, error } = await adminClient
     .from('vacation_requests')
-    .insert([{
-      user_id: req.profile.id,
-      ...parsed.data,
-      status: isAdminRequest ? 'approved' : 'pending',
-      decided_by: isAdminRequest ? req.profile.id : null,
-      decided_at: decidedAt,
-      updated_at: decidedAt || undefined,
-    }])
+    .insert([insertPayload])
     .select()
     .single()
 
@@ -198,6 +216,10 @@ router.post('/me/vacation-requests', requireAuth, async (req, res) => {
 })
 
 router.delete('/me/vacation-requests/:id', requireAuth, async (req, res) => {
+  if (!canDeleteOwnVacationRequest(req.profile)) {
+    return res.status(403).json({ error: 'Acesso restrito a solicitações de férias.' })
+  }
+
   const { data, error } = await adminClient
     .from('vacation_requests')
     .delete()
@@ -214,7 +236,15 @@ router.delete('/me/vacation-requests/:id', requireAuth, async (req, res) => {
 })
 
 // ─── ADMIN: FÉRIAS ───────────────────────────────────────────────────
-router.get('/admin/vacation-requests', requireAuth, requireApprover, async (req, res) => {
+function requireCanViewVacationApprovals(req, res, next) {
+  if (!canViewVacationApprovals(req.profile)) {
+    return res.status(403).json({ error: 'Acesso restrito a aprovações de férias.' })
+  }
+
+  return next()
+}
+
+router.get('/admin/vacation-requests', requireAuth, requireCanViewVacationApprovals, async (req, res) => {
   const status = req.query.status || 'pending'
 
   let query = adminClient
@@ -232,14 +262,14 @@ router.get('/admin/vacation-requests', requireAuth, requireApprover, async (req,
     const enriched = await enrichVacationRequests(data || [])
     const visibleRequests = isAdmin(req.profile)
       ? enriched
-      : enriched.filter((vacation) => !isAdministrativeIntern(vacation.profile))
+      : enriched.filter((vacation) => canApproveVacationRequest(req.profile, vacation.profile))
     return res.json(visibleRequests)
   } catch (err) {
     return res.status(400).json({ error: err.message })
   }
 })
 
-router.post('/admin/vacation-requests/:id/approve', requireAuth, requireApprover, async (req, res) => {
+router.post('/admin/vacation-requests/:id/approve', requireAuth, requireCanViewVacationApprovals, async (req, res) => {
   const adminNote = req.body?.admin_note?.trim() || null
   const decidedAt = new Date().toISOString()
 
@@ -267,7 +297,7 @@ router.post('/admin/vacation-requests/:id/approve', requireAuth, requireApprover
     return res.status(404).json({ error: 'Colaborador não encontrado.' })
   }
 
-  if (isAdministrativeIntern(targetProfile) && !isAdmin(req.profile)) {
+  if (!canApproveVacationRequest(req.profile, targetProfile)) {
     return res.status(403).json({
       error: 'Somente administradores podem aprovar férias de estagiários administrativos.',
     })
@@ -294,7 +324,7 @@ router.post('/admin/vacation-requests/:id/approve', requireAuth, requireApprover
   return res.json(data)
 })
 
-router.post('/admin/vacation-requests/:id/reject', requireAuth, requireApprover, async (req, res) => {
+router.post('/admin/vacation-requests/:id/reject', requireAuth, requireCanViewVacationApprovals, async (req, res) => {
   const adminNote = req.body?.admin_note?.trim() || null
   const decidedAt = new Date().toISOString()
 
@@ -322,7 +352,7 @@ router.post('/admin/vacation-requests/:id/reject', requireAuth, requireApprover,
     return res.status(404).json({ error: 'Colaborador não encontrado.' })
   }
 
-  if (isAdministrativeIntern(targetProfile) && !isAdmin(req.profile)) {
+  if (!canApproveVacationRequest(req.profile, targetProfile)) {
     return res.status(403).json({
       error: 'Somente administradores podem rejeitar férias de estagiários administrativos.',
     })

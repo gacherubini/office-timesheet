@@ -25,7 +25,7 @@ function whatsappLink(phone) {
 }
 
 export function AdminSuppliersPage() {
-  const { canAccessAdminArea } = useAuth()
+  const { canDeleteSuppliers } = useAuth()
   const [suppliers, setSuppliers] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -210,7 +210,7 @@ export function AdminSuppliersPage() {
                       >
                         Editar
                       </button>
-                      {canAccessAdminArea && (
+                      {canDeleteSuppliers && (
                         <button
                           onClick={() => {
                             setSupplierToDelete(supplier)

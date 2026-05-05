@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
-import { requireOperationalAccess } from '../middleware/requireOperationalAccess.js'
 import { adminClient } from '../lib/supabase.js'
+import { canDeleteClients, canManageClients } from '../lib/permissions.js'
 
 const router = Router()
 
@@ -26,7 +26,23 @@ function parseClientPayload(body = {}) {
   }
 }
 
-router.get('/admin/clients', requireAuth, async (req, res) => {
+function requireCanManageClients(req, res, next) {
+  if (!canManageClients(req.profile)) {
+    return res.status(403).json({ error: 'Acesso restrito a clientes.' })
+  }
+
+  return next()
+}
+
+function requireCanDeleteClients(req, res, next) {
+  if (!canDeleteClients(req.profile)) {
+    return res.status(403).json({ error: 'Acesso restrito à exclusão de clientes.' })
+  }
+
+  return next()
+}
+
+router.get('/admin/clients', requireAuth, requireCanManageClients, async (req, res) => {
   const q = req.query.q?.trim()
 
   let query = adminClient
@@ -42,7 +58,7 @@ router.get('/admin/clients', requireAuth, async (req, res) => {
   return res.json(data || [])
 })
 
-router.post('/admin/clients', requireAuth, async (req, res) => {
+router.post('/admin/clients', requireAuth, requireCanManageClients, async (req, res) => {
   const parsed = parseClientPayload(req.body)
   if (parsed.error) return res.status(400).json({ error: parsed.error })
 
@@ -56,7 +72,7 @@ router.post('/admin/clients', requireAuth, async (req, res) => {
   return res.status(201).json(data)
 })
 
-router.put('/admin/clients/:id', requireAuth, async (req, res) => {
+router.put('/admin/clients/:id', requireAuth, requireCanManageClients, async (req, res) => {
   const parsed = parseClientPayload(req.body)
   if (parsed.error) return res.status(400).json({ error: parsed.error })
 
@@ -74,7 +90,7 @@ router.put('/admin/clients/:id', requireAuth, async (req, res) => {
   return res.json(data)
 })
 
-router.delete('/admin/clients/:id', requireAuth, requireOperationalAccess, async (req, res) => {
+router.delete('/admin/clients/:id', requireAuth, requireCanDeleteClients, async (req, res) => {
   const { error } = await adminClient.from('clients').delete().eq('id', req.params.id)
   if (error) return res.status(400).json({ error: error.message })
 

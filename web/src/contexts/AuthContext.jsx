@@ -1,8 +1,14 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { api } from '../lib/api'
 import {
+  canAccessAdminAreaRole,
+  canAutoApproveOwnVacationRequestRole,
   canAccessMoneyRole,
   canApproveRequestsRole,
+  canDeleteClientsRole,
+  canDeleteSuppliersRole,
+  canManageClientsRole,
+  canManageSuppliersRole,
   isAdministrativeInternRole,
   isAdminRole,
 } from '../lib/permissions'
@@ -55,8 +61,13 @@ export function AuthProvider({ children }) {
   const isAdmin = isAdminRole(profile?.role)
   const isAdministrativeIntern = isAdministrativeInternRole(profile?.role)
   const canApproveRequests = canApproveRequestsRole(profile?.role)
-  const canAccessAdminArea = isAdmin || isAdministrativeIntern
+  const canAccessAdminArea = canAccessAdminAreaRole(profile?.role)
   const canAccessMoney = canAccessMoneyRole(profile?.role)
+  const canManageClients = canManageClientsRole(profile?.role)
+  const canDeleteClients = canDeleteClientsRole(profile?.role)
+  const canManageSuppliers = canManageSuppliersRole(profile?.role)
+  const canDeleteSuppliers = canDeleteSuppliersRole(profile?.role)
+  const canAutoApproveOwnVacationRequest = canAutoApproveOwnVacationRequestRole(profile?.role)
 
   return (
     <AuthContext.Provider
@@ -68,6 +79,11 @@ export function AuthProvider({ children }) {
         canApproveRequests,
         canAccessAdminArea,
         canAccessMoney,
+        canManageClients,
+        canDeleteClients,
+        canManageSuppliers,
+        canDeleteSuppliers,
+        canAutoApproveOwnVacationRequest,
         loading,
         login,
         logout,

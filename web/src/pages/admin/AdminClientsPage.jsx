@@ -24,7 +24,7 @@ function whatsappLink(phone) {
 }
 
 export function AdminClientsPage() {
-  const { canAccessAdminArea } = useAuth()
+  const { canDeleteClients } = useAuth()
   const [clients, setClients] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -204,7 +204,7 @@ export function AdminClientsPage() {
                       >
                         Editar
                       </button>
-                      {canAccessAdminArea && (
+                      {canDeleteClients && (
                         <button
                           onClick={() => {
                             setClientToDelete(client)

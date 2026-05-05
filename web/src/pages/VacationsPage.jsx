@@ -59,7 +59,7 @@ const STATUS_LABEL = {
 }
 
 export function VacationsPage() {
-  const { isAdmin } = useAuth()
+  const { canAutoApproveOwnVacationRequest } = useAuth()
   const [vacations, setVacations] = useState([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -113,7 +113,7 @@ export function VacationsPage() {
     try {
       await api.post('/me/vacation-requests', form)
       resetForm()
-      setSuccess(isAdmin ? 'Férias aprovadas automaticamente.' : 'Solicitação de férias enviada para aprovação.')
+      setSuccess(canAutoApproveOwnVacationRequest ? 'Férias aprovadas automaticamente.' : 'Solicitação de férias enviada para aprovação.')
       await loadVacations()
     } catch (err) {
       setError(err.message)
