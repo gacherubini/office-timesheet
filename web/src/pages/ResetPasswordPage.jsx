@@ -14,18 +14,16 @@ export function ResetPasswordPage() {
   const [invalidLink, setInvalidLink] = useState(false)
 
   useEffect(() => {
-    const hash = window.location.hash
-    const params = new URLSearchParams(hash.replace('#', ''))
-    const token = params.get('access_token')
-    const type = params.get('type')
+    const params = new URLSearchParams(window.location.search)
+    const token = params.get('token')
 
-    if (!token || type !== 'recovery') {
+    if (!token) {
       setInvalidLink(true)
       return
     }
 
     setAccessToken(token)
-    // Limpa o hash da URL sem recarregar
+    // Limpa a query string da URL sem recarregar
     window.history.replaceState(null, '', window.location.pathname)
   }, [])
 
@@ -40,7 +38,7 @@ export function ResetPasswordPage() {
 
     setLoading(true)
     try {
-      await api.post('/auth/reset-password', { accessToken, newPassword })
+      await api.post('/auth/reset-password', { token: accessToken, newPassword })
       setDone(true)
     } catch (err) {
       setError(err.message || 'Erro ao redefinir a senha.')

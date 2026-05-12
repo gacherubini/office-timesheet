@@ -1,9 +1,10 @@
 import { Router } from 'express'
 import multer from 'multer'
+import { query } from '../lib/db.js'
+import { uploadFile, deleteFile, extractKeyFromUrl } from '../lib/storage.js'
 import { requireAuth } from '../middleware/auth.js'
 import { requireAdmin } from '../middleware/requireAdmin.js'
 import { requireOperationalAccess } from '../middleware/requireOperationalAccess.js'
-import { createUserClient, adminClient } from '../lib/supabase.js'
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -20,49 +21,50 @@ const upload = multer({
 const router = Router()
 
 router.get('/projects', requireAuth, async (req, res) => {
-  const userClient = createUserClient(req.accessToken)
-
-  const { data, error } = await userClient
-    .from('projects')
-    .select('id, name, client, status, image_url, created_at, updated_at')
-    .is('deleted_at', null)
-    .order('created_at', { ascending: false })
-
-  if (error) {
-    return res.status(400).json({ error: error.message })
+  try {
+    const { rows } = await query(
+      `SELECT id, name, client, status, image_url, created_at, updated_at
+       FROM projects
+       WHERE deleted_at IS NULL
+       ORDER BY created_at DESC`,
+    )
+    return res.json(rows)
+  } catch (err) {
+    console.error('Erro em GET /projects:', err)
+    return res.status(400).json({ error: err.message })
   }
-
-  return res.json(data)
 })
 
 router.get('/projects/deleted', requireAuth, requireAdmin, async (_req, res) => {
-  const { data, error } = await adminClient
-    .from('projects')
-    .select('id, name, client, status, image_url, deleted_at, created_at')
-    .not('deleted_at', 'is', null)
-    .order('deleted_at', { ascending: false })
-
-  if (error) {
-    return res.status(400).json({ error: error.message })
+  try {
+    const { rows } = await query(
+      `SELECT id, name, client, status, image_url, deleted_at, created_at
+       FROM projects
+       WHERE deleted_at IS NOT NULL
+       ORDER BY deleted_at DESC`,
+    )
+    return res.json(rows || [])
+  } catch (err) {
+    console.error('Erro em GET /projects/deleted:', err)
+    return res.status(400).json({ error: err.message })
   }
-
-  return res.json(data || [])
 })
 
 router.post('/projects', requireAuth, requireOperationalAccess, async (req, res) => {
   const { name, client, status = 'active' } = req.body
 
-  const { data, error } = await adminClient
-    .from('projects')
-    .insert([{ name, client, status, sale_value: 0 }])
-    .select('id, name, client, status, image_url, created_at, updated_at')
-    .single()
-
-  if (error) {
-    return res.status(400).json({ error: error.message })
+  try {
+    const { rows } = await query(
+      `INSERT INTO projects (name, client, status, sale_value)
+       VALUES ($1, $2, $3, 0)
+       RETURNING id, name, client, status, image_url, created_at, updated_at`,
+      [name, client, status],
+    )
+    return res.status(201).json(rows[0])
+  } catch (err) {
+    console.error('Erro em POST /projects:', err)
+    return res.status(400).json({ error: err.message })
   }
-
-  return res.status(201).json(data)
 })
 
 router.put('/projects/:id', requireAuth, requireOperationalAccess, async (req, res) => {
@@ -83,67 +85,71 @@ router.put('/projects/:id', requireAuth, requireOperationalAccess, async (req, r
     return res.status(400).json({ error: 'Nenhum campo para atualizar.' })
   }
 
-  const { data, error } = await adminClient
-    .from('projects')
-    .update(updates)
-    .eq('id', id)
-    .is('deleted_at', null)
-    .select('id, name, client, status, image_url, created_at, updated_at')
-    .maybeSingle()
+  try {
+    const setClauses = []
+    const values = []
+    let paramCount = 1
 
-  if (error) {
-    return res.status(400).json({ error: error.message })
+    Object.entries(updates).forEach(([key, value]) => {
+      setClauses.push(`${key} = $${paramCount}`)
+      values.push(value)
+      paramCount++
+    })
+
+    values.push(id)
+    const sql = `UPDATE projects SET ${setClauses.join(', ')} WHERE id = $${paramCount} AND deleted_at IS NULL RETURNING id, name, client, status, image_url, created_at, updated_at`
+
+    const { rows } = await query(sql, values)
+
+    if (!rows[0]) {
+      return res.status(404).json({ error: 'Projeto não encontrado.' })
+    }
+
+    return res.json(rows[0])
+  } catch (err) {
+    console.error('Erro em PUT /projects/:id:', err)
+    return res.status(400).json({ error: err.message })
   }
-
-  if (!data) {
-    return res.status(404).json({ error: 'Projeto não encontrado.' })
-  }
-
-  return res.json(data)
 })
 
 router.post('/projects/:id/restore', requireAuth, requireAdmin, async (req, res) => {
   const { id } = req.params
 
-  const { data, error } = await adminClient
-    .from('projects')
-    .update({ deleted_at: null })
-    .eq('id', id)
-    .not('deleted_at', 'is', null)
-    .select('id, name, client, status, image_url, created_at')
-    .maybeSingle()
+  try {
+    const { rows } = await query(
+      `UPDATE projects SET deleted_at = NULL WHERE id = $1 AND deleted_at IS NOT NULL RETURNING id, name, client, status, image_url, created_at`,
+      [id],
+    )
 
-  if (error) {
-    return res.status(400).json({ error: error.message })
+    if (!rows[0]) {
+      return res.status(404).json({ error: 'Projeto excluído não encontrado.' })
+    }
+
+    return res.json(rows[0])
+  } catch (err) {
+    console.error('Erro em POST /projects/:id/restore:', err)
+    return res.status(400).json({ error: err.message })
   }
-
-  if (!data) {
-    return res.status(404).json({ error: 'Projeto excluído não encontrado.' })
-  }
-
-  return res.json(data)
 })
 
 router.delete('/projects/:id', requireAuth, requireAdmin, async (req, res) => {
   const { id } = req.params
 
-  const { data, error } = await adminClient
-    .from('projects')
-    .update({ deleted_at: new Date().toISOString() })
-    .eq('id', id)
-    .is('deleted_at', null)
-    .select('id')
-    .maybeSingle()
+  try {
+    const { rows } = await query(
+      `UPDATE projects SET deleted_at = now() WHERE id = $1 AND deleted_at IS NULL RETURNING id`,
+      [id],
+    )
 
-  if (error) {
-    return res.status(400).json({ error: error.message })
+    if (!rows[0]) {
+      return res.status(404).json({ error: 'Projeto não encontrado ou já excluído.' })
+    }
+
+    return res.status(204).send()
+  } catch (err) {
+    console.error('Erro em DELETE /projects/:id:', err)
+    return res.status(400).json({ error: err.message })
   }
-
-  if (!data) {
-    return res.status(404).json({ error: 'Projeto não encontrado ou já excluído.' })
-  }
-
-  return res.status(204).send()
 })
 
 router.post('/projects/:id/image', requireAuth, requireOperationalAccess, upload.single('image'), async (req, res) => {
@@ -153,57 +159,46 @@ router.post('/projects/:id/image', requireAuth, requireOperationalAccess, upload
     return res.status(400).json({ error: 'Nenhuma imagem enviada.' })
   }
 
-  const { data: project, error: projectError } = await adminClient
-    .from('projects')
-    .select('id, image_url')
-    .eq('id', id)
-    .is('deleted_at', null)
-    .maybeSingle()
+  try {
+    const { rows: projectRows } = await query(
+      'SELECT id, image_url FROM projects WHERE id = $1 AND deleted_at IS NULL',
+      [id],
+    )
 
-  if (projectError || !project) {
-    return res.status(404).json({ error: 'Projeto não encontrado.' })
-  }
-
-  if (project.image_url) {
-    const oldPath = project.image_url.split('/project-images/')[1]
-    if (oldPath) {
-      await adminClient.storage.from('project-images').remove([oldPath])
+    if (!projectRows[0]) {
+      return res.status(404).json({ error: 'Projeto não encontrado.' })
     }
-  }
 
-  const ext = req.file.originalname.split('.').pop()
-  const fileName = `${id}-${Date.now()}.${ext}`
+    const project = projectRows[0]
 
-  const { error: uploadError } = await adminClient.storage
-    .from('project-images')
-    .upload(fileName, req.file.buffer, {
-      contentType: req.file.mimetype,
-      upsert: true,
+    // Deletar imagem antiga se existir
+    if (project.image_url) {
+      const oldKey = extractKeyFromUrl(project.image_url)
+      if (oldKey) {
+        await deleteFile(oldKey)
+      }
+    }
+
+    // Upload nova imagem
+    const { url } = await uploadFile('projects', {
+      buffer: req.file.buffer,
+      mimetype: req.file.mimetype,
     })
 
-  if (uploadError) {
-    return res.status(400).json({ error: uploadError.message })
+    // Atualizar projeto com nova URL
+    const { rows } = await query(
+      `UPDATE projects
+       SET image_url = $1
+       WHERE id = $2 AND deleted_at IS NULL
+       RETURNING id, name, client, status, image_url, created_at, updated_at`,
+      [url, id],
+    )
+
+    return res.json(rows[0])
+  } catch (err) {
+    console.error('Erro em POST /projects/:id/image:', err)
+    return res.status(400).json({ error: err.message })
   }
-
-  const { data: urlData } = adminClient.storage
-    .from('project-images')
-    .getPublicUrl(fileName)
-
-  const imageUrl = urlData.publicUrl
-
-  const { data, error } = await adminClient
-    .from('projects')
-    .update({ image_url: imageUrl })
-    .eq('id', id)
-    .is('deleted_at', null)
-    .select('id, name, client, status, image_url, created_at, updated_at')
-    .single()
-
-  if (error) {
-    return res.status(400).json({ error: error.message })
-  }
-
-  return res.json(data)
 })
 
 export default router
