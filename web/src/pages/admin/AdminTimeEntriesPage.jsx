@@ -1,4 +1,7 @@
 import { useState, useEffect } from 'react'
+import DatePicker, { registerLocale } from 'react-datepicker'
+import { ptBR } from 'date-fns/locale'
+import 'react-datepicker/dist/react-datepicker.css'
 import { api } from '../../lib/api'
 import { CheckCircle2, Plus, Trash2, Pencil, Gift } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
@@ -9,6 +12,8 @@ import { Modal } from '../../components/ui/Modal'
 import { Input, Select } from '../../components/ui/Input'
 import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
+
+registerLocale('pt-BR', ptBR)
 
 function getMonthRange() {
   const now = new Date()
@@ -35,29 +40,6 @@ function formatTime(iso) {
   })
 }
 
-function toLocalDateTimeInputValue(iso) {
-  if (!iso) return ''
-  const d = new Date(iso)
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
-function localInputToIsoUtc(value) {
-  if (!value) return null
-  // "2026-05-12T01:26" → interpretado como horário local do browser → ISO UTC
-  return new Date(value).toISOString()
-}
-
-function splitDateTime(value) {
-  if (!value) return { date: '', time: '' }
-  const [date, time] = value.split('T')
-  return { date: date || '', time: (time || '').slice(0, 5) }
-}
-
-function joinDateTime(date, time) {
-  if (!date) return ''
-  return `${date}T${time || '00:00'}`
-}
 
 function isSameLocalDate(isoA, isoB) {
   if (!isoA || !isoB) return true
@@ -127,7 +109,7 @@ export function AdminTimeEntriesPage() {
   const [showForm, setShowForm] = useState(false)
   const [editingEntry, setEditingEntry] = useState(null)
   const [selectedPauses, setSelectedPauses] = useState(null)
-  const [form, setForm] = useState({ user_id: '', project_id: '', started_at: '', ended_at: '' })
+  const [form, setForm] = useState({ user_id: '', project_id: '', started_at: null, ended_at: null })
   const [error, setError] = useState('')
 
   const [entryToDelete, setEntryToDelete] = useState(null)
@@ -191,7 +173,7 @@ export function AdminTimeEntriesPage() {
   }
 
   function resetForm() {
-    setForm({ user_id: '', project_id: '', started_at: '', ended_at: '' })
+    setForm({ user_id: '', project_id: '', started_at: null, ended_at: null })
     setEditingEntry(null)
     setShowForm(false)
     setError('')
@@ -201,8 +183,8 @@ export function AdminTimeEntriesPage() {
     setForm({
       user_id: entry.user_id,
       project_id: entry.project_id,
-      started_at: toLocalDateTimeInputValue(entry.started_at),
-      ended_at: toLocalDateTimeInputValue(entry.ended_at),
+      started_at: entry.started_at ? new Date(entry.started_at) : null,
+      ended_at: entry.ended_at ? new Date(entry.ended_at) : null,
     })
     setEditingEntry(entry)
     setShowForm(true)
@@ -216,8 +198,8 @@ export function AdminTimeEntriesPage() {
     try {
       const payload = {
         ...form,
-        started_at: localInputToIsoUtc(form.started_at),
-        ended_at: localInputToIsoUtc(form.ended_at),
+        started_at: form.started_at ? form.started_at.toISOString() : null,
+        ended_at: form.ended_at ? form.ended_at.toISOString() : null,
       }
       if (editingEntry) {
         await api.put(`/admin/time-entries/${editingEntry.id}`, {
@@ -648,54 +630,38 @@ export function AdminTimeEntriesPage() {
               </option>
             ))}
           </Select>
-          {(() => {
-            const start = splitDateTime(form.started_at)
-            const end = splitDateTime(form.ended_at)
-            return (
-              <>
-                <div>
-                  <label className="block text-xs font-medium text-text-secondary mb-1.5">Início</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Input
-                      type="date"
-                      required
-                      lang="pt-BR"
-                      value={start.date}
-                      onChange={(e) => setForm({ ...form, started_at: joinDateTime(e.target.value, start.time) })}
-                    />
-                    <Input
-                      type="time"
-                      required
-                      step="60"
-                      lang="pt-BR"
-                      value={start.time}
-                      onChange={(e) => setForm({ ...form, started_at: joinDateTime(start.date, e.target.value) })}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-text-secondary mb-1.5">Saída</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Input
-                      type="date"
-                      required
-                      lang="pt-BR"
-                      value={end.date}
-                      onChange={(e) => setForm({ ...form, ended_at: joinDateTime(e.target.value, end.time) })}
-                    />
-                    <Input
-                      type="time"
-                      required
-                      step="60"
-                      lang="pt-BR"
-                      value={end.time}
-                      onChange={(e) => setForm({ ...form, ended_at: joinDateTime(end.date, e.target.value) })}
-                    />
-                  </div>
-                </div>
-              </>
-            )
-          })()}
+          <div>
+            <label className="block text-xs font-medium text-text-secondary mb-1.5">Início</label>
+            <DatePicker
+              selected={form.started_at}
+              onChange={(date) => setForm({ ...form, started_at: date })}
+              showTimeSelect
+              timeFormat="HH:mm"
+              timeIntervals={5}
+              dateFormat="dd/MM/yyyy HH:mm"
+              locale="pt-BR"
+              placeholderText="DD/MM/AAAA HH:MM"
+              required
+              wrapperClassName="block w-full"
+              className="w-full form-control border rounded-lg px-3 py-2 text-sm outline-none transition-colors disabled:opacity-60"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-text-secondary mb-1.5">Saída</label>
+            <DatePicker
+              selected={form.ended_at}
+              onChange={(date) => setForm({ ...form, ended_at: date })}
+              showTimeSelect
+              timeFormat="HH:mm"
+              timeIntervals={5}
+              dateFormat="dd/MM/yyyy HH:mm"
+              locale="pt-BR"
+              placeholderText="DD/MM/AAAA HH:MM"
+              required
+              wrapperClassName="block w-full"
+              className="w-full form-control border rounded-lg px-3 py-2 text-sm outline-none transition-colors disabled:opacity-60"
+            />
+          </div>
           <Button type="submit" className="w-full">
             {editingEntry ? 'Salvar' : 'Adicionar Registro'}
           </Button>
