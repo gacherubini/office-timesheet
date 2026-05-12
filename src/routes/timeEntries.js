@@ -223,20 +223,13 @@ router.post('/time-entries/stop', requireAuth, async (req, res) => {
     const durationMs = now.getTime() - startDate.getTime() - totalPausedMs
     const durationMinutes = calculateDurationMinutes(new Date(0), new Date(durationMs))
 
-    // Busca taxas de projeto e usuário
-    const { rows: projectRates } = await query(
-      `SELECT p.hourly_rate FROM projects p WHERE p.id = $1`,
-      [entry.project_id]
-    )
-
     const { rows: userRates } = await query(
       `SELECT hourly_rate FROM users WHERE id = $1`,
       [req.profile.id]
     )
 
-    const projectRate = projectRates?.[0]?.hourly_rate
     const userRate = userRates?.[0]?.hourly_rate
-    const rate = projectRate || userRate || 0
+    const rate = userRate || 0
     const costSnapshot = calculateCostSnapshot(durationMinutes, rate)
 
     // Atualiza entry
@@ -299,19 +292,13 @@ router.post('/admin/time-entry-change-requests/:id/approve', requireAuth, requir
 
     // Atualiza com transaction
     await withTransaction(async (client) => {
-      // Busca nova taxa de custo
-      const { rows: projectRates } = await client.query(
-        'SELECT hourly_rate FROM projects WHERE id = $1',
-        [requested_project_id]
-      )
       const { rows: userRates } = await client.query(
         'SELECT hourly_rate FROM users WHERE id = $1',
         [user_id]
       )
 
-      const projectRate = projectRates?.[0]?.hourly_rate
       const userRate = userRates?.[0]?.hourly_rate
-      const rate = projectRate || userRate || 0
+      const rate = userRate || 0
 
       const startDate = new Date(requested_started_at)
       const endDate = new Date(requested_ended_at)
@@ -395,19 +382,13 @@ router.post('/admin/time-entries', requireAuth, requireAdmin, async (req, res) =
 
     const durationMinutes = calculateDurationMinutes(startDate, endDate)
 
-    // Busca taxa
-    const { rows: projectRates } = await query(
-      'SELECT hourly_rate FROM projects WHERE id = $1',
-      [project_id]
-    )
     const { rows: userRates } = await query(
       'SELECT hourly_rate FROM users WHERE id = $1',
       [user_id]
     )
 
-    const projectRate = projectRates?.[0]?.hourly_rate
     const userRate = userRates?.[0]?.hourly_rate
-    const rate = projectRate || userRate || 0
+    const rate = userRate || 0
     const costSnapshot = calculateCostSnapshot(durationMinutes, rate)
 
     const { rows } = await query(
@@ -489,21 +470,15 @@ router.put('/admin/time-entries/:id', requireAuth, requireAdmin, async (req, res
       }
 
       const durationMinutes = calculateDurationMinutes(start, end)
-      const projectId = updates.project_id ? params[Object.keys(updates).indexOf('project_id')] : currentEntry[0].project_id
       const userId = currentEntry[0].user_id
 
-      const { rows: projectRates } = await query(
-        'SELECT hourly_rate FROM projects WHERE id = $1',
-        [projectId]
-      )
       const { rows: userRates } = await query(
         'SELECT hourly_rate FROM users WHERE id = $1',
         [userId]
       )
 
-      const projectRate = projectRates?.[0]?.hourly_rate
       const userRate = userRates?.[0]?.hourly_rate
-      const rate = projectRate || userRate || 0
+      const rate = userRate || 0
       const costSnapshot = calculateCostSnapshot(durationMinutes, rate)
 
       updates.duration_minutes = `$${paramIdx}`
