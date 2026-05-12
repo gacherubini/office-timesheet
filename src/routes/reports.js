@@ -134,7 +134,7 @@ router.get('/reports/financial', requireAuth, requireAdmin, async (req, res) => 
         `SELECT id, name, email, position, hourly_rate FROM users`
       ),
       query(
-        `SELECT id, name, client_id, status FROM projects`
+        `SELECT id, name, client, status FROM projects`
       ),
     ])
 
@@ -187,7 +187,7 @@ router.get('/reports/financial', requireAuth, requireAdmin, async (req, res) => 
         projectCostMap.set(projectId, {
           id: projectId,
           name: project?.name || 'Sem projeto',
-          client: project?.client_id || null,
+          client: project?.client || null,
           status: project?.status || null,
           total_minutes: 0,
           total_cost: 0,
@@ -346,7 +346,7 @@ router.get('/reports/financial', requireAuth, requireAdmin, async (req, res) => 
             ? { id: profile.id, name: profile.name, email: profile.email, position: profile.position }
             : null,
           project: project
-            ? { id: project.id, name: project.name, client: project.client_id }
+            ? { id: project.id, name: project.name, client: project.client }
             : null,
         }
       })
@@ -409,7 +409,7 @@ router.get('/reports/daily-hours', requireAuth, requireAdmin, async (req, res) =
       `SELECT id, name, email, position FROM users`
     )
     const { rows: projects } = await query(
-      `SELECT id, name, client_id FROM projects`
+      `SELECT id, name, client FROM projects`
     )
 
     const profileMap = new Map(profiles.map((profile) => [profile.id, profile]))
@@ -559,7 +559,7 @@ router.get('/reports/project-cost', requireAuth, requireAdmin, async (req, res) 
     )
 
     const { rows: projects } = await query(
-      `SELECT id, name, client_id FROM projects`
+      `SELECT id, name, client FROM projects`
     )
 
     const projectMap = new Map(projects.map((project) => [project.id, project]))
@@ -573,7 +573,7 @@ router.get('/reports/project-cost', requireAuth, requireAdmin, async (req, res) 
         projectCostMap.set(projectId, {
           id: projectId,
           name: project?.name || 'Sem projeto',
-          client: project?.client_id || null,
+          client: project?.client || null,
           total_minutes: 0,
           total_cost: 0,
           members: new Set(),

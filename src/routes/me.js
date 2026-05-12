@@ -172,10 +172,9 @@ router.get('/me/history', requireAuth, async (req, res) => {
 
     const { rows } = await query(
       `SELECT te.id, te.project_id, te.started_at, te.ended_at, te.duration_minutes, te.status,
-              p.name as project_name, c.name as client_name
+              p.name as project_name, p.client as client_name
        FROM time_entries te
        LEFT JOIN projects p ON p.id = te.project_id
-       LEFT JOIN clients c ON c.id = p.client_id
        WHERE te.user_id = $1
        ORDER BY te.started_at DESC
        LIMIT $2 OFFSET $3`,
