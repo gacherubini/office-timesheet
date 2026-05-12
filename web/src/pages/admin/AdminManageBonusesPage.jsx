@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Trash2 } from 'lucide-react'
+import { Gift, Trash2 } from 'lucide-react'
 import { api } from '../../lib/api'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
@@ -7,6 +7,14 @@ import { Input, Select } from '../../components/ui/Input'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
 import { Avatar } from '../../components/Avatar'
+
+const EMPTY_BONUS_FORM = {
+  user_id: '',
+  title: '',
+  description: '',
+  amount: '',
+  bonus_date: new Date().toISOString().slice(0, 10),
+}
 
 function formatDate(iso) {
   if (!iso) return '-'
@@ -27,6 +35,11 @@ export function AdminManageBonusesPage() {
   const [filters, setFilters] = useState({ user_id: '', start_date: '', end_date: '' })
   const [bonusToDelete, setBonusToDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
+
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [createForm, setCreateForm] = useState(EMPTY_BONUS_FORM)
+  const [createError, setCreateError] = useState('')
+  const [creating, setCreating] = useState(false)
 
   useEffect(() => {
     api.get('/admin/users').then(setUsers).catch(() => {})
@@ -60,6 +73,40 @@ export function AdminManageBonusesPage() {
     loadBonuses()
   }
 
+  function openCreate() {
+    setCreateForm(EMPTY_BONUS_FORM)
+    setCreateError('')
+    setShowCreateForm(true)
+  }
+
+  function closeCreate() {
+    if (creating) return
+    setShowCreateForm(false)
+    setCreateError('')
+  }
+
+  async function handleCreate(e) {
+    e.preventDefault()
+    setCreating(true)
+    setCreateError('')
+    try {
+      await api.post('/admin/bonuses', {
+        user_id: createForm.user_id,
+        title: createForm.title,
+        description: createForm.description || null,
+        amount: Number(createForm.amount),
+        bonus_date: createForm.bonus_date,
+      })
+      setShowCreateForm(false)
+      setCreateForm(EMPTY_BONUS_FORM)
+      await loadBonuses()
+    } catch (err) {
+      setCreateError(err.message)
+    } finally {
+      setCreating(false)
+    }
+  }
+
   async function handleConfirmDelete() {
     if (!bonusToDelete) return
     setDeleting(true)
@@ -79,7 +126,13 @@ export function AdminManageBonusesPage() {
     <div>
       <PageHeader
         title="Gerenciar Bônus"
-        subtitle="Excluir bônus concedidos a colaboradores"
+        subtitle="Conceder e excluir bônus de colaboradores"
+        actions={
+          <Button onClick={openCreate}>
+            <Gift size={16} />
+            Conceder Bônus
+          </Button>
+        }
       />
 
       <Card className="mb-4">
@@ -196,6 +249,69 @@ export function AdminManageBonusesPage() {
           </tbody>
         </table>
       </Card>
+
+      <Modal
+        open={showCreateForm}
+        onClose={closeCreate}
+        title="Conceder Bônus"
+      >
+        {createError && (
+          <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mb-4">
+            {createError}
+          </div>
+        )}
+        <form onSubmit={handleCreate} className="space-y-3">
+          <Select
+            label="Colaborador"
+            required
+            value={createForm.user_id}
+            onChange={(e) => setCreateForm({ ...createForm, user_id: e.target.value })}
+          >
+            <option value="">Selecione...</option>
+            {users.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name}
+              </option>
+            ))}
+          </Select>
+          <Input
+            label="Título"
+            required
+            placeholder="Ex: Bônus por meta atingida"
+            value={createForm.title}
+            onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })}
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Valor (R$)"
+              type="number"
+              step="0.01"
+              min="0.01"
+              required
+              value={createForm.amount}
+              onChange={(e) => setCreateForm({ ...createForm, amount: e.target.value })}
+            />
+            <Input
+              label="Data do bônus"
+              type="date"
+              required
+              value={createForm.bonus_date}
+              onChange={(e) => setCreateForm({ ...createForm, bonus_date: e.target.value })}
+            />
+          </div>
+          <Input
+            label="Descrição (opcional)"
+            as="textarea"
+            rows={3}
+            className="!min-h-20"
+            value={createForm.description}
+            onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
+          />
+          <Button type="submit" disabled={creating} className="w-full">
+            {creating ? 'Salvando...' : 'Conceder Bônus'}
+          </Button>
+        </form>
+      </Modal>
 
       <Modal
         open={Boolean(bonusToDelete)}
