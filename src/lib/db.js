@@ -4,6 +4,9 @@ import pg from 'pg'
 // Mantém colunas DATE (OID 1082) como string "YYYY-MM-DD" em vez de objeto Date,
 // para preservar paridade com o que a API retornava no tempo do Supabase.
 pg.types.setTypeParser(1082, (val) => val)
+// Converte NUMERIC (OID 1700) pra number em vez de string. Evita bugs de
+// string concat em reduces/somas no app (ex: "06.5" + "78" = "06.578").
+pg.types.setTypeParser(1700, (val) => (val === null ? null : Number(val)))
 
 const { Pool } = pg
 
