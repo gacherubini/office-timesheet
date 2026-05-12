@@ -106,7 +106,7 @@ export function EmployeeDashboardPage() {
     setTimerError('')
     setTimerLoading(true)
     try {
-      const entry = await api.post('/time-entries/start', { projectId: selectedProject })
+      const entry = await api.post('/time-entries/start', { project_id: selectedProject })
       const proj = projects.find((p) => p.id === selectedProject)
       setCurrentEntry({
         id: entry.id,
