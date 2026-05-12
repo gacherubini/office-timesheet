@@ -197,4 +197,27 @@ router.post('/admin/expense-requests/:id/reject', requireAuth, requireApprover, 
   }
 })
 
+router.delete('/admin/expense-requests/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await query(
+      'DELETE FROM expense_requests WHERE id = $1 RETURNING receipt_url',
+      [req.params.id]
+    )
+
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ error: 'Despesa não encontrada.' })
+    }
+
+    const receiptUrl = rows[0].receipt_url
+    if (receiptUrl) {
+      const key = extractKeyFromUrl(receiptUrl)
+      if (key) await deleteFile(key)
+    }
+
+    return res.json({ message: 'Despesa excluída com sucesso.' })
+  } catch (err) {
+    return res.status(400).json({ error: err.message })
+  }
+})
+
 export default router

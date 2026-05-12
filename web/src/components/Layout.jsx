@@ -19,6 +19,7 @@ import {
   Moon,
   BriefcaseBusiness,
   CircleDollarSign,
+  Gift,
   Sparkles,
   CalendarDays,
   CalendarOff,
@@ -219,6 +220,8 @@ export function Layout({ children }) {
         { to: '/admin/projects', label: 'Projetos', icon: FolderOpen },
         { to: '/admin/clients', label: 'Clientes', icon: Building2 },
         { to: '/admin/suppliers', label: 'Fornecedores', icon: Truck },
+        { to: '/admin/manage-expenses', label: 'Despesas', icon: Receipt },
+        { to: '/admin/manage-bonuses', label: 'Bônus', icon: Gift },
       ],
     },
     {

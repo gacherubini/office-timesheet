@@ -24,6 +24,8 @@ import { AdminSuppliersPage } from './pages/admin/AdminSuppliersPage'
 import { AdminTimeEntriesPage } from './pages/admin/AdminTimeEntriesPage'
 import { AdminReportsPage } from './pages/admin/AdminReportsPage'
 import { AdminApprovalsPage } from './pages/admin/AdminApprovalsPage'
+import { AdminManageExpensesPage } from './pages/admin/AdminManageExpensesPage'
+import { AdminManageBonusesPage } from './pages/admin/AdminManageBonusesPage'
 
 function HomeRedirect() {
   const { isAdmin, isAdministrativeIntern } = useAuth()
@@ -74,6 +76,8 @@ export default function App() {
       <Route path="/admin/suppliers" element={<ProtectedRoute approverOnly><Layout><AdminSuppliersPage /></Layout></ProtectedRoute>} />
       <Route path="/admin/time-entries" element={<ProtectedRoute adminOnly><Layout><AdminTimeEntriesPage /></Layout></ProtectedRoute>} />
       <Route path="/admin/reports" element={<ProtectedRoute adminOnly><Layout><AdminReportsPage /></Layout></ProtectedRoute>} />
+      <Route path="/admin/manage-expenses" element={<ProtectedRoute adminOnly><Layout><AdminManageExpensesPage /></Layout></ProtectedRoute>} />
+      <Route path="/admin/manage-bonuses" element={<ProtectedRoute adminOnly><Layout><AdminManageBonusesPage /></Layout></ProtectedRoute>} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
