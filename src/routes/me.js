@@ -358,12 +358,12 @@ router.get('/me/stats', requireAuth, async (req, res) => {
     const hourly_rate = Number(profile.hourly_rate) || 0
     const monthly_income_goal = Number(profile.monthly_income_goal) || 0
 
-    const workingDaysSet = new Set(entries.map((e) => e.started_at.slice(0, 10)))
+    const workingDaysSet = new Set(entries.map((e) => new Date(e.started_at).toISOString().slice(0, 10)))
     const working_days = workingDaysSet.size
     const dailyTotalsMap = {}
 
     for (const entry of entries) {
-      const date = entry.started_at.slice(0, 10)
+      const date = new Date(entry.started_at).toISOString().slice(0, 10)
       dailyTotalsMap[date] = (dailyTotalsMap[date] || 0) + (entry.duration_minutes || 0)
     }
 
@@ -401,7 +401,7 @@ router.get('/me/stats', requireAuth, async (req, res) => {
         }
       }
       projectMap[pid].total_minutes += entry.duration_minutes || 0
-      if (entry.started_at.slice(0, 10) === todayStr) {
+      if (new Date(entry.started_at).toISOString().slice(0, 10) === todayStr) {
         projectMap[pid].today_minutes += entry.duration_minutes || 0
       }
     }

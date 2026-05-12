@@ -22,14 +22,14 @@ function hoursFromMinutes(minutes) {
 }
 
 function addMovementDate(set, value) {
-  if (value) set.add(String(value).slice(0, 10))
+  if (value) set.add(new Date(value).toISOString().slice(0, 10))
 }
 
 function buildDailyHours(entries = [], profileMap = new Map(), projectMap = new Map()) {
   const dailyMap = new Map()
 
   for (const entry of entries || []) {
-    const day = entry.started_at?.slice(0, 10)
+    const day = entry.started_at ? new Date(entry.started_at).toISOString().slice(0, 10) : null
     if (!day) continue
 
     const profile = profileMap.get(entry.user_id)
@@ -172,7 +172,7 @@ router.get('/reports/financial', requireAuth, requireAdmin, async (req, res) => 
       const user = ensureUser(entry.user_id)
       const minutes = Number(entry.duration_minutes) || 0
       const cost = Number(entry.cost_snapshot) || 0
-      const day = entry.started_at?.slice(0, 10)
+      const day = entry.started_at ? new Date(entry.started_at).toISOString().slice(0, 10) : null
 
       user.total_minutes += minutes
       user.hours_cost += cost
