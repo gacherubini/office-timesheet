@@ -35,6 +35,24 @@ function formatTime(iso) {
   })
 }
 
+function toLocalDateTimeInputValue(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function isSameLocalDate(isoA, isoB) {
+  if (!isoA || !isoB) return true
+  const a = new Date(isoA)
+  const b = new Date(isoB)
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  )
+}
+
 function formatDuration(minutes) {
   const totalMinutes = Math.max(0, Math.round(minutes || 0))
   const h = Math.floor(totalMinutes / 60)
@@ -158,8 +176,8 @@ export function AdminTimeEntriesPage() {
     setForm({
       user_id: entry.user_id,
       project_id: entry.project_id,
-      started_at: entry.started_at?.slice(0, 16) || '',
-      ended_at: entry.ended_at?.slice(0, 16) || '',
+      started_at: toLocalDateTimeInputValue(entry.started_at),
+      ended_at: toLocalDateTimeInputValue(entry.ended_at),
     })
     setEditingEntry(entry)
     setShowForm(true)
@@ -787,6 +805,11 @@ export function AdminTimeEntriesPage() {
                   </td>
                   <td className="px-3 py-3 whitespace-nowrap tabular-nums text-text-primary">
                     {formatTime(entry.ended_at)}
+                    {entry.ended_at && !isSameLocalDate(entry.started_at, entry.ended_at) && (
+                      <span className="ml-1 text-[10px] text-text-secondary">
+                        ({formatDate(entry.ended_at)})
+                      </span>
+                    )}
                   </td>
                   <td className="px-3 py-3 whitespace-nowrap font-medium tabular-nums text-text-primary">
                     {formatDuration(entry.duration_minutes)}
