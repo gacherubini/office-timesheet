@@ -237,7 +237,7 @@ export function AdminApprovalsPage() {
                   </div>
 
                   {(() => {
-                    const currentProject = request.time_entry?.projects?.name || '-'
+                    const currentProject = request.time_entry?.project?.name || '-'
                     const requestedProject = request.requested_project?.name || '-'
                     const currentDate = isoToDateKey(request.time_entry?.started_at)
                     const requestedDate = isoToDateKey(request.requested_started_at)

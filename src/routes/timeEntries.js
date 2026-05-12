@@ -95,12 +95,17 @@ async function enrichChangeRequests(requests) {
     const entryMap = new Map(entries.map((entry) => [entry.id, entry]))
     const requestedProjectMap = new Map(requestedProjects.map((project) => [project.id, project]))
 
-    return rows.map((request) => ({
-      ...request,
-      profile: profileMap.get(request.user_id) || null,
-      time_entry: entryMap.get(request.time_entry_id) || null,
-      requested_project: requestedProjectMap.get(request.requested_project_id) || null,
-    }))
+    return rows.map((request) => {
+      const entry = entryMap.get(request.time_entry_id) || null
+      return {
+        ...request,
+        profile: profileMap.get(request.user_id) || null,
+        time_entry: entry
+          ? { ...entry, project: { name: entry.project_name, client: entry.client_name } }
+          : null,
+        requested_project: requestedProjectMap.get(request.requested_project_id) || null,
+      }
+    })
   } catch (err) {
     throw err
   }
@@ -524,37 +529,34 @@ router.delete('/admin/time-entries/:id', requireAuth, requireAdmin, async (req, 
   }
 })
 
-// ─── LIVE (quem está trabalhando agora) ────────────────────────────────
+// ─── LIVE (status de toda a equipe) ────────────────────────────────────
 router.get('/admin/live', requireAuth, requireOperationalAccess, async (req, res) => {
   try {
     const { rows } = await query(
-      `SELECT te.id, te.user_id, te.project_id, te.started_at, te.duration_minutes,
-              u.name as user_name, u.position, u.avatar_url,
+      `SELECT u.id, u.name, u.position, u.avatar_url,
+              te.id as entry_id, te.project_id, te.started_at, te.duration_minutes,
+              te.status as entry_status,
               p.name as project_name
-       FROM time_entries te
-       LEFT JOIN users u ON u.id = te.user_id
+       FROM users u
+       LEFT JOIN time_entries te
+         ON te.user_id = u.id AND te.status IN ('running', 'paused')
        LEFT JOIN projects p ON p.id = te.project_id
-       WHERE te.status = 'running'
-       ORDER BY te.started_at DESC`
+       WHERE u.deleted_at IS NULL AND u.is_active = true
+       ORDER BY u.name`
     )
 
-    const enriched = rows.map(row => ({
-      id: row.id,
-      user_id: row.user_id,
-      project_id: row.project_id,
-      started_at: row.started_at,
-      duration_minutes: row.duration_minutes,
-      user: {
-        name: row.user_name,
+    return res.json(
+      rows.map((row) => ({
+        id: row.id,
+        name: row.name,
         position: row.position,
         avatar_url: row.avatar_url,
-      },
-      project: {
-        name: row.project_name,
-      },
-    }))
-
-    return res.json(enriched)
+        status: row.entry_status || 'offline',
+        project: row.project_name || null,
+        started_at: row.started_at,
+        duration_minutes: row.duration_minutes,
+      }))
+    )
   } catch (err) {
     return res.status(400).json({ error: err.message })
   }
@@ -573,8 +575,8 @@ router.get('/admin/time-entries', requireAuth, requireAdmin, async (req, res) =>
     const offset = (page - 1) * limit
 
     let sql = `SELECT te.id, te.user_id, te.project_id, te.started_at, te.ended_at, te.duration_minutes, te.cost_snapshot, te.status, te.created_by_admin,
-                      u.name as user_name,
-                      p.name as project_name
+                      u.name as user_name, u.position as user_position, u.avatar_url as user_avatar_url,
+                      p.name as project_name, p.client as project_client
                FROM time_entries te
                LEFT JOIN users u ON u.id = te.user_id
                LEFT JOIN projects p ON p.id = te.project_id`
@@ -615,8 +617,8 @@ router.get('/admin/time-entries', requireAuth, requireAdmin, async (req, res) =>
         cost_snapshot: row.cost_snapshot,
         status: row.status,
         created_by_admin: row.created_by_admin,
-        user: { name: row.user_name },
-        project: { name: row.project_name },
+        profile: { name: row.user_name, position: row.user_position, avatar_url: row.user_avatar_url },
+        project: { name: row.project_name, client: row.project_client },
       })),
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
     })

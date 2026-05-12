@@ -759,14 +759,14 @@ export function AdminTimeEntriesPage() {
                   </td>
                   <td className="px-3 py-3 min-w-40">
                     <p className="font-medium text-text-primary">
-                      {entry.profiles?.name || '-'}
+                      {entry.profile?.name || '-'}
                     </p>
-                    {entry.profiles?.position && (
-                      <p className="text-[11px] text-text-secondary">{entry.profiles.position}</p>
+                    {entry.profile?.position && (
+                      <p className="text-[11px] text-text-secondary">{entry.profile.position}</p>
                     )}
                   </td>
                   <td className="px-3 py-3 min-w-48 text-text-primary">
-                    {entry.projects?.name || '-'}
+                    {entry.project?.name || '-'}
                   </td>
                   <td className="px-3 py-3 whitespace-nowrap tabular-nums text-text-primary">
                     {formatTime(entry.started_at)}

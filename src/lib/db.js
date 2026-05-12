@@ -1,6 +1,10 @@
 import 'dotenv/config'
 import pg from 'pg'
 
+// Mantém colunas DATE (OID 1082) como string "YYYY-MM-DD" em vez de objeto Date,
+// para preservar paridade com o que a API retornava no tempo do Supabase.
+pg.types.setTypeParser(1082, (val) => val)
+
 const { Pool } = pg
 
 const databaseUrl = process.env.DATABASE_URL
