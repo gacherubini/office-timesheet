@@ -591,11 +591,11 @@ router.get('/admin/time-entries', requireAuth, requireAdmin, async (req, res) =>
     }
     if (req.query.start_date) {
       baseParams.push(req.query.start_date)
-      conditions.push(`te.started_at >= $${baseParams.length}::date`)
+      conditions.push(`te.started_at >= ($${baseParams.length}::date AT TIME ZONE 'America/Sao_Paulo')`)
     }
     if (req.query.end_date) {
       baseParams.push(req.query.end_date)
-      conditions.push(`te.started_at < ($${baseParams.length}::date + interval '1 day')`)
+      conditions.push(`te.started_at < (($${baseParams.length}::date + interval '1 day') AT TIME ZONE 'America/Sao_Paulo')`)
     }
     const whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : ''
 
@@ -626,7 +626,7 @@ router.get('/admin/time-entries', requireAuth, requireAdmin, async (req, res) =>
       `SELECT
          COALESCE(SUM(te.duration_minutes), 0)::int as total_minutes,
          COALESCE(SUM(te.cost_snapshot), 0)::numeric as total_cost,
-         COUNT(DISTINCT (te.started_at AT TIME ZONE 'UTC')::date)::int as working_days
+         COUNT(DISTINCT (te.started_at AT TIME ZONE 'America/Sao_Paulo')::date)::int as working_days
        FROM time_entries te
        ${whereClause}`,
       baseParams
@@ -637,11 +637,11 @@ router.get('/admin/time-entries', requireAuth, requireAdmin, async (req, res) =>
 
     // Daily totals
     const { rows: dailyRows } = await query(
-      `SELECT te.user_id, (te.started_at AT TIME ZONE 'UTC')::date as date,
+      `SELECT te.user_id, (te.started_at AT TIME ZONE 'America/Sao_Paulo')::date as date,
               COALESCE(SUM(te.duration_minutes), 0)::int as minutes
        FROM time_entries te
        ${whereClause}
-       GROUP BY te.user_id, (te.started_at AT TIME ZONE 'UTC')::date`,
+       GROUP BY te.user_id, (te.started_at AT TIME ZONE 'America/Sao_Paulo')::date`,
       baseParams
     )
 

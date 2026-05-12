@@ -339,7 +339,8 @@ router.get('/me/stats', requireAuth, async (req, res) => {
        FROM time_entries te
        LEFT JOIN projects p ON p.id = te.project_id
        WHERE te.user_id = $1 AND te.status = 'completed'
-         AND te.started_at >= $2::date AND te.started_at < ($3::date + interval '1 day')`,
+         AND te.started_at >= ($2::date AT TIME ZONE 'America/Sao_Paulo')
+         AND te.started_at < (($3::date + interval '1 day') AT TIME ZONE 'America/Sao_Paulo')`,
       [userId, startDate, endDate]
     )
 

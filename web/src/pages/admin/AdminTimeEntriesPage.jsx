@@ -271,9 +271,10 @@ export function AdminTimeEntriesPage() {
     return acc
   }, {})
 
+  const localDateFormatter = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Sao_Paulo' })
   const seenDailyKeys = new Set()
   const tableEntries = entries.map((entry) => {
-    const date = entry.started_at?.slice(0, 10)
+    const date = entry.started_at ? localDateFormatter.format(new Date(entry.started_at)) : null
     const dailyKey = `${entry.user_id}:${date}`
     const showDailyTotal = !seenDailyKeys.has(dailyKey)
     seenDailyKeys.add(dailyKey)
