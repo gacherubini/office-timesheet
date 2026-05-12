@@ -48,6 +48,17 @@ function localInputToIsoUtc(value) {
   return new Date(value).toISOString()
 }
 
+function splitDateTime(value) {
+  if (!value) return { date: '', time: '' }
+  const [date, time] = value.split('T')
+  return { date: date || '', time: (time || '').slice(0, 5) }
+}
+
+function joinDateTime(date, time) {
+  if (!date) return ''
+  return `${date}T${time || '00:00'}`
+}
+
 function isSameLocalDate(isoA, isoB) {
   if (!isoA || !isoB) return true
   const a = new Date(isoA)
@@ -637,24 +648,54 @@ export function AdminTimeEntriesPage() {
               </option>
             ))}
           </Select>
-          <Input
-            label="Início"
-            type="datetime-local"
-            required
-            lang="pt-BR"
-            step="60"
-            value={form.started_at}
-            onChange={(e) => setForm({ ...form, started_at: e.target.value })}
-          />
-          <Input
-            label="Saída"
-            type="datetime-local"
-            required
-            lang="pt-BR"
-            step="60"
-            value={form.ended_at}
-            onChange={(e) => setForm({ ...form, ended_at: e.target.value })}
-          />
+          {(() => {
+            const start = splitDateTime(form.started_at)
+            const end = splitDateTime(form.ended_at)
+            return (
+              <>
+                <div>
+                  <label className="block text-xs font-medium text-text-secondary mb-1.5">Início</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      type="date"
+                      required
+                      lang="pt-BR"
+                      value={start.date}
+                      onChange={(e) => setForm({ ...form, started_at: joinDateTime(e.target.value, start.time) })}
+                    />
+                    <Input
+                      type="time"
+                      required
+                      step="60"
+                      lang="pt-BR"
+                      value={start.time}
+                      onChange={(e) => setForm({ ...form, started_at: joinDateTime(start.date, e.target.value) })}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-text-secondary mb-1.5">Saída</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      type="date"
+                      required
+                      lang="pt-BR"
+                      value={end.date}
+                      onChange={(e) => setForm({ ...form, ended_at: joinDateTime(e.target.value, end.time) })}
+                    />
+                    <Input
+                      type="time"
+                      required
+                      step="60"
+                      lang="pt-BR"
+                      value={end.time}
+                      onChange={(e) => setForm({ ...form, ended_at: joinDateTime(end.date, e.target.value) })}
+                    />
+                  </div>
+                </div>
+              </>
+            )
+          })()}
           <Button type="submit" className="w-full">
             {editingEntry ? 'Salvar' : 'Adicionar Registro'}
           </Button>
