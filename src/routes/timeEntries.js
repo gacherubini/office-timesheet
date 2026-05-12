@@ -254,12 +254,17 @@ router.post('/time-entries/stop', requireAuth, async (req, res) => {
 // ─── CHANGE REQUESTS ──────────────────────────────────────────────────
 router.get('/admin/time-entry-change-requests', requireAuth, requireApprover, async (req, res) => {
   try {
-    const { rows } = await query(
-      `SELECT id, time_entry_id, user_id, requested_project_id, requested_started_at, requested_ended_at, reason, status, admin_note, decided_at, created_at, updated_at
-       FROM time_entry_change_requests
-       ORDER BY created_at DESC`
-    )
+    const status = req.query.status
+    let sql = `SELECT id, time_entry_id, user_id, requested_project_id, requested_started_at, requested_ended_at, reason, status, admin_note, decided_at, created_at, updated_at
+               FROM time_entry_change_requests`
+    const params = []
+    if (status) {
+      sql += ` WHERE status = $1`
+      params.push(status)
+    }
+    sql += ` ORDER BY created_at DESC`
 
+    const { rows } = await query(sql, params)
     const enriched = await enrichChangeRequests(rows)
     return res.json(enriched)
   } catch (err) {
