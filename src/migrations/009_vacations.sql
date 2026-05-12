@@ -13,7 +13,6 @@ CREATE TABLE vacation_requests (
   updated_at  timestamptz NOT NULL DEFAULT now()
 );
 
--- Bloqueia overlap de férias pending/approved do mesmo usuário
 CREATE INDEX vacation_requests_no_user_overlap
   ON vacation_requests
   USING gist (user_id, daterange(start_date, end_date, '[]'))

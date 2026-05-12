@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
-import { adminClient } from '../lib/supabase.js'
+import { query } from '../lib/db.js'
 import {
   canApproveVacationRequest,
   canAutoApproveOwnVacationRequest,
@@ -70,17 +70,19 @@ function parseVacationPayload(body) {
 }
 
 async function hasOverlappingVacation(userId, startDate, endDate) {
-  const { data, error } = await adminClient
-    .from('vacation_requests')
-    .select('id')
-    .eq('user_id', userId)
-    .in('status', ACTIVE_VACATION_STATUSES)
-    .lte('start_date', endDate)
-    .gte('end_date', startDate)
-    .limit(1)
-
-  if (error) throw error
-  return (data || []).length > 0
+  try {
+    const { rows } = await query(
+      `SELECT id FROM vacation_requests
+       WHERE user_id = $1
+         AND status = ANY($2)
+         AND daterange(start_date::date, end_date::date, '[]') && daterange($3::date, $4::date, '[]')
+       LIMIT 1`,
+      [userId, ACTIVE_VACATION_STATUSES, startDate, endDate]
+    )
+    return rows.length > 0
+  } catch (err) {
+    throw err
+  }
 }
 
 async function enrichVacationRequests(vacations) {
@@ -89,25 +91,26 @@ async function enrichVacationRequests(vacations) {
 
   const userIds = [...new Set(rows.map((vacation) => vacation.user_id).filter(Boolean))]
 
-  const { data: profiles, error } = userIds.length
-    ? await adminClient
-      .from('profiles')
-      .select('id, name, email, position, avatar_url, role')
-      .in('id', userIds)
-    : { data: [], error: null }
+  if (userIds.length === 0) return rows
 
-  if (error) throw error
+  try {
+    const { rows: profiles } = userIds.length
+      ? await query('SELECT id, name, email, position, avatar_url, role FROM users WHERE id = ANY($1)', [userIds])
+      : { rows: [] }
 
-  const profileMap = new Map((profiles || []).map((profile) => [profile.id, profile]))
-  return rows.map((vacation) => ({
-    ...vacation,
-    profile: profileMap.get(vacation.user_id) || null,
-  }))
+    const profileMap = new Map(profiles.map((profile) => [profile.id, profile]))
+    return rows.map((vacation) => ({
+      ...vacation,
+      profile: profileMap.get(vacation.user_id) || null,
+    }))
+  } catch (err) {
+    throw err
+  }
 }
 
 function mapVacationError(error) {
   if (!error?.message) return 'Erro ao processar solicitação de férias.'
-  if (error.message.includes('vacation_requests_no_user_overlap')) {
+  if (error.code === '23505' || error.message.includes('overlap')) {
     return 'Já existe uma solicitação de férias pendente ou aprovada nesse período.'
   }
   return error.message
@@ -125,19 +128,17 @@ router.get('/vacation-calendar', requireAuth, async (req, res) => {
     return res.status(400).json({ error: 'Data final deve ser igual ou posterior à inicial.' })
   }
 
-  const { data, error } = await adminClient
-    .from('vacation_requests')
-    .select('id, user_id, start_date, end_date, days_count')
-    .eq('status', 'approved')
-    .lte('start_date', endDate.value)
-    .gte('end_date', startDate.value)
-    .order('start_date', { ascending: true })
-    .order('created_at', { ascending: true })
-
-  if (error) return res.status(400).json({ error: error.message })
-
   try {
-    const enriched = await enrichVacationRequests(data || [])
+    const { rows } = await query(
+      `SELECT id, user_id, start_date, end_date, days_count
+       FROM vacation_requests
+       WHERE status = 'approved'
+         AND start_date <= $1::date AND end_date >= $2::date
+       ORDER BY start_date ASC, created_at ASC`,
+      [endDate.value, startDate.value]
+    )
+
+    const enriched = await enrichVacationRequests(rows || [])
     return res.json(enriched)
   } catch (err) {
     return res.status(400).json({ error: err.message })
@@ -152,19 +153,24 @@ router.get('/me/vacation-requests', requireAuth, async (req, res) => {
 
   const status = req.query.status
 
-  let query = adminClient
-    .from('vacation_requests')
-    .select('id, user_id, start_date, end_date, days_count, reason, status, admin_note, decided_at, created_at, updated_at')
-    .eq('user_id', req.profile.id)
-    .order('start_date', { ascending: false })
-    .order('created_at', { ascending: false })
+  try {
+    let sql = `SELECT id, user_id, start_date, end_date, days_count, reason, status, admin_note, decided_at, created_at, updated_at
+               FROM vacation_requests
+               WHERE user_id = $1`
+    const params = [req.profile.id]
 
-  if (status) query = query.eq('status', status)
+    if (status) {
+      sql += ` AND status = $2`
+      params.push(status)
+    }
 
-  const { data, error } = await query
+    sql += ` ORDER BY start_date DESC, created_at DESC`
 
-  if (error) return res.status(400).json({ error: error.message })
-  return res.json(data || [])
+    const { rows } = await query(sql, params)
+    return res.json(rows || [])
+  } catch (err) {
+    return res.status(400).json({ error: err.message })
+  }
 })
 
 router.post('/me/vacation-requests', requireAuth, async (req, res) => {
@@ -187,32 +193,31 @@ router.post('/me/vacation-requests', requireAuth, async (req, res) => {
         error: 'Já existe uma solicitação de férias pendente ou aprovada nesse período.',
       })
     }
+
+    const shouldAutoApprove = canAutoApproveOwnVacationRequest(req.profile)
+    const decidedAt = shouldAutoApprove ? new Date().toISOString() : null
+
+    const { rows } = await query(
+      `INSERT INTO vacation_requests (user_id, start_date, end_date, days_count, reason, status, decided_by, decided_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING id, user_id, start_date, end_date, days_count, reason, status, admin_note, decided_at, created_at, updated_at`,
+      [
+        req.profile.id,
+        parsed.data.start_date,
+        parsed.data.end_date,
+        parsed.data.days_count,
+        parsed.data.reason,
+        shouldAutoApprove ? 'approved' : 'pending',
+        shouldAutoApprove ? req.profile.id : null,
+        decidedAt,
+        decidedAt || new Date().toISOString(),
+      ]
+    )
+
+    return res.status(201).json(rows[0])
   } catch (err) {
-    return res.status(400).json({ error: err.message })
+    return res.status(400).json({ error: mapVacationError(err) })
   }
-
-  const shouldAutoApprove = canAutoApproveOwnVacationRequest(req.profile)
-  const decidedAt = shouldAutoApprove ? new Date().toISOString() : null
-  const insertPayload = {
-    user_id: req.profile.id,
-    ...parsed.data,
-    status: shouldAutoApprove ? 'approved' : 'pending',
-    decided_by: shouldAutoApprove ? req.profile.id : null,
-    decided_at: decidedAt,
-  }
-
-  if (decidedAt) {
-    insertPayload.updated_at = decidedAt
-  }
-
-  const { data, error } = await adminClient
-    .from('vacation_requests')
-    .insert([insertPayload])
-    .select()
-    .single()
-
-  if (error) return res.status(400).json({ error: mapVacationError(error) })
-  return res.status(201).json(data)
 })
 
 router.delete('/me/vacation-requests/:id', requireAuth, async (req, res) => {
@@ -220,19 +225,22 @@ router.delete('/me/vacation-requests/:id', requireAuth, async (req, res) => {
     return res.status(403).json({ error: 'Acesso restrito a solicitações de férias.' })
   }
 
-  const { data, error } = await adminClient
-    .from('vacation_requests')
-    .delete()
-    .eq('id', req.params.id)
-    .eq('user_id', req.profile.id)
-    .select()
-    .single()
+  try {
+    const { rows } = await query(
+      `DELETE FROM vacation_requests
+       WHERE id = $1 AND user_id = $2 AND status = 'pending'
+       RETURNING id, user_id, start_date, end_date, days_count, reason, status, admin_note, decided_at, created_at, updated_at`,
+      [req.params.id, req.profile.id]
+    )
 
-  if (error || !data) {
-    return res.status(404).json({ error: 'Solicitação de férias não encontrada.' })
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ error: 'Solicitação de férias não encontrada ou não pode ser cancelada.' })
+    }
+
+    return res.json(rows[0])
+  } catch (err) {
+    return res.status(400).json({ error: err.message })
   }
-
-  return res.json(data)
 })
 
 // ─── ADMIN: FÉRIAS ───────────────────────────────────────────────────
@@ -247,19 +255,21 @@ function requireCanViewVacationApprovals(req, res, next) {
 router.get('/admin/vacation-requests', requireAuth, requireCanViewVacationApprovals, async (req, res) => {
   const status = req.query.status || 'pending'
 
-  let query = adminClient
-    .from('vacation_requests')
-    .select('id, user_id, start_date, end_date, days_count, reason, status, admin_note, decided_by, decided_at, created_at, updated_at')
-    .order('created_at', { ascending: false })
-
-  if (status !== 'all') query = query.eq('status', status)
-
-  const { data, error } = await query
-
-  if (error) return res.status(400).json({ error: error.message })
-
   try {
-    const enriched = await enrichVacationRequests(data || [])
+    let sql = `SELECT id, user_id, start_date, end_date, days_count, reason, status, admin_note, decided_by, decided_at, created_at, updated_at
+               FROM vacation_requests`
+    const params = []
+
+    if (status !== 'all') {
+      sql += ` WHERE status = $1`
+      params.push(status)
+    }
+
+    sql += ` ORDER BY created_at DESC`
+
+    const { rows } = await query(sql, params)
+
+    const enriched = await enrichVacationRequests(rows || [])
     const visibleRequests = isAdmin(req.profile)
       ? enriched
       : enriched.filter((vacation) => canApproveVacationRequest(req.profile, vacation.profile))
@@ -273,110 +283,102 @@ router.post('/admin/vacation-requests/:id/approve', requireAuth, requireCanViewV
   const adminNote = req.body?.admin_note?.trim() || null
   const decidedAt = new Date().toISOString()
 
-  const { data: request, error: requestError } = await adminClient
-    .from('vacation_requests')
-    .select('id, user_id, status')
-    .eq('id', req.params.id)
-    .single()
+  try {
+    const { rows: requestRows } = await query(
+      'SELECT id, user_id, status FROM vacation_requests WHERE id = $1',
+      [req.params.id]
+    )
 
-  if (requestError || !request) {
-    return res.status(404).json({ error: 'Solicitação de férias não encontrada.' })
+    if (!requestRows || requestRows.length === 0) {
+      return res.status(404).json({ error: 'Solicitação de férias não encontrada.' })
+    }
+
+    const vacationRequest = requestRows[0]
+
+    if (vacationRequest.status !== 'pending') {
+      return res.status(400).json({ error: 'Esta solicitação já foi decidida.' })
+    }
+
+    const { rows: targetProfileRows } = await query(
+      'SELECT role FROM users WHERE id = $1',
+      [vacationRequest.user_id]
+    )
+
+    if (!targetProfileRows || targetProfileRows.length === 0) {
+      return res.status(404).json({ error: 'Colaborador não encontrado.' })
+    }
+
+    const targetProfile = targetProfileRows[0]
+
+    // Verifica permissões
+    if (!isAdmin(req.profile) && !canApproveVacationRequest(req.profile, targetProfile)) {
+      return res.status(403).json({ error: 'Você não tem permissão para aprovar esta solicitação.' })
+    }
+
+    const { rows } = await query(
+      `UPDATE vacation_requests
+       SET status = 'approved', admin_note = $1, decided_by = $2, decided_at = $3, updated_at = $3
+       WHERE id = $4
+       RETURNING id, user_id, start_date, end_date, days_count, reason, status, admin_note, decided_by, decided_at, created_at, updated_at`,
+      [adminNote, req.profile.id, decidedAt, req.params.id]
+    )
+
+    const enriched = await enrichVacationRequests(rows)
+    return res.json(enriched[0])
+  } catch (err) {
+    return res.status(400).json({ error: err.message })
   }
-
-  if (request.status !== 'pending') {
-    return res.status(400).json({ error: 'Esta solicitação já foi decidida.' })
-  }
-
-  const { data: targetProfile, error: profileError } = await adminClient
-    .from('profiles')
-    .select('role')
-    .eq('id', request.user_id)
-    .single()
-
-  if (profileError || !targetProfile) {
-    return res.status(404).json({ error: 'Colaborador não encontrado.' })
-  }
-
-  if (!canApproveVacationRequest(req.profile, targetProfile)) {
-    return res.status(403).json({
-      error: 'Somente administradores podem aprovar férias de estagiários administrativos.',
-    })
-  }
-
-  const { data, error } = await adminClient
-    .from('vacation_requests')
-    .update({
-      status: 'approved',
-      admin_note: adminNote,
-      decided_by: req.profile.id,
-      decided_at: decidedAt,
-      updated_at: decidedAt,
-    })
-    .eq('id', req.params.id)
-    .eq('status', 'pending')
-    .select()
-    .single()
-
-  if (error || !data) {
-    return res.status(404).json({ error: 'Solicitação de férias pendente não encontrada.' })
-  }
-
-  return res.json(data)
 })
 
 router.post('/admin/vacation-requests/:id/reject', requireAuth, requireCanViewVacationApprovals, async (req, res) => {
   const adminNote = req.body?.admin_note?.trim() || null
   const decidedAt = new Date().toISOString()
 
-  const { data: request, error: requestError } = await adminClient
-    .from('vacation_requests')
-    .select('id, user_id, status')
-    .eq('id', req.params.id)
-    .single()
+  try {
+    const { rows: requestRows } = await query(
+      'SELECT id, user_id, status FROM vacation_requests WHERE id = $1',
+      [req.params.id]
+    )
 
-  if (requestError || !request) {
-    return res.status(404).json({ error: 'Solicitação de férias não encontrada.' })
+    if (!requestRows || requestRows.length === 0) {
+      return res.status(404).json({ error: 'Solicitação de férias não encontrada.' })
+    }
+
+    const vacationRequest = requestRows[0]
+
+    if (vacationRequest.status !== 'pending') {
+      return res.status(400).json({ error: 'Esta solicitação já foi decidida.' })
+    }
+
+    const { rows: targetProfileRows } = await query(
+      'SELECT role FROM users WHERE id = $1',
+      [vacationRequest.user_id]
+    )
+
+    if (!targetProfileRows || targetProfileRows.length === 0) {
+      return res.status(404).json({ error: 'Colaborador não encontrado.' })
+    }
+
+    const targetProfile = targetProfileRows[0]
+
+    // Verifica permissões
+    if (!isAdmin(req.profile) && !canApproveVacationRequest(req.profile, targetProfile)) {
+      return res.status(403).json({ error: 'Você não tem permissão para rejeitar esta solicitação.' })
+    }
+
+    const { rows } = await query(
+      `UPDATE vacation_requests
+       SET status = 'rejected', admin_note = $1, decided_by = $2, decided_at = $3, updated_at = $3
+       WHERE id = $4
+       RETURNING id, user_id, start_date, end_date, days_count, reason, status, admin_note, decided_by, decided_at, created_at, updated_at`,
+      [adminNote, req.profile.id, decidedAt, req.params.id]
+    )
+
+    const enriched = await enrichVacationRequests(rows)
+    return res.json(enriched[0])
+  } catch (err) {
+    return res.status(400).json({ error: err.message })
   }
-
-  if (request.status !== 'pending') {
-    return res.status(400).json({ error: 'Esta solicitação já foi decidida.' })
-  }
-
-  const { data: targetProfile, error: profileError } = await adminClient
-    .from('profiles')
-    .select('role')
-    .eq('id', request.user_id)
-    .single()
-
-  if (profileError || !targetProfile) {
-    return res.status(404).json({ error: 'Colaborador não encontrado.' })
-  }
-
-  if (!canApproveVacationRequest(req.profile, targetProfile)) {
-    return res.status(403).json({
-      error: 'Somente administradores podem rejeitar férias de estagiários administrativos.',
-    })
-  }
-
-  const { data, error } = await adminClient
-    .from('vacation_requests')
-    .update({
-      status: 'rejected',
-      admin_note: adminNote,
-      decided_by: req.profile.id,
-      decided_at: decidedAt,
-      updated_at: decidedAt,
-    })
-    .eq('id', req.params.id)
-    .eq('status', 'pending')
-    .select()
-    .single()
-
-  if (error || !data) {
-    return res.status(404).json({ error: 'Solicitação de férias pendente não encontrada.' })
-  }
-
-  return res.json(data)
 })
 
 export default router

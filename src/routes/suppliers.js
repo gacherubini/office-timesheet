@@ -1,6 +1,6 @@
 import { Router } from 'express'
+import { query } from '../lib/db.js'
 import { requireAuth } from '../middleware/auth.js'
-import { adminClient } from '../lib/supabase.js'
 import { canDeleteSuppliers, canManageSuppliers } from '../lib/permissions.js'
 
 const router = Router()
@@ -46,56 +46,76 @@ function requireCanDeleteSuppliers(req, res, next) {
 router.get('/admin/suppliers', requireAuth, requireCanManageSuppliers, async (req, res) => {
   const q = req.query.q?.trim()
 
-  let query = adminClient
-    .from('suppliers')
-    .select('id, name, category, email, phone, notes, created_at, updated_at')
-    .order('name', { ascending: true })
+  try {
+    let sql = `SELECT id, name, category, email, phone, notes, created_at, updated_at FROM suppliers`
+    const params = []
 
-  if (q) query = query.ilike('name', `%${q}%`)
+    if (q) {
+      sql += ` WHERE name ILIKE $1`
+      params.push(`%${q}%`)
+    }
 
-  const { data, error } = await query
-  if (error) return res.status(400).json({ error: error.message })
+    sql += ` ORDER BY name ASC`
 
-  return res.json(data || [])
+    const { rows } = await query(sql, params)
+    return res.json(rows || [])
+  } catch (err) {
+    console.error('Erro em GET /admin/suppliers:', err)
+    return res.status(400).json({ error: err.message })
+  }
 })
 
 router.post('/admin/suppliers', requireAuth, requireCanManageSuppliers, async (req, res) => {
   const parsed = parseSupplierPayload(req.body)
   if (parsed.error) return res.status(400).json({ error: parsed.error })
 
-  const { data, error } = await adminClient
-    .from('suppliers')
-    .insert([parsed.data])
-    .select()
-    .single()
-
-  if (error) return res.status(400).json({ error: error.message })
-  return res.status(201).json(data)
+  try {
+    const { rows } = await query(
+      `INSERT INTO suppliers (name, category, email, phone, notes) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [parsed.data.name, parsed.data.category, parsed.data.email, parsed.data.phone, parsed.data.notes],
+    )
+    return res.status(201).json(rows[0])
+  } catch (err) {
+    console.error('Erro em POST /admin/suppliers:', err)
+    return res.status(400).json({ error: err.message })
+  }
 })
 
 router.put('/admin/suppliers/:id', requireAuth, requireCanManageSuppliers, async (req, res) => {
   const parsed = parseSupplierPayload(req.body)
   if (parsed.error) return res.status(400).json({ error: parsed.error })
 
-  const { data, error } = await adminClient
-    .from('suppliers')
-    .update(parsed.data)
-    .eq('id', req.params.id)
-    .select()
-    .single()
+  try {
+    const { rows } = await query(
+      `UPDATE suppliers SET name = $1, category = $2, email = $3, phone = $4, notes = $5 WHERE id = $6 RETURNING *`,
+      [parsed.data.name, parsed.data.category, parsed.data.email, parsed.data.phone, parsed.data.notes, req.params.id],
+    )
 
-  if (error || !data) {
-    return res.status(404).json({ error: 'Fornecedor não encontrado.' })
+    if (!rows[0]) {
+      return res.status(404).json({ error: 'Fornecedor não encontrado.' })
+    }
+
+    return res.json(rows[0])
+  } catch (err) {
+    console.error('Erro em PUT /admin/suppliers/:id:', err)
+    return res.status(400).json({ error: err.message })
   }
-
-  return res.json(data)
 })
 
 router.delete('/admin/suppliers/:id', requireAuth, requireCanDeleteSuppliers, async (req, res) => {
-  const { error } = await adminClient.from('suppliers').delete().eq('id', req.params.id)
-  if (error) return res.status(400).json({ error: error.message })
-
-  return res.json({ message: 'Fornecedor excluído com sucesso.' })
+  try {
+    const { rows } = await query(
+      `DELETE FROM suppliers WHERE id = $1 RETURNING id`,
+      [req.params.id],
+    )
+    if (!rows[0]) {
+      return res.status(404).json({ error: 'Fornecedor não encontrado.' })
+    }
+    return res.json({ message: 'Fornecedor excluído com sucesso.' })
+  } catch (err) {
+    console.error('Erro em DELETE /admin/suppliers/:id:', err)
+    return res.status(400).json({ error: err.message })
+  }
 })
 
 export default router

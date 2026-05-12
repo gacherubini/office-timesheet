@@ -18,7 +18,6 @@ CREATE INDEX time_entries_user_id_idx ON time_entries(user_id);
 CREATE INDEX time_entries_project_id_idx ON time_entries(project_id);
 CREATE INDEX time_entries_status_idx ON time_entries(status);
 
--- Garante uma única entry aberta por usuário (running ou paused)
 CREATE UNIQUE INDEX one_open_entry_per_user
   ON time_entries(user_id)
   WHERE status IN ('running', 'paused');

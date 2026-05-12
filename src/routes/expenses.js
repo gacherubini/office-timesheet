@@ -1,13 +1,12 @@
 import { Router } from 'express'
-import crypto from 'crypto'
 import multer from 'multer'
 import { requireAuth } from '../middleware/auth.js'
 import { requireAdmin } from '../middleware/requireAdmin.js'
 import { requireApprover } from '../middleware/requireApprover.js'
-import { adminClient } from '../lib/supabase.js'
+import { query } from '../lib/db.js'
+import { uploadFile, deleteFile, extractKeyFromUrl } from '../lib/storage.js'
 
 const router = Router()
-const receiptBucket = 'expense-receipts'
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -22,7 +21,6 @@ const upload = multer({
 function parseExpensePayload(body) {
   const title = body.title?.trim()
   const description = body.description?.trim() || null
-  const receiptUrl = body.receipt_url?.trim() || null
   const amount = Number(body.amount)
   const expenseDate = body.expense_date
 
@@ -44,31 +42,8 @@ function parseExpensePayload(body) {
       description,
       amount: Number(amount.toFixed(2)),
       expense_date: expenseDate,
-      receipt_url: receiptUrl,
     },
   }
-}
-
-async function uploadReceiptFile(file, userId) {
-  if (!file) return null
-
-  const ext = file.originalname.split('.').pop() || 'file'
-  const fileName = `${userId}/${Date.now()}-${crypto.randomUUID()}.${ext}`
-
-  const { error: uploadError } = await adminClient.storage
-    .from(receiptBucket)
-    .upload(fileName, file.buffer, {
-      contentType: file.mimetype,
-      upsert: false,
-    })
-
-  if (uploadError) throw uploadError
-
-  const { data: urlData } = adminClient.storage
-    .from(receiptBucket)
-    .getPublicUrl(fileName)
-
-  return urlData.publicUrl
 }
 
 async function enrichExpenseRequests(expenses) {
@@ -77,20 +52,21 @@ async function enrichExpenseRequests(expenses) {
 
   const userIds = [...new Set(rows.map((expense) => expense.user_id).filter(Boolean))]
 
-  const { data: profiles, error } = userIds.length
-    ? await adminClient
-      .from('profiles')
-      .select('id, name, email, position, avatar_url')
-      .in('id', userIds)
-    : { data: [], error: null }
+  if (userIds.length === 0) return rows
 
-  if (error) throw error
+  try {
+    const { rows: profiles } = userIds.length
+      ? await query('SELECT id, name, email, position, avatar_url FROM users WHERE id = ANY($1)', [userIds])
+      : { rows: [] }
 
-  const profileMap = new Map((profiles || []).map((profile) => [profile.id, profile]))
-  return rows.map((expense) => ({
-    ...expense,
-    profile: profileMap.get(expense.user_id) || null,
-  }))
+    const profileMap = new Map(profiles.map((profile) => [profile.id, profile]))
+    return rows.map((expense) => ({
+      ...expense,
+      profile: profileMap.get(expense.user_id) || null,
+    }))
+  } catch (err) {
+    throw err
+  }
 }
 
 // ─── COLABORADOR: DESPESAS ───────────────────────────────────────────
@@ -101,19 +77,24 @@ router.get('/me/expense-requests', requireAuth, async (req, res) => {
 
   const status = req.query.status
 
-  let query = adminClient
-    .from('expense_requests')
-    .select('id, user_id, title, description, amount, expense_date, receipt_url, status, admin_note, decided_at, created_at, updated_at')
-    .eq('user_id', req.profile.id)
-    .order('expense_date', { ascending: false })
-    .order('created_at', { ascending: false })
+  try {
+    let sql = `SELECT id, user_id, title, description, amount, expense_date, receipt_url, status, admin_note, decided_at, created_at, updated_at
+               FROM expense_requests
+               WHERE user_id = $1`
+    const params = [req.profile.id]
 
-  if (status) query = query.eq('status', status)
+    if (status) {
+      sql += ` AND status = $2`
+      params.push(status)
+    }
 
-  const { data, error } = await query
+    sql += ` ORDER BY expense_date DESC, created_at DESC`
 
-  if (error) return res.status(400).json({ error: error.message })
-  return res.json(data || [])
+    const { rows } = await query(sql, params)
+    return res.json(rows || [])
+  } catch (err) {
+    return res.status(400).json({ error: err.message })
+  }
 })
 
 router.post('/me/expense-requests', requireAuth, upload.single('receipt'), async (req, res) => {
@@ -124,46 +105,46 @@ router.post('/me/expense-requests', requireAuth, upload.single('receipt'), async
   const parsed = parseExpensePayload(req.body)
   if (parsed.error) return res.status(400).json({ error: parsed.error })
 
-  let receiptUrl = parsed.data.receipt_url
+  let receiptUrl = null
 
   try {
-    const uploadedReceiptUrl = await uploadReceiptFile(req.file, req.profile.id)
-    if (uploadedReceiptUrl) receiptUrl = uploadedReceiptUrl
+    if (req.file) {
+      const { url } = await uploadFile('receipts', req.file)
+      receiptUrl = url
+    }
+
+    const { rows } = await query(
+      `INSERT INTO expense_requests (user_id, title, description, amount, expense_date, receipt_url)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, user_id, title, description, amount, expense_date, receipt_url, status, admin_note, decided_at, created_at, updated_at`,
+      [req.profile.id, parsed.data.title, parsed.data.description, parsed.data.amount, parsed.data.expense_date, receiptUrl]
+    )
+
+    return res.status(201).json(rows[0])
   } catch (err) {
     return res.status(400).json({ error: err.message })
   }
-
-  const { data, error } = await adminClient
-    .from('expense_requests')
-    .insert([{
-      user_id: req.profile.id,
-      ...parsed.data,
-      receipt_url: receiptUrl,
-    }])
-    .select()
-    .single()
-
-  if (error) return res.status(400).json({ error: error.message })
-  return res.status(201).json(data)
 })
 
 // ─── ADMIN: DESPESAS ─────────────────────────────────────────────────
 router.get('/admin/expense-requests', requireAuth, requireApprover, async (req, res) => {
   const status = req.query.status || 'pending'
 
-  let query = adminClient
-    .from('expense_requests')
-    .select('id, user_id, title, description, amount, expense_date, receipt_url, status, admin_note, decided_by, decided_at, created_at, updated_at')
-    .order('created_at', { ascending: false })
-
-  if (status !== 'all') query = query.eq('status', status)
-
-  const { data, error } = await query
-
-  if (error) return res.status(400).json({ error: error.message })
-
   try {
-    const enriched = await enrichExpenseRequests(data || [])
+    let sql = `SELECT id, user_id, title, description, amount, expense_date, receipt_url, status, admin_note, decided_by, decided_at, created_at, updated_at
+               FROM expense_requests`
+    const params = []
+
+    if (status !== 'all') {
+      sql += ` WHERE status = $1`
+      params.push(status)
+    }
+
+    sql += ` ORDER BY created_at DESC`
+
+    const { rows } = await query(sql, params)
+
+    const enriched = await enrichExpenseRequests(rows || [])
     return res.json(enriched)
   } catch (err) {
     return res.status(400).json({ error: err.message })
@@ -174,50 +155,46 @@ router.post('/admin/expense-requests/:id/approve', requireAuth, requireApprover,
   const adminNote = req.body?.admin_note?.trim() || null
   const decidedAt = new Date().toISOString()
 
-  const { data, error } = await adminClient
-    .from('expense_requests')
-    .update({
-      status: 'approved',
-      admin_note: adminNote,
-      decided_by: req.profile.id,
-      decided_at: decidedAt,
-      updated_at: decidedAt,
-    })
-    .eq('id', req.params.id)
-    .eq('status', 'pending')
-    .select()
-    .single()
+  try {
+    const { rows } = await query(
+      `UPDATE expense_requests
+       SET status = 'approved', admin_note = $1, decided_by = $2, decided_at = $3, updated_at = $3
+       WHERE id = $4 AND status = 'pending'
+       RETURNING id, user_id, title, description, amount, expense_date, receipt_url, status, admin_note, decided_by, decided_at, created_at, updated_at`,
+      [adminNote, req.profile.id, decidedAt, req.params.id]
+    )
 
-  if (error || !data) {
-    return res.status(404).json({ error: 'Despesa pendente não encontrada.' })
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ error: 'Despesa pendente não encontrada.' })
+    }
+
+    return res.json(rows[0])
+  } catch (err) {
+    return res.status(400).json({ error: err.message })
   }
-
-  return res.json(data)
 })
 
 router.post('/admin/expense-requests/:id/reject', requireAuth, requireApprover, async (req, res) => {
   const adminNote = req.body?.admin_note?.trim() || null
   const decidedAt = new Date().toISOString()
 
-  const { data, error } = await adminClient
-    .from('expense_requests')
-    .update({
-      status: 'rejected',
-      admin_note: adminNote,
-      decided_by: req.profile.id,
-      decided_at: decidedAt,
-      updated_at: decidedAt,
-    })
-    .eq('id', req.params.id)
-    .eq('status', 'pending')
-    .select()
-    .single()
+  try {
+    const { rows } = await query(
+      `UPDATE expense_requests
+       SET status = 'rejected', admin_note = $1, decided_by = $2, decided_at = $3, updated_at = $3
+       WHERE id = $4 AND status = 'pending'
+       RETURNING id, user_id, title, description, amount, expense_date, receipt_url, status, admin_note, decided_by, decided_at, created_at, updated_at`,
+      [adminNote, req.profile.id, decidedAt, req.params.id]
+    )
 
-  if (error || !data) {
-    return res.status(404).json({ error: 'Despesa pendente não encontrada.' })
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ error: 'Despesa pendente não encontrada.' })
+    }
+
+    return res.json(rows[0])
+  } catch (err) {
+    return res.status(400).json({ error: err.message })
   }
-
-  return res.json(data)
 })
 
 export default router
