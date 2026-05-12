@@ -106,14 +106,15 @@ export function AdminProjectsPage() {
 
     try {
       const token = localStorage.getItem('access_token')
-      const res = await fetch(`/api/projects/${uploading}/image`, {
+      const baseUrl = import.meta.env.VITE_API_URL ?? '/api'
+      const res = await fetch(`${baseUrl}/projects/${uploading}/image`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
       })
 
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
+      const data = res.status === 204 ? {} : await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || `Erro ${res.status}`)
 
       loadProjects()
     } catch (err) {

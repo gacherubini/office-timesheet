@@ -130,13 +130,14 @@ export function AdminTeamPage() {
 
     try {
       const token = localStorage.getItem('access_token')
-      const res = await fetch(`/api/admin/users/${uploadingId}/avatar`, {
+      const baseUrl = import.meta.env.VITE_API_URL ?? '/api'
+      const res = await fetch(`${baseUrl}/admin/users/${uploadingId}/avatar`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
+      const data = res.status === 204 ? {} : await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || `Erro ${res.status}`)
       loadUsers()
     } catch (err) {
       alert(err.message || 'Erro ao enviar imagem.')
