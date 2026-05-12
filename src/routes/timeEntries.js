@@ -4,7 +4,7 @@ import { requireAdmin } from '../middleware/requireAdmin.js'
 import { requireApprover } from '../middleware/requireApprover.js'
 import { requireOperationalAccess } from '../middleware/requireOperationalAccess.js'
 import { canAccessMoney } from '../lib/permissions.js'
-import { createUserClient, adminClient } from '../lib/supabase.js'
+import { query, withTransaction } from '../lib/db.js'
 
 const router = Router()
 
@@ -27,17 +27,15 @@ function todayValue() {
 async function getApprovedVacationForToday(userId) {
   const today = todayValue()
 
-  const { data, error } = await adminClient
-    .from('vacation_requests')
-    .select('id, start_date, end_date')
-    .eq('user_id', userId)
-    .eq('status', 'approved')
-    .lte('start_date', today)
-    .gte('end_date', today)
-    .maybeSingle()
+  const { rows } = await query(
+    `SELECT id, start_date, end_date FROM vacation_requests
+     WHERE user_id = $1 AND status = 'approved'
+       AND start_date <= $2::date AND end_date >= $2::date
+     LIMIT 1`,
+    [userId, today]
+  )
 
-  if (error) throw error
-  return data
+  return rows.length > 0 ? rows[0] : null
 }
 
 async function blockTimerDuringVacation(req, res, next) {
@@ -65,324 +63,208 @@ async function enrichChangeRequests(requests) {
   const entryIds = [...new Set(rows.map((request) => request.time_entry_id).filter(Boolean))]
   const requestedProjectIds = [...new Set(rows.map((request) => request.requested_project_id).filter(Boolean))]
 
-  const [
-    { data: profiles, error: profilesError },
-    { data: entries, error: entriesError },
-    { data: requestedProjects, error: projectsError },
-  ] = await Promise.all([
-    userIds.length
-      ? adminClient.from('profiles').select('id, name, email, position, avatar_url').in('id', userIds)
-      : Promise.resolve({ data: [], error: null }),
-    entryIds.length
-      ? adminClient
-        .from('time_entries')
-        .select('id, user_id, project_id, started_at, ended_at, duration_minutes, cost_snapshot, status, projects(name, client)')
-        .in('id', entryIds)
-      : Promise.resolve({ data: [], error: null }),
-    requestedProjectIds.length
-      ? adminClient.from('projects').select('id, name, client').in('id', requestedProjectIds)
-      : Promise.resolve({ data: [], error: null }),
-  ])
-
-  const firstError = profilesError || entriesError || projectsError
-  if (firstError) throw firstError
-
-  const profileMap = new Map((profiles || []).map((profile) => [profile.id, profile]))
-  const entryMap = new Map((entries || []).map((entry) => [entry.id, entry]))
-  const requestedProjectMap = new Map((requestedProjects || []).map((project) => [project.id, project]))
-
-  return rows.map((request) => ({
-    ...request,
-    profile: profileMap.get(request.user_id) || null,
-    time_entry: entryMap.get(request.time_entry_id) || null,
-    requested_project: requestedProjectMap.get(request.requested_project_id) || null,
-  }))
-}
-
-function sanitizeChangeRequestsForProfile(requests, profile) {
-  if (canAccessMoney(profile)) return requests
-
-  return (requests || []).map((request) => {
-    const { cost_snapshot: _costSnapshot, ...timeEntry } = request.time_entry || {}
-    return {
-      ...request,
-      time_entry: request.time_entry ? timeEntry : null,
-    }
-  })
-}
-
-router.post('/time-entries/start', requireAuth, blockTimerDuringVacation, async (req, res) => {
-  const { projectId } = req.body
-
-  if (!projectId) {
-    return res.status(400).json({ error: 'projectId é obrigatório.' })
-  }
-
-  const userClient = createUserClient(req.accessToken)
-  const userId = req.profile.id
-
-  const { data: project, error: projectError } = await userClient
-    .from('projects')
-    .select('id, status')
-    .eq('id', projectId)
-    .is('deleted_at', null)
-    .single()
-
-  if (projectError || !project) {
-    return res.status(404).json({ error: 'Projeto não encontrado.' })
-  }
-
-  if (project.status !== 'active') {
-    return res.status(400).json({ error: 'Projeto não está ativo.' })
-  }
-
-  const { data: openEntry, error: openEntryError } = await userClient
-    .from('time_entries')
-    .select('id, status')
-    .eq('user_id', userId)
-    .in('status', ['running', 'paused'])
-    .maybeSingle()
-
-  if (openEntryError) {
-    return res.status(400).json({ error: openEntryError.message })
-  }
-
-  if (openEntry) {
-    return res.status(409).json({ error: 'Já existe um apontamento aberto.' })
-  }
-
-  const { data, error } = await userClient
-    .from('time_entries')
-    .insert([
-      {
-        user_id: userId,
-        project_id: projectId,
-        started_at: new Date().toISOString(),
-        status: 'running',
-      },
+  try {
+    const [
+      profilesResult,
+      entriesResult,
+      projectsResult,
+    ] = await Promise.all([
+      userIds.length
+        ? query('SELECT id, name, email, position, avatar_url FROM users WHERE id = ANY($1)', [userIds])
+        : Promise.resolve({ rows: [] }),
+      entryIds.length
+        ? query(
+          `SELECT te.id, te.user_id, te.project_id, te.started_at, te.ended_at, te.duration_minutes, te.cost_snapshot, te.status,
+                  p.name as project_name, c.name as client_name
+           FROM time_entries te
+           LEFT JOIN projects p ON p.id = te.project_id
+           LEFT JOIN clients c ON c.id = p.client_id
+           WHERE te.id = ANY($1)`,
+          [entryIds]
+        )
+        : Promise.resolve({ rows: [] }),
+      requestedProjectIds.length
+        ? query('SELECT id, name FROM projects WHERE id = ANY($1)', [requestedProjectIds])
+        : Promise.resolve({ rows: [] }),
     ])
-    .select()
-    .single()
 
-  if (error) {
-    return res.status(400).json({ error: error.message })
+    const profiles = profilesResult.rows || []
+    const entries = entriesResult.rows || []
+    const requestedProjects = projectsResult.rows || []
+
+    const profileMap = new Map(profiles.map((profile) => [profile.id, profile]))
+    const entryMap = new Map(entries.map((entry) => [entry.id, entry]))
+    const requestedProjectMap = new Map(requestedProjects.map((project) => [project.id, project]))
+
+    return rows.map((request) => ({
+      ...request,
+      profile: profileMap.get(request.user_id) || null,
+      time_entry: entryMap.get(request.time_entry_id) || null,
+      requested_project: requestedProjectMap.get(request.requested_project_id) || null,
+    }))
+  } catch (err) {
+    throw err
+  }
+}
+
+// ─── START ────────────────────────────────────────────────────────────
+router.post('/time-entries/start', requireAuth, blockTimerDuringVacation, async (req, res) => {
+  const { project_id } = req.body
+
+  if (!project_id) {
+    return res.status(400).json({ error: 'project_id é obrigatório.' })
   }
 
-  return res.status(201).json(data)
+  try {
+    const { rows } = await query(
+      `INSERT INTO time_entries (user_id, project_id, started_at, status)
+       VALUES ($1, $2, now(), 'running') RETURNING *`,
+      [req.profile.id, project_id]
+    )
+
+    return res.json(rows[0])
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'Já existe um apontamento aberto.' })
+    }
+    return res.status(400).json({ error: err.message })
+  }
 })
 
 // ─── PAUSE ────────────────────────────────────────────────────────────
 router.post('/time-entries/pause', requireAuth, async (req, res) => {
-  const userClient = createUserClient(req.accessToken)
-  const userId = req.profile.id
+  try {
+    const { rows: openEntries } = await query(
+      `SELECT id, started_at FROM time_entries
+       WHERE user_id = $1 AND status = 'running'
+       LIMIT 1`,
+      [req.profile.id]
+    )
 
-  // Busca apontamento running do usuário
-  const { data: entry, error: entryError } = await userClient
-    .from('time_entries')
-    .select('id, status')
-    .eq('user_id', userId)
-    .eq('status', 'running')
-    .maybeSingle()
+    if (!openEntries || openEntries.length === 0) {
+      return res.status(404).json({ error: 'Nenhum apontamento aberto.' })
+    }
 
-  if (entryError) {
-    return res.status(400).json({ error: entryError.message })
+    const entryId = openEntries[0].id
+
+    const { rows } = await query(
+      `INSERT INTO entry_pauses (entry_id, paused_at)
+       VALUES ($1, now()) RETURNING id, entry_id, paused_at, resumed_at`,
+      [entryId]
+    )
+
+    return res.json(rows[0])
+  } catch (err) {
+    return res.status(400).json({ error: err.message })
   }
-
-  if (!entry) {
-    return res.status(404).json({ error: 'Nenhum apontamento em andamento.' })
-  }
-
-  const now = new Date().toISOString()
-
-  // Cria registro de pausa
-  const { error: pauseError } = await userClient
-    .from('time_entry_pauses')
-    .insert([{ time_entry_id: entry.id, paused_at: now }])
-
-  if (pauseError) {
-    return res.status(400).json({ error: pauseError.message })
-  }
-
-  // Atualiza status do apontamento para paused
-  const { data: updated, error: updateError } = await userClient
-    .from('time_entries')
-    .update({ status: 'paused' })
-    .eq('id', entry.id)
-    .select()
-    .single()
-
-  if (updateError) {
-    return res.status(400).json({ error: updateError.message })
-  }
-
-  return res.json(updated)
 })
 
 // ─── RESUME ───────────────────────────────────────────────────────────
 router.post('/time-entries/resume', requireAuth, blockTimerDuringVacation, async (req, res) => {
-  const userClient = createUserClient(req.accessToken)
-  const userId = req.profile.id
+  try {
+    const { rows: openPauses } = await query(
+      `SELECT ep.id, ep.entry_id FROM entry_pauses ep
+       JOIN time_entries te ON te.id = ep.entry_id
+       WHERE te.user_id = $1 AND te.status = 'running' AND ep.resumed_at IS NULL
+       ORDER BY ep.paused_at DESC
+       LIMIT 1`,
+      [req.profile.id]
+    )
 
-  // Busca apontamento pausado do usuário
-  const { data: entry, error: entryError } = await userClient
-    .from('time_entries')
-    .select('id, status')
-    .eq('user_id', userId)
-    .eq('status', 'paused')
-    .maybeSingle()
+    if (!openPauses || openPauses.length === 0) {
+      return res.status(404).json({ error: 'Nenhuma pausa ativa para retomar.' })
+    }
 
-  if (entryError) {
-    return res.status(400).json({ error: entryError.message })
+    const pauseId = openPauses[0].id
+
+    const { rows } = await query(
+      `UPDATE entry_pauses SET resumed_at = now() WHERE id = $1 RETURNING id, entry_id, paused_at, resumed_at`,
+      [pauseId]
+    )
+
+    return res.json(rows[0])
+  } catch (err) {
+    return res.status(400).json({ error: err.message })
   }
-
-  if (!entry) {
-    return res.status(404).json({ error: 'Nenhum apontamento pausado.' })
-  }
-
-  const now = new Date().toISOString()
-
-  // Fecha a pausa aberta (a que não tem resumed_at)
-  const { error: resumeError } = await userClient
-    .from('time_entry_pauses')
-    .update({ resumed_at: now })
-    .eq('time_entry_id', entry.id)
-    .is('resumed_at', null)
-
-  if (resumeError) {
-    return res.status(400).json({ error: resumeError.message })
-  }
-
-  // Volta status para running
-  const { data: updated, error: updateError } = await userClient
-    .from('time_entries')
-    .update({ status: 'running' })
-    .eq('id', entry.id)
-    .select()
-    .single()
-
-  if (updateError) {
-    return res.status(400).json({ error: updateError.message })
-  }
-
-  return res.json(updated)
 })
 
 // ─── STOP ─────────────────────────────────────────────────────────────
 router.post('/time-entries/stop', requireAuth, async (req, res) => {
-  const userClient = createUserClient(req.accessToken)
-  const userId = req.profile.id
+  try {
+    const { rows: openEntries } = await query(
+      `SELECT id, started_at, project_id FROM time_entries
+       WHERE user_id = $1 AND status = 'running'
+       LIMIT 1`,
+      [req.profile.id]
+    )
 
-  // Busca apontamento aberto (running ou paused)
-  const { data: entry, error: entryError } = await userClient
-    .from('time_entries')
-    .select('id, status, started_at')
-    .eq('user_id', userId)
-    .in('status', ['running', 'paused'])
-    .maybeSingle()
+    if (!openEntries || openEntries.length === 0) {
+      return res.status(404).json({ error: 'Nenhum apontamento aberto.' })
+    }
 
-  if (entryError) {
-    return res.status(400).json({ error: entryError.message })
+    const entry = openEntries[0]
+    const startDate = new Date(entry.started_at)
+    const now = new Date()
+
+    // Calcula duração líquida descontando pausas
+    const { rows: pausesData } = await query(
+      `SELECT paused_at, resumed_at FROM entry_pauses
+       WHERE entry_id = $1
+       ORDER BY paused_at`,
+      [entry.id]
+    )
+
+    let totalPausedMs = 0
+    for (const pause of pausesData) {
+      const pausedTime = new Date(pause.paused_at)
+      const resumedTime = pause.resumed_at ? new Date(pause.resumed_at) : now
+      totalPausedMs += Math.max(0, resumedTime.getTime() - pausedTime.getTime())
+    }
+
+    const durationMs = now.getTime() - startDate.getTime() - totalPausedMs
+    const durationMinutes = calculateDurationMinutes(new Date(0), new Date(durationMs))
+
+    // Busca taxas de projeto e usuário
+    const { rows: projectRates } = await query(
+      `SELECT p.hourly_rate FROM projects p WHERE p.id = $1`,
+      [entry.project_id]
+    )
+
+    const { rows: userRates } = await query(
+      `SELECT hourly_rate FROM users WHERE id = $1`,
+      [req.profile.id]
+    )
+
+    const projectRate = projectRates?.[0]?.hourly_rate
+    const userRate = userRates?.[0]?.hourly_rate
+    const rate = projectRate || userRate || 0
+    const costSnapshot = calculateCostSnapshot(durationMinutes, rate)
+
+    // Atualiza entry
+    const { rows } = await query(
+      `UPDATE time_entries
+       SET status = 'completed', ended_at = now(), duration_minutes = $1, cost_snapshot = $2
+       WHERE id = $3 RETURNING *`,
+      [durationMinutes, costSnapshot, entry.id]
+    )
+
+    return res.json(rows[0])
+  } catch (err) {
+    return res.status(400).json({ error: err.message })
   }
-
-  if (!entry) {
-    return res.status(404).json({ error: 'Nenhum apontamento aberto.' })
-  }
-
-  const now = new Date()
-  const nowISO = now.toISOString()
-
-  // Se estava pausado, fecha a pausa aberta antes de encerrar
-  if (entry.status === 'paused') {
-    await userClient
-      .from('time_entry_pauses')
-      .update({ resumed_at: nowISO })
-      .eq('time_entry_id', entry.id)
-      .is('resumed_at', null)
-  }
-
-  // Busca todas as pausas desse apontamento para calcular tempo pausado
-  const { data: pauses, error: pausesError } = await userClient
-    .from('time_entry_pauses')
-    .select('paused_at, resumed_at')
-    .eq('time_entry_id', entry.id)
-
-  if (pausesError) {
-    return res.status(400).json({ error: pausesError.message })
-  }
-
-  // Calcula total de milissegundos pausados
-  let totalPausedMs = 0
-  for (const pause of pauses || []) {
-    const pausedAt = new Date(pause.paused_at)
-    const resumedAt = new Date(pause.resumed_at) // já foi fechada acima se necessário
-    totalPausedMs += resumedAt.getTime() - pausedAt.getTime()
-  }
-
-  // Duração total = (now - started_at) - pausas
-  const startedAt = new Date(entry.started_at)
-  const totalMs = now.getTime() - startedAt.getTime()
-  const workedMs = totalMs - totalPausedMs
-  const durationMinutes = Math.max(0, Math.round(workedMs / 60000))
-
-  // Busca hourly_rate via adminClient (colaborador não tem acesso a esse campo pelo RLS)
-  const { data: profile, error: profileError } = await adminClient
-    .from('profiles')
-    .select('hourly_rate')
-    .eq('id', userId)
-    .single()
-
-  if (profileError || !profile) {
-    return res.status(400).json({ error: 'Perfil não encontrado para cálculo de custo.' })
-  }
-
-  // cost_snapshot = (durationMinutes / 60) * hourly_rate
-  const hourlyRate = Number(profile.hourly_rate) || 0
-  const costSnapshot = Number(((durationMinutes / 60) * hourlyRate).toFixed(2))
-
-  // Atualiza o apontamento com todos os dados finais
-  const { data: updated, error: updateError } = await userClient
-    .from('time_entries')
-    .update({
-      status: 'completed',
-      ended_at: nowISO,
-      duration_minutes: durationMinutes,
-      cost_snapshot: costSnapshot,
-    })
-    .eq('id', entry.id)
-    .select()
-    .single()
-
-  if (updateError) {
-    return res.status(400).json({ error: updateError.message })
-  }
-
-  return res.json(updated)
 })
 
-// ═══════════════════════════════════════════════════════════════════════
-// ROTAS ADMIN — Ajuste manual de horas
-// ═══════════════════════════════════════════════════════════════════════
-
-// ─── ADMIN: SOLICITAÇÕES DE ALTERAÇÃO DE PONTO ───────────────────────
+// ─── CHANGE REQUESTS ──────────────────────────────────────────────────
 router.get('/admin/time-entry-change-requests', requireAuth, requireApprover, async (req, res) => {
-  const status = req.query.status || 'pending'
-
-  let query = adminClient
-    .from('time_entry_change_requests')
-    .select('id, time_entry_id, user_id, requested_project_id, requested_started_at, requested_ended_at, reason, status, admin_note, decided_by, decided_at, created_at, updated_at')
-    .order('created_at', { ascending: false })
-
-  if (status !== 'all') query = query.eq('status', status)
-
-  const { data, error } = await query
-
-  if (error) {
-    return res.status(400).json({ error: error.message })
-  }
-
   try {
-    const enriched = await enrichChangeRequests(data || [])
-    return res.json(sanitizeChangeRequestsForProfile(enriched, req.profile))
+    const { rows } = await query(
+      `SELECT id, time_entry_id, user_id, requested_project_id, requested_started_at, requested_ended_at, reason, status, admin_note, decided_at, created_at, updated_at
+       FROM time_entry_change_requests
+       ORDER BY created_at DESC`
+    )
+
+    const enriched = await enrichChangeRequests(rows)
+    return res.json(enriched)
   } catch (err) {
     return res.status(400).json({ error: err.message })
   }
@@ -390,123 +272,107 @@ router.get('/admin/time-entry-change-requests', requireAuth, requireApprover, as
 
 router.post('/admin/time-entry-change-requests/:id/approve', requireAuth, requireApprover, async (req, res) => {
   const { id } = req.params
-  const adminNote = req.body?.admin_note?.trim() || null
+  const { admin_note } = req.body
 
-  const { data: request, error: requestError } = await adminClient
-    .from('time_entry_change_requests')
-    .select('*')
-    .eq('id', id)
-    .single()
+  try {
+    const { rows: requestRows } = await query(
+      `SELECT id, time_entry_id, requested_project_id, requested_started_at, requested_ended_at, user_id
+       FROM time_entry_change_requests WHERE id = $1`,
+      [id]
+    )
 
-  if (requestError || !request) {
-    return res.status(404).json({ error: 'Solicitação não encontrada.' })
-  }
+    if (!requestRows || requestRows.length === 0) {
+      return res.status(404).json({ error: 'Solicitação não encontrada.' })
+    }
 
-  if (request.status !== 'pending') {
-    return res.status(400).json({ error: 'Esta solicitação já foi decidida.' })
-  }
+    const changeRequest = requestRows[0]
+    const { time_entry_id, requested_project_id, requested_started_at, requested_ended_at, user_id } = changeRequest
 
-  const requestedStart = new Date(request.requested_started_at)
-  const requestedEnd = new Date(request.requested_ended_at)
+    // Valida se a entry pertence ao usuário
+    const { rows: entryRows } = await query(
+      `SELECT id FROM time_entries WHERE id = $1 AND user_id = $2`,
+      [time_entry_id, user_id]
+    )
 
-  if (Number.isNaN(requestedStart.getTime()) || Number.isNaN(requestedEnd.getTime())) {
-    return res.status(400).json({ error: 'Datas solicitadas inválidas.' })
-  }
+    if (!entryRows || entryRows.length === 0) {
+      return res.status(404).json({ error: 'Apontamento não encontrado.' })
+    }
 
-  if (requestedEnd <= requestedStart) {
-    return res.status(400).json({ error: 'A saída solicitada deve ser posterior ao início.' })
-  }
+    // Atualiza com transaction
+    await withTransaction(async (client) => {
+      // Busca nova taxa de custo
+      const { rows: projectRates } = await client.query(
+        'SELECT hourly_rate FROM projects WHERE id = $1',
+        [requested_project_id]
+      )
+      const { rows: userRates } = await client.query(
+        'SELECT hourly_rate FROM users WHERE id = $1',
+        [user_id]
+      )
 
-  const { data: entry, error: entryError } = await adminClient
-    .from('time_entries')
-    .select('id, user_id')
-    .eq('id', request.time_entry_id)
-    .eq('user_id', request.user_id)
-    .single()
+      const projectRate = projectRates?.[0]?.hourly_rate
+      const userRate = userRates?.[0]?.hourly_rate
+      const rate = projectRate || userRate || 0
 
-  if (entryError || !entry) {
-    return res.status(404).json({ error: 'Apontamento vinculado não encontrado.' })
-  }
+      const startDate = new Date(requested_started_at)
+      const endDate = new Date(requested_ended_at)
+      const durationMinutes = calculateDurationMinutes(startDate, endDate)
+      const costSnapshot = calculateCostSnapshot(durationMinutes, rate)
 
-  const { data: profile, error: profileError } = await adminClient
-    .from('profiles')
-    .select('hourly_rate')
-    .eq('id', request.user_id)
-    .single()
+      await client.query(
+        `UPDATE time_entries
+         SET project_id = $1, started_at = $2, ended_at = $3, duration_minutes = $4, cost_snapshot = $5,
+             status = 'completed', edited_by = $6, edited_at = now()
+         WHERE id = $7`,
+        [requested_project_id, requested_started_at, requested_ended_at, durationMinutes, costSnapshot, req.profile.id, time_entry_id]
+      )
 
-  if (profileError || !profile) {
-    return res.status(404).json({ error: 'Colaborador não encontrado.' })
-  }
-
-  const durationMinutes = calculateDurationMinutes(requestedStart, requestedEnd)
-  const costSnapshot = calculateCostSnapshot(durationMinutes, profile.hourly_rate)
-  const decidedAt = new Date().toISOString()
-
-  const { error: updateEntryError } = await adminClient
-    .from('time_entries')
-    .update({
-      project_id: request.requested_project_id,
-      started_at: requestedStart.toISOString(),
-      ended_at: requestedEnd.toISOString(),
-      duration_minutes: durationMinutes,
-      cost_snapshot: costSnapshot,
-      status: 'completed',
-      edited_by: req.profile.id,
-      edited_at: decidedAt,
+      await client.query(
+        `UPDATE time_entry_change_requests
+         SET status = 'approved', decided_by = $1, decided_at = now(), admin_note = $2
+         WHERE id = $3`,
+        [req.profile.id, admin_note || null, id]
+      )
     })
-    .eq('id', request.time_entry_id)
 
-  if (updateEntryError) {
-    return res.status(400).json({ error: updateEntryError.message })
+    const { rows: approvedRequest } = await query(
+      `SELECT id, time_entry_id, user_id, requested_project_id, requested_started_at, requested_ended_at, reason, status, admin_note, decided_at, created_at, updated_at
+       FROM time_entry_change_requests WHERE id = $1`,
+      [id]
+    )
+
+    const enriched = await enrichChangeRequests(approvedRequest)
+    return res.json(enriched[0])
+  } catch (err) {
+    return res.status(400).json({ error: err.message })
   }
-
-  const { data, error } = await adminClient
-    .from('time_entry_change_requests')
-    .update({
-      status: 'approved',
-      admin_note: adminNote,
-      decided_by: req.profile.id,
-      decided_at: decidedAt,
-      updated_at: decidedAt,
-    })
-    .eq('id', id)
-    .select()
-    .single()
-
-  if (error) {
-    return res.status(400).json({ error: error.message })
-  }
-
-  return res.json(data)
 })
 
 router.post('/admin/time-entry-change-requests/:id/reject', requireAuth, requireApprover, async (req, res) => {
   const { id } = req.params
-  const adminNote = req.body?.admin_note?.trim() || null
-  const decidedAt = new Date().toISOString()
+  const { admin_note } = req.body
 
-  const { data, error } = await adminClient
-    .from('time_entry_change_requests')
-    .update({
-      status: 'rejected',
-      admin_note: adminNote,
-      decided_by: req.profile.id,
-      decided_at: decidedAt,
-      updated_at: decidedAt,
-    })
-    .eq('id', id)
-    .eq('status', 'pending')
-    .select()
-    .single()
+  try {
+    const { rows } = await query(
+      `UPDATE time_entry_change_requests
+       SET status = 'rejected', decided_by = $1, decided_at = now(), admin_note = $2
+       WHERE id = $3
+       RETURNING id, time_entry_id, user_id, requested_project_id, requested_started_at, requested_ended_at, reason, status, admin_note, decided_at, created_at, updated_at`,
+      [req.profile.id, admin_note || null, id]
+    )
 
-  if (error || !data) {
-    return res.status(404).json({ error: 'Solicitação pendente não encontrada.' })
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ error: 'Solicitação não encontrada.' })
+    }
+
+    const enriched = await enrichChangeRequests(rows)
+    return res.json(enriched[0])
+  } catch (err) {
+    return res.status(400).json({ error: err.message })
   }
-
-  return res.json(data)
 })
 
-// ─── ADMIN: CRIAR APONTAMENTO MANUAL ──────────────────────────────────
+// ─── CREATE (ADMIN) ────────────────────────────────────────────────────
 router.post('/admin/time-entries', requireAuth, requireAdmin, async (req, res) => {
   const { user_id, project_id, started_at, ended_at } = req.body
 
@@ -516,360 +382,273 @@ router.post('/admin/time-entries', requireAuth, requireAdmin, async (req, res) =
     })
   }
 
-  const start = new Date(started_at)
-  const end = new Date(ended_at)
+  try {
+    const startDate = new Date(started_at)
+    const endDate = new Date(ended_at)
 
-  if (end <= start) {
-    return res.status(400).json({ error: 'ended_at deve ser posterior a started_at.' })
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+      return res.status(400).json({ error: 'Datas inválidas.' })
+    }
+
+    if (endDate <= startDate) {
+      return res.status(400).json({ error: 'A saída deve ser posterior ao início.' })
+    }
+
+    const durationMinutes = calculateDurationMinutes(startDate, endDate)
+
+    // Busca taxa
+    const { rows: projectRates } = await query(
+      'SELECT hourly_rate FROM projects WHERE id = $1',
+      [project_id]
+    )
+    const { rows: userRates } = await query(
+      'SELECT hourly_rate FROM users WHERE id = $1',
+      [user_id]
+    )
+
+    const projectRate = projectRates?.[0]?.hourly_rate
+    const userRate = userRates?.[0]?.hourly_rate
+    const rate = projectRate || userRate || 0
+    const costSnapshot = calculateCostSnapshot(durationMinutes, rate)
+
+    const { rows } = await query(
+      `INSERT INTO time_entries (user_id, project_id, started_at, ended_at, duration_minutes, cost_snapshot, status, created_by_admin)
+       VALUES ($1, $2, $3, $4, $5, $6, 'completed', true)
+       RETURNING *`,
+      [user_id, project_id, started_at, ended_at, durationMinutes, costSnapshot]
+    )
+
+    return res.status(201).json(rows[0])
+  } catch (err) {
+    return res.status(400).json({ error: err.message })
   }
-
-  const durationMinutes = Math.round((end.getTime() - start.getTime()) / 60000)
-
-  // Busca hourly_rate do colaborador
-  const { data: profile, error: profileError } = await adminClient
-    .from('profiles')
-    .select('hourly_rate')
-    .eq('id', user_id)
-    .single()
-
-  if (profileError || !profile) {
-    return res.status(404).json({ error: 'Colaborador não encontrado.' })
-  }
-
-  const hourlyRate = Number(profile.hourly_rate) || 0
-  const costSnapshot = Number(((durationMinutes / 60) * hourlyRate).toFixed(2))
-
-  const { data, error } = await adminClient
-    .from('time_entries')
-    .insert([{
-      user_id,
-      project_id,
-      started_at: start.toISOString(),
-      ended_at: end.toISOString(),
-      status: 'completed',
-      duration_minutes: durationMinutes,
-      cost_snapshot: costSnapshot,
-      created_by_admin: true,
-      edited_by: req.profile.id,
-    }])
-    .select()
-    .single()
-
-  if (error) {
-    return res.status(400).json({ error: error.message })
-  }
-
-  return res.status(201).json(data)
 })
 
-// ─── ADMIN: EDITAR APONTAMENTO ────────────────────────────────────────
+// ─── UPDATE (ADMIN) ────────────────────────────────────────────────────
 router.put('/admin/time-entries/:id', requireAuth, requireAdmin, async (req, res) => {
   const { id } = req.params
-  const { started_at, ended_at, project_id } = req.body
+  const { project_id, started_at, ended_at } = req.body
 
-  // Busca o apontamento atual
-  const { data: entry, error: entryError } = await adminClient
-    .from('time_entries')
-    .select('*')
-    .eq('id', id)
-    .single()
+  try {
+    const { rows: entryRows } = await query(
+      'SELECT id FROM time_entries WHERE id = $1',
+      [id]
+    )
 
-  if (entryError || !entry) {
-    return res.status(404).json({ error: 'Apontamento não encontrado.' })
+    if (!entryRows || entryRows.length === 0) {
+      return res.status(404).json({ error: 'Apontamento não encontrado.' })
+    }
+
+    const updates = {}
+    let paramIdx = 1
+    const params = []
+
+    if (project_id !== undefined) {
+      updates.project_id = `$${paramIdx}`
+      params.push(project_id)
+      paramIdx++
+    }
+
+    if (started_at !== undefined) {
+      const startDate = new Date(started_at)
+      if (Number.isNaN(startDate.getTime())) {
+        return res.status(400).json({ error: 'Data de início inválida.' })
+      }
+      updates.started_at = `$${paramIdx}`
+      params.push(started_at)
+      paramIdx++
+    }
+
+    if (ended_at !== undefined) {
+      const endDate = new Date(ended_at)
+      if (Number.isNaN(endDate.getTime())) {
+        return res.status(400).json({ error: 'Data de término inválida.' })
+      }
+      updates.ended_at = `$${paramIdx}`
+      params.push(ended_at)
+      paramIdx++
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'Nenhum campo para atualizar.' })
+    }
+
+    // Se atualizou datas, recalcula duração e custo
+    let shouldRecalculate = false
+    if (updates.started_at || updates.ended_at) {
+      shouldRecalculate = true
+      const { rows: currentEntry } = await query(
+        'SELECT user_id, project_id, started_at, ended_at FROM time_entries WHERE id = $1',
+        [id]
+      )
+
+      const start = updates.started_at ? new Date(params[Object.keys(updates).indexOf('started_at')]) : new Date(currentEntry[0].started_at)
+      const end = updates.ended_at ? new Date(params[Object.keys(updates).indexOf('ended_at')]) : new Date(currentEntry[0].ended_at)
+
+      if (end <= start) {
+        return res.status(400).json({ error: 'A saída deve ser posterior ao início.' })
+      }
+
+      const durationMinutes = calculateDurationMinutes(start, end)
+      const projectId = updates.project_id ? params[Object.keys(updates).indexOf('project_id')] : currentEntry[0].project_id
+      const userId = currentEntry[0].user_id
+
+      const { rows: projectRates } = await query(
+        'SELECT hourly_rate FROM projects WHERE id = $1',
+        [projectId]
+      )
+      const { rows: userRates } = await query(
+        'SELECT hourly_rate FROM users WHERE id = $1',
+        [userId]
+      )
+
+      const projectRate = projectRates?.[0]?.hourly_rate
+      const userRate = userRates?.[0]?.hourly_rate
+      const rate = projectRate || userRate || 0
+      const costSnapshot = calculateCostSnapshot(durationMinutes, rate)
+
+      updates.duration_minutes = `$${paramIdx}`
+      params.push(durationMinutes)
+      paramIdx++
+
+      updates.cost_snapshot = `$${paramIdx}`
+      params.push(costSnapshot)
+      paramIdx++
+    }
+
+    const setClause = Object.entries(updates).map(([key, val]) => `${key} = ${val}`).join(', ')
+    params.push(id)
+
+    const { rows } = await query(
+      `UPDATE time_entries SET ${setClause} WHERE id = $${paramIdx} RETURNING *`,
+      params
+    )
+
+    return res.json(rows[0])
+  } catch (err) {
+    return res.status(400).json({ error: err.message })
   }
-
-  const newStart = started_at ? new Date(started_at) : new Date(entry.started_at)
-  const newEnd = ended_at ? new Date(ended_at) : (entry.ended_at ? new Date(entry.ended_at) : null)
-  const newProjectId = project_id || entry.project_id
-
-  if (newEnd && newEnd <= newStart) {
-    return res.status(400).json({ error: 'ended_at deve ser posterior a started_at.' })
-  }
-
-  const updates = {
-    project_id: newProjectId,
-    started_at: newStart.toISOString(),
-    edited_by: req.profile.id,
-    edited_at: new Date().toISOString(),
-  }
-
-  // Recalcula duração e custo se o apontamento está completed
-  if (newEnd) {
-    updates.ended_at = newEnd.toISOString()
-    const durationMinutes = Math.round((newEnd.getTime() - newStart.getTime()) / 60000)
-    updates.duration_minutes = durationMinutes
-
-    // Busca hourly_rate do dono do apontamento
-    const { data: profile } = await adminClient
-      .from('profiles')
-      .select('hourly_rate')
-      .eq('id', entry.user_id)
-      .single()
-
-    const hourlyRate = Number(profile?.hourly_rate) || 0
-    updates.cost_snapshot = Number(((durationMinutes / 60) * hourlyRate).toFixed(2))
-  }
-
-  const { data, error } = await adminClient
-    .from('time_entries')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single()
-
-  if (error) {
-    return res.status(400).json({ error: error.message })
-  }
-
-  return res.json(data)
 })
 
-// ─── ADMIN: EXCLUIR APONTAMENTO ──────────────────────────────────────
+// ─── DELETE (ADMIN) ────────────────────────────────────────────────────
 router.delete('/admin/time-entries/:id', requireAuth, requireAdmin, async (req, res) => {
   const { id } = req.params
 
-  // Exclui pausas vinculadas primeiro
-  await adminClient
-    .from('time_entry_pauses')
-    .delete()
-    .eq('time_entry_id', id)
+  try {
+    const { rows } = await query(
+      'DELETE FROM time_entries WHERE id = $1 RETURNING id',
+      [id]
+    )
 
-  const { error } = await adminClient
-    .from('time_entries')
-    .delete()
-    .eq('id', id)
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ error: 'Apontamento não encontrado.' })
+    }
 
-  if (error) {
-    return res.status(400).json({ error: error.message })
+    return res.json({ message: 'Apontamento deletado com sucesso.' })
+  } catch (err) {
+    return res.status(400).json({ error: err.message })
   }
-
-  return res.json({ message: 'Apontamento excluído com sucesso.' })
 })
 
-// ─── ADMIN: PAINEL LIVE ──────────────────────────────────────────────
+// ─── LIVE (quem está trabalhando agora) ────────────────────────────────
 router.get('/admin/live', requireAuth, requireOperationalAccess, async (req, res) => {
-  // Busca todos os colaboradores ativos
-  const { data: profiles, error: profilesError } = await adminClient
-    .from('profiles')
-    .select('id, name, email')
-    .eq('is_active', true)
-    .order('name')
+  try {
+    const { rows } = await query(
+      `SELECT te.id, te.user_id, te.project_id, te.started_at, te.duration_minutes,
+              u.name as user_name, u.position, u.avatar_url,
+              p.name as project_name
+       FROM time_entries te
+       LEFT JOIN users u ON u.id = te.user_id
+       LEFT JOIN projects p ON p.id = te.project_id
+       WHERE te.status = 'running'
+       ORDER BY te.started_at DESC`
+    )
 
-  if (profilesError) {
-    return res.status(400).json({ error: profilesError.message })
+    const enriched = rows.map(row => ({
+      id: row.id,
+      user_id: row.user_id,
+      project_id: row.project_id,
+      started_at: row.started_at,
+      duration_minutes: row.duration_minutes,
+      user: {
+        name: row.user_name,
+        position: row.position,
+        avatar_url: row.avatar_url,
+      },
+      project: {
+        name: row.project_name,
+      },
+    }))
+
+    return res.json(enriched)
+  } catch (err) {
+    return res.status(400).json({ error: err.message })
   }
-
-  // Busca todos os apontamentos abertos (running ou paused)
-  const { data: openEntries, error: entriesError } = await adminClient
-    .from('time_entries')
-    .select('id, user_id, status, started_at, projects(name)')
-    .in('status', ['running', 'paused'])
-
-  if (entriesError) {
-    return res.status(400).json({ error: entriesError.message })
-  }
-
-  // Monta mapa de userId -> entry aberta
-  const entryMap = {}
-  for (const entry of openEntries || []) {
-    entryMap[entry.user_id] = entry
-  }
-
-  // Monta resposta com status de cada colaborador
-  const team = profiles.map((profile) => {
-    const entry = entryMap[profile.id]
-
-    if (!entry) {
-      return { ...profile, status: 'offline', project: null, started_at: null }
-    }
-
-    return {
-      ...profile,
-      status: entry.status, // 'running' ou 'paused'
-      project: entry.projects?.name || null,
-      started_at: entry.started_at,
-    }
-  })
-
-  return res.json(team)
 })
 
-// ─── ADMIN: LISTAR APONTAMENTOS COM FILTROS ──────────────────────────
+// ─── LIST (ADMIN) ─────────────────────────────────────────────────────
 router.get('/admin/time-entries', requireAuth, requireAdmin, async (req, res) => {
-  const { user_id, project_id, start_date, end_date } = req.query
+  try {
+    const { rows: countRows } = await query(
+      'SELECT COUNT(*) as total FROM time_entries'
+    )
+    const total = parseInt(countRows[0].total, 10)
 
-  const page = Math.max(1, parseInt(req.query.page) || 1)
-  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 30))
-  const offset = (page - 1) * limit
-  const startIso = start_date ? new Date(`${start_date}T00:00:00`).toISOString() : null
-  const endIso = end_date ? new Date(`${end_date}T23:59:59`).toISOString() : null
+    const page = Math.max(1, parseInt(req.query.page) || 1)
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20))
+    const offset = (page - 1) * limit
 
-  let query = adminClient
-    .from('time_entries')
-    .select('*, profiles!time_entries_user_id_fkey(name, email, position), projects(name, client)', { count: 'exact' })
-    .order('started_at', { ascending: false })
-    .range(offset, offset + limit - 1)
+    let sql = `SELECT te.id, te.user_id, te.project_id, te.started_at, te.ended_at, te.duration_minutes, te.cost_snapshot, te.status, te.created_by_admin,
+                      u.name as user_name,
+                      p.name as project_name
+               FROM time_entries te
+               LEFT JOIN users u ON u.id = te.user_id
+               LEFT JOIN projects p ON p.id = te.project_id`
 
-  if (user_id) query = query.eq('user_id', user_id)
-  if (project_id) query = query.eq('project_id', project_id)
-  if (startIso) query = query.gte('started_at', startIso)
-  if (endIso) query = query.lte('started_at', endIso)
+    const params = []
 
-  const { data, error, count } = await query
-
-  if (error) {
-    return res.status(400).json({ error: error.message })
-  }
-
-  const entryIds = (data || []).map((entry) => entry.id)
-  let pausesByEntry = {}
-
-  if (entryIds.length > 0) {
-    const { data: pauses, error: pausesError } = await adminClient
-      .from('time_entry_pauses')
-      .select('id, time_entry_id, paused_at, resumed_at')
-      .in('time_entry_id', entryIds)
-      .order('paused_at', { ascending: true })
-
-    if (pausesError) {
-      return res.status(400).json({ error: pausesError.message })
+    // Filtros opcionais
+    if (req.query.user_id) {
+      sql += ` WHERE te.user_id = $${params.length + 1}`
+      params.push(req.query.user_id)
     }
 
-    pausesByEntry = (pauses || []).reduce((acc, pause) => {
-      if (!acc[pause.time_entry_id]) acc[pause.time_entry_id] = []
-      acc[pause.time_entry_id].push(pause)
-      return acc
-    }, {})
-  }
-
-  let summaryQuery = adminClient
-    .from('time_entries')
-    .select('id, user_id, started_at, duration_minutes, cost_snapshot')
-
-  if (user_id) summaryQuery = summaryQuery.eq('user_id', user_id)
-  if (project_id) summaryQuery = summaryQuery.eq('project_id', project_id)
-  if (startIso) summaryQuery = summaryQuery.gte('started_at', startIso)
-  if (endIso) summaryQuery = summaryQuery.lte('started_at', endIso)
-
-  const { data: summaryEntries, error: summaryError } = await summaryQuery
-
-  if (summaryError) {
-    return res.status(400).json({ error: summaryError.message })
-  }
-
-  let approvedExpenses = []
-  let bonusList = []
-
-  if (!project_id) {
-    let expensesQuery = adminClient
-      .from('expense_requests')
-      .select('id, user_id, title, description, amount, expense_date, receipt_url, status, created_at')
-      .in('status', ['pending', 'approved'])
-      .order('expense_date', { ascending: false })
-
-    if (user_id) expensesQuery = expensesQuery.eq('user_id', user_id)
-    if (start_date) expensesQuery = expensesQuery.gte('expense_date', start_date)
-    if (end_date) expensesQuery = expensesQuery.lte('expense_date', end_date)
-
-    let bonusesQuery = adminClient
-      .from('bonuses')
-      .select('id, user_id, title, description, amount, bonus_date, created_at')
-      .order('bonus_date', { ascending: false })
-
-    if (user_id) bonusesQuery = bonusesQuery.eq('user_id', user_id)
-    if (start_date) bonusesQuery = bonusesQuery.gte('bonus_date', start_date)
-    if (end_date) bonusesQuery = bonusesQuery.lte('bonus_date', end_date)
-
-    const [
-      { data: expenses, error: expensesError },
-      { data: bonuses, error: bonusesError },
-    ] = await Promise.all([expensesQuery, bonusesQuery])
-
-    if (expensesError) return res.status(400).json({ error: expensesError.message })
-    if (bonusesError) return res.status(400).json({ error: bonusesError.message })
-
-    approvedExpenses = expenses || []
-    bonusList = bonuses || []
-
-    const profileIds = [
-      ...new Set([
-        ...approvedExpenses.map((e) => e.user_id),
-        ...bonusList.map((b) => b.user_id),
-      ].filter(Boolean)),
-    ]
-
-    if (profileIds.length > 0) {
-      const { data: relatedProfiles, error: profilesError } = await adminClient
-        .from('profiles')
-        .select('id, name, email, position, avatar_url')
-        .in('id', profileIds)
-
-      if (profilesError) {
-        return res.status(400).json({ error: profilesError.message })
-      }
-
-      const profileMap = new Map((relatedProfiles || []).map((p) => [p.id, p]))
-      approvedExpenses = approvedExpenses.map((expense) => ({
-        ...expense,
-        profile: profileMap.get(expense.user_id) || null,
-      }))
-      bonusList = bonusList.map((bonus) => ({
-        ...bonus,
-        profile: profileMap.get(bonus.user_id) || null,
-      }))
+    if (req.query.project_id) {
+      sql += params.length > 0 ? ` AND ` : ` WHERE `
+      sql += `te.project_id = $${params.length + 1}`
+      params.push(req.query.project_id)
     }
+
+    if (req.query.status) {
+      sql += params.length > 0 ? ` AND ` : ` WHERE `
+      sql += `te.status = $${params.length + 1}`
+      params.push(req.query.status)
+    }
+
+    sql += ` ORDER BY te.started_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`
+    params.push(limit, offset)
+
+    const { rows } = await query(sql, params)
+
+    return res.json({
+      data: rows.map(row => ({
+        id: row.id,
+        user_id: row.user_id,
+        project_id: row.project_id,
+        started_at: row.started_at,
+        ended_at: row.ended_at,
+        duration_minutes: row.duration_minutes,
+        cost_snapshot: row.cost_snapshot,
+        status: row.status,
+        created_by_admin: row.created_by_admin,
+        user: { name: row.user_name },
+        project: { name: row.project_name },
+      })),
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    })
+  } catch (err) {
+    return res.status(400).json({ error: err.message })
   }
-
-  const dailyTotalsMap = {}
-  let totalMinutes = 0
-  let totalCost = 0
-
-  for (const entry of summaryEntries || []) {
-    const minutes = entry.duration_minutes || 0
-    const cost = Number(entry.cost_snapshot) || 0
-    const date = entry.started_at?.slice(0, 10)
-    const key = `${entry.user_id}:${date}`
-
-    totalMinutes += minutes
-    totalCost += cost
-    dailyTotalsMap[key] = (dailyTotalsMap[key] || 0) + minutes
-  }
-
-  const workingDays = Object.keys(dailyTotalsMap).length
-  const averageMinutesPerDay = workingDays > 0 ? Math.round(totalMinutes / workingDays) : 0
-  const reimbursements = approvedExpenses.reduce((sum, expense) => (
-    sum + (expense.status === 'approved' ? (Number(expense.amount) || 0) : 0)
-  ), 0)
-  const bonuses = bonusList.reduce((sum, bonus) => sum + (Number(bonus.amount) || 0), 0)
-  const netTotal = totalCost + reimbursements + bonuses
-
-  return res.json({
-    data: (data || []).map((entry) => ({
-      ...entry,
-      pauses: pausesByEntry[entry.id] || [],
-    })),
-    summary: {
-      total_minutes: totalMinutes,
-      total_cost: Number(totalCost.toFixed(2)),
-      average_minutes_per_day: averageMinutesPerDay,
-      working_days: workingDays,
-      reimbursements: Number(reimbursements.toFixed(2)),
-      bonuses: Number(bonuses.toFixed(2)),
-      net_total: Number(netTotal.toFixed(2)),
-      daily_totals: Object.entries(dailyTotalsMap).map(([key, minutes]) => {
-        const [userId, date] = key.split(':')
-        return { user_id: userId, date, minutes }
-      }),
-    },
-    expenses: approvedExpenses,
-    bonuses: bonusList,
-    pagination: {
-      page,
-      limit,
-      total: count,
-      pages: Math.ceil(count / limit),
-    },
-  })
 })
 
 export default router

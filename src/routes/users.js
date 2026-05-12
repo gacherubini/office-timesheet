@@ -1,6 +1,8 @@
 import { Router } from 'express'
 import multer from 'multer'
-import { adminClient } from '../lib/supabase.js'
+import { query } from '../lib/db.js'
+import { hashPassword } from '../lib/password.js'
+import { uploadFile, deleteFile, extractKeyFromUrl } from '../lib/storage.js'
 import { requireAuth } from '../middleware/auth.js'
 import { requireAdmin } from '../middleware/requireAdmin.js'
 import { requireOperationalAccess } from '../middleware/requireOperationalAccess.js'
@@ -49,11 +51,11 @@ router.post('/create-user', requireAuth, requireAdmin, async (req, res) => {
     }
 
     if (Number(hourly_rate) < 0) {
-      return res.status(400).json({ error: 'Valor/hora nÃ£o pode ser negativo.' })
+      return res.status(400).json({ error: 'Valor/hora não pode ser negativo.' })
     }
 
     if (Number(fixed_salary) < 0) {
-      return res.status(400).json({ error: 'SalÃ¡rio fixo nÃ£o pode ser negativo.' })
+      return res.status(400).json({ error: 'Salário fixo não pode ser negativo.' })
     }
 
     if (password.length < 6) {
@@ -62,62 +64,39 @@ router.post('/create-user', requireAuth, requireAdmin, async (req, res) => {
       })
     }
 
-    const { data: createdUserData, error: createUserError } =
-      await adminClient.auth.admin.createUser({
-        email: email.trim().toLowerCase(),
-        password,
-        email_confirm: true,
-        user_metadata: {
-          name: name.trim(),
-        },
-      })
+    const passwordHash = await hashPassword(password)
 
-    if (createUserError || !createdUserData?.user) {
-      return res.status(400).json({
-        error: createUserError?.message || 'Erro ao criar usuário no Auth.',
-      })
-    }
-
-    const userId = createdUserData.user.id
-
-    // como teu trigger já cria a linha em public.profiles,
-    // aqui só ajustamos os campos finais do sistema
-    const { data: profile, error: profileError } = await adminClient
-      .from('profiles')
-      .update({
-        name: name.trim(),
-        email: email.trim().toLowerCase(),
+    const { rows } = await query(
+      `INSERT INTO users (email, password_hash, name, role, hourly_rate, fixed_salary,
+                          is_active, position, birth_date, phone)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       RETURNING id, email, name, role, hourly_rate, fixed_salary, is_active`,
+      [
+        email.trim().toLowerCase(),
+        passwordHash,
+        name.trim(),
         role,
-        hourly_rate: role === ROLES.ADMINISTRATIVE_INTERN ? 0 : Number(hourly_rate) || 0,
-        fixed_salary: role === ROLES.ADMINISTRATIVE_INTERN ? Number(fixed_salary) || 0 : 0,
+        role === ROLES.ADMINISTRATIVE_INTERN ? 0 : Number(hourly_rate) || 0,
+        role === ROLES.ADMINISTRATIVE_INTERN ? Number(fixed_salary) || 0 : 0,
         is_active,
-        position: roleLabel(role),
-        ...(birth_date !== undefined && { birth_date: birth_date || null }),
-        ...(phone !== undefined && { phone: phone?.trim() || null }),
-      })
-      .eq('id', userId)
-      .select('id, name, email, role, hourly_rate, fixed_salary, is_active')
-      .single()
+        roleLabel(role),
+        birth_date || null,
+        phone?.trim() || null,
+      ],
+    )
 
-    if (profileError) {
-      await adminClient.auth.admin.deleteUser(userId)
-
-      return res.status(500).json({
-        error: 'Usuário criado no Auth, mas falhou ao atualizar profile.',
-        details: profileError.message,
-        user_id: userId,
-      })
-    }
+    const profile = rows[0]
 
     return res.status(201).json({
       message: 'Usuário criado com sucesso.',
       user: {
-        id: createdUserData.user.id,
-        email: createdUserData.user.email,
+        id: profile.id,
+        email: profile.email,
       },
       profile,
     })
   } catch (err) {
+    console.error('Erro em /create-user:', err)
     return res.status(500).json({
       error: 'Erro interno ao criar usuário.',
     })
@@ -130,55 +109,58 @@ router.get('/users', requireAuth, requireOperationalAccess, async (req, res) => 
     ? 'id, name, email, role, hourly_rate, fixed_salary, is_active, position, birth_date, phone, avatar_url, created_at'
     : 'id, name, email, role, is_active, position, birth_date, phone, avatar_url, created_at'
 
-  const { data, error } = await adminClient
-    .from('profiles')
-    .select(fields)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: false })
-
-  if (error) {
-    return res.status(400).json({ error: error.message })
+  try {
+    const { rows } = await query(
+      `SELECT ${fields}
+       FROM users
+       WHERE deleted_at IS NULL
+       ORDER BY created_at DESC`,
+    )
+    return res.json(rows)
+  } catch (err) {
+    console.error('Erro em GET /users:', err)
+    return res.status(400).json({ error: err.message })
   }
-
-  return res.json(data)
 })
 
 // ─── LISTAR USUÁRIOS DELETADOS ────────────────────────────────────────
 router.get('/users/deleted', requireAuth, requireAdmin, async (req, res) => {
-  const { data, error } = await adminClient
-    .from('profiles')
-    .select('id, name, email, role, hourly_rate, fixed_salary, deleted_at, created_at')
-    .not('deleted_at', 'is', null)
-    .order('deleted_at', { ascending: false })
-
-  if (error) {
-    return res.status(400).json({ error: error.message })
+  try {
+    const { rows } = await query(
+      `SELECT id, name, email, role, hourly_rate, fixed_salary, deleted_at, created_at
+       FROM users
+       WHERE deleted_at IS NOT NULL
+       ORDER BY deleted_at DESC`,
+    )
+    return res.json(rows)
+  } catch (err) {
+    console.error('Erro em GET /users/deleted:', err)
+    return res.status(400).json({ error: err.message })
   }
-
-  return res.json(data)
 })
 
 // ─── RESTAURAR USUÁRIO ────────────────────────────────────────────────
 router.post('/users/:id/restore', requireAuth, requireAdmin, async (req, res) => {
   const { id } = req.params
 
-  const { data, error } = await adminClient
-    .from('profiles')
-    .update({ deleted_at: null, is_active: true })
-    .eq('id', id)
-    .not('deleted_at', 'is', null)
-    .select('id, name, email, role, hourly_rate, fixed_salary, is_active')
-    .maybeSingle()
+  try {
+    const { rows } = await query(
+      `UPDATE users
+       SET deleted_at = NULL, is_active = true
+       WHERE id = $1 AND deleted_at IS NOT NULL
+       RETURNING id, name, email, role, hourly_rate, fixed_salary, is_active`,
+      [id],
+    )
 
-  if (error) {
-    return res.status(400).json({ error: error.message })
+    if (!rows[0]) {
+      return res.status(404).json({ error: 'Usuário deletado não encontrado.' })
+    }
+
+    return res.json(rows[0])
+  } catch (err) {
+    console.error('Erro em POST /users/:id/restore:', err)
+    return res.status(400).json({ error: err.message })
   }
-
-  if (!data) {
-    return res.status(404).json({ error: 'Usuário deletado não encontrado.' })
-  }
-
-  return res.json(data)
 })
 
 // ─── EDITAR USUÁRIO ───────────────────────────────────────────────────
@@ -210,7 +192,7 @@ router.put('/users/:id', requireAuth, requireAdmin, async (req, res) => {
   }
   if (fixed_salary !== undefined) {
     if (Number(fixed_salary) < 0) {
-      return res.status(400).json({ error: 'SalÃ¡rio fixo nÃ£o pode ser negativo.' })
+      return res.status(400).json({ error: 'Salário fixo não pode ser negativo.' })
     }
     if (role === ROLES.ADMINISTRATIVE_INTERN || updates.role === ROLES.ADMINISTRATIVE_INTERN) {
       updates.fixed_salary = Number(fixed_salary) || 0
@@ -224,18 +206,31 @@ router.put('/users/:id', requireAuth, requireAdmin, async (req, res) => {
     return res.status(400).json({ error: 'Nenhum campo para atualizar.' })
   }
 
-  const { data, error } = await adminClient
-    .from('profiles')
-    .update(updates)
-    .eq('id', id)
-    .select('id, name, email, role, hourly_rate, fixed_salary, is_active')
-    .single()
+  try {
+    const setClauses = []
+    const values = []
+    let paramCount = 1
 
-  if (error) {
-    return res.status(400).json({ error: error.message })
+    Object.entries(updates).forEach(([key, value]) => {
+      setClauses.push(`${key} = $${paramCount}`)
+      values.push(value)
+      paramCount++
+    })
+
+    values.push(id)
+    const sql = `UPDATE users SET ${setClauses.join(', ')} WHERE id = $${paramCount} RETURNING id, name, email, role, hourly_rate, fixed_salary, is_active`
+
+    const { rows } = await query(sql, values)
+
+    if (!rows[0]) {
+      return res.status(404).json({ error: 'Usuário não encontrado.' })
+    }
+
+    return res.json(rows[0])
+  } catch (err) {
+    console.error('Erro em PUT /users/:id:', err)
+    return res.status(400).json({ error: err.message })
   }
-
-  return res.json(data)
 })
 
 // ─── DELETAR USUÁRIO (soft delete) ────────────────────────────────────
@@ -246,23 +241,24 @@ router.delete('/users/:id', requireAuth, requireAdmin, async (req, res) => {
     return res.status(400).json({ error: 'Você não pode deletar sua própria conta.' })
   }
 
-  const { data, error } = await adminClient
-    .from('profiles')
-    .update({ deleted_at: new Date().toISOString(), is_active: false })
-    .eq('id', id)
-    .is('deleted_at', null)
-    .select('id')
-    .maybeSingle()
+  try {
+    const { rows } = await query(
+      `UPDATE users
+       SET deleted_at = now(), is_active = false
+       WHERE id = $1 AND deleted_at IS NULL
+       RETURNING id`,
+      [id],
+    )
 
-  if (error) {
-    return res.status(400).json({ error: error.message })
+    if (!rows[0]) {
+      return res.status(404).json({ error: 'Usuário não encontrado ou já deletado.' })
+    }
+
+    return res.status(204).send()
+  } catch (err) {
+    console.error('Erro em DELETE /users/:id:', err)
+    return res.status(400).json({ error: err.message })
   }
-
-  if (!data) {
-    return res.status(404).json({ error: 'Usuário não encontrado ou já deletado.' })
-  }
-
-  return res.status(204).send()
 })
 
 // ─── UPLOAD DE AVATAR ─────────────────────────────────────────────────
@@ -273,55 +269,46 @@ router.post('/users/:id/avatar', requireAuth, requireAdmin, upload.single('image
     return res.status(400).json({ error: 'Nenhuma imagem enviada.' })
   }
 
-  const { data: profile, error: profileError } = await adminClient
-    .from('profiles')
-    .select('id, avatar_url')
-    .eq('id', id)
-    .single()
+  try {
+    const { rows: profileRows } = await query(
+      'SELECT id, avatar_url FROM users WHERE id = $1',
+      [id],
+    )
 
-  if (profileError || !profile) {
-    return res.status(404).json({ error: 'Usuário não encontrado.' })
-  }
-
-  if (profile.avatar_url) {
-    const oldPath = profile.avatar_url.split('/user-avatars/')[1]
-    if (oldPath) {
-      await adminClient.storage.from('user-avatars').remove([oldPath])
+    if (!profileRows[0]) {
+      return res.status(404).json({ error: 'Usuário não encontrado.' })
     }
-  }
 
-  const ext = req.file.originalname.split('.').pop()
-  const fileName = `${id}-${Date.now()}.${ext}`
+    const profile = profileRows[0]
 
-  const { error: uploadError } = await adminClient.storage
-    .from('user-avatars')
-    .upload(fileName, req.file.buffer, {
-      contentType: req.file.mimetype,
-      upsert: true,
+    // Deletar avatar antigo se existir
+    if (profile.avatar_url) {
+      const oldKey = extractKeyFromUrl(profile.avatar_url)
+      if (oldKey) {
+        await deleteFile(oldKey)
+      }
+    }
+
+    // Upload novo avatar
+    const { url } = await uploadFile('avatars', {
+      buffer: req.file.buffer,
+      mimetype: req.file.mimetype,
     })
 
-  if (uploadError) {
-    return res.status(400).json({ error: uploadError.message })
+    // Atualizar usuário com nova URL
+    const { rows } = await query(
+      `UPDATE users
+       SET avatar_url = $1
+       WHERE id = $2
+       RETURNING id, name, email, role, hourly_rate, fixed_salary, is_active, position, birth_date, phone, avatar_url`,
+      [url, id],
+    )
+
+    return res.json(rows[0])
+  } catch (err) {
+    console.error('Erro em POST /users/:id/avatar:', err)
+    return res.status(400).json({ error: err.message })
   }
-
-  const { data: urlData } = adminClient.storage
-    .from('user-avatars')
-    .getPublicUrl(fileName)
-
-  const avatarUrl = urlData.publicUrl
-
-  const { data, error } = await adminClient
-    .from('profiles')
-    .update({ avatar_url: avatarUrl })
-    .eq('id', id)
-    .select('id, name, email, role, hourly_rate, fixed_salary, is_active, position, birth_date, phone, avatar_url')
-    .single()
-
-  if (error) {
-    return res.status(400).json({ error: error.message })
-  }
-
-  return res.json(data)
 })
 
 export default router

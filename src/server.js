@@ -2,6 +2,8 @@ import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 
+import { pool } from './lib/db.js'
+
 import meRoutes from './routes/me.js'
 import projectsRoutes from './routes/projects.js'
 import timeEntriesRoutes from './routes/timeEntries.js'
@@ -15,7 +17,6 @@ import bonusesRoutes from './routes/bonuses.js'
 import clientsRoutes from './routes/clients.js'
 import suppliersRoutes from './routes/suppliers.js'
 
-
 const app = express()
 
 app.use(cors({
@@ -23,8 +24,13 @@ app.use(cors({
 }))
 app.use(express.json())
 
-app.get('/health', (_req, res) => {
-  res.json({ ok: true })
+app.get('/health', async (_req, res) => {
+  try {
+    await pool.query('SELECT 1')
+    res.json({ ok: true, db: 'up' })
+  } catch (err) {
+    res.status(503).json({ ok: false, db: 'down', error: err.message })
+  }
 })
 
 app.use(meRoutes)
@@ -42,6 +48,15 @@ app.use('/admin', dashboardRoutes)
 
 const port = process.env.PORT || 3333
 
-app.listen(port, () => {
-  console.log(`API rodando em http://localhost:${port}`)
+async function start() {
+  // Garante que o DB tá acessível antes de aceitar requests
+  await pool.query('SELECT 1')
+  app.listen(port, () => {
+    console.log(`API rodando em http://localhost:${port}`)
+  })
+}
+
+start().catch((err) => {
+  console.error('Falha ao iniciar API:', err)
+  process.exit(1)
 })
