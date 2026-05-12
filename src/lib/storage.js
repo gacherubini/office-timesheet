@@ -38,12 +38,20 @@ export async function deleteFile(key) {
 }
 
 export function getPublicUrl(key) {
-  if (!ENDPOINT || !BUCKET || !key) return null
-  return `${ENDPOINT.replace(/\/$/, '')}/${BUCKET}/${key}`
+  if (!BUCKET || !key) return null
+  // Domínio público canônico do Tigris (requer bucket configurado como public)
+  return `https://${BUCKET}.t3.tigrisfiles.io/${key}`
 }
 
 export function extractKeyFromUrl(url) {
-  if (!url || !ENDPOINT || !BUCKET) return null
-  const prefix = `${ENDPOINT.replace(/\/$/, '')}/${BUCKET}/`
-  return url.startsWith(prefix) ? url.slice(prefix.length) : null
+  if (!url || !BUCKET) return null
+  // Formato novo (público)
+  const newPrefix = `https://${BUCKET}.t3.tigrisfiles.io/`
+  if (url.startsWith(newPrefix)) return url.slice(newPrefix.length)
+  // Formato antigo (path-style do endpoint S3) — mantém compat com URLs já gravadas
+  if (ENDPOINT) {
+    const oldPrefix = `${ENDPOINT.replace(/\/$/, '')}/${BUCKET}/`
+    if (url.startsWith(oldPrefix)) return url.slice(oldPrefix.length)
+  }
+  return null
 }
