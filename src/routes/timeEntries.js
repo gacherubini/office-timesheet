@@ -60,7 +60,7 @@ async function enrichChangeRequests(requests) {
   if (rows.length === 0) return []
 
   const userIds = [...new Set(rows.map((request) => request.user_id).filter(Boolean))]
-  const entryIds = [...new Set(rows.map((request) => request.time_entry_id).filter(Boolean))]
+  const entryIds = [...new Set(rows.map((request) => request.time_time_entry_id).filter(Boolean))]
   const requestedProjectIds = [...new Set(rows.map((request) => request.requested_project_id).filter(Boolean))]
 
   try {
@@ -98,7 +98,7 @@ async function enrichChangeRequests(requests) {
     return rows.map((request) => ({
       ...request,
       profile: profileMap.get(request.user_id) || null,
-      time_entry: entryMap.get(request.time_entry_id) || null,
+      time_entry: entryMap.get(request.time_time_entry_id) || null,
       requested_project: requestedProjectMap.get(request.requested_project_id) || null,
     }))
   } catch (err) {
@@ -147,8 +147,8 @@ router.post('/time-entries/pause', requireAuth, async (req, res) => {
     const entryId = openEntries[0].id
 
     const { rows } = await query(
-      `INSERT INTO entry_pauses (entry_id, paused_at)
-       VALUES ($1, now()) RETURNING id, entry_id, paused_at, resumed_at`,
+      `INSERT INTO time_entry_pauses (time_entry_id, paused_at)
+       VALUES ($1, now()) RETURNING id, time_entry_id, paused_at, resumed_at`,
       [entryId]
     )
 
@@ -162,8 +162,8 @@ router.post('/time-entries/pause', requireAuth, async (req, res) => {
 router.post('/time-entries/resume', requireAuth, blockTimerDuringVacation, async (req, res) => {
   try {
     const { rows: openPauses } = await query(
-      `SELECT ep.id, ep.entry_id FROM entry_pauses ep
-       JOIN time_entries te ON te.id = ep.entry_id
+      `SELECT ep.id, ep.time_entry_id FROM time_entry_pauses ep
+       JOIN time_entries te ON te.id = ep.time_entry_id
        WHERE te.user_id = $1 AND te.status = 'running' AND ep.resumed_at IS NULL
        ORDER BY ep.paused_at DESC
        LIMIT 1`,
@@ -177,7 +177,7 @@ router.post('/time-entries/resume', requireAuth, blockTimerDuringVacation, async
     const pauseId = openPauses[0].id
 
     const { rows } = await query(
-      `UPDATE entry_pauses SET resumed_at = now() WHERE id = $1 RETURNING id, entry_id, paused_at, resumed_at`,
+      `UPDATE time_entry_pauses SET resumed_at = now() WHERE id = $1 RETURNING id, time_entry_id, paused_at, resumed_at`,
       [pauseId]
     )
 
@@ -207,8 +207,8 @@ router.post('/time-entries/stop', requireAuth, async (req, res) => {
 
     // Calcula duração líquida descontando pausas
     const { rows: pausesData } = await query(
-      `SELECT paused_at, resumed_at FROM entry_pauses
-       WHERE entry_id = $1
+      `SELECT paused_at, resumed_at FROM time_entry_pauses
+       WHERE time_entry_id = $1
        ORDER BY paused_at`,
       [entry.id]
     )
@@ -257,7 +257,7 @@ router.post('/time-entries/stop', requireAuth, async (req, res) => {
 router.get('/admin/time-entry-change-requests', requireAuth, requireApprover, async (req, res) => {
   try {
     const { rows } = await query(
-      `SELECT id, time_entry_id, user_id, requested_project_id, requested_started_at, requested_ended_at, reason, status, admin_note, decided_at, created_at, updated_at
+      `SELECT id, time_time_entry_id, user_id, requested_project_id, requested_started_at, requested_ended_at, reason, status, admin_note, decided_at, created_at, updated_at
        FROM time_entry_change_requests
        ORDER BY created_at DESC`
     )
@@ -275,7 +275,7 @@ router.post('/admin/time-entry-change-requests/:id/approve', requireAuth, requir
 
   try {
     const { rows: requestRows } = await query(
-      `SELECT id, time_entry_id, requested_project_id, requested_started_at, requested_ended_at, user_id
+      `SELECT id, time_time_entry_id, requested_project_id, requested_started_at, requested_ended_at, user_id
        FROM time_entry_change_requests WHERE id = $1`,
       [id]
     )
@@ -285,12 +285,12 @@ router.post('/admin/time-entry-change-requests/:id/approve', requireAuth, requir
     }
 
     const changeRequest = requestRows[0]
-    const { time_entry_id, requested_project_id, requested_started_at, requested_ended_at, user_id } = changeRequest
+    const { time_time_entry_id, requested_project_id, requested_started_at, requested_ended_at, user_id } = changeRequest
 
     // Valida se a entry pertence ao usuário
     const { rows: entryRows } = await query(
       `SELECT id FROM time_entries WHERE id = $1 AND user_id = $2`,
-      [time_entry_id, user_id]
+      [time_time_entry_id, user_id]
     )
 
     if (!entryRows || entryRows.length === 0) {
@@ -323,7 +323,7 @@ router.post('/admin/time-entry-change-requests/:id/approve', requireAuth, requir
          SET project_id = $1, started_at = $2, ended_at = $3, duration_minutes = $4, cost_snapshot = $5,
              status = 'completed', edited_by = $6, edited_at = now()
          WHERE id = $7`,
-        [requested_project_id, requested_started_at, requested_ended_at, durationMinutes, costSnapshot, req.profile.id, time_entry_id]
+        [requested_project_id, requested_started_at, requested_ended_at, durationMinutes, costSnapshot, req.profile.id, time_time_entry_id]
       )
 
       await client.query(
@@ -335,7 +335,7 @@ router.post('/admin/time-entry-change-requests/:id/approve', requireAuth, requir
     })
 
     const { rows: approvedRequest } = await query(
-      `SELECT id, time_entry_id, user_id, requested_project_id, requested_started_at, requested_ended_at, reason, status, admin_note, decided_at, created_at, updated_at
+      `SELECT id, time_time_entry_id, user_id, requested_project_id, requested_started_at, requested_ended_at, reason, status, admin_note, decided_at, created_at, updated_at
        FROM time_entry_change_requests WHERE id = $1`,
       [id]
     )
@@ -356,7 +356,7 @@ router.post('/admin/time-entry-change-requests/:id/reject', requireAuth, require
       `UPDATE time_entry_change_requests
        SET status = 'rejected', decided_by = $1, decided_at = now(), admin_note = $2
        WHERE id = $3
-       RETURNING id, time_entry_id, user_id, requested_project_id, requested_started_at, requested_ended_at, reason, status, admin_note, decided_at, created_at, updated_at`,
+       RETURNING id, time_time_entry_id, user_id, requested_project_id, requested_started_at, requested_ended_at, reason, status, admin_note, decided_at, created_at, updated_at`,
       [req.profile.id, admin_note || null, id]
     )
 
