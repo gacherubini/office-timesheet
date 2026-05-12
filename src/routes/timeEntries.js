@@ -570,49 +570,110 @@ router.get('/admin/live', requireAuth, requireOperationalAccess, async (req, res
 // ─── LIST (ADMIN) ─────────────────────────────────────────────────────
 router.get('/admin/time-entries', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { rows: countRows } = await query(
-      'SELECT COUNT(*) as total FROM time_entries'
-    )
-    const total = parseInt(countRows[0].total, 10)
-
     const page = Math.max(1, parseInt(req.query.page) || 1)
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20))
     const offset = (page - 1) * limit
 
-    let sql = `SELECT te.id, te.user_id, te.project_id, te.started_at, te.ended_at, te.duration_minutes, te.cost_snapshot, te.status, te.created_by_admin,
-                      u.name as user_name, u.position as user_position, u.avatar_url as user_avatar_url,
-                      p.name as project_name, p.client as project_client
-               FROM time_entries te
-               LEFT JOIN users u ON u.id = te.user_id
-               LEFT JOIN projects p ON p.id = te.project_id`
-
-    const params = []
-
-    // Filtros opcionais
+    // WHERE clause comum (count + list + summary)
+    const conditions = []
+    const baseParams = []
     if (req.query.user_id) {
-      sql += ` WHERE te.user_id = $${params.length + 1}`
-      params.push(req.query.user_id)
+      baseParams.push(req.query.user_id)
+      conditions.push(`te.user_id = $${baseParams.length}`)
     }
-
     if (req.query.project_id) {
-      sql += params.length > 0 ? ` AND ` : ` WHERE `
-      sql += `te.project_id = $${params.length + 1}`
-      params.push(req.query.project_id)
+      baseParams.push(req.query.project_id)
+      conditions.push(`te.project_id = $${baseParams.length}`)
     }
-
     if (req.query.status) {
-      sql += params.length > 0 ? ` AND ` : ` WHERE `
-      sql += `te.status = $${params.length + 1}`
-      params.push(req.query.status)
+      baseParams.push(req.query.status)
+      conditions.push(`te.status = $${baseParams.length}`)
     }
+    if (req.query.start_date) {
+      baseParams.push(req.query.start_date)
+      conditions.push(`te.started_at >= $${baseParams.length}::date`)
+    }
+    if (req.query.end_date) {
+      baseParams.push(req.query.end_date)
+      conditions.push(`te.started_at < ($${baseParams.length}::date + interval '1 day')`)
+    }
+    const whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : ''
 
-    sql += ` ORDER BY te.started_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`
-    params.push(limit, offset)
+    // Count
+    const { rows: countRows } = await query(
+      `SELECT COUNT(*) as total FROM time_entries te${whereClause}`,
+      baseParams
+    )
+    const total = parseInt(countRows[0].total, 10)
 
-    const { rows } = await query(sql, params)
+    // List
+    const listParams = [...baseParams, limit, offset]
+    const { rows } = await query(
+      `SELECT te.id, te.user_id, te.project_id, te.started_at, te.ended_at, te.duration_minutes, te.cost_snapshot, te.status, te.created_by_admin,
+              u.name as user_name, u.position as user_position, u.avatar_url as user_avatar_url,
+              p.name as project_name, p.client as project_client
+       FROM time_entries te
+       LEFT JOIN users u ON u.id = te.user_id
+       LEFT JOIN projects p ON p.id = te.project_id
+       ${whereClause}
+       ORDER BY te.started_at DESC
+       LIMIT $${listParams.length - 1} OFFSET $${listParams.length}`,
+      listParams
+    )
+
+    // Summary agregado
+    const { rows: aggRows } = await query(
+      `SELECT
+         COALESCE(SUM(te.duration_minutes), 0)::int as total_minutes,
+         COALESCE(SUM(te.cost_snapshot), 0)::numeric as total_cost,
+         COUNT(DISTINCT (te.started_at AT TIME ZONE 'UTC')::date)::int as working_days
+       FROM time_entries te
+       ${whereClause}`,
+      baseParams
+    )
+    const totalMinutes = aggRows[0]?.total_minutes || 0
+    const workingDays = aggRows[0]?.working_days || 0
+    const totalCost = Number(aggRows[0]?.total_cost || 0)
+
+    // Daily totals
+    const { rows: dailyRows } = await query(
+      `SELECT te.user_id, (te.started_at AT TIME ZONE 'UTC')::date as date,
+              COALESCE(SUM(te.duration_minutes), 0)::int as minutes
+       FROM time_entries te
+       ${whereClause}
+       GROUP BY te.user_id, (te.started_at AT TIME ZONE 'UTC')::date`,
+      baseParams
+    )
+
+    // Reembolsos e bônus do período (só se start_date e end_date informados)
+    let reimbursements = 0
+    let bonusesTotal = 0
+    if (req.query.start_date && req.query.end_date) {
+      const dateRangeParams = [req.query.start_date, req.query.end_date]
+      let userFilter = ''
+      if (req.query.user_id) {
+        dateRangeParams.push(req.query.user_id)
+        userFilter = ` AND user_id = $3`
+      }
+      const { rows: expRows } = await query(
+        `SELECT COALESCE(SUM(amount), 0)::numeric as total
+         FROM expense_requests
+         WHERE status = 'approved' AND expense_date >= $1::date AND expense_date <= $2::date${userFilter}`,
+        dateRangeParams
+      )
+      reimbursements = Number(expRows[0]?.total || 0)
+
+      const { rows: bonRows } = await query(
+        `SELECT COALESCE(SUM(amount), 0)::numeric as total
+         FROM bonuses
+         WHERE bonus_date >= $1::date AND bonus_date <= $2::date${userFilter}`,
+        dateRangeParams
+      )
+      bonusesTotal = Number(bonRows[0]?.total || 0)
+    }
 
     return res.json({
-      data: rows.map(row => ({
+      data: rows.map((row) => ({
         id: row.id,
         user_id: row.user_id,
         project_id: row.project_id,
@@ -626,6 +687,20 @@ router.get('/admin/time-entries', requireAuth, requireAdmin, async (req, res) =>
         project: { name: row.project_name, client: row.project_client },
       })),
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+      summary: {
+        total_cost: totalCost,
+        total_minutes: totalMinutes,
+        working_days: workingDays,
+        average_minutes_per_day: workingDays > 0 ? Math.round(totalMinutes / workingDays) : 0,
+        reimbursements,
+        bonuses: bonusesTotal,
+        net_total: totalCost + reimbursements + bonusesTotal,
+        daily_totals: dailyRows.map((r) => ({
+          user_id: r.user_id,
+          date: r.date,
+          minutes: r.minutes,
+        })),
+      },
     })
   } catch (err) {
     return res.status(400).json({ error: err.message })
