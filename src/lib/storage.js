@@ -23,6 +23,7 @@ export async function uploadFile(prefix, { buffer, mimetype }) {
     Key: key,
     Body: buffer,
     ContentType: mimetype,
+    ACL: 'public-read',
   }))
   return { key, url: getPublicUrl(key) }
 }
