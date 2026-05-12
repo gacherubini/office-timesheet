@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '../../lib/api'
-import { Plus, Trash2, Pencil, Gift } from 'lucide-react'
+import { CheckCircle2, Plus, Trash2, Pencil, Gift } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { Avatar } from '../../components/Avatar'
 import { PageHeader } from '../../components/ui/PageHeader'
@@ -119,6 +119,14 @@ export function AdminTimeEntriesPage() {
   const [form, setForm] = useState({ user_id: '', project_id: '', started_at: '', ended_at: '' })
   const [error, setError] = useState('')
 
+  const [entryToDelete, setEntryToDelete] = useState(null)
+  const [deletingEntry, setDeletingEntry] = useState(false)
+
+  const [bonusToDelete, setBonusToDelete] = useState(null)
+  const [deletingBonus, setDeletingBonus] = useState(false)
+
+  const [successMessage, setSuccessMessage] = useState('')
+
   const [showBonusForm, setShowBonusForm] = useState(false)
   const [editingBonus, setEditingBonus] = useState(null)
   const [bonusForm, setBonusForm] = useState({
@@ -216,13 +224,19 @@ export function AdminTimeEntriesPage() {
     }
   }
 
-  async function handleDelete(id) {
-    if (!confirm('Excluir este registro?')) return
+  async function confirmDeleteEntry() {
+    if (!entryToDelete) return
+    setDeletingEntry(true)
+    setError('')
     try {
-      await api.delete(`/admin/time-entries/${id}`)
+      await api.delete(`/admin/time-entries/${entryToDelete.id}`)
+      setEntryToDelete(null)
+      setSuccessMessage('Apontamento excluído com sucesso!')
       loadEntries(pagination.page)
     } catch (err) {
-      alert(err.message)
+      setError(err.message)
+    } finally {
+      setDeletingEntry(false)
     }
   }
 
@@ -284,13 +298,18 @@ export function AdminTimeEntriesPage() {
     }
   }
 
-  async function handleBonusDelete(bonus) {
-    if (!confirm(`Excluir o bônus "${bonus.title}"?`)) return
+  async function confirmDeleteBonus() {
+    if (!bonusToDelete) return
+    setDeletingBonus(true)
     try {
-      await api.delete(`/admin/bonuses/${bonus.id}`)
+      await api.delete(`/admin/bonuses/${bonusToDelete.id}`)
+      setBonusToDelete(null)
+      setSuccessMessage('Bônus excluído com sucesso!')
       loadEntries(pagination.page)
     } catch (err) {
-      alert(err.message)
+      setBonusError(err.message)
+    } finally {
+      setDeletingBonus(false)
     }
   }
 
@@ -565,7 +584,7 @@ export function AdminTimeEntriesPage() {
                       <Pencil size={15} />
                     </button>
                     <button
-                      onClick={() => handleBonusDelete(bonus)}
+                      onClick={() => setBonusToDelete(bonus)}
                       className="text-text-secondary hover:text-rose-500 transition-colors"
                       title="Excluir"
                     >
@@ -622,6 +641,8 @@ export function AdminTimeEntriesPage() {
             label="Início"
             type="datetime-local"
             required
+            lang="pt-BR"
+            step="60"
             value={form.started_at}
             onChange={(e) => setForm({ ...form, started_at: e.target.value })}
           />
@@ -629,6 +650,8 @@ export function AdminTimeEntriesPage() {
             label="Saída"
             type="datetime-local"
             required
+            lang="pt-BR"
+            step="60"
             value={form.ended_at}
             onChange={(e) => setForm({ ...form, ended_at: e.target.value })}
           />
@@ -699,6 +722,41 @@ export function AdminTimeEntriesPage() {
             {bonusSubmitting ? 'Salvando...' : editingBonus ? 'Salvar' : 'Criar Bônus'}
           </Button>
         </form>
+      </Modal>
+
+      <Modal
+        open={Boolean(entryToDelete)}
+        onClose={() => (deletingEntry ? null : setEntryToDelete(null))}
+        title="Excluir apontamento"
+        size="sm"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => setEntryToDelete(null)}
+              disabled={deletingEntry}
+            >
+              Cancelar
+            </Button>
+            <Button variant="danger" onClick={confirmDeleteEntry} disabled={deletingEntry}>
+              {deletingEntry ? 'Excluindo...' : 'Excluir para sempre'}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-text-primary">
+          Este apontamento será excluído <strong>para sempre</strong>. Esta ação não pode ser desfeita.
+        </p>
+        {entryToDelete && (
+          <div className="mt-3 rounded-lg border border-border-subtle bg-surface-alt px-3 py-2 text-sm">
+            <p className="font-medium text-text-primary">
+              {entryToDelete.profile?.name || 'Colaborador'}
+            </p>
+            <p className="text-xs text-text-secondary">
+              {formatDate(entryToDelete.started_at)} · {formatTime(entryToDelete.started_at)} → {entryToDelete.ended_at ? formatTime(entryToDelete.ended_at) : '—'}
+            </p>
+          </div>
+        )}
       </Modal>
 
       <Modal
@@ -860,7 +918,7 @@ export function AdminTimeEntriesPage() {
                       <Pencil size={15} />
                     </button>
                     <button
-                      onClick={() => handleDelete(entry.id)}
+                      onClick={() => setEntryToDelete(entry)}
                       className="text-text-secondary hover:text-rose-500 transition-colors"
                       title="Excluir"
                     >
@@ -897,6 +955,53 @@ export function AdminTimeEntriesPage() {
           </Button>
         </div>
       )}
+
+      <Modal
+        open={Boolean(bonusToDelete)}
+        onClose={() => (deletingBonus ? null : setBonusToDelete(null))}
+        title="Excluir bônus"
+        size="sm"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => setBonusToDelete(null)}
+              disabled={deletingBonus}
+            >
+              Cancelar
+            </Button>
+            <Button variant="danger" onClick={confirmDeleteBonus} disabled={deletingBonus}>
+              {deletingBonus ? 'Excluindo...' : 'Excluir para sempre'}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-text-primary">
+          Este bônus será excluído <strong>para sempre</strong>. Esta ação não pode ser desfeita.
+        </p>
+        {bonusToDelete && (
+          <div className="mt-3 rounded-lg border border-border-subtle bg-surface-alt px-3 py-2 text-sm">
+            <p className="font-medium text-text-primary">{bonusToDelete.title}</p>
+            <p className="text-xs text-text-secondary">
+              {bonusToDelete.profile?.name || 'Colaborador'} · {formatDate(bonusToDelete.bonus_date)} · {formatCurrency(bonusToDelete.amount)}
+            </p>
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        open={Boolean(successMessage)}
+        onClose={() => setSuccessMessage('')}
+        size="sm"
+        footer={<Button onClick={() => setSuccessMessage('')}>OK</Button>}
+      >
+        <div className="flex flex-col items-center text-center py-2">
+          <div className="bg-emerald-500/15 rounded-full p-4 mb-4">
+            <CheckCircle2 className="text-emerald-500" size={36} />
+          </div>
+          <p className="text-text-primary font-medium">{successMessage}</p>
+        </div>
+      </Modal>
     </div>
   )
 }

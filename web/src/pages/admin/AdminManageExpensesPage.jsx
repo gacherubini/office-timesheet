@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Trash2 } from 'lucide-react'
+import { CheckCircle2, Trash2 } from 'lucide-react'
 import { api } from '../../lib/api'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
@@ -34,6 +34,7 @@ export function AdminManageExpensesPage() {
   const [filters, setFilters] = useState({ status: 'all', user_id: '' })
   const [expenseToDelete, setExpenseToDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('')
 
   useEffect(() => {
     api.get('/admin/users').then(setUsers).catch(() => {})
@@ -70,6 +71,7 @@ export function AdminManageExpensesPage() {
     try {
       await api.delete(`/admin/expense-requests/${expenseToDelete.id}`)
       setExpenseToDelete(null)
+      setSuccessMessage('Despesa excluída com sucesso!')
       await loadExpenses()
     } catch (err) {
       setError(err.message)
@@ -249,6 +251,20 @@ export function AdminManageExpensesPage() {
             </p>
           </div>
         )}
+      </Modal>
+
+      <Modal
+        open={Boolean(successMessage)}
+        onClose={() => setSuccessMessage('')}
+        size="sm"
+        footer={<Button onClick={() => setSuccessMessage('')}>OK</Button>}
+      >
+        <div className="flex flex-col items-center text-center py-2">
+          <div className="bg-emerald-500/15 rounded-full p-4 mb-4">
+            <CheckCircle2 className="text-emerald-500" size={36} />
+          </div>
+          <p className="text-text-primary font-medium">{successMessage}</p>
+        </div>
       </Modal>
     </div>
   )

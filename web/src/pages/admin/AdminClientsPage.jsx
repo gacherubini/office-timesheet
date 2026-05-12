@@ -99,6 +99,7 @@ export function AdminClientsPage() {
       await api.delete(`/admin/clients/${clientToDelete.id}`)
       setClients((prev) => prev.filter((client) => client.id !== clientToDelete.id))
       setClientToDelete(null)
+      setSuccessMessage('Cliente excluído com sucesso!')
     } catch (err) {
       setDeleteError(err.message)
     } finally {

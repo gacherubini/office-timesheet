@@ -85,6 +85,7 @@ export function AdminProjectsPage() {
       await api.delete(`/projects/${projectToDelete.id}`)
       setProjects((prev) => prev.filter((project) => project.id !== projectToDelete.id))
       setProjectToDelete(null)
+      setSuccessMessage('Projeto excluído com sucesso!')
     } catch (err) {
       setDeleteError(err.message)
     } finally {

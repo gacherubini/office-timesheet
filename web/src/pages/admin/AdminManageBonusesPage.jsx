@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Gift, Trash2 } from 'lucide-react'
+import { CheckCircle2, Gift, Trash2 } from 'lucide-react'
 import { api } from '../../lib/api'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
@@ -40,6 +40,7 @@ export function AdminManageBonusesPage() {
   const [createForm, setCreateForm] = useState(EMPTY_BONUS_FORM)
   const [createError, setCreateError] = useState('')
   const [creating, setCreating] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('')
 
   useEffect(() => {
     api.get('/admin/users').then(setUsers).catch(() => {})
@@ -99,6 +100,7 @@ export function AdminManageBonusesPage() {
       })
       setShowCreateForm(false)
       setCreateForm(EMPTY_BONUS_FORM)
+      setSuccessMessage('Bônus concedido com sucesso!')
       await loadBonuses()
     } catch (err) {
       setCreateError(err.message)
@@ -114,6 +116,7 @@ export function AdminManageBonusesPage() {
     try {
       await api.delete(`/admin/bonuses/${bonusToDelete.id}`)
       setBonusToDelete(null)
+      setSuccessMessage('Bônus excluído com sucesso!')
       await loadBonuses()
     } catch (err) {
       setError(err.message)
@@ -344,6 +347,20 @@ export function AdminManageBonusesPage() {
             </p>
           </div>
         )}
+      </Modal>
+
+      <Modal
+        open={Boolean(successMessage)}
+        onClose={() => setSuccessMessage('')}
+        size="sm"
+        footer={<Button onClick={() => setSuccessMessage('')}>OK</Button>}
+      >
+        <div className="flex flex-col items-center text-center py-2">
+          <div className="bg-emerald-500/15 rounded-full p-4 mb-4">
+            <CheckCircle2 className="text-emerald-500" size={36} />
+          </div>
+          <p className="text-text-primary font-medium">{successMessage}</p>
+        </div>
       </Modal>
     </div>
   )

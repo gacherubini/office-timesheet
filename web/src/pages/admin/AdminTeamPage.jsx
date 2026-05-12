@@ -155,6 +155,7 @@ export function AdminTeamPage() {
       await api.delete(`/admin/users/${userToDelete.id}`)
       setUsers((prev) => prev.filter((u) => u.id !== userToDelete.id))
       setUserToDelete(null)
+      setSuccessMessage('Colaborador excluído com sucesso!')
     } catch (err) {
       setDeleteError(err.message)
     } finally {

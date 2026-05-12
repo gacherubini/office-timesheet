@@ -101,6 +101,7 @@ export function AdminSuppliersPage() {
       await api.delete(`/admin/suppliers/${supplierToDelete.id}`)
       setSuppliers((prev) => prev.filter((supplier) => supplier.id !== supplierToDelete.id))
       setSupplierToDelete(null)
+      setSuccessMessage('Fornecedor excluído com sucesso!')
     } catch (err) {
       setDeleteError(err.message)
     } finally {
