@@ -2,7 +2,7 @@ app = "office-timesheet-db"
 primary_region = "gru"
 
 [build]
-  image = "postgres:16-alpine"
+  dockerfile = "Dockerfile"
 
 [mounts]
   source = "pg_data"
