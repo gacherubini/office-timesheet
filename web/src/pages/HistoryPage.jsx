@@ -176,14 +176,17 @@ export function HistoryPage() {
     }
 
     try {
-      const startedAt = `${form.requested_date}T${form.requested_start_time}`
-      let endedAt = `${form.requested_date}T${form.requested_end_time}`
+      const startedLocal = `${form.requested_date}T${form.requested_start_time}`
+      let endedLocal = `${form.requested_date}T${form.requested_end_time}`
       if (form.requested_end_time < form.requested_start_time) {
         const next = new Date(`${form.requested_date}T00:00`)
         next.setDate(next.getDate() + 1)
         const nextDate = next.toISOString().slice(0, 10)
-        endedAt = `${nextDate}T${form.requested_end_time}`
+        endedLocal = `${nextDate}T${form.requested_end_time}`
       }
+      // Converte horário local do browser pra ISO UTC explícito
+      const startedAt = new Date(startedLocal).toISOString()
+      const endedAt = new Date(endedLocal).toISOString()
       await api.post('/me/time-entry-change-requests', {
         time_entry_id: selectedEntry.id,
         requested_project_id: form.requested_project_id,

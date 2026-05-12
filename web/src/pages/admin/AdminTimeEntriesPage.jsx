@@ -42,6 +42,12 @@ function toLocalDateTimeInputValue(iso) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
+function localInputToIsoUtc(value) {
+  if (!value) return null
+  // "2026-05-12T01:26" → interpretado como horário local do browser → ISO UTC
+  return new Date(value).toISOString()
+}
+
 function isSameLocalDate(isoA, isoB) {
   if (!isoA || !isoB) return true
   const a = new Date(isoA)
@@ -189,14 +195,19 @@ export function AdminTimeEntriesPage() {
     setError('')
 
     try {
+      const payload = {
+        ...form,
+        started_at: localInputToIsoUtc(form.started_at),
+        ended_at: localInputToIsoUtc(form.ended_at),
+      }
       if (editingEntry) {
         await api.put(`/admin/time-entries/${editingEntry.id}`, {
-          started_at: form.started_at,
-          ended_at: form.ended_at,
-          project_id: form.project_id,
+          started_at: payload.started_at,
+          ended_at: payload.ended_at,
+          project_id: payload.project_id,
         })
       } else {
-        await api.post('/admin/time-entries', form)
+        await api.post('/admin/time-entries', payload)
       }
       resetForm()
       loadEntries(pagination.page)
