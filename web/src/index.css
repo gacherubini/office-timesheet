@@ -266,3 +266,35 @@ body {
 .react-datepicker__header--time {
   padding: 12px 0 8px;
 }
+
+/* Month/year select dropdowns */
+.react-datepicker__header__dropdown {
+  padding: 4px 0 8px;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.react-datepicker__month-select,
+.react-datepicker__year-select {
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  padding: 2px 6px;
+  font-size: 0.8rem;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+}
+
+.react-datepicker__month-select:focus,
+.react-datepicker__year-select:focus {
+  border-color: var(--color-accent);
+}
+
+.react-datepicker__month-select option,
+.react-datepicker__year-select option {
+  background-color: var(--color-surface);
+  color: var(--color-text);
+}

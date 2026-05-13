@@ -33,6 +33,9 @@ export function DateField({
   className = '',
   name,
   id,
+  showYearDropdown = false,
+  showMonthDropdown = false,
+  yearDropdownItemNumber = 100,
 }) {
   const handleChange = (date) => {
     if (!onChange) return
@@ -56,6 +59,11 @@ export function DateField({
         disabled={disabled}
         name={name}
         id={id}
+        showYearDropdown={showYearDropdown}
+        showMonthDropdown={showMonthDropdown}
+        scrollableYearDropdown={showYearDropdown}
+        yearDropdownItemNumber={yearDropdownItemNumber}
+        dropdownMode={showYearDropdown || showMonthDropdown ? 'select' : undefined}
         wrapperClassName="block w-full"
         className="w-full form-control border rounded-lg px-3 py-2 text-sm outline-none transition-colors disabled:opacity-60"
       />

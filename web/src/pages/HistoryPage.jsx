@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
+import DatePicker, { registerLocale } from 'react-datepicker'
+import { ptBR } from 'date-fns/locale'
+import 'react-datepicker/dist/react-datepicker.css'
 import { api } from '../lib/api'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Card } from '../components/ui/Card'
 import { Modal } from '../components/ui/Modal'
 import { Input, Select } from '../components/ui/Input'
-import { DateField } from '../components/ui/DateField'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { CheckCircle2 } from 'lucide-react'
+
+registerLocale('pt-BR', ptBR)
 
 function formatDate(iso) {
   if (!iso) return '-'
@@ -31,26 +35,6 @@ function formatDuration(minutes) {
   const h = Math.floor(minutes / 60)
   const m = minutes % 60
   return `${h}h ${m}min`
-}
-
-function toLocalParts(iso) {
-  if (!iso) return { date: '', time: '' }
-  const date = new Date(iso)
-  const offsetMs = date.getTimezoneOffset() * 60000
-  const local = new Date(date.getTime() - offsetMs).toISOString()
-  return { date: local.slice(0, 10), time: local.slice(11, 16) }
-}
-
-function maskTime(value) {
-  const digits = value.replace(/\D/g, '').slice(0, 4)
-  if (digits.length <= 2) return digits
-  return `${digits.slice(0, 2)}:${digits.slice(2)}`
-}
-
-function isValidTime(value) {
-  if (!/^\d{2}:\d{2}$/.test(value)) return false
-  const [h, m] = value.split(':').map(Number)
-  return h >= 0 && h <= 23 && m >= 0 && m <= 59
 }
 
 const STATUS_TONE = {
@@ -87,9 +71,8 @@ export function HistoryPage() {
   const [selectedEntry, setSelectedEntry] = useState(null)
   const [form, setForm] = useState({
     requested_project_id: '',
-    requested_date: '',
-    requested_start_time: '',
-    requested_end_time: '',
+    requested_started_at: null,
+    requested_ended_at: null,
     reason: '',
   })
   const [error, setError] = useState('')
@@ -135,14 +118,11 @@ export function HistoryPage() {
   }, [])
 
   function openRequestModal(entry) {
-    const startParts = toLocalParts(entry.started_at)
-    const endParts = toLocalParts(entry.ended_at)
     setSelectedEntry(entry)
     setForm({
       requested_project_id: entry.project_id || '',
-      requested_date: startParts.date,
-      requested_start_time: startParts.time,
-      requested_end_time: endParts.time,
+      requested_started_at: entry.started_at ? new Date(entry.started_at) : null,
+      requested_ended_at: entry.ended_at ? new Date(entry.ended_at) : null,
       reason: '',
     })
     setFormError('')
@@ -155,9 +135,8 @@ export function HistoryPage() {
     setFormError('')
     setForm({
       requested_project_id: '',
-      requested_date: '',
-      requested_start_time: '',
-      requested_end_time: '',
+      requested_started_at: null,
+      requested_ended_at: null,
       reason: '',
     })
   }
@@ -170,29 +149,24 @@ export function HistoryPage() {
     setFormError('')
     setSuccess('')
 
-    if (!isValidTime(form.requested_start_time) || !isValidTime(form.requested_end_time)) {
-      setFormError('Informe os horários no formato HH:MM (24h).')
+    if (!form.requested_started_at || !form.requested_ended_at) {
+      setFormError('Informe início e saída.')
+      setSubmitting(false)
+      return
+    }
+
+    if (form.requested_ended_at <= form.requested_started_at) {
+      setFormError('A saída deve ser posterior ao início.')
       setSubmitting(false)
       return
     }
 
     try {
-      const startedLocal = `${form.requested_date}T${form.requested_start_time}`
-      let endedLocal = `${form.requested_date}T${form.requested_end_time}`
-      if (form.requested_end_time < form.requested_start_time) {
-        const next = new Date(`${form.requested_date}T00:00`)
-        next.setDate(next.getDate() + 1)
-        const nextDate = next.toISOString().slice(0, 10)
-        endedLocal = `${nextDate}T${form.requested_end_time}`
-      }
-      // Converte horário local do browser pra ISO UTC explícito
-      const startedAt = new Date(startedLocal).toISOString()
-      const endedAt = new Date(endedLocal).toISOString()
       await api.post('/me/time-entry-change-requests', {
         time_entry_id: selectedEntry.id,
         requested_project_id: form.requested_project_id,
-        requested_started_at: startedAt,
-        requested_ended_at: endedAt,
+        requested_started_at: form.requested_started_at.toISOString(),
+        requested_ended_at: form.requested_ended_at.toISOString(),
         reason: form.reason,
       })
       await loadRequests()
@@ -385,38 +359,39 @@ export function HistoryPage() {
             ))}
           </Select>
 
-          <DateField
-            label="Data"
-            value={form.requested_date}
-            onChange={(e) => setForm((prev) => ({ ...prev, requested_date: e.target.value }))}
-            required
-          />
-
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Início (hh:mm)"
-              type="text"
-              inputMode="numeric"
-              placeholder="08:00"
-              maxLength={5}
-              value={form.requested_start_time}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, requested_start_time: maskTime(e.target.value) }))
-              }
-              required
-            />
-            <Input
-              label="Saída (hh:mm)"
-              type="text"
-              inputMode="numeric"
-              placeholder="17:00"
-              maxLength={5}
-              value={form.requested_end_time}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, requested_end_time: maskTime(e.target.value) }))
-              }
-              required
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1.5">Início</label>
+              <DatePicker
+                selected={form.requested_started_at}
+                onChange={(date) => setForm((prev) => ({ ...prev, requested_started_at: date }))}
+                showTimeSelect
+                timeFormat="HH:mm"
+                timeIntervals={1}
+                dateFormat="dd/MM/yyyy HH:mm"
+                locale="pt-BR"
+                placeholderText="DD/MM/AAAA HH:MM"
+                required
+                wrapperClassName="block w-full"
+                className="w-full form-control border rounded-lg px-3 py-2 text-sm outline-none transition-colors disabled:opacity-60"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1.5">Saída</label>
+              <DatePicker
+                selected={form.requested_ended_at}
+                onChange={(date) => setForm((prev) => ({ ...prev, requested_ended_at: date }))}
+                showTimeSelect
+                timeFormat="HH:mm"
+                timeIntervals={1}
+                dateFormat="dd/MM/yyyy HH:mm"
+                locale="pt-BR"
+                placeholderText="DD/MM/AAAA HH:MM"
+                required
+                wrapperClassName="block w-full"
+                className="w-full form-control border rounded-lg px-3 py-2 text-sm outline-none transition-colors disabled:opacity-60"
+              />
+            </div>
           </div>
 
           <Input

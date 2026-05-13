@@ -229,6 +229,9 @@ export function ProfilePage() {
               <DateField
                 value={form.birth_date}
                 onChange={(e) => setForm({ ...form, birth_date: e.target.value })}
+                showYearDropdown
+                showMonthDropdown
+                max={new Date()}
               />
             </div>
 

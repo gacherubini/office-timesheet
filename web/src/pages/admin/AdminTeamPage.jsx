@@ -405,6 +405,9 @@ export function AdminTeamPage() {
               label="Data de Nascimento"
               value={form.birth_date}
               onChange={(e) => setForm({ ...form, birth_date: e.target.value })}
+              showYearDropdown
+              showMonthDropdown
+              max={new Date()}
             />
             <Input
               label="Telefone"
