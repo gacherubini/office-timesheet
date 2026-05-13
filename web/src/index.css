@@ -27,13 +27,13 @@
 
 .dark {
   --color-bg: #1C2626;
-  --color-surface: #253333;
-  --color-surface-alt: #2B3D3D;
+  --color-surface: #2C3D3D;
+  --color-surface-alt: #324848;
   --color-text: #E8E4DF;
-  --color-text-sec: rgba(232, 228, 223, 0.6);
-  --color-border: rgba(255, 255, 255, 0.08);
+  --color-text-sec: rgba(232, 228, 223, 0.62);
+  --color-border: rgba(255, 255, 255, 0.10);
   --color-accent: #D4792C;
-  --color-sidebar: #2B3D3D;
+  --color-sidebar: #1F2C2C;
   --color-field-bg: #314343;
   --color-field-text: #F4EFE8;
   --color-field-placeholder: #BDB4AA;
