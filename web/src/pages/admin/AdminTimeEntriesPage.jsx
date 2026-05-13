@@ -637,7 +637,7 @@ export function AdminTimeEntriesPage() {
               onChange={(date) => setForm({ ...form, started_at: date })}
               showTimeSelect
               timeFormat="HH:mm"
-              timeIntervals={5}
+              timeIntervals={1}
               dateFormat="dd/MM/yyyy HH:mm"
               locale="pt-BR"
               placeholderText="DD/MM/AAAA HH:MM"
@@ -653,7 +653,7 @@ export function AdminTimeEntriesPage() {
               onChange={(date) => setForm({ ...form, ended_at: date })}
               showTimeSelect
               timeFormat="HH:mm"
-              timeIntervals={5}
+              timeIntervals={1}
               dateFormat="dd/MM/yyyy HH:mm"
               locale="pt-BR"
               placeholderText="DD/MM/AAAA HH:MM"

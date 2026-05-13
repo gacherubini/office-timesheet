@@ -220,11 +220,32 @@ body {
 
 .react-datepicker__time-container .react-datepicker__time .react-datepicker__time-box {
   width: 90px;
+  background-color: var(--color-surface);
+}
+
+.react-datepicker__time-container .react-datepicker__time .react-datepicker__time-box ul.react-datepicker__time-list {
+  background-color: var(--color-surface);
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) var(--color-surface);
+}
+
+.react-datepicker__time-container .react-datepicker__time .react-datepicker__time-box ul.react-datepicker__time-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.react-datepicker__time-container .react-datepicker__time .react-datepicker__time-box ul.react-datepicker__time-list::-webkit-scrollbar-track {
+  background: var(--color-surface);
+}
+
+.react-datepicker__time-container .react-datepicker__time .react-datepicker__time-box ul.react-datepicker__time-list::-webkit-scrollbar-thumb {
+  background-color: var(--color-border);
+  border-radius: 4px;
 }
 
 .react-datepicker__time-list-item {
   color: var(--color-text);
   font-size: 0.85rem;
+  background-color: var(--color-surface);
 }
 
 .react-datepicker__time-list-item:hover {
