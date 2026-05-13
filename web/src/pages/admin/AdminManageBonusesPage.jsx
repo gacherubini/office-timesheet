@@ -4,6 +4,7 @@ import { api } from '../../lib/api'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { Input, Select } from '../../components/ui/Input'
+import { DateField } from '../../components/ui/DateField'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
 import { Avatar } from '../../components/Avatar'
@@ -154,16 +155,14 @@ export function AdminManageBonusesPage() {
             ))}
           </Select>
 
-          <Input
+          <DateField
             label="De"
-            type="date"
             value={filters.start_date}
             onChange={(e) => setFilters({ ...filters, start_date: e.target.value })}
           />
           <div className="hidden xl:block pb-2 text-text-secondary">→</div>
-          <Input
+          <DateField
             label="Até"
-            type="date"
             value={filters.end_date}
             onChange={(e) => setFilters({ ...filters, end_date: e.target.value })}
           />
@@ -294,9 +293,8 @@ export function AdminManageBonusesPage() {
               value={createForm.amount}
               onChange={(e) => setCreateForm({ ...createForm, amount: e.target.value })}
             />
-            <Input
+            <DateField
               label="Data do bônus"
-              type="date"
               required
               value={createForm.bonus_date}
               onChange={(e) => setCreateForm({ ...createForm, bonus_date: e.target.value })}

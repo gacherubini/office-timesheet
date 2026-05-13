@@ -4,6 +4,7 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { Card } from '../components/ui/Card'
 import { Modal } from '../components/ui/Modal'
 import { Input, Select } from '../components/ui/Input'
+import { DateField } from '../components/ui/DateField'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { CheckCircle2 } from 'lucide-react'
@@ -384,10 +385,8 @@ export function HistoryPage() {
             ))}
           </Select>
 
-          <Input
+          <DateField
             label="Data"
-            type="date"
-            lang="pt-BR"
             value={form.requested_date}
             onChange={(e) => setForm((prev) => ({ ...prev, requested_date: e.target.value }))}
             required

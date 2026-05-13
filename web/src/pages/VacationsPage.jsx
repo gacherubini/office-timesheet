@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Card } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
+import { DateField } from '../components/ui/DateField'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { Modal } from '../components/ui/Modal'
@@ -165,18 +166,16 @@ export function VacationsPage() {
           <h2 className="font-display text-lg text-text-primary mb-4">Nova solicitação</h2>
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-3">
-              <Input
+              <DateField
                 label="Início"
-                type="date"
                 min={todayValue()}
                 value={form.start_date}
                 onChange={(e) => setForm((prev) => ({ ...prev, start_date: e.target.value }))}
                 required
               />
 
-              <Input
+              <DateField
                 label="Fim"
-                type="date"
                 min={form.start_date || todayValue()}
                 value={form.end_date}
                 onChange={(e) => setForm((prev) => ({ ...prev, end_date: e.target.value }))}

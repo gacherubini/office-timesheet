@@ -3,6 +3,7 @@ import { api } from '../lib/api'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Card } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
+import { DateField } from '../components/ui/DateField'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { Modal } from '../components/ui/Modal'
@@ -165,9 +166,8 @@ export function ExpensesPage() {
                 required
               />
 
-              <Input
+              <DateField
                 label="Data da compra"
-                type="date"
                 value={form.expense_date}
                 onChange={(e) => setForm((prev) => ({ ...prev, expense_date: e.target.value }))}
                 required

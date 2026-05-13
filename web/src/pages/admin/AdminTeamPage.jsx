@@ -7,6 +7,7 @@ import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { Modal } from '../../components/ui/Modal'
 import { Input, Select } from '../../components/ui/Input'
+import { DateField } from '../../components/ui/DateField'
 import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
 import { ROLES, roleLabel } from '../../lib/permissions'
@@ -400,9 +401,8 @@ export function AdminTeamPage() {
           />
 
           <div className="grid grid-cols-2 gap-3">
-            <Input
+            <DateField
               label="Data de Nascimento"
-              type="date"
               value={form.birth_date}
               onChange={(e) => setForm({ ...form, birth_date: e.target.value })}
             />

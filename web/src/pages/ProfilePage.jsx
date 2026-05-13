@@ -3,6 +3,7 @@ import { Camera, KeyRound, Save } from 'lucide-react'
 import { api } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 import { Avatar } from '../components/Avatar'
+import { DateField } from '../components/ui/DateField'
 import { roleLabel } from '../lib/permissions'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? '/api'
@@ -225,11 +226,9 @@ export function ProfilePage() {
 
             <div>
               <label className="block text-sm font-medium text-text-secondary mb-1">Data de nascimento</label>
-              <input
-                type="date"
+              <DateField
                 value={form.birth_date}
                 onChange={(e) => setForm({ ...form, birth_date: e.target.value })}
-                className="w-full form-control rounded-lg border px-3 py-2 text-sm outline-none transition-colors"
               />
             </div>
 

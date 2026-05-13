@@ -10,6 +10,7 @@ import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { Modal } from '../../components/ui/Modal'
 import { Input, Select } from '../../components/ui/Input'
+import { DateField } from '../../components/ui/DateField'
 import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
 
@@ -385,16 +386,14 @@ export function AdminTimeEntriesPage() {
             ))}
           </Select>
 
-          <Input
+          <DateField
             label="De"
-            type="date"
             value={filters.start_date}
             onChange={(e) => setFilters({ ...filters, start_date: e.target.value })}
           />
           <div className="hidden xl:block pb-2 text-text-secondary">→</div>
-          <Input
+          <DateField
             label="Até"
-            type="date"
             value={filters.end_date}
             onChange={(e) => setFilters({ ...filters, end_date: e.target.value })}
           />
@@ -709,9 +708,8 @@ export function AdminTimeEntriesPage() {
               value={bonusForm.amount}
               onChange={(e) => setBonusForm({ ...bonusForm, amount: e.target.value })}
             />
-            <Input
+            <DateField
               label="Data do bônus"
-              type="date"
               required
               value={bonusForm.bonus_date}
               onChange={(e) => setBonusForm({ ...bonusForm, bonus_date: e.target.value })}
