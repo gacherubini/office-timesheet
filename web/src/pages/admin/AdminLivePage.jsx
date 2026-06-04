@@ -12,6 +12,32 @@ const STATUS_META = {
   offline: { label: 'Offline', color: '#A09A90' },
 }
 
+function formatTime(iso) {
+  if (!iso) return '-'
+  return new Date(iso).toLocaleTimeString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function formatBreakDuration(minutes) {
+  const total = Math.max(0, Math.round(minutes || 0))
+  if (total < 60) return `${total} min`
+  const h = Math.floor(total / 60)
+  const m = total % 60
+  return m > 0 ? `${h}h ${m}min` : `${h}h`
+}
+
+function breakLabel({ paused_since, break_minutes, break_count }) {
+  if (paused_since) {
+    return `Em intervalo desde ${formatTime(paused_since)} · ${formatBreakDuration(break_minutes)}`
+  }
+  if (break_count > 0) {
+    return `Intervalo: ${formatBreakDuration(break_minutes)}`
+  }
+  return 'Sem intervalo'
+}
+
 function StatusPill({ status }) {
   const meta = STATUS_META[status] || STATUS_META.offline
   return (
@@ -83,6 +109,13 @@ export function AdminLivePage() {
             <p className="text-sm font-medium text-text-primary truncate">{user.name}</p>
             {user.project && (
               <p className="text-xs text-text-secondary truncate">{user.project}</p>
+            )}
+            {user.status !== 'offline' && (
+              <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-text-secondary">
+                {user.started_at && <span>Entrou às {formatTime(user.started_at)}</span>}
+                <span className="text-border">·</span>
+                <span>{breakLabel(user)}</span>
+              </div>
             )}
           </div>
         </div>

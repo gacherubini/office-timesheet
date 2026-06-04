@@ -541,11 +541,20 @@ router.get('/admin/live', requireAuth, requireOperationalAccess, async (req, res
       `SELECT u.id, u.name, u.position, u.avatar_url,
               te.id as entry_id, te.project_id, te.started_at, te.duration_minutes,
               te.status as entry_status,
-              p.name as project_name
+              p.name as project_name,
+              pauses.break_minutes, pauses.break_count, pauses.paused_since
        FROM users u
        LEFT JOIN time_entries te
          ON te.user_id = u.id AND te.status IN ('running', 'paused')
        LEFT JOIN projects p ON p.id = te.project_id
+       LEFT JOIN LATERAL (
+         SELECT
+           COALESCE(SUM(EXTRACT(EPOCH FROM (COALESCE(ep.resumed_at, now()) - ep.paused_at)) / 60), 0)::int AS break_minutes,
+           COUNT(*)::int AS break_count,
+           MAX(ep.paused_at) FILTER (WHERE ep.resumed_at IS NULL) AS paused_since
+         FROM time_entry_pauses ep
+         WHERE ep.time_entry_id = te.id
+       ) pauses ON te.id IS NOT NULL
        WHERE u.deleted_at IS NULL AND u.is_active = true
        ORDER BY u.name`
     )
@@ -560,6 +569,9 @@ router.get('/admin/live', requireAuth, requireOperationalAccess, async (req, res
         project: row.project_name || null,
         started_at: row.started_at,
         duration_minutes: row.duration_minutes,
+        break_minutes: row.entry_id ? (row.break_minutes || 0) : 0,
+        break_count: row.entry_id ? (row.break_count || 0) : 0,
+        paused_since: row.paused_since || null,
       }))
     )
   } catch (err) {
