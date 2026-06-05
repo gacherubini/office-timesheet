@@ -322,8 +322,8 @@ router.put('/tasks/:id', requireAuth, async (req, res) => {
   }
 })
 
-// Move a tarefa de coluna/posição. Permitido a admin, líder do projeto
-// OU ao responsável da própria tarefa.
+// Move a tarefa de coluna/posição (inclui abandonar/reabrir).
+// Liberado a qualquer usuário logado — só excluir (DELETE) exige admin/líder.
 router.put('/tasks/:id/status', requireAuth, async (req, res) => {
   const { id } = req.params
   const { status, position } = req.body
@@ -338,11 +338,6 @@ router.put('/tasks/:id/status', requireAuth, async (req, res) => {
     )
     if (taskRows.length === 0) return res.status(404).json({ error: 'Tarefa não encontrada.' })
     const task = taskRows[0]
-
-    const isAssignee = task.assignee_id && task.assignee_id === req.profile.id
-    if (!isAssignee && !(await canManageTasks(req.profile, task.project_id))) {
-      return res.status(403).json({ error: 'Sem permissão para mover esta tarefa.' })
-    }
 
     const newPosition = Number.isInteger(position) ? position : 0
     const { rows } = await query(

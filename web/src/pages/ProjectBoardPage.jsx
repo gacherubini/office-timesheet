@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 import { PageHeader } from '../components/ui/PageHeader'
-import { Select } from '../components/ui/Input'
+import { Input, Select } from '../components/ui/Input'
 import { Button } from '../components/ui/Button'
+import { Toast } from '../components/ui/Toast'
 import { KanbanBoard } from './projectBoard/KanbanBoard'
 import { TaskDetailModal } from './projectBoard/TaskDetailModal'
 import { NewTaskModal } from './projectBoard/NewTaskModal'
@@ -18,9 +19,12 @@ export function ProjectBoardPage() {
   const [users, setUsers] = useState([])
   const [leaderProjectIds, setLeaderProjectIds] = useState([])
   const [projectFilter, setProjectFilter] = useState('')
+  const [assigneeFilter, setAssigneeFilter] = useState('') // '', 'me' ou user id
+  const [search, setSearch] = useState('')
   const [drawer, setDrawer] = useState(null) // task object
   const [creating, setCreating] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [feedback, setFeedback] = useState('')
 
   const isAdmin = profile?.role === 'admin'
 
@@ -92,14 +96,26 @@ export function ProjectBoardPage() {
   }
 
   async function handleMove(task, status) {
-    setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, status } : t)))
+    const prev = tasks
+    setTasks((cur) => cur.map((t) => (t.id === task.id ? { ...t, status } : t)))
     try {
       await api.put(`/tasks/${task.id}/status`, { status, position: 0 })
     } catch (err) {
-      console.error(err)
-      loadTasks().catch(() => {})
+      setTasks(prev) // desfaz o movimento otimista
+      setFeedback(err.message || 'Não foi possível mover a tarefa.')
     }
   }
+
+  // Filtros client-side: responsável + busca por título/projeto.
+  const visibleTasks = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return tasks.filter((t) => {
+      if (assigneeFilter === 'me' && t.assignee_id !== profile?.id) return false
+      if (assigneeFilter && assigneeFilter !== 'me' && t.assignee_id !== assigneeFilter) return false
+      if (q && !`${t.title} ${t.project_name}`.toLowerCase().includes(q)) return false
+      return true
+    })
+  }, [tasks, assigneeFilter, search, profile?.id])
 
   const canCreate = projectFilter && canManageProject(projectFilter)
 
@@ -107,16 +123,33 @@ export function ProjectBoardPage() {
     <div>
       <PageHeader title="Gerenciamento de Projetos" subtitle="Quadro de tarefas do escritório" />
 
-      <div className="mb-5 flex items-end gap-3">
+      <div className="mb-5 flex flex-wrap items-end gap-3">
         <Select
           label="Projeto"
           value={projectFilter}
           onChange={(e) => setProjectFilter(e.target.value)}
-          className="w-64"
+          className="w-56"
         >
           <option value="">Todos os projetos</option>
           {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </Select>
+        <Select
+          label="Responsável"
+          value={assigneeFilter}
+          onChange={(e) => setAssigneeFilter(e.target.value)}
+          className="w-52"
+        >
+          <option value="">Todos</option>
+          <option value="me">Minhas tarefas</option>
+          {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+        </Select>
+        <Input
+          label="Buscar"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Título ou projeto..."
+          className="w-60"
+        />
         {canCreate && (
           <Button onClick={() => setCreating(true)}>Nova tarefa</Button>
         )}
@@ -133,7 +166,7 @@ export function ProjectBoardPage() {
       {loading ? (
         <div className="py-16 text-center text-text-secondary text-sm">Carregando...</div>
       ) : (
-        <KanbanBoard tasks={tasks} onOpenTask={(task) => setDrawer(task)} onMove={handleMove} />
+        <KanbanBoard tasks={visibleTasks} onOpenTask={(task) => setDrawer(task)} onMove={handleMove} />
       )}
 
       {drawer && (
@@ -157,6 +190,8 @@ export function ProjectBoardPage() {
           onCreated={() => { setCreating(false); loadTasks() }}
         />
       )}
+
+      <Toast message={feedback} onClose={() => setFeedback('')} />
     </div>
   )
 }

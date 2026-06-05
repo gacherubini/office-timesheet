@@ -39,7 +39,8 @@ export function TaskDetailContent({
   }, [initialTask])
 
   const dirty = title !== task.title || (description || '') !== (task.description || '')
-  const canMoveStatus = canManage || task.assignee_id === currentUserId
+  // Mover de coluna é liberado a qualquer usuário logado (edição segue restrita).
+  const canMoveStatus = true
 
   async function loadTime() {
     try {
@@ -294,11 +295,11 @@ export function TaskDetailContent({
         </section>
       </div>
 
-      {/* Rodape sticky com Save/Delete */}
+      {/* Rodape sticky. Abandonar/reabrir: qualquer usuário. Excluir: admin/líder. */}
       <div className="absolute bottom-0 left-0 right-0 bg-surface-alt border-t border-border-subtle px-6 py-3 flex items-center justify-between gap-3">
-        {canManage ? (
-          task.status === ABANDONED_STATUS ? (
-            <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4">
+          {task.status === ABANDONED_STATUS ? (
+            <>
               <button
                 type="button"
                 onClick={handleReopen}
@@ -307,15 +308,17 @@ export function TaskDetailContent({
               >
                 <RotateCcw size={13} /> Reabrir tarefa
               </button>
-              <button
-                type="button"
-                onClick={() => setConfirmingDelete(true)}
-                disabled={saving}
-                className="inline-flex items-center gap-1.5 text-xs text-rose-500 hover:text-rose-600 disabled:opacity-60"
-              >
-                <Trash2 size={13} /> Excluir definitivamente
-              </button>
-            </div>
+              {canManage && (
+                <button
+                  type="button"
+                  onClick={() => setConfirmingDelete(true)}
+                  disabled={saving}
+                  className="inline-flex items-center gap-1.5 text-xs text-rose-500 hover:text-rose-600 disabled:opacity-60"
+                >
+                  <Trash2 size={13} /> Excluir definitivamente
+                </button>
+              )}
+            </>
           ) : (
             <button
               type="button"
@@ -325,8 +328,8 @@ export function TaskDetailContent({
             >
               <Archive size={13} /> Abandonar tarefa
             </button>
-          )
-        ) : <span />}
+          )}
+        </div>
         {canManage && (
           <Button onClick={handleSave} disabled={saving || !dirty}>
             {saving ? 'Salvando...' : dirty ? 'Salvar' : 'Salvo'}
