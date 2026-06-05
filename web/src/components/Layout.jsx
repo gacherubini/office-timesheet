@@ -23,11 +23,13 @@ import {
   Sparkles,
   CalendarDays,
   CalendarOff,
+  KanbanSquare,
   ChevronDown,
   Pin,
   PinOff,
 } from 'lucide-react'
 import { Avatar } from './Avatar'
+import { NotificationBell } from './NotificationBell'
 import { Logo } from './Logo'
 
 function NavLinkItem({ item, active, nested = false, expanded = true }) {
@@ -180,6 +182,7 @@ export function Layout({ children }) {
       icon: CalendarDays,
       links: [
         { to: '/history', label: 'Histórico', icon: History },
+        { to: '/project-board', label: 'Tarefas', icon: KanbanSquare },
         { to: '/vacations', label: 'Férias', icon: CalendarOff },
         { to: '/vacation-calendar', label: 'Calendário', icon: CalendarDays },
       ],
@@ -208,6 +211,7 @@ export function Layout({ children }) {
       icon: Sparkles,
       links: [
         { to: '/admin/live', label: 'Painel Live', icon: Radio },
+        { to: '/project-board', label: 'Tarefas', icon: KanbanSquare },
         { to: '/vacations', label: 'Férias', icon: CalendarOff },
         { to: '/vacation-calendar', label: 'Calendário', icon: CalendarDays },
       ],
@@ -240,6 +244,7 @@ export function Layout({ children }) {
       icon: Sparkles,
       links: [
         { to: '/admin/live', label: 'Painel Live', icon: Radio },
+        { to: '/project-board', label: 'Tarefas', icon: KanbanSquare },
         { to: '/vacations', label: 'Férias', icon: CalendarOff },
         { to: '/vacation-calendar', label: 'Calendário', icon: CalendarDays },
       ],
@@ -364,6 +369,7 @@ export function Layout({ children }) {
               isSidebarExpanded ? 'gap-3' : 'justify-center gap-2'
             }`}
           >
+            <NotificationBell expanded={isSidebarExpanded} />
             <button
               onClick={toggleTheme}
               className="flex items-center gap-2 text-white/60 hover:text-white text-[13px] transition-colors"

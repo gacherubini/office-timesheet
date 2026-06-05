@@ -6,6 +6,9 @@ import { pool } from './lib/db.js'
 
 import meRoutes from './routes/me.js'
 import projectsRoutes from './routes/projects.js'
+import projectManagementRoutes from './routes/projectManagement.js'
+import taskCollaborationRoutes from './routes/taskCollaboration.js'
+import notificationsRoutes from './routes/notifications.js'
 import timeEntriesRoutes from './routes/timeEntries.js'
 import authRoutes from './routes/auth.js'
 import usersRoutes from './routes/users.js'
@@ -37,6 +40,9 @@ app.use(meRoutes)
 app.use('/admin', usersRoutes)
 app.use(authRoutes)
 app.use(projectsRoutes)
+app.use(projectManagementRoutes)
+app.use(taskCollaborationRoutes)
+app.use(notificationsRoutes)
 app.use(timeEntriesRoutes)
 app.use(expensesRoutes)
 app.use(vacationsRoutes)
