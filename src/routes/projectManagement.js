@@ -95,10 +95,14 @@ router.delete('/projects/:id/leaders/:userId', requireAuth, requireAdmin, async 
 // Cria tarefa num projeto (admin ou líder do projeto)
 router.post('/projects/:id/tasks', requireAuth, async (req, res) => {
   const projectId = req.params.id
-  const { title, description, assignee_id, due_date } = req.body
+  const { title, description, assignee_id, due_date, priority } = req.body
+  const VALID_PRIORITY = ['low', 'medium', 'high']
 
   if (!title || !title.trim()) {
     return res.status(400).json({ error: 'title é obrigatório.' })
+  }
+  if (priority !== undefined && !VALID_PRIORITY.includes(priority)) {
+    return res.status(400).json({ error: 'priority inválida. Use low, medium ou high.' })
   }
 
   try {
@@ -115,15 +119,16 @@ router.post('/projects/:id/tasks', requireAuth, async (req, res) => {
     const position = posRows[0].next
 
     const { rows } = await query(
-      `INSERT INTO tasks (project_id, title, description, assignee_id, due_date, position, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING id, project_id, title, description, status, assignee_id, due_date, position, created_by, completed_at, created_at, updated_at`,
+      `INSERT INTO tasks (project_id, title, description, assignee_id, due_date, priority, position, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6::task_priority, $7, $8)
+       RETURNING id, project_id, title, description, status, assignee_id, due_date, priority, position, created_by, completed_at, created_at, updated_at`,
       [
         projectId,
         title.trim(),
         description?.trim() || null,
         assignee_id || null,
         due_date || null,
+        priority || 'medium',
         position,
         req.profile.id,
       ]
