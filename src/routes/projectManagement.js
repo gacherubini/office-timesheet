@@ -195,6 +195,50 @@ router.get('/tasks', requireAuth, async (req, res) => {
   }
 })
 
+// Detalhe de uma tarefa (qualquer usuário logado).
+// Usado pela TaskDetailPage carregando direto pela URL /tasks/:id.
+router.get('/tasks/:id', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await query(
+      `SELECT t.id, t.project_id, t.title, t.description, t.status, t.assignee_id,
+              t.due_date, t.position, t.priority, t.created_by, t.completed_at, t.created_at, t.updated_at,
+              p.name AS project_name,
+              a.name AS assignee_name, a.avatar_url AS assignee_avatar_url,
+              COALESCE(tl.total_minutes, 0) AS total_minutes,
+              COALESCE(lb.labels, '[]'::json) AS labels,
+              COALESCE(cc.comment_count, 0) AS comment_count,
+              COALESCE(ac.attachment_count, 0) AS attachment_count
+       FROM tasks t
+       JOIN projects p ON p.id = t.project_id
+       LEFT JOIN users a ON a.id = t.assignee_id
+       LEFT JOIN LATERAL (
+         SELECT COALESCE(SUM(
+           COALESCE(ttl.duration_minutes,
+             EXTRACT(EPOCH FROM (now() - ttl.started_at)) / 60)
+         ), 0)::int AS total_minutes
+         FROM task_time_logs ttl
+         WHERE ttl.task_id = t.id
+       ) tl ON true
+       LEFT JOIN LATERAL (
+         SELECT json_agg(json_build_object('id', l.id, 'text', l.text, 'color', l.color) ORDER BY l.created_at) AS labels
+         FROM task_labels l WHERE l.task_id = t.id
+       ) lb ON true
+       LEFT JOIN LATERAL (
+         SELECT COUNT(*)::int AS comment_count FROM task_comments c WHERE c.task_id = t.id
+       ) cc ON true
+       LEFT JOIN LATERAL (
+         SELECT COUNT(*)::int AS attachment_count FROM task_attachments at WHERE at.task_id = t.id
+       ) ac ON true
+       WHERE t.id = $1`,
+      [req.params.id]
+    )
+    if (rows.length === 0) return res.status(404).json({ error: 'Tarefa não encontrada.' })
+    return res.json(rows[0])
+  } catch (err) {
+    return res.status(400).json({ error: err.message })
+  }
+})
+
 // Edição completa de tarefa (admin ou líder do projeto)
 router.put('/tasks/:id', requireAuth, async (req, res) => {
   const { id } = req.params

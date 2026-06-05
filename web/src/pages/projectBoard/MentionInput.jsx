@@ -1,13 +1,17 @@
 import { useState, useRef } from 'react'
 import { Button } from '../../components/ui/Button'
+import { PendingChip } from './AttachmentChip'
 
-// Caixa de texto com autocomplete de menção (@). Ao submeter, devolve
-// (texto, [user_ids mencionados ainda presentes no texto]).
+// Caixa de texto com autocomplete de menção (@) + anexos arrastando arquivos.
+// Ao submeter, devolve (texto, [user_ids mencionados], [File pendentes]).
 export function MentionInput({ users, onSubmit, submitting }) {
   const [text, setText] = useState('')
   const [mentioned, setMentioned] = useState([]) // [{ id, name }]
-  const [matchQuery, setMatchQuery] = useState(null) // string após o último @ ou null
+  const [matchQuery, setMatchQuery] = useState(null)
+  const [files, setFiles] = useState([])
+  const [dragOver, setDragOver] = useState(false)
   const taRef = useRef(null)
+  const dragDepth = useRef(0)
 
   function detectQuery(value, cursor) {
     const before = value.slice(0, cursor)
@@ -31,13 +35,39 @@ export function MentionInput({ users, onSubmit, submitting }) {
     setTimeout(() => ta?.focus(), 0)
   }
 
+  function removeFile(idx) {
+    setFiles((prev) => prev.filter((_, i) => i !== idx))
+  }
+
+  function handleDragEnter(e) {
+    if (!e.dataTransfer?.types?.includes('Files')) return
+    e.preventDefault()
+    dragDepth.current += 1
+    setDragOver(true)
+  }
+
+  function handleDragLeave(e) {
+    e.preventDefault()
+    dragDepth.current = Math.max(0, dragDepth.current - 1)
+    if (dragDepth.current === 0) setDragOver(false)
+  }
+
+  function handleDrop(e) {
+    e.preventDefault()
+    dragDepth.current = 0
+    setDragOver(false)
+    const dropped = Array.from(e.dataTransfer?.files || [])
+    if (dropped.length) setFiles((prev) => [...prev, ...dropped])
+  }
+
   function handleSubmit() {
-    if (!text.trim()) return
+    if (!text.trim() && files.length === 0) return
     const ids = mentioned.filter((u) => text.includes(`@${u.name}`)).map((u) => u.id)
-    onSubmit(text.trim(), ids)
+    onSubmit(text.trim(), ids, files)
     setText('')
     setMentioned([])
     setMatchQuery(null)
+    setFiles([])
   }
 
   const suggestions =
@@ -49,14 +79,28 @@ export function MentionInput({ users, onSubmit, submitting }) {
 
   return (
     <div className="relative">
-      <textarea
-        ref={taRef}
-        value={text}
-        onChange={handleChange}
-        rows={2}
-        placeholder="Escreva um comentário... use @ para mencionar"
-        className="w-full form-control border rounded-lg px-3 py-2 text-sm outline-none transition-colors resize-none"
-      />
+      <div
+        className="relative"
+        onDragEnter={handleDragEnter}
+        onDragOver={(e) => { if (e.dataTransfer?.types?.includes('Files')) e.preventDefault() }}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        <textarea
+          ref={taRef}
+          value={text}
+          onChange={handleChange}
+          rows={2}
+          placeholder="Escreva um comentário... use @ para mencionar (arraste arquivos pra anexar)"
+          className="w-full form-control border rounded-lg px-3 py-2 text-sm outline-none transition-colors resize-none"
+        />
+        {dragOver && (
+          <div className="absolute inset-0 rounded-lg border-2 border-dashed border-accent bg-accent/10 flex items-center justify-center pointer-events-none">
+            <span className="text-xs font-medium text-accent">Solte para anexar ao comentário</span>
+          </div>
+        )}
+      </div>
+
       {suggestions.length > 0 && (
         <div className="absolute z-10 left-0 right-0 -top-2 -translate-y-full bg-surface border border-border-subtle rounded-lg shadow-lg overflow-hidden">
           {suggestions.map((u) => (
@@ -70,8 +114,17 @@ export function MentionInput({ users, onSubmit, submitting }) {
           ))}
         </div>
       )}
+
+      {files.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {files.map((f, i) => (
+            <PendingChip key={i} file={f} onRemove={() => removeFile(i)} />
+          ))}
+        </div>
+      )}
+
       <div className="flex justify-end mt-2">
-        <Button size="sm" onClick={handleSubmit} disabled={submitting || !text.trim()}>
+        <Button size="sm" onClick={handleSubmit} disabled={submitting || (!text.trim() && files.length === 0)}>
           {submitting ? 'Enviando...' : 'Comentar'}
         </Button>
       </div>

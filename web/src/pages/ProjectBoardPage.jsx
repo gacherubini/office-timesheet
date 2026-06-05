@@ -6,7 +6,8 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { Select } from '../components/ui/Input'
 import { Button } from '../components/ui/Button'
 import { KanbanBoard } from './projectBoard/KanbanBoard'
-import { TaskModal } from './projectBoard/TaskModal'
+import { TaskDrawer } from './projectBoard/TaskDrawer'
+import { NewTaskModal } from './projectBoard/NewTaskModal'
 import { LeaderManager } from './projectBoard/LeaderManager'
 
 export function ProjectBoardPage() {
@@ -17,7 +18,8 @@ export function ProjectBoardPage() {
   const [users, setUsers] = useState([])
   const [leaderProjectIds, setLeaderProjectIds] = useState([])
   const [projectFilter, setProjectFilter] = useState('')
-  const [modal, setModal] = useState(null) // { task } | { task: null }
+  const [drawer, setDrawer] = useState(null) // task object
+  const [creating, setCreating] = useState(false)
   const [loading, setLoading] = useState(true)
 
   const isAdmin = profile?.role === 'admin'
@@ -44,7 +46,7 @@ export function ProjectBoardPage() {
         const [proj, tk, usr] = await Promise.all([
           api.get('/projects'),
           api.get('/tasks'),
-          api.get('/admin/users').catch(() => []),
+          api.get('/users/basic').catch(() => []),
         ])
         setProjects(proj)
         setTasks(tk)
@@ -65,24 +67,21 @@ export function ProjectBoardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectFilter])
 
-  // Deep-link de notificação: /project-board?task=<id> abre a tarefa.
+  // Deep-link legado: /project-board?task=<id> abre o drawer.
   useEffect(() => {
     const taskId = searchParams.get('task')
-    if (loading || !taskId || modal) return
+    if (loading || !taskId || drawer) return
     const found = tasks.find((t) => t.id === taskId)
     if (found) {
-      setModal({ task: found })
+      setDrawer(found)
     } else {
-      api.get(`/tasks`).then((all) => {
-        const t = all.find((x) => x.id === taskId)
-        if (t) { setTasks((prev) => (prev.some((p) => p.id === t.id) ? prev : [...prev, t])); setModal({ task: t }) }
-      }).catch(() => {})
+      api.get(`/tasks/${taskId}`).then((t) => setDrawer(t)).catch(() => {})
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, tasks, searchParams])
 
-  function closeModal() {
-    setModal(null)
+  function closeDrawer() {
+    setDrawer(null)
     if (searchParams.get('task')) {
       searchParams.delete('task')
       setSearchParams(searchParams, { replace: true })
@@ -120,7 +119,7 @@ export function ProjectBoardPage() {
           {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </Select>
         {canCreate && (
-          <Button onClick={() => setModal({ task: null })}>Nova tarefa</Button>
+          <Button onClick={() => setCreating(true)}>Nova tarefa</Button>
         )}
       </div>
 
@@ -135,21 +134,28 @@ export function ProjectBoardPage() {
       {loading ? (
         <div className="py-16 text-center text-text-secondary text-sm">Carregando...</div>
       ) : (
-        <KanbanBoard tasks={tasks} onOpenTask={(task) => setModal({ task })} onMove={handleMove} />
+        <KanbanBoard tasks={tasks} onOpenTask={(task) => setDrawer(task)} onMove={handleMove} />
       )}
 
-      {modal && (
-        <TaskModal
-          task={modal.task}
-          projectId={modal.task?.project_id || projectFilter}
+      {drawer && (
+        <TaskDrawer
+          task={drawer}
           users={users}
-          canManage={canManageProject(modal.task?.project_id || projectFilter)}
+          canManage={canManageProject(drawer.project_id)}
           currentUserId={profile?.id}
           isAdmin={isAdmin}
-          onClose={closeModal}
-          onSaved={() => { closeModal(); loadTasks() }}
-          onDeleted={() => { closeModal(); loadTasks() }}
-          onChanged={() => loadTasks()}
+          onClose={closeDrawer}
+          onChanged={loadTasks}
+          onDeleted={() => { closeDrawer(); loadTasks() }}
+        />
+      )}
+
+      {creating && projectFilter && (
+        <NewTaskModal
+          projectId={projectFilter}
+          users={users}
+          onClose={() => setCreating(false)}
+          onCreated={() => { setCreating(false); loadTasks() }}
         />
       )}
     </div>

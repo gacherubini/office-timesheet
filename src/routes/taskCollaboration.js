@@ -26,7 +26,21 @@ router.get('/tasks/:id/comments', requireAuth, async (req, res) => {
               COALESCE(
                 (SELECT array_agg(m.user_id) FROM task_comment_mentions m WHERE m.comment_id = c.id),
                 '{}'
-              ) AS mentioned_user_ids
+              ) AS mentioned_user_ids,
+              COALESCE(
+                (SELECT json_agg(json_build_object(
+                   'id', a.id,
+                   'file_url', a.file_url,
+                   'file_name', a.file_name,
+                   'file_size', a.file_size,
+                   'mime_type', a.mime_type,
+                   'uploaded_by', a.uploaded_by,
+                   'created_at', a.created_at
+                 ) ORDER BY a.created_at)
+                 FROM task_attachments a
+                 WHERE a.comment_id = c.id),
+                '[]'::json
+              ) AS attachments
        FROM task_comments c
        JOIN users u ON u.id = c.author_id
        WHERE c.task_id = $1
@@ -122,16 +136,27 @@ router.delete('/tasks/:id/comments/:commentId', requireAuth, async (req, res) =>
 })
 
 // ─── ANEXOS ────────────────────────────────────────────────────────────
+// Lista anexos da tarefa. Filtros opcionais:
+//   ?comment_id=null  → só anexos sem comentário (anexos "soltos" / descrição)
+//   ?comment_id=<id>  → só anexos daquele comentário
 router.get('/tasks/:id/attachments', requireAuth, async (req, res) => {
   try {
+    const conditions = ['a.task_id = $1']
+    const params = [req.params.id]
+    if (req.query.comment_id === 'null') {
+      conditions.push('a.comment_id IS NULL')
+    } else if (req.query.comment_id) {
+      params.push(req.query.comment_id)
+      conditions.push(`a.comment_id = $${params.length}`)
+    }
     const { rows } = await query(
       `SELECT a.id, a.file_url, a.file_name, a.file_size, a.mime_type, a.created_at,
-              a.uploaded_by, u.name AS uploaded_by_name
+              a.uploaded_by, a.comment_id, u.name AS uploaded_by_name
        FROM task_attachments a
        LEFT JOIN users u ON u.id = a.uploaded_by
-       WHERE a.task_id = $1
+       WHERE ${conditions.join(' AND ')}
        ORDER BY a.created_at DESC`,
-      [req.params.id]
+      params
     )
     return res.json(rows)
   } catch (err) {
@@ -139,7 +164,8 @@ router.get('/tasks/:id/attachments', requireAuth, async (req, res) => {
   }
 })
 
-// Qualquer colaborador pode anexar
+// Qualquer colaborador pode anexar. Aceita comment_id no body (form-data)
+// para amarrar o anexo a um comentário existente.
 router.post('/tasks/:id/attachments', requireAuth, upload.single('file'), async (req, res) => {
   const taskId = req.params.id
   if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' })
@@ -147,16 +173,25 @@ router.post('/tasks/:id/attachments', requireAuth, upload.single('file'), async 
     const { rows: taskRows } = await query('SELECT id FROM tasks WHERE id = $1', [taskId])
     if (taskRows.length === 0) return res.status(404).json({ error: 'Tarefa não encontrada.' })
 
+    const commentId = req.body.comment_id || null
+    if (commentId) {
+      const { rows: cRows } = await query(
+        'SELECT id FROM task_comments WHERE id = $1 AND task_id = $2',
+        [commentId, taskId]
+      )
+      if (cRows.length === 0) return res.status(400).json({ error: 'Comentário inválido.' })
+    }
+
     const { url } = await uploadFile('tasks', {
       buffer: req.file.buffer,
       mimetype: req.file.mimetype,
     })
 
     const { rows } = await query(
-      `INSERT INTO task_attachments (task_id, uploaded_by, file_url, file_name, file_size, mime_type)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, file_url, file_name, file_size, mime_type, created_at, uploaded_by`,
-      [taskId, req.profile.id, url, req.file.originalname, req.file.size, req.file.mimetype]
+      `INSERT INTO task_attachments (task_id, uploaded_by, file_url, file_name, file_size, mime_type, comment_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, file_url, file_name, file_size, mime_type, created_at, uploaded_by, comment_id`,
+      [taskId, req.profile.id, url, req.file.originalname, req.file.size, req.file.mimetype, commentId]
     )
 
     await logActivity(taskId, req.profile.id, 'attachment_added', { file_name: req.file.originalname })

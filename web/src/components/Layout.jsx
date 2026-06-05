@@ -369,7 +369,6 @@ export function Layout({ children }) {
               isSidebarExpanded ? 'gap-3' : 'justify-center gap-2'
             }`}
           >
-            <NotificationBell expanded={isSidebarExpanded} />
             <button
               onClick={toggleTheme}
               className="flex items-center gap-2 text-white/60 hover:text-white text-[13px] transition-colors"
@@ -395,7 +394,8 @@ export function Layout({ children }) {
         </div>
       </aside>
 
-      <main className="flex-1 bg-bg text-text-primary p-4 md:p-8 overflow-x-hidden transition-colors">
+      <main className="flex-1 bg-bg text-text-primary p-4 md:p-8 overflow-x-hidden transition-colors relative">
+        <NotificationBell />
         {children}
       </main>
     </div>

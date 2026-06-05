@@ -1,11 +1,10 @@
 import { MessageSquare, Paperclip } from 'lucide-react'
 import { Avatar } from '../../components/Avatar'
-import { urgency, urgencyClasses, formatMinutes, priorityMeta, labelClasses } from './helpers'
+import { urgency, urgencyClasses, formatMinutes, priorityMeta } from './helpers'
 
 export function TaskCard({ task, onClick, onDragStart }) {
   const u = urgency(task.due_date, task.status)
   const prio = priorityMeta(task.priority)
-  const labels = task.labels || []
   return (
     <div
       draggable
@@ -13,13 +12,6 @@ export function TaskCard({ task, onClick, onDragStart }) {
       onClick={() => onClick(task)}
       className="bg-surface border border-border-subtle rounded-lg p-3 mb-2 cursor-pointer hover:border-border transition-colors"
     >
-      {labels.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-1.5">
-          {labels.map((l) => (
-            <span key={l.id} className={`text-[10px] px-1.5 py-0.5 rounded-full ${labelClasses(l.color)}`}>{l.text}</span>
-          ))}
-        </div>
-      )}
       <div className="flex items-start gap-1.5 mb-1">
         <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${prio.dot}`} title={`Prioridade ${prio.label}`} />
         <p className="text-sm font-medium text-text-primary">{task.title}</p>

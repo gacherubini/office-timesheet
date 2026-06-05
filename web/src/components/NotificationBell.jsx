@@ -6,12 +6,12 @@ import { openNotificationStream } from '../lib/notificationsClient'
 import { Avatar } from './Avatar'
 import { notificationText, relativeTime } from '../pages/projectBoard/helpers'
 
-export function NotificationBell({ expanded }) {
+export function NotificationBell() {
   const navigate = useNavigate()
   const [items, setItems] = useState([])
   const [unread, setUnread] = useState(0)
   const [open, setOpen] = useState(false)
-  const panelRef = useRef(null)
+  const wrapRef = useRef(null)
 
   async function loadInitial() {
     try {
@@ -35,11 +35,10 @@ export function NotificationBell({ expanded }) {
     return () => es?.close()
   }, [])
 
-  // Fecha ao clicar fora
   useEffect(() => {
     if (!open) return
     function onClick(e) {
-      if (panelRef.current && !panelRef.current.contains(e.target)) setOpen(false)
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false)
     }
     document.addEventListener('mousedown', onClick)
     return () => document.removeEventListener('mousedown', onClick)
@@ -52,7 +51,7 @@ export function NotificationBell({ expanded }) {
       setUnread((u) => Math.max(0, u - 1))
       api.put(`/notifications/${n.id}/read`).catch(() => {})
     }
-    if (n.task_id) navigate(`/project-board?task=${n.task_id}`)
+    if (n.task_id) navigate(`/tasks/${n.task_id}`)
   }
 
   async function markAllRead() {
@@ -61,53 +60,98 @@ export function NotificationBell({ expanded }) {
     api.post('/notifications/read-all').catch(() => {})
   }
 
+  const hasUnread = unread > 0
+
   return (
-    <div className="relative" ref={panelRef}>
+    <div ref={wrapRef} className="fixed top-5 right-6 z-30 hidden md:block">
       <button
+        type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 text-white/60 hover:text-white text-[13px] transition-colors relative"
         title="Notificações"
         aria-label="Notificações"
+        className="relative h-11 w-11 inline-flex items-center justify-center rounded-full bg-surface border border-border-subtle text-text-secondary hover:text-text-primary transition-all duration-200 hover:-translate-y-0.5 group"
+        style={{
+          boxShadow: '0 6px 20px -8px rgba(60, 50, 30, 0.18), 0 1px 2px rgba(60, 50, 30, 0.06)',
+        }}
       >
-        <span className="relative">
-          <Bell size={16} />
-          {unread > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 min-w-[15px] h-[15px] px-1 rounded-full bg-rose-500 text-white text-[9px] font-semibold flex items-center justify-center">
-              {unread > 9 ? '9+' : unread}
-            </span>
-          )}
-        </span>
-        <span className={expanded ? 'inline' : 'hidden'}>Notificações</span>
+        {hasUnread && (
+          <span
+            className="absolute inset-0 rounded-full animate-ping opacity-40"
+            style={{ boxShadow: '0 0 0 2px var(--color-accent)' }}
+            aria-hidden="true"
+          />
+        )}
+        <Bell size={18} className="relative transition-transform group-hover:rotate-[8deg]" strokeWidth={1.75} />
+        {hasUnread && (
+          <span
+            className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-bg tabular-nums"
+            style={{ background: 'var(--color-accent)' }}
+          >
+            {unread > 9 ? '9+' : unread}
+          </span>
+        )}
       </button>
 
       {open && (
-        <div className="fixed left-4 bottom-20 z-50 w-80 max-h-[60vh] bg-surface border border-border-subtle rounded-xl shadow-2xl overflow-hidden flex flex-col">
+        <div
+          className="absolute right-0 top-full mt-3 w-[360px] max-h-[70vh] bg-surface border border-border-subtle rounded-2xl overflow-hidden flex flex-col origin-top-right"
+          style={{
+            boxShadow: '0 24px 48px -12px rgba(20, 14, 4, 0.28), 0 8px 16px -8px rgba(20, 14, 4, 0.12)',
+            animation: 'bell-pop 180ms cubic-bezier(0.16, 1, 0.3, 1)',
+          }}
+        >
           <div className="flex items-center justify-between px-4 py-3 border-b border-border-subtle">
-            <span className="text-sm font-medium text-text-primary">Notificações</span>
-            {unread > 0 && (
-              <button onClick={markAllRead} className="text-[11px] text-text-secondary hover:text-text-primary inline-flex items-center gap-1">
+            <div className="flex items-center gap-2">
+              <span
+                className="h-1.5 w-1.5 rounded-full"
+                style={{ background: hasUnread ? 'var(--color-accent)' : 'var(--color-text-sec)' }}
+              />
+              <span className="text-sm font-semibold text-text-primary tracking-tight">Notificações</span>
+              {hasUnread && (
+                <span className="text-[11px] text-text-secondary">· {unread} nova{unread > 1 ? 's' : ''}</span>
+              )}
+            </div>
+            {hasUnread && (
+              <button
+                onClick={markAllRead}
+                className="text-[11px] text-text-secondary hover:text-text-primary inline-flex items-center gap-1 transition-colors"
+              >
                 <Check size={12} /> Marcar lidas
               </button>
             )}
           </div>
           <div className="overflow-y-auto">
             {items.length === 0 ? (
-              <p className="text-xs text-text-secondary text-center py-8">Nenhuma notificação.</p>
+              <div className="px-6 py-10 text-center">
+                <div
+                  className="mx-auto h-10 w-10 rounded-full flex items-center justify-center mb-3"
+                  style={{ background: 'var(--color-surface-alt)' }}
+                >
+                  <Bell size={16} className="text-text-secondary" strokeWidth={1.5} />
+                </div>
+                <p className="text-xs text-text-secondary">Tudo em dia.</p>
+                <p className="text-[11px] text-text-secondary opacity-70 mt-0.5">Nenhuma notificação aqui.</p>
+              </div>
             ) : (
               items.map((n) => (
                 <button
                   key={n.id}
                   onClick={() => handleClickItem(n)}
-                  className={`w-full text-left flex items-start gap-2.5 px-4 py-3 border-b border-border-subtle hover:bg-surface-alt transition-colors ${
-                    n.read_at ? '' : 'bg-accent/5'
+                  className={`w-full text-left flex items-start gap-3 px-4 py-3 border-b border-border-subtle last:border-0 hover:bg-surface-alt transition-colors relative ${
+                    n.read_at ? '' : 'bg-surface-alt/50'
                   }`}
                 >
-                  <Avatar name={n.actor_name} url={n.actor_avatar_url} size={28} />
+                  {!n.read_at && (
+                    <span
+                      className="absolute left-1.5 top-1/2 -translate-y-1/2 h-1.5 w-1.5 rounded-full"
+                      style={{ background: 'var(--color-accent)' }}
+                    />
+                  )}
+                  <Avatar name={n.actor_name} url={n.actor_avatar_url} size={32} />
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs text-text-primary leading-snug">{notificationText(n)}</p>
-                    <p className="text-[10px] text-text-secondary mt-0.5">{relativeTime(n.created_at)}</p>
+                    <p className="text-[13px] text-text-primary leading-snug">{notificationText(n)}</p>
+                    <p className="text-[11px] text-text-secondary mt-1">{relativeTime(n.created_at)}</p>
                   </div>
-                  {!n.read_at && <span className="w-2 h-2 rounded-full bg-accent mt-1 flex-shrink-0" />}
                 </button>
               ))
             )}

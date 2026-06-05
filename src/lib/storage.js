@@ -1,14 +1,26 @@
 import { randomUUID } from 'node:crypto'
+import { mkdir, writeFile, unlink } from 'node:fs/promises'
+import path from 'node:path'
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 
 const BUCKET = process.env.BUCKET_NAME
 const ENDPOINT = process.env.AWS_ENDPOINT_URL_S3
 
-const s3 = new S3Client({
-  region: process.env.AWS_REGION || 'auto',
-  endpoint: ENDPOINT,
-  forcePathStyle: true,
-})
+// Fallback local: quando BUCKET não está configurado (dev sem S3),
+// grava em src/uploads e devolve URL /api/uploads/... (Vite proxy → API).
+const LOCAL_DIR = path.resolve(process.cwd(), 'uploads')
+const LOCAL_URL_PREFIX = '/api/uploads/'
+const USE_LOCAL = !BUCKET
+
+export const localUploadsDir = LOCAL_DIR
+
+const s3 = USE_LOCAL
+  ? null
+  : new S3Client({
+      region: process.env.AWS_REGION || 'auto',
+      endpoint: ENDPOINT,
+      forcePathStyle: true,
+    })
 
 function buildKey(prefix, mimetype) {
   const ext = mimetype?.split('/')[1]?.replace(/[^a-z0-9]/gi, '') || 'bin'
@@ -16,8 +28,15 @@ function buildKey(prefix, mimetype) {
 }
 
 export async function uploadFile(prefix, { buffer, mimetype }) {
-  if (!BUCKET) throw new Error('BUCKET_NAME não configurada.')
   const key = buildKey(prefix, mimetype)
+
+  if (USE_LOCAL) {
+    const filePath = path.join(LOCAL_DIR, key)
+    await mkdir(path.dirname(filePath), { recursive: true })
+    await writeFile(filePath, buffer)
+    return { key, url: `${LOCAL_URL_PREFIX}${key}` }
+  }
+
   await s3.send(new PutObjectCommand({
     Bucket: BUCKET,
     Key: key,
@@ -29,7 +48,18 @@ export async function uploadFile(prefix, { buffer, mimetype }) {
 }
 
 export async function deleteFile(key) {
-  if (!BUCKET || !key) return
+  if (!key) return
+
+  if (USE_LOCAL) {
+    try {
+      await unlink(path.join(LOCAL_DIR, key))
+    } catch (err) {
+      if (err.code !== 'ENOENT') console.error(`Falha ao deletar local ${key}:`, err.message)
+    }
+    return
+  }
+
+  if (!BUCKET) return
   try {
     await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }))
   } catch (err) {
@@ -38,20 +68,21 @@ export async function deleteFile(key) {
 }
 
 export function getPublicUrl(key) {
-  if (!BUCKET || !key) return null
-  // Domínio público canônico do Tigris (requer bucket configurado como public)
+  if (!key) return null
+  if (USE_LOCAL) return `${LOCAL_URL_PREFIX}${key}`
   return `https://${BUCKET}.fly.storage.tigris.dev/${key}`
 }
 
 export function extractKeyFromUrl(url) {
-  if (!url || !BUCKET) return null
-  // Formato canônico atual
+  if (!url) return null
+
+  if (url.startsWith(LOCAL_URL_PREFIX)) return url.slice(LOCAL_URL_PREFIX.length)
+
+  if (!BUCKET) return null
   const currentPrefix = `https://${BUCKET}.fly.storage.tigris.dev/`
   if (url.startsWith(currentPrefix)) return url.slice(currentPrefix.length)
-  // Formato legado tigrisfiles.io — mantém compat para deletar arquivos antigos
   const legacyTigrisPrefix = `https://${BUCKET}.t3.tigrisfiles.io/`
   if (url.startsWith(legacyTigrisPrefix)) return url.slice(legacyTigrisPrefix.length)
-  // Formato path-style do endpoint S3 — mantém compat com URLs ainda mais antigas
   if (ENDPOINT) {
     const oldPrefix = `${ENDPOINT.replace(/\/$/, '')}/${BUCKET}/`
     if (url.startsWith(oldPrefix)) return url.slice(oldPrefix.length)

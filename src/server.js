@@ -3,8 +3,10 @@ import express from 'express'
 import cors from 'cors'
 
 import { pool } from './lib/db.js'
+import { localUploadsDir } from './lib/storage.js'
 
 import meRoutes from './routes/me.js'
+import usersBasicRoutes from './routes/usersBasic.js'
 import projectsRoutes from './routes/projects.js'
 import projectManagementRoutes from './routes/projectManagement.js'
 import taskCollaborationRoutes from './routes/taskCollaboration.js'
@@ -27,6 +29,9 @@ app.use(cors({
 }))
 app.use(express.json())
 
+// Fallback local de storage: serve arquivos gravados em src/uploads/
+app.use('/uploads', express.static(localUploadsDir))
+
 app.get('/health', async (_req, res) => {
   try {
     await pool.query('SELECT 1')
@@ -38,6 +43,7 @@ app.get('/health', async (_req, res) => {
 
 app.use(meRoutes)
 app.use('/admin', usersRoutes)
+app.use(usersBasicRoutes)
 app.use(authRoutes)
 app.use(projectsRoutes)
 app.use(projectManagementRoutes)
