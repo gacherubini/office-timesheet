@@ -1,18 +1,19 @@
 import { useState, useRef } from 'react'
 import { ChevronDown, Check } from 'lucide-react'
-import { COLUMNS } from './helpers'
+import { COLUMNS, statusLabel } from './helpers'
 import { useClickOutside } from '../../hooks/useClickOutside'
 
 const STATUS_STYLES = {
   todo: 'bg-slate-400/15 text-slate-500',
   in_progress: 'bg-amber-500/15 text-amber-600',
   done: 'bg-emerald-500/15 text-emerald-600',
+  abandoned: 'bg-rose-500/15 text-rose-500',
 }
 
 export function StatusChip({ value, onChange, disabled }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
-  const current = COLUMNS.find((c) => c.key === value) || COLUMNS[0]
+  const current = COLUMNS.find((c) => c.key === value) || { key: value, label: statusLabel(value) }
 
   useClickOutside(ref, open, () => setOpen(false))
 

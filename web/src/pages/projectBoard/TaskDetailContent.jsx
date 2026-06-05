@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
-import { Trash2, Play, Square, CheckCircle2 } from 'lucide-react'
+import { Archive, RotateCcw, Trash2, Play, Square, CheckCircle2 } from 'lucide-react'
 import { api } from '../../lib/api'
 import { uploadAttachment } from '../../lib/taskAttachments'
 import { useDropzone } from '../../hooks/useDropzone'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
 import { Avatar } from '../../components/Avatar'
-import { formatMinutes } from './helpers'
+import { formatMinutes, ABANDONED_STATUS } from './helpers'
 import { StatusChip } from './StatusChip'
 import { AssigneePicker } from './AssigneePicker'
 import { PriorityChip } from './PriorityChip'
@@ -26,6 +26,7 @@ export function TaskDetailContent({
   const [timeData, setTimeData] = useState(null)
   const [timeBusy, setTimeBusy] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
+  const [confirmingAbandon, setConfirmingAbandon] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [descUploading, setDescUploading] = useState(false)
   const [descAttKey, setDescAttKey] = useState(0)
@@ -100,6 +101,30 @@ export function TaskDetailContent({
     }
   }
 
+  // Abandonar = mover pro status terminal "abandoned" (não apaga). Fechamos
+  // o modal e recarregamos: o card sai do quadro ativo pra seção Abandonados.
+  async function handleAbandon() {
+    setSaving(true)
+    try {
+      await api.put(`/tasks/${task.id}/status`, { status: ABANDONED_STATUS, position: 0 })
+      onDeleted?.(task.id)
+    } catch (err) {
+      setError(err.message); setSaving(false); setConfirmingAbandon(false)
+    }
+  }
+
+  // Reabrir = tira de "abandoned" e devolve pra "A fazer".
+  async function handleReopen() {
+    setSaving(true)
+    try {
+      await api.put(`/tasks/${task.id}/status`, { status: 'todo', position: 0 })
+      onDeleted?.(task.id)
+    } catch (err) {
+      setError(err.message); setSaving(false)
+    }
+  }
+
+  // Exclusão definitiva: só pra tarefa já abandonada. Apaga de vez (irreversível).
   async function handleDelete() {
     setSaving(true)
     try {
@@ -272,14 +297,35 @@ export function TaskDetailContent({
       {/* Rodape sticky com Save/Delete */}
       <div className="absolute bottom-0 left-0 right-0 bg-surface-alt border-t border-border-subtle px-6 py-3 flex items-center justify-between gap-3">
         {canManage ? (
-          <button
-            type="button"
-            onClick={() => setConfirmingDelete(true)}
-            disabled={saving}
-            className="inline-flex items-center gap-1.5 text-xs text-rose-500 hover:text-rose-600 disabled:opacity-60"
-          >
-            <Trash2 size={13} /> Excluir tarefa
-          </button>
+          task.status === ABANDONED_STATUS ? (
+            <div className="flex items-center gap-4">
+              <button
+                type="button"
+                onClick={handleReopen}
+                disabled={saving}
+                className="inline-flex items-center gap-1.5 text-xs text-emerald-600 hover:text-emerald-700 disabled:opacity-60"
+              >
+                <RotateCcw size={13} /> Reabrir tarefa
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmingDelete(true)}
+                disabled={saving}
+                className="inline-flex items-center gap-1.5 text-xs text-rose-500 hover:text-rose-600 disabled:opacity-60"
+              >
+                <Trash2 size={13} /> Excluir definitivamente
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmingAbandon(true)}
+              disabled={saving}
+              className="inline-flex items-center gap-1.5 text-xs text-text-secondary hover:text-rose-500 disabled:opacity-60"
+            >
+              <Archive size={13} /> Abandonar tarefa
+            </button>
+          )
         ) : <span />}
         {canManage && (
           <Button onClick={handleSave} disabled={saving || !dirty}>
@@ -289,9 +335,31 @@ export function TaskDetailContent({
       </div>
 
       <Modal
+        open={confirmingAbandon}
+        onClose={() => (saving ? null : setConfirmingAbandon(false))}
+        title="Abandonar tarefa"
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setConfirmingAbandon(false)} disabled={saving}>
+              Cancelar
+            </Button>
+            <Button variant="danger" onClick={handleAbandon} disabled={saving}>
+              {saving ? 'Abandonando...' : 'Abandonar'}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-text-primary">
+          Mover <span className="font-semibold">{task.title}</span> para os abandonados? Ela sai do quadro ativo, mas
+          não é apagada — você pode reabri-la quando quiser.
+        </p>
+      </Modal>
+
+      <Modal
         open={confirmingDelete}
         onClose={() => (saving ? null : setConfirmingDelete(false))}
-        title="Excluir tarefa"
+        title="Excluir definitivamente"
         size="sm"
         footer={
           <>
@@ -299,13 +367,14 @@ export function TaskDetailContent({
               Cancelar
             </Button>
             <Button variant="danger" onClick={handleDelete} disabled={saving}>
-              {saving ? 'Excluindo...' : 'Excluir'}
+              {saving ? 'Excluindo...' : 'Excluir definitivamente'}
             </Button>
           </>
         }
       >
         <p className="text-sm text-text-primary">
-          Tem certeza que deseja excluir <span className="font-semibold">{task.title}</span>? Esta ação não pode ser desfeita.
+          Apagar <span className="font-semibold">{task.title}</span> de vez? Esta ação <span className="font-semibold">não pode ser desfeita</span> —
+          comentários, anexos e tempo registrado serão removidos.
         </p>
       </Modal>
 

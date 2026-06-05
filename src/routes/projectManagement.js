@@ -322,9 +322,9 @@ router.put('/tasks/:id', requireAuth, async (req, res) => {
 router.put('/tasks/:id/status', requireAuth, async (req, res) => {
   const { id } = req.params
   const { status, position } = req.body
-  const VALID = ['todo', 'in_progress', 'done']
+  const VALID = ['todo', 'in_progress', 'done', 'abandoned']
   if (!VALID.includes(status)) {
-    return res.status(400).json({ error: 'status inválido. Use todo, in_progress ou done.' })
+    return res.status(400).json({ error: 'status inválido. Use todo, in_progress, done ou abandoned.' })
   }
   try {
     const { rows: taskRows } = await query(

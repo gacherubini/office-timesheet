@@ -1,17 +1,22 @@
+// Colunas ativas do quadro. `dot`/`bar` dão a cor de cada coluna.
 export const COLUMNS = [
-  { key: 'todo', label: 'A fazer' },
-  { key: 'in_progress', label: 'Em andamento' },
-  { key: 'done', label: 'Concluído' },
+  { key: 'todo', label: 'A fazer', dot: 'bg-slate-400', bar: 'bg-slate-400/70' },
+  { key: 'in_progress', label: 'Em andamento', dot: 'bg-amber-500', bar: 'bg-amber-500/80' },
+  { key: 'done', label: 'Concluído', dot: 'bg-emerald-500', bar: 'bg-emerald-500/80' },
 ]
 
+// Status terminal fora do quadro ativo (seção recolhível "Abandonados").
+export const ABANDONED_STATUS = 'abandoned'
+
 export function statusLabel(status) {
+  if (status === ABANDONED_STATUS) return 'Abandonado'
   return COLUMNS.find((c) => c.key === status)?.label || status
 }
 
 // 6.5 — urgência a partir do prazo (due_date "YYYY-MM-DD")
 // Retorna: { level: 'overdue'|'tight'|'normal'|'none', label, days }
 export function urgency(dueDate, status) {
-  if (!dueDate || status === 'done') return { level: 'none', label: '', days: null }
+  if (!dueDate || status === 'done' || status === ABANDONED_STATUS) return { level: 'none', label: '', days: null }
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const due = new Date(`${dueDate}T00:00:00`)

@@ -2,7 +2,7 @@ import { MessageSquare, Paperclip } from 'lucide-react'
 import { Avatar } from '../../components/Avatar'
 import { urgency, urgencyClasses, formatMinutes, priorityMeta } from './helpers'
 
-export function TaskCard({ task, onClick, onDragStart }) {
+export function TaskCard({ task, onClick, onDragStart, muted = false }) {
   const u = urgency(task.due_date, task.status)
   const prio = priorityMeta(task.priority)
   return (
@@ -10,11 +10,13 @@ export function TaskCard({ task, onClick, onDragStart }) {
       draggable
       onDragStart={(e) => onDragStart(e, task)}
       onClick={() => onClick(task)}
-      className="bg-surface border border-border-subtle rounded-lg p-3 mb-2 cursor-pointer hover:border-border transition-colors"
+      className={`bg-surface border border-border-subtle rounded-lg p-3 mb-2 cursor-pointer hover:border-border transition-colors ${
+        muted ? 'opacity-60 hover:opacity-100' : ''
+      }`}
     >
       <div className="flex items-start gap-1.5 mb-1">
         <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${prio.dot}`} title={`Prioridade ${prio.label}`} />
-        <p className="text-sm font-medium text-text-primary">{task.title}</p>
+        <p className={`text-sm font-medium text-text-primary ${muted ? 'line-through decoration-text-secondary/50' : ''}`}>{task.title}</p>
       </div>
       <p className="text-[11px] text-text-secondary truncate mb-2">{task.project_name}</p>
       <div className="flex items-center justify-between gap-2">
