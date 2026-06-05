@@ -6,7 +6,7 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { Select } from '../components/ui/Input'
 import { Button } from '../components/ui/Button'
 import { KanbanBoard } from './projectBoard/KanbanBoard'
-import { TaskDrawer } from './projectBoard/TaskDrawer'
+import { TaskDetailModal } from './projectBoard/TaskDetailModal'
 import { NewTaskModal } from './projectBoard/NewTaskModal'
 import { LeaderManager } from './projectBoard/LeaderManager'
 
@@ -29,29 +29,28 @@ export function ProjectBoardPage() {
     setTasks(await api.get(`/tasks${q}`))
   }
 
-  async function loadLeadership(projectList) {
-    const flags = await Promise.all(
-      projectList.map((p) =>
-        api.get(`/projects/${p.id}/leaders`)
-          .then((ls) => (ls.some((l) => l.id === profile?.id) ? p.id : null))
-          .catch(() => null)
-      )
-    )
-    setLeaderProjectIds(flags.filter(Boolean))
+  async function loadLeadership() {
+    try {
+      const ids = await api.get('/me/leadership')
+      setLeaderProjectIds(Array.isArray(ids) ? ids : [])
+    } catch (err) {
+      console.error(err)
+    }
   }
 
   useEffect(() => {
     async function init() {
       try {
-        const [proj, tk, usr] = await Promise.all([
+        const [proj, tk, usr, lead] = await Promise.all([
           api.get('/projects'),
           api.get('/tasks'),
           api.get('/users/basic').catch(() => []),
+          api.get('/me/leadership').catch(() => []),
         ])
         setProjects(proj)
         setTasks(tk)
         setUsers(Array.isArray(usr) ? usr : [])
-        await loadLeadership(proj)
+        setLeaderProjectIds(Array.isArray(lead) ? lead : [])
       } catch (err) {
         console.error(err)
       } finally {
@@ -127,7 +126,7 @@ export function ProjectBoardPage() {
         <LeaderManager
           projectId={projectFilter}
           users={users}
-          onChange={() => loadLeadership(projects)}
+          onChange={loadLeadership}
         />
       )}
 
@@ -138,7 +137,7 @@ export function ProjectBoardPage() {
       )}
 
       {drawer && (
-        <TaskDrawer
+        <TaskDetailModal
           task={drawer}
           users={users}
           canManage={canManageProject(drawer.project_id)}

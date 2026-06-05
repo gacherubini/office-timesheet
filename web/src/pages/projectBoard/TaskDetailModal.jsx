@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { X } from 'lucide-react'
 import { TaskDetailContent } from './TaskDetailContent'
 
-export function TaskDrawer({ task, users, canManage, currentUserId, isAdmin, onClose, onChanged, onDeleted }) {
+export function TaskDetailModal({ task, users, canManage, currentUserId, isAdmin, onClose, onChanged, onDeleted }) {
   useEffect(() => {
     function onKey(e) { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', onKey)

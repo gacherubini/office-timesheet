@@ -8,7 +8,6 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { TimerPage } from './pages/TimerPage'
 import { HistoryPage } from './pages/HistoryPage'
 import { ProjectBoardPage } from './pages/ProjectBoardPage'
-import { TaskDetailPage } from './pages/tasks/TaskDetailPage'
 import { ExpensesPage } from './pages/ExpensesPage'
 import { VacationsPage } from './pages/VacationsPage'
 import { VacationCalendarPage } from './pages/VacationCalendarPage'
@@ -60,7 +59,6 @@ export default function App() {
       <Route path="/financial-perspective" element={<ProtectedRoute disallowAdministrativeIntern><Layout><FinancialPerspectivePage /></Layout></ProtectedRoute>} />
       <Route path="/history" element={<ProtectedRoute><Layout><HistoryPage /></Layout></ProtectedRoute>} />
       <Route path="/project-board" element={<ProtectedRoute><Layout><ProjectBoardPage /></Layout></ProtectedRoute>} />
-      <Route path="/tasks/:id" element={<ProtectedRoute><Layout><TaskDetailPage /></Layout></ProtectedRoute>} />
       <Route path="/expenses" element={<ProtectedRoute disallowAdministrativeIntern><Layout><ExpensesPage /></Layout></ProtectedRoute>} />
       <Route path="/vacations" element={<ProtectedRoute><Layout><VacationsPage /></Layout></ProtectedRoute>} />
       <Route path="/vacation-calendar" element={<ProtectedRoute><Layout><VacationCalendarPage /></Layout></ProtectedRoute>} />

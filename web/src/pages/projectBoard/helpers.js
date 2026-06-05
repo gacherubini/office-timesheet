@@ -39,20 +39,6 @@ export function priorityMeta(priority) {
   return PRIORITIES.find((p) => p.key === priority) || PRIORITIES[1]
 }
 
-export const LABEL_PALETTE = ['blue', 'green', 'amber', 'rose', 'violet', 'slate']
-
-export function labelClasses(color) {
-  const map = {
-    blue: 'bg-blue-500/15 text-blue-600',
-    green: 'bg-emerald-500/15 text-emerald-600',
-    amber: 'bg-amber-500/15 text-amber-600',
-    rose: 'bg-rose-500/15 text-rose-500',
-    violet: 'bg-violet-500/15 text-violet-500',
-    slate: 'bg-slate-400/15 text-slate-500',
-  }
-  return map[color] || map.slate
-}
-
 export function relativeTime(iso) {
   if (!iso) return ''
   const diff = (Date.now() - new Date(iso).getTime()) / 1000

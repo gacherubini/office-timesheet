@@ -40,6 +40,19 @@ router.get('/projects/:id/leaders', requireAuth, async (req, res) => {
   }
 })
 
+// Projetos onde o usuário logado é líder (1 request no lugar de N no board)
+router.get('/me/leadership', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await query(
+      'SELECT project_id FROM project_leaders WHERE user_id = $1',
+      [req.profile.id]
+    )
+    return res.json(rows.map((r) => r.project_id))
+  } catch (err) {
+    return res.status(400).json({ error: err.message })
+  }
+})
+
 // Vincula um líder (admin)
 router.post('/projects/:id/leaders', requireAuth, requireAdmin, async (req, res) => {
   const { user_id } = req.body
@@ -161,7 +174,6 @@ router.get('/tasks', requireAuth, async (req, res) => {
               p.name AS project_name,
               a.name AS assignee_name, a.avatar_url AS assignee_avatar_url,
               COALESCE(tl.total_minutes, 0) AS total_minutes,
-              COALESCE(lb.labels, '[]'::json) AS labels,
               COALESCE(cc.comment_count, 0) AS comment_count,
               COALESCE(ac.attachment_count, 0) AS attachment_count
        FROM tasks t
@@ -175,10 +187,6 @@ router.get('/tasks', requireAuth, async (req, res) => {
          FROM task_time_logs ttl
          WHERE ttl.task_id = t.id
        ) tl ON true
-       LEFT JOIN LATERAL (
-         SELECT json_agg(json_build_object('id', l.id, 'text', l.text, 'color', l.color) ORDER BY l.created_at) AS labels
-         FROM task_labels l WHERE l.task_id = t.id
-       ) lb ON true
        LEFT JOIN LATERAL (
          SELECT COUNT(*)::int AS comment_count FROM task_comments c WHERE c.task_id = t.id
        ) cc ON true
@@ -196,7 +204,8 @@ router.get('/tasks', requireAuth, async (req, res) => {
 })
 
 // Detalhe de uma tarefa (qualquer usuário logado).
-// Usado pela TaskDetailPage carregando direto pela URL /tasks/:id.
+// Usado pelo deep-link /project-board?task=:id quando a tarefa
+// não está na lista atual (ex: filtrada por outro projeto).
 router.get('/tasks/:id', requireAuth, async (req, res) => {
   try {
     const { rows } = await query(
@@ -205,7 +214,6 @@ router.get('/tasks/:id', requireAuth, async (req, res) => {
               p.name AS project_name,
               a.name AS assignee_name, a.avatar_url AS assignee_avatar_url,
               COALESCE(tl.total_minutes, 0) AS total_minutes,
-              COALESCE(lb.labels, '[]'::json) AS labels,
               COALESCE(cc.comment_count, 0) AS comment_count,
               COALESCE(ac.attachment_count, 0) AS attachment_count
        FROM tasks t
@@ -219,10 +227,6 @@ router.get('/tasks/:id', requireAuth, async (req, res) => {
          FROM task_time_logs ttl
          WHERE ttl.task_id = t.id
        ) tl ON true
-       LEFT JOIN LATERAL (
-         SELECT json_agg(json_build_object('id', l.id, 'text', l.text, 'color', l.color) ORDER BY l.created_at) AS labels
-         FROM task_labels l WHERE l.task_id = t.id
-       ) lb ON true
        LEFT JOIN LATERAL (
          SELECT COUNT(*)::int AS comment_count FROM task_comments c WHERE c.task_id = t.id
        ) cc ON true

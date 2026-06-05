@@ -1,9 +1,20 @@
 import { useState } from 'react'
 import { api } from '../../lib/api'
 import { Modal } from '../../components/ui/Modal'
-import { Input, Select } from '../../components/ui/Input'
+import { Input } from '../../components/ui/Input'
 import { Button } from '../../components/ui/Button'
-import { PRIORITIES } from './helpers'
+import { AssigneePicker } from './AssigneePicker'
+import { PriorityChip } from './PriorityChip'
+import { DueDateChip } from './DueDateChip'
+
+function Field({ label, children }) {
+  return (
+    <div>
+      <p className="text-[11px] uppercase tracking-wider text-text-secondary mb-1.5">{label}</p>
+      {children}
+    </div>
+  )
+}
 
 export function NewTaskModal({ projectId, users, onClose, onCreated }) {
   const [title, setTitle] = useState('')
@@ -50,16 +61,17 @@ export function NewTaskModal({ projectId, users, onClose, onCreated }) {
       <div className="space-y-3">
         <Input label="Título" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
         <Input label="Descrição" as="textarea" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
-        <div className="grid grid-cols-2 gap-3">
-          <Select label="Responsável" value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)}>
-            <option value="">Sem responsável</option>
-            {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-          </Select>
-          <Select label="Prioridade" value={priority} onChange={(e) => setPriority(e.target.value)}>
-            {PRIORITIES.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
-          </Select>
+        <div className="flex flex-wrap gap-4">
+          <Field label="Responsável">
+            <AssigneePicker users={users} value={assigneeId || null} onChange={(id) => setAssigneeId(id || '')} />
+          </Field>
+          <Field label="Prioridade">
+            <PriorityChip value={priority} onChange={setPriority} />
+          </Field>
+          <Field label="Prazo">
+            <DueDateChip value={dueDate || null} status="todo" onChange={(d) => setDueDate(d || '')} />
+          </Field>
         </div>
-        <Input label="Prazo" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
       </div>
     </Modal>
   )

@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import { Button } from '../../components/ui/Button'
 import { PendingChip } from './AttachmentChip'
+import { useDropzone } from '../../hooks/useDropzone'
 
 // Caixa de texto com autocomplete de menção (@) + anexos arrastando arquivos.
 // Ao submeter, devolve (texto, [user_ids mencionados], [File pendentes]).
@@ -9,9 +10,10 @@ export function MentionInput({ users, onSubmit, submitting }) {
   const [mentioned, setMentioned] = useState([]) // [{ id, name }]
   const [matchQuery, setMatchQuery] = useState(null)
   const [files, setFiles] = useState([])
-  const [dragOver, setDragOver] = useState(false)
   const taRef = useRef(null)
-  const dragDepth = useRef(0)
+  const { dragOver, dropProps } = useDropzone((dropped) =>
+    setFiles((prev) => [...prev, ...dropped])
+  )
 
   function detectQuery(value, cursor) {
     const before = value.slice(0, cursor)
@@ -39,27 +41,6 @@ export function MentionInput({ users, onSubmit, submitting }) {
     setFiles((prev) => prev.filter((_, i) => i !== idx))
   }
 
-  function handleDragEnter(e) {
-    if (!e.dataTransfer?.types?.includes('Files')) return
-    e.preventDefault()
-    dragDepth.current += 1
-    setDragOver(true)
-  }
-
-  function handleDragLeave(e) {
-    e.preventDefault()
-    dragDepth.current = Math.max(0, dragDepth.current - 1)
-    if (dragDepth.current === 0) setDragOver(false)
-  }
-
-  function handleDrop(e) {
-    e.preventDefault()
-    dragDepth.current = 0
-    setDragOver(false)
-    const dropped = Array.from(e.dataTransfer?.files || [])
-    if (dropped.length) setFiles((prev) => [...prev, ...dropped])
-  }
-
   function handleSubmit() {
     if (!text.trim() && files.length === 0) return
     const ids = mentioned.filter((u) => text.includes(`@${u.name}`)).map((u) => u.id)
@@ -79,13 +60,7 @@ export function MentionInput({ users, onSubmit, submitting }) {
 
   return (
     <div className="relative">
-      <div
-        className="relative"
-        onDragEnter={handleDragEnter}
-        onDragOver={(e) => { if (e.dataTransfer?.types?.includes('Files')) e.preventDefault() }}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
+      <div className="relative" {...dropProps}>
         <textarea
           ref={taRef}
           value={text}

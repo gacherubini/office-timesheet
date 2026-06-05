@@ -1,6 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { Trash2, Play, Square, CheckCircle2 } from 'lucide-react'
 import { api } from '../../lib/api'
+import { uploadAttachment } from '../../lib/taskAttachments'
+import { useDropzone } from '../../hooks/useDropzone'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
 import { Avatar } from '../../components/Avatar'
@@ -9,7 +11,7 @@ import { StatusChip } from './StatusChip'
 import { AssigneePicker } from './AssigneePicker'
 import { PriorityChip } from './PriorityChip'
 import { DueDateChip } from './DueDateChip'
-import { DescriptionAttachments, uploadAttachment } from './DescriptionAttachments'
+import { DescriptionAttachments } from './DescriptionAttachments'
 import { CommentThread } from './CommentThread'
 import { ActivityPopover } from './ActivityPopover'
 
@@ -24,10 +26,10 @@ export function TaskDetailContent({
   const [timeData, setTimeData] = useState(null)
   const [timeBusy, setTimeBusy] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
-  const [descDragOver, setDescDragOver] = useState(false)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [descUploading, setDescUploading] = useState(false)
   const [descAttKey, setDescAttKey] = useState(0)
-  const descDragDepth = useRef(0)
+  const [commentCount, setCommentCount] = useState(initialTask.comment_count || 0)
 
   useEffect(() => {
     setTask(initialTask)
@@ -99,13 +101,12 @@ export function TaskDetailContent({
   }
 
   async function handleDelete() {
-    if (!confirm('Excluir esta tarefa?')) return
     setSaving(true)
     try {
       await api.delete(`/tasks/${task.id}`)
       onDeleted?.(task.id)
     } catch (err) {
-      setError(err.message); setSaving(false)
+      setError(err.message); setSaving(false); setConfirmingDelete(false)
     }
   }
 
@@ -125,26 +126,7 @@ export function TaskDetailContent({
     }
   }
 
-  function handleDescDragEnter(e) {
-    if (!e.dataTransfer?.types?.includes('Files')) return
-    e.preventDefault()
-    descDragDepth.current += 1
-    setDescDragOver(true)
-  }
-
-  function handleDescDragLeave(e) {
-    e.preventDefault()
-    descDragDepth.current = Math.max(0, descDragDepth.current - 1)
-    if (descDragDepth.current === 0) setDescDragOver(false)
-  }
-
-  function handleDescDrop(e) {
-    e.preventDefault()
-    descDragDepth.current = 0
-    setDescDragOver(false)
-    const files = Array.from(e.dataTransfer?.files || [])
-    if (files.length) uploadDescriptionFiles(files)
-  }
+  const { dragOver: descDragOver, dropProps: descDropProps } = useDropzone(uploadDescriptionFiles)
 
   async function toggleTimer() {
     setTimeBusy(true)
@@ -215,13 +197,7 @@ export function TaskDetailContent({
       <div className="flex-1 px-6 mt-5 pb-24 overflow-y-auto space-y-6">
         <section>
           <p className="text-[11px] uppercase tracking-wider text-text-secondary mb-2">Descrição</p>
-          <div
-            className="relative"
-            onDragEnter={handleDescDragEnter}
-            onDragOver={(e) => { if (e.dataTransfer?.types?.includes('Files')) e.preventDefault() }}
-            onDragLeave={handleDescDragLeave}
-            onDrop={handleDescDrop}
-          >
+          <div className="relative" {...descDropProps}>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -248,7 +224,7 @@ export function TaskDetailContent({
 
         <section>
           <p className="text-[11px] uppercase tracking-wider text-text-secondary mb-2">
-            Comentários {task.comment_count > 0 && <span className="text-text-secondary normal-case">({task.comment_count})</span>}
+            Comentários {commentCount > 0 && <span className="text-text-secondary normal-case">({commentCount})</span>}
           </p>
           <CommentThread
             taskId={task.id}
@@ -256,6 +232,7 @@ export function TaskDetailContent({
             currentUserId={currentUserId}
             isAdmin={isAdmin}
             onChanged={onChanged}
+            onCountChange={setCommentCount}
           />
         </section>
 
@@ -297,7 +274,7 @@ export function TaskDetailContent({
         {canManage ? (
           <button
             type="button"
-            onClick={handleDelete}
+            onClick={() => setConfirmingDelete(true)}
             disabled={saving}
             className="inline-flex items-center gap-1.5 text-xs text-rose-500 hover:text-rose-600 disabled:opacity-60"
           >
@@ -310,6 +287,27 @@ export function TaskDetailContent({
           </Button>
         )}
       </div>
+
+      <Modal
+        open={confirmingDelete}
+        onClose={() => (saving ? null : setConfirmingDelete(false))}
+        title="Excluir tarefa"
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setConfirmingDelete(false)} disabled={saving}>
+              Cancelar
+            </Button>
+            <Button variant="danger" onClick={handleDelete} disabled={saving}>
+              {saving ? 'Excluindo...' : 'Excluir'}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-text-primary">
+          Tem certeza que deseja excluir <span className="font-semibold">{task.title}</span>? Esta ação não pode ser desfeita.
+        </p>
+      </Modal>
 
       <Modal
         open={Boolean(successMessage)}

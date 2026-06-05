@@ -1,20 +1,14 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { ChevronDown, Check } from 'lucide-react'
 import { PRIORITIES, priorityMeta } from './helpers'
+import { useClickOutside } from '../../hooks/useClickOutside'
 
 export function PriorityChip({ value, onChange, disabled }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
   const current = priorityMeta(value)
 
-  useEffect(() => {
-    if (!open) return
-    function onClick(e) {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
-    }
-    document.addEventListener('mousedown', onClick)
-    return () => document.removeEventListener('mousedown', onClick)
-  }, [open])
+  useClickOutside(ref, open, () => setOpen(false))
 
   function pick(p) {
     setOpen(false)

@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { ChevronDown, Check } from 'lucide-react'
 import { COLUMNS } from './helpers'
+import { useClickOutside } from '../../hooks/useClickOutside'
 
 const STATUS_STYLES = {
   todo: 'bg-slate-400/15 text-slate-500',
@@ -13,14 +14,7 @@ export function StatusChip({ value, onChange, disabled }) {
   const ref = useRef(null)
   const current = COLUMNS.find((c) => c.key === value) || COLUMNS[0]
 
-  useEffect(() => {
-    if (!open) return
-    function onClick(e) {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
-    }
-    document.addEventListener('mousedown', onClick)
-    return () => document.removeEventListener('mousedown', onClick)
-  }, [open])
+  useClickOutside(ref, open, () => setOpen(false))
 
   function pick(status) {
     setOpen(false)

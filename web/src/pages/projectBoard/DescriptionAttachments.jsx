@@ -3,31 +3,13 @@ import { Paperclip } from 'lucide-react'
 import { api } from '../../lib/api'
 import { AttachmentChip } from './AttachmentChip'
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? '/api'
-
-export async function uploadAttachment(taskId, file, commentId = null) {
-  const fd = new FormData()
-  fd.append('file', file)
-  if (commentId) fd.append('comment_id', commentId)
-  const res = await fetch(`${BASE_URL}/tasks/${taskId}/attachments`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` },
-    body: fd,
-  })
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}))
-    throw new Error(data.error || 'Falha no upload.')
-  }
-}
-
 export function DescriptionAttachments({ taskId, currentUserId, isAdmin, uploading, onChanged, refreshKey }) {
   const [items, setItems] = useState([])
   const [error, setError] = useState('')
 
   async function load() {
     try {
-      const all = await api.get(`/tasks/${taskId}/attachments?comment_id=null`)
-      setItems(all)
+      setItems(await api.get(`/tasks/${taskId}/attachments?comment_id=null`))
     } catch (err) {
       console.error(err)
     }

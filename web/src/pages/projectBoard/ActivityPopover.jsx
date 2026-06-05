@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { History } from 'lucide-react'
 import { api } from '../../lib/api'
 import { activityText, relativeTime } from './helpers'
+import { useClickOutside } from '../../hooks/useClickOutside'
 
 export function ActivityPopover({ taskId }) {
   const [open, setOpen] = useState(false)
@@ -9,14 +10,7 @@ export function ActivityPopover({ taskId }) {
   const [loading, setLoading] = useState(false)
   const ref = useRef(null)
 
-  useEffect(() => {
-    if (!open) return
-    function onClick(e) {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
-    }
-    document.addEventListener('mousedown', onClick)
-    return () => document.removeEventListener('mousedown', onClick)
-  }, [open])
+  useClickOutside(ref, open, () => setOpen(false))
 
   async function toggle() {
     if (open) { setOpen(false); return }

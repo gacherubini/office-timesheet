@@ -15,8 +15,6 @@ const upload = multer({
 
 const router = Router()
 
-const PALETTE = ['blue', 'green', 'amber', 'rose', 'violet', 'slate']
-
 // ─── COMENTÁRIOS ───────────────────────────────────────────────────────
 router.get('/tasks/:id/comments', requireAuth, async (req, res) => {
   try {
@@ -56,7 +54,9 @@ router.get('/tasks/:id/comments', requireAuth, async (req, res) => {
 router.post('/tasks/:id/comments', requireAuth, async (req, res) => {
   const taskId = req.params.id
   const { body, mentioned_user_ids } = req.body
-  if (!body || !body.trim()) return res.status(400).json({ error: 'body é obrigatório.' })
+  // Corpo pode vir vazio quando o comentário é só anexo; o front garante que
+  // não envia comentário totalmente vazio (sem texto e sem arquivo).
+  const text = typeof body === 'string' ? body.trim() : ''
 
   try {
     const { rows: taskRows } = await query(
@@ -70,7 +70,7 @@ router.post('/tasks/:id/comments', requireAuth, async (req, res) => {
       `INSERT INTO task_comments (task_id, author_id, body)
        VALUES ($1, $2, $3)
        RETURNING id, task_id, author_id, body, created_at`,
-      [taskId, req.profile.id, body.trim()]
+      [taskId, req.profile.id, text]
     )
     const comment = rows[0]
 
@@ -222,48 +222,6 @@ router.delete('/tasks/:id/attachments/:attId', requireAuth, async (req, res) => 
     const key = extractKeyFromUrl(att.file_url)
     if (key) await deleteFile(key)
     await query('DELETE FROM task_attachments WHERE id = $1', [req.params.attId])
-    return res.status(204).send()
-  } catch (err) {
-    return res.status(400).json({ error: err.message })
-  }
-})
-
-// ─── ETIQUETAS ─────────────────────────────────────────────────────────
-router.post('/tasks/:id/labels', requireAuth, async (req, res) => {
-  const taskId = req.params.id
-  const { text, color } = req.body
-  if (!text || !text.trim()) return res.status(400).json({ error: 'text é obrigatório.' })
-  const safeColor = PALETTE.includes(color) ? color : 'slate'
-  try {
-    const { rows: taskRows } = await query('SELECT project_id FROM tasks WHERE id = $1', [taskId])
-    if (taskRows.length === 0) return res.status(404).json({ error: 'Tarefa não encontrada.' })
-    if (!(await canManageTasks(req.profile, taskRows[0].project_id))) {
-      return res.status(403).json({ error: 'Apenas admin ou líder do projeto pode etiquetar.' })
-    }
-    const { rows } = await query(
-      `INSERT INTO task_labels (task_id, text, color)
-       VALUES ($1, $2, $3)
-       RETURNING id, task_id, text, color, created_at`,
-      [taskId, text.trim(), safeColor]
-    )
-    return res.status(201).json(rows[0])
-  } catch (err) {
-    return res.status(400).json({ error: err.message })
-  }
-})
-
-router.delete('/tasks/:id/labels/:labelId', requireAuth, async (req, res) => {
-  try {
-    const { rows } = await query(
-      `SELECT l.id, t.project_id FROM task_labels l JOIN tasks t ON t.id = l.task_id
-       WHERE l.id = $1 AND l.task_id = $2`,
-      [req.params.labelId, req.params.id]
-    )
-    if (rows.length === 0) return res.status(404).json({ error: 'Etiqueta não encontrada.' })
-    if (!(await canManageTasks(req.profile, rows[0].project_id))) {
-      return res.status(403).json({ error: 'Apenas admin ou líder do projeto pode remover etiqueta.' })
-    }
-    await query('DELETE FROM task_labels WHERE id = $1', [req.params.labelId])
     return res.status(204).send()
   } catch (err) {
     return res.status(400).json({ error: err.message })

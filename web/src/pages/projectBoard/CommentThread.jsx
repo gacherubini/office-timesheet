@@ -1,28 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { api } from '../../lib/api'
+import { uploadAttachment } from '../../lib/taskAttachments'
 import { Avatar } from '../../components/Avatar'
 import { Modal } from '../../components/ui/Modal'
 import { Button } from '../../components/ui/Button'
 import { relativeTime } from './helpers'
 import { MentionInput } from './MentionInput'
 import { AttachmentChip } from './AttachmentChip'
-
-const BASE_URL = import.meta.env.VITE_API_URL ?? '/api'
-
-async function uploadFileToComment(taskId, commentId, file) {
-  const fd = new FormData()
-  fd.append('file', file)
-  fd.append('comment_id', commentId)
-  const res = await fetch(`${BASE_URL}/tasks/${taskId}/attachments`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` },
-    body: fd,
-  })
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}))
-    throw new Error(data.error || 'Falha no upload.')
-  }
-}
 
 // Destaca os trechos "@Nome" dos usuários mencionados.
 function renderBody(body, mentionNames) {
@@ -42,17 +26,22 @@ function renderBody(body, mentionNames) {
   )
 }
 
-export function CommentThread({ taskId, users, currentUserId, isAdmin, onChanged }) {
+export function CommentThread({ taskId, users, currentUserId, isAdmin, onChanged, onCountChange }) {
   const [comments, setComments] = useState([])
   const [submitting, setSubmitting] = useState(false)
   const [toDelete, setToDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
-  const usersById = Object.fromEntries(users.map((u) => [u.id, u]))
+  const usersById = useMemo(
+    () => Object.fromEntries(users.map((u) => [u.id, u])),
+    [users]
+  )
 
   async function load() {
     try {
-      setComments(await api.get(`/tasks/${taskId}/comments`))
+      const data = await api.get(`/tasks/${taskId}/comments`)
+      setComments(data)
+      onCountChange?.(data.length)
     } catch (err) {
       console.error(err)
     }
@@ -69,7 +58,7 @@ export function CommentThread({ taskId, users, currentUserId, isAdmin, onChanged
     const uploadFails = []
     try {
       created = await api.post(`/tasks/${taskId}/comments`, {
-        body: body || '(anexo)',
+        body,
         mentioned_user_ids: mentionedIds,
       })
     } catch (err) {
@@ -81,7 +70,7 @@ export function CommentThread({ taskId, users, currentUserId, isAdmin, onChanged
     if (created && files.length) {
       for (const file of files) {
         try {
-          await uploadFileToComment(taskId, created.id, file)
+          await uploadAttachment(taskId, file, created.id)
         } catch (err) {
           uploadFails.push(`${file.name}: ${err.message}`)
         }
@@ -143,9 +132,11 @@ export function CommentThread({ taskId, users, currentUserId, isAdmin, onChanged
                     </button>
                   )}
                 </div>
-                <p className="text-sm text-text-primary whitespace-pre-wrap break-words leading-relaxed">
-                  {renderBody(c.body, mentionNames)}
-                </p>
+                {c.body?.trim() && (
+                  <p className="text-sm text-text-primary whitespace-pre-wrap break-words leading-relaxed">
+                    {renderBody(c.body, mentionNames)}
+                  </p>
+                )}
                 {c.attachments?.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {c.attachments.map((a) => (

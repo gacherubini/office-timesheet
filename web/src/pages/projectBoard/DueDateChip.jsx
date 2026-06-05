@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import DatePicker, { registerLocale } from 'react-datepicker'
 import { ptBR } from 'date-fns/locale'
 import { Calendar, X } from 'lucide-react'
 import { urgency, urgencyClasses } from './helpers'
+import { useClickOutside } from '../../hooks/useClickOutside'
 import 'react-datepicker/dist/react-datepicker.css'
 
 registerLocale('pt-BR', ptBR)
@@ -33,14 +34,7 @@ export function DueDateChip({ value, status, onChange, disabled }) {
   const ref = useRef(null)
   const u = urgency(value, status)
 
-  useEffect(() => {
-    if (!open) return
-    function onClick(e) {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
-    }
-    document.addEventListener('mousedown', onClick)
-    return () => document.removeEventListener('mousedown', onClick)
-  }, [open])
+  useClickOutside(ref, open, () => setOpen(false))
 
   function clear() {
     setOpen(false)

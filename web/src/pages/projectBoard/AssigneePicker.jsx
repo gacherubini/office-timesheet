@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { ChevronDown, X, Search } from 'lucide-react'
 import { Avatar } from '../../components/Avatar'
+import { useClickOutside } from '../../hooks/useClickOutside'
 
 export function AssigneePicker({ users, value, onChange, disabled }) {
   const [open, setOpen] = useState(false)
@@ -8,14 +9,7 @@ export function AssigneePicker({ users, value, onChange, disabled }) {
   const ref = useRef(null)
   const current = users.find((u) => u.id === value) || null
 
-  useEffect(() => {
-    if (!open) return
-    function onClick(e) {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
-    }
-    document.addEventListener('mousedown', onClick)
-    return () => document.removeEventListener('mousedown', onClick)
-  }, [open])
+  useClickOutside(ref, open, () => setOpen(false))
 
   const filtered = users
     .filter((u) => u.name.toLowerCase().includes(search.toLowerCase()))
