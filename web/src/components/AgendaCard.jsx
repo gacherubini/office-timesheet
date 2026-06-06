@@ -42,7 +42,7 @@ export function AgendaCard() {
         <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary inline-flex items-center gap-1.5">
           <CalendarClock size={13} /> Minha Agenda
         </h2>
-        <Link to="/agenda" className="text-[11px] text-accent hover:underline">Ver tudo</Link>
+        <Link to="/vacation-calendar" className="text-[11px] text-accent hover:underline">Ver tudo</Link>
       </div>
 
       <div className="divide-y divide-border-subtle">

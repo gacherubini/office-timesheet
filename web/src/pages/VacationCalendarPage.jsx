@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarOff, ChevronLeft, ChevronRight } from 'lucide-react'
+import { CalendarOff, ChevronLeft, ChevronRight, Flag, Video } from 'lucide-react'
 import { api } from '../lib/api'
 import { Avatar } from '../components/Avatar'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
+import { getCalendarEvents } from '../lib/calendarClient'
+import { CalendarConnect } from './profile/CalendarConnect'
 
 const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
@@ -77,8 +79,10 @@ export function VacationCalendarPage() {
   })
   const [vacations, setVacations] = useState([])
   const [currentVacations, setCurrentVacations] = useState([])
+  const [calendarItems, setCalendarItems] = useState([]) // feriados + agenda Google
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [refresh, setRefresh] = useState(0)
 
   const calendarDays = useMemo(() => buildCalendarDays(monthDate), [monthDate])
   const rangeStart = calendarDays[0].key
@@ -98,20 +102,42 @@ export function VacationCalendarPage() {
     Promise.all([
       api.get(`/vacation-calendar?start_date=${rangeStart}&end_date=${rangeEnd}`),
       api.get(`/vacation-calendar?start_date=${today}&end_date=${today}`),
+      getCalendarEvents(rangeStart, rangeEnd).catch(() => ({ events: [] })),
     ])
-      .then(([calendarData, todayData]) => {
+      .then(([calendarData, todayData, evResp]) => {
         setVacations(calendarData)
         setCurrentVacations(todayData)
+        setCalendarItems(Array.isArray(evResp.events) ? evResp.events : [])
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
-  }, [rangeStart, rangeEnd, today])
+  }, [rangeStart, rangeEnd, today, refresh])
+
+  // Feriados (1 por dia) e eventos da agenda Google, indexados por dia.
+  const holidaysByDay = useMemo(() => {
+    const map = {}
+    for (const it of calendarItems) {
+      if (it.source === 'holiday') map[it.start.slice(0, 10)] = it.title
+    }
+    return map
+  }, [calendarItems])
+
+  const googleByDay = useMemo(() => {
+    const map = {}
+    for (const it of calendarItems) {
+      if (it.source !== 'google') continue
+      const day = it.start.slice(0, 10)
+      if (!map[day]) map[day] = []
+      map[day].push(it)
+    }
+    return map
+  }, [calendarItems])
 
   return (
     <div>
       <PageHeader
-        title="Calendário de férias"
-        subtitle="Pessoas com férias aprovadas na equipe"
+        title="Calendário"
+        subtitle="Férias da equipe, feriados nacionais e sua agenda Google"
       />
 
       {error && (
@@ -119,6 +145,11 @@ export function VacationCalendarPage() {
           {error}
         </div>
       )}
+
+      {/* Conectar a agenda Google — some quando já conectado. */}
+      <div className="mb-5">
+        <CalendarConnect hideWhenConnected onChange={() => setRefresh((r) => r + 1)} />
+      </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-5">
         <Card padded={false} className="overflow-hidden">
@@ -199,21 +230,42 @@ export function VacationCalendarPage() {
                   <div className="space-y-1">
                     {loading ? (
                       <div className="h-5 rounded bg-surface-alt animate-pulse" />
-                    ) : dayVacations.length === 0 ? null : (
-                      dayVacations.slice(0, 4).map((vacation) => (
-                        <div
-                          key={`${day.key}-${vacation.id}`}
-                          className={`truncate rounded px-2 py-1 text-[11px] font-medium ${colorForUser(vacation.user_id)}`}
-                          title={`${vacation.profile?.name || 'Colaborador'}: ${formatDate(vacation.start_date)} até ${formatDate(vacation.end_date)}`}
-                        >
-                          {vacation.profile?.name || 'Colaborador'}
-                        </div>
-                      ))
-                    )}
-                    {dayVacations.length > 4 && (
-                      <p className="text-[11px] text-text-secondary px-1">
-                        +{dayVacations.length - 4}
-                      </p>
+                    ) : (
+                      <>
+                        {holidaysByDay[day.key] && (
+                          <div
+                            className="flex items-center gap-1 truncate rounded px-2 py-1 text-[11px] font-medium bg-rose-500/15 text-rose-600 dark:text-rose-300"
+                            title={holidaysByDay[day.key]}
+                          >
+                            <Flag size={10} className="flex-shrink-0" />
+                            <span className="truncate">{holidaysByDay[day.key]}</span>
+                          </div>
+                        )}
+                        {(googleByDay[day.key] || []).slice(0, 3).map((ev) => (
+                          <div
+                            key={ev.id}
+                            className="flex items-center gap-1 truncate rounded px-2 py-1 text-[11px] font-medium bg-sky-500/15 text-sky-700 dark:text-sky-300"
+                            title={ev.title}
+                          >
+                            <Video size={10} className="flex-shrink-0" />
+                            <span className="truncate">{ev.title}</span>
+                          </div>
+                        ))}
+                        {dayVacations.slice(0, 3).map((vacation) => (
+                          <div
+                            key={`${day.key}-${vacation.id}`}
+                            className={`truncate rounded px-2 py-1 text-[11px] font-medium ${colorForUser(vacation.user_id)}`}
+                            title={`${vacation.profile?.name || 'Colaborador'}: ${formatDate(vacation.start_date)} até ${formatDate(vacation.end_date)}`}
+                          >
+                            {vacation.profile?.name || 'Colaborador'}
+                          </div>
+                        ))}
+                        {dayVacations.length > 3 && (
+                          <p className="text-[11px] text-text-secondary px-1">
+                            +{dayVacations.length - 3}
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
