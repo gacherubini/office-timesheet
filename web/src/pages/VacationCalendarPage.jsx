@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarOff, ChevronLeft, ChevronRight, Flag, Video, ListTodo, Clock, MapPin } from 'lucide-react'
+import { CalendarOff, ChevronLeft, ChevronRight, Flag, Video, ListTodo, Clock, MapPin, Building2 } from 'lucide-react'
 import { api } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 import { PageHeader } from '../components/ui/PageHeader'
@@ -98,6 +98,7 @@ export function VacationCalendarPage() {
   const [tasks, setTasks] = useState([]) // minhas tarefas com prazo
   const [upcomingHolidays, setUpcomingHolidays] = useState([]) // próximos feriados
   const [upcomingEvents, setUpcomingEvents] = useState([]) // próximos eventos Google
+  const [upcomingOffice, setUpcomingOffice] = useState([]) // próximos eventos do escritório
   const [connected, setConnected] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -155,7 +156,9 @@ export function VacationCalendarPage() {
       getCalendarEvents(todayK, horizon).catch(() => ({ events: [] })),
     ]).then(([st, resp]) => {
       setConnected(Boolean(st.connected))
-      setUpcomingEvents((resp.events || []).filter((e) => e.source === 'google').slice(0, 6))
+      const evs = resp.events || []
+      setUpcomingEvents(evs.filter((e) => e.source === 'google').slice(0, 6))
+      setUpcomingOffice(evs.filter((e) => e.source === 'office').slice(0, 6))
     })
   }, [refresh])
 
@@ -179,6 +182,18 @@ export function VacationCalendarPage() {
     return map
   }, [calendarItems])
 
+  // Agenda do escritório (compartilhada, todos veem), por dia.
+  const officeByDay = useMemo(() => {
+    const map = {}
+    for (const it of calendarItems) {
+      if (it.source !== 'office') continue
+      const day = it.start.slice(0, 10)
+      if (!map[day]) map[day] = []
+      map[day].push(it)
+    }
+    return map
+  }, [calendarItems])
+
   // Prazos das minhas tarefas (ignora concluídas/abandonadas), por dia.
   const tasksByDay = useMemo(() => {
     const map = {}
@@ -195,7 +210,7 @@ export function VacationCalendarPage() {
     <div>
       <PageHeader
         title="Calendário"
-        subtitle="Férias da equipe, feriados nacionais e sua agenda Google"
+        subtitle="Férias da equipe, feriados nacionais, agenda do escritório e sua agenda Google"
       />
 
       {error && (
@@ -299,7 +314,27 @@ export function VacationCalendarPage() {
                             <span className="truncate">{holidaysByDay[day.key]}</span>
                           </div>
                         )}
-                        {(googleByDay[day.key] || []).slice(0, 6).map((ev) => (
+                        {(officeByDay[day.key] || []).slice(0, 4).map((ev) => (
+                          <button
+                            key={ev.id}
+                            type="button"
+                            onClick={() => setSelectedEvent(ev)}
+                            className="flex w-full items-center gap-1 truncate rounded px-2 py-1 text-left text-[11px] font-medium bg-violet-500/15 text-violet-700 dark:text-violet-300 hover:bg-violet-500/25 transition-colors"
+                            title={`Escritório · ${ev.title}${ev.location ? ' · ' + ev.location : ''}`}
+                          >
+                            <Building2 size={10} className="flex-shrink-0" />
+                            <span className="truncate">
+                              {!ev.all_day && <span className="tabular-nums">{eventTime(ev.start)} </span>}
+                              {ev.title}
+                            </span>
+                          </button>
+                        ))}
+                        {(officeByDay[day.key] || []).length > 4 && (
+                          <p className="text-[11px] text-violet-600 dark:text-violet-300 px-1">
+                            +{officeByDay[day.key].length - 4} do escritório
+                          </p>
+                        )}
+                        {(googleByDay[day.key] || []).slice(0, 4).map((ev) => (
                           <button
                             key={ev.id}
                             type="button"
@@ -314,9 +349,9 @@ export function VacationCalendarPage() {
                             </span>
                           </button>
                         ))}
-                        {(googleByDay[day.key] || []).length > 6 && (
+                        {(googleByDay[day.key] || []).length > 4 && (
                           <p className="text-[11px] text-sky-600 dark:text-sky-300 px-1">
-                            +{googleByDay[day.key].length - 6} eventos
+                            +{googleByDay[day.key].length - 4} eventos
                           </p>
                         )}
                         {(tasksByDay[day.key] || []).slice(0, 3).map((task) => (
@@ -376,26 +411,59 @@ export function VacationCalendarPage() {
           <Card padded={false} className="overflow-hidden">
             <div className="px-5 py-4 border-b border-border-subtle">
               <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary inline-flex items-center gap-1.5">
+                <Building2 size={13} className="text-violet-500" /> Agenda do escritório
+              </h2>
+            </div>
+            <div className="divide-y divide-border-subtle">
+              {upcomingOffice.length === 0 ? (
+                <div className="py-8 px-5 text-center text-sm text-text-secondary">
+                  Nada nos próximos 90 dias.
+                </div>
+              ) : (
+                upcomingOffice.map((ev) => (
+                  <button
+                    key={ev.id}
+                    type="button"
+                    onClick={() => setSelectedEvent(ev)}
+                    className="w-full text-left px-5 py-3 hover:bg-surface-alt transition-colors flex items-center gap-2.5"
+                  >
+                    <Building2 size={14} className="text-violet-500 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm text-text-primary truncate">{ev.title}</p>
+                      <p className="text-xs text-text-secondary">{formatEventWhen(ev)}</p>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </Card>
+
+          <Card padded={false} className="overflow-hidden">
+            <div className="px-5 py-4 border-b border-border-subtle">
+              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary inline-flex items-center gap-1.5">
                 <Video size={13} className="text-sky-500" /> Próximos eventos
               </h2>
             </div>
             <div className="divide-y divide-border-subtle">
-              {!connected ? (
+              {upcomingEvents.length === 0 ? (
                 <div className="py-8 px-5 text-center text-sm text-text-secondary">
-                  Conecte sua agenda Google acima.
+                  {connected
+                    ? 'Nada nos próximos 90 dias.'
+                    : 'Conecte sua agenda Google acima para ver seus eventos.'}
                 </div>
-              ) : upcomingEvents.length === 0 ? (
-                <div className="py-8 px-5 text-center text-sm text-text-secondary">Nada nos próximos 90 dias.</div>
               ) : (
                 upcomingEvents.map((ev) => (
                   <button
                     key={ev.id}
                     type="button"
                     onClick={() => setSelectedEvent(ev)}
-                    className="w-full text-left px-5 py-3 hover:bg-surface-alt transition-colors"
+                    className="w-full text-left px-5 py-3 hover:bg-surface-alt transition-colors flex items-center gap-2.5"
                   >
-                    <p className="text-sm text-text-primary truncate">{ev.title}</p>
-                    <p className="text-xs text-text-secondary">{formatEventWhen(ev)}</p>
+                    <Video size={14} className="text-sky-500 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm text-text-primary truncate">{ev.title}</p>
+                      <p className="text-xs text-text-secondary">{formatEventWhen(ev)}</p>
+                    </div>
                   </button>
                 ))
               )}
@@ -443,6 +511,11 @@ export function VacationCalendarPage() {
           footer={<Button variant="secondary" onClick={() => setSelectedEvent(null)}>Fechar</Button>}
         >
           <div className="space-y-3 text-sm">
+            {selectedEvent.source === 'office' && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-500/15 text-violet-700 dark:text-violet-300 px-2.5 py-1 text-xs font-medium">
+                <Building2 size={12} /> Agenda do escritório
+              </span>
+            )}
             <div className="flex items-center gap-2 text-text-secondary">
               <Clock size={15} className="flex-shrink-0" />
               <span>{formatEventWhen(selectedEvent)}</span>

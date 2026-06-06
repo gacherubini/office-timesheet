@@ -42,20 +42,20 @@ async function fetchIcsText(url) {
   }
 }
 
-function makeEvent(ev, start, end, allDay, key) {
+function makeEvent(ev, start, end, allDay, key, source) {
   return {
-    id: `${key}:${start.getTime()}`,
+    id: `${source}:${key}:${start.getTime()}`,
     title: ev.summary || '(sem título)',
     start: start.toISOString(),
     end: (end || start).toISOString(),
     all_day: allDay,
     location: ev.location || null,
     description: ev.description || null,
-    source: 'google',
+    source,
   }
 }
 
-function eventsInRange(parsed, rangeStart, rangeEnd) {
+function eventsInRange(parsed, rangeStart, rangeEnd, source = 'google') {
   const out = []
   for (const key of Object.keys(parsed)) {
     const ev = parsed[key]
@@ -72,13 +72,23 @@ function eventsInRange(parsed, rangeStart, rangeEnd) {
       for (const occ of occurrences) {
         const s = new Date(occ)
         if (exdates.includes(s.toDateString())) continue
-        out.push(makeEvent(ev, s, new Date(s.getTime() + durationMs), allDay, key))
+        out.push(makeEvent(ev, s, new Date(s.getTime() + durationMs), allDay, key, source))
       }
     } else if (baseEnd >= rangeStart && ev.start <= rangeEnd) {
-      out.push(makeEvent(ev, ev.start, baseEnd, allDay, key))
+      out.push(makeEvent(ev, ev.start, baseEnd, allDay, key, source))
     }
   }
   return out
+}
+
+// Busca + parseia um .ics, com cache em memória por chave (TTL 15min).
+async function getParsedCalendar(cacheKey, url) {
+  const cached = parsedCache.get(cacheKey)
+  if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) return cached.parsed
+  const text = await fetchIcsText(url)
+  const parsed = await ical.async.parseICS(text)
+  parsedCache.set(cacheKey, { fetchedAt: Date.now(), parsed })
+  return parsed
 }
 
 async function getStoredUrl(userId) {
@@ -172,28 +182,34 @@ router.get('/me/calendar/events', requireAuth, async (req, res) => {
     // feriados são best-effort; segue sem eles
   }
 
-  // Eventos do Google (se conectado).
+  // Eventos do Google pessoal (se conectado).
   let googleItems = []
   let calendarError = false
   try {
     const url = await getStoredUrl(req.profile.id)
     if (url) {
-      const cached = parsedCache.get(req.profile.id)
-      let parsed
-      if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
-        parsed = cached.parsed
-      } else {
-        const text = await fetchIcsText(url)
-        parsed = await ical.async.parseICS(text)
-        parsedCache.set(req.profile.id, { fetchedAt: Date.now(), parsed })
-      }
-      googleItems = eventsInRange(parsed, start, end)
+      const parsed = await getParsedCalendar(req.profile.id, url)
+      googleItems = eventsInRange(parsed, start, end, 'google')
     }
   } catch {
     calendarError = true
   }
 
-  const events = [...holidayItems, ...googleItems].sort((a, b) => a.start.localeCompare(b.start))
+  // Eventos da agenda do escritório (compartilhada — todos os usuários veem).
+  let officeItems = []
+  const officeUrl = process.env.OFFICE_ICS_URL
+  if (officeUrl && isValidIcsUrl(officeUrl)) {
+    try {
+      const parsed = await getParsedCalendar(`office:${officeUrl}`, officeUrl)
+      officeItems = eventsInRange(parsed, start, end, 'office')
+    } catch {
+      // best-effort: agenda do escritório indisponível não quebra o resto
+    }
+  }
+
+  const events = [...holidayItems, ...officeItems, ...googleItems].sort((a, b) =>
+    a.start.localeCompare(b.start)
+  )
   return res.json({ events, calendar_error: calendarError })
 })
 
