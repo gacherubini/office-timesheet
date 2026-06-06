@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarOff, ChevronLeft, ChevronRight, Flag, Video } from 'lucide-react'
+import { CalendarOff, ChevronLeft, ChevronRight, Flag, Video, ListTodo } from 'lucide-react'
 import { api } from '../lib/api'
+import { useAuth } from '../contexts/AuthContext'
 import { Avatar } from '../components/Avatar'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Card } from '../components/ui/Card'
@@ -73,6 +74,7 @@ function colorForUser(userId) {
 }
 
 export function VacationCalendarPage() {
+  const { profile } = useAuth()
   const [monthDate, setMonthDate] = useState(() => {
     const today = new Date()
     return new Date(today.getFullYear(), today.getMonth(), 1)
@@ -80,6 +82,7 @@ export function VacationCalendarPage() {
   const [vacations, setVacations] = useState([])
   const [currentVacations, setCurrentVacations] = useState([])
   const [calendarItems, setCalendarItems] = useState([]) // feriados + agenda Google
+  const [tasks, setTasks] = useState([]) // minhas tarefas com prazo
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [refresh, setRefresh] = useState(0)
@@ -103,15 +106,17 @@ export function VacationCalendarPage() {
       api.get(`/vacation-calendar?start_date=${rangeStart}&end_date=${rangeEnd}`),
       api.get(`/vacation-calendar?start_date=${today}&end_date=${today}`),
       getCalendarEvents(rangeStart, rangeEnd).catch(() => ({ events: [] })),
+      profile?.id ? api.get(`/tasks?assignee_id=${profile.id}`).catch(() => []) : Promise.resolve([]),
     ])
-      .then(([calendarData, todayData, evResp]) => {
+      .then(([calendarData, todayData, evResp, tk]) => {
         setVacations(calendarData)
         setCurrentVacations(todayData)
         setCalendarItems(Array.isArray(evResp.events) ? evResp.events : [])
+        setTasks(Array.isArray(tk) ? tk : [])
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
-  }, [rangeStart, rangeEnd, today, refresh])
+  }, [rangeStart, rangeEnd, today, refresh, profile?.id])
 
   // Feriados (1 por dia) e eventos da agenda Google, indexados por dia.
   const holidaysByDay = useMemo(() => {
@@ -132,6 +137,18 @@ export function VacationCalendarPage() {
     }
     return map
   }, [calendarItems])
+
+  // Prazos das minhas tarefas (ignora concluídas/abandonadas), por dia.
+  const tasksByDay = useMemo(() => {
+    const map = {}
+    for (const t of tasks) {
+      if (!t.due_date || t.status === 'done' || t.status === 'abandoned') continue
+      const day = String(t.due_date).slice(0, 10)
+      if (!map[day]) map[day] = []
+      map[day].push(t)
+    }
+    return map
+  }, [tasks])
 
   return (
     <div>
@@ -249,6 +266,16 @@ export function VacationCalendarPage() {
                           >
                             <Video size={10} className="flex-shrink-0" />
                             <span className="truncate">{ev.title}</span>
+                          </div>
+                        ))}
+                        {(tasksByDay[day.key] || []).slice(0, 3).map((task) => (
+                          <div
+                            key={task.id}
+                            className="flex items-center gap-1 truncate rounded px-2 py-1 text-[11px] font-medium bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                            title={`Tarefa: ${task.title}${task.project_name ? ' · ' + task.project_name : ''}`}
+                          >
+                            <ListTodo size={10} className="flex-shrink-0" />
+                            <span className="truncate">{task.title}</span>
                           </div>
                         ))}
                         {dayVacations.slice(0, 3).map((vacation) => (
