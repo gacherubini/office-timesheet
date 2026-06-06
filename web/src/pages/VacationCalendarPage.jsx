@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarOff, ChevronLeft, ChevronRight, Flag, Video, ListTodo, Clock, MapPin, Building2 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { CalendarOff, ChevronLeft, ChevronRight, Flag, Video, ListTodo, Clock, MapPin, Building2, ArrowRight, Briefcase } from 'lucide-react'
 import { api } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 import { PageHeader } from '../components/ui/PageHeader'
@@ -50,6 +51,19 @@ function formatDays(days) {
   return `${days} ${days === 1 ? 'dia' : 'dias'}`
 }
 
+const TASK_STATUS_LABEL = {
+  todo: 'A fazer',
+  in_progress: 'Em andamento',
+  done: 'Concluída',
+  abandoned: 'Abandonada',
+}
+
+const TASK_PRIORITY_LABEL = {
+  low: 'Baixa',
+  medium: 'Média',
+  high: 'Alta',
+}
+
 function addMonths(date, amount) {
   return new Date(date.getFullYear(), date.getMonth() + amount, 1)
 }
@@ -89,6 +103,7 @@ function colorForUser(userId) {
 
 export function VacationCalendarPage() {
   const { profile } = useAuth()
+  const navigate = useNavigate()
   const [monthDate, setMonthDate] = useState(() => {
     const today = new Date()
     return new Date(today.getFullYear(), today.getMonth(), 1)
@@ -101,6 +116,7 @@ export function VacationCalendarPage() {
   const [upcomingOffice, setUpcomingOffice] = useState([]) // próximos eventos do escritório
   const [connected, setConnected] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState(null)
+  const [selectedTask, setSelectedTask] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [refresh, setRefresh] = useState(0)
@@ -355,14 +371,16 @@ export function VacationCalendarPage() {
                           </p>
                         )}
                         {(tasksByDay[day.key] || []).slice(0, 3).map((task) => (
-                          <div
+                          <button
                             key={task.id}
-                            className="flex items-center gap-1 truncate rounded px-2 py-1 text-[11px] font-medium bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                            type="button"
+                            onClick={() => setSelectedTask(task)}
+                            className="flex w-full items-center gap-1 truncate rounded px-2 py-1 text-left text-[11px] font-medium bg-amber-500/15 text-amber-700 dark:text-amber-300 hover:bg-amber-500/25 transition-colors"
                             title={`Tarefa: ${task.title}${task.project_name ? ' · ' + task.project_name : ''}`}
                           >
                             <ListTodo size={10} className="flex-shrink-0" />
                             <span className="truncate">{task.title}</span>
-                          </div>
+                          </button>
                         ))}
                         {dayVacations.slice(0, 3).map((vacation) => (
                           <div
@@ -533,6 +551,60 @@ export function VacationCalendarPage() {
             )}
             {!selectedEvent.location && !selectedEvent.description && (
               <p className="text-xs text-text-secondary">Sem mais detalhes neste evento.</p>
+            )}
+          </div>
+        </Modal>
+      )}
+
+      {selectedTask && (
+        <Modal
+          open
+          onClose={() => setSelectedTask(null)}
+          title={selectedTask.title}
+          size="sm"
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setSelectedTask(null)}>
+                Fechar
+              </Button>
+              <Button onClick={() => navigate(`/project-board?task=${selectedTask.id}`)}>
+                Abrir no quadro <ArrowRight size={15} />
+              </Button>
+            </>
+          }
+        >
+          <div className="space-y-3 text-sm">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 px-2.5 py-1 text-xs font-medium">
+              <ListTodo size={12} /> Tarefa
+            </span>
+            {selectedTask.project_name && (
+              <div className="flex items-center gap-2 text-text-secondary">
+                <Briefcase size={15} className="flex-shrink-0" />
+                <span>{selectedTask.project_name}</span>
+              </div>
+            )}
+            {selectedTask.due_date && (
+              <div className="flex items-center gap-2 text-text-secondary">
+                <Clock size={15} className="flex-shrink-0" />
+                <span>Prazo: {formatDate(String(selectedTask.due_date).slice(0, 10))}</span>
+              </div>
+            )}
+            <div className="flex flex-wrap gap-2">
+              {TASK_STATUS_LABEL[selectedTask.status] && (
+                <span className="rounded-full bg-surface-alt px-2.5 py-1 text-xs text-text-secondary">
+                  {TASK_STATUS_LABEL[selectedTask.status]}
+                </span>
+              )}
+              {TASK_PRIORITY_LABEL[selectedTask.priority] && (
+                <span className="rounded-full bg-surface-alt px-2.5 py-1 text-xs text-text-secondary">
+                  Prioridade: {TASK_PRIORITY_LABEL[selectedTask.priority]}
+                </span>
+              )}
+            </div>
+            {selectedTask.description && (
+              <p className="whitespace-pre-wrap text-text-primary border-t border-border-subtle pt-3">
+                {selectedTask.description}
+              </p>
             )}
           </div>
         </Modal>
