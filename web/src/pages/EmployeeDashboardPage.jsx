@@ -6,6 +6,7 @@ import { Play, Pause, Square, RotateCcw, Eye, EyeOff, Coffee, Clock, Repeat } fr
 import { Avatar } from '../components/Avatar'
 import { BirthdayCalendar } from '../components/BirthdayCalendar'
 import { AgendaCard } from '../components/AgendaCard'
+import { MyTasksTimer } from '../components/MyTasksTimer'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Card } from '../components/ui/Card'
 
@@ -283,6 +284,8 @@ export function EmployeeDashboardPage() {
               )}
             </div>
           </Card>
+
+          <MyTasksTimer />
 
           <Card>
             {timerError && (

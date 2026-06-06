@@ -228,6 +228,43 @@ router.get('/tasks/counts', requireAuth, async (_req, res) => {
   }
 })
 
+// Minhas tarefas ativas (cronômetro do dashboard). Tarefas não-terminais
+// atribuídas ao usuário logado, em projetos ativos, com o MEU tempo apontado
+// e a sessão aberta (se houver) pra renderizar o contador ao vivo.
+router.get('/me/tasks', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await query(
+      `SELECT t.id, t.title, t.project_id, p.name AS project_name,
+              t.status, t.priority, t.due_date,
+              COALESCE(mine.minutes, 0)::int AS my_minutes,
+              open.started_at AS open_started_at
+       FROM tasks t
+       JOIN projects p ON p.id = t.project_id
+       LEFT JOIN LATERAL (
+         SELECT COALESCE(SUM(
+           COALESCE(ttl.duration_minutes,
+             EXTRACT(EPOCH FROM (now() - ttl.started_at)) / 60)
+         ), 0)::int AS minutes
+         FROM task_time_logs ttl
+         WHERE ttl.task_id = t.id AND ttl.user_id = $1
+       ) mine ON true
+       LEFT JOIN LATERAL (
+         SELECT started_at FROM task_time_logs
+         WHERE task_id = t.id AND user_id = $1 AND ended_at IS NULL
+         ORDER BY started_at DESC LIMIT 1
+       ) open ON true
+       WHERE t.assignee_id = $1
+         AND t.status IN ('todo', 'in_progress')
+         AND p.status = 'active'
+       ORDER BY (open.started_at IS NOT NULL) DESC, t.due_date ASC NULLS LAST, t.created_at`,
+      [req.profile.id]
+    )
+    return res.json(rows)
+  } catch (err) {
+    return res.status(400).json({ error: err.message })
+  }
+})
+
 // Detalhe de uma tarefa (qualquer usuário logado).
 // Usado pelo deep-link /project-board?task=:id quando a tarefa
 // não está na lista atual (ex: filtrada por outro projeto).
