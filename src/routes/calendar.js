@@ -50,6 +50,7 @@ function makeEvent(ev, start, end, allDay, key) {
     end: (end || start).toISOString(),
     all_day: allDay,
     location: ev.location || null,
+    description: ev.description || null,
     source: 'google',
   }
 }

@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarOff, ChevronLeft, ChevronRight, Flag, Video, ListTodo } from 'lucide-react'
+import { CalendarOff, ChevronLeft, ChevronRight, Flag, Video, ListTodo, Clock, MapPin } from 'lucide-react'
 import { api } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
-import { Avatar } from '../components/Avatar'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
-import { getCalendarEvents } from '../lib/calendarClient'
+import { Modal } from '../components/ui/Modal'
+import { getCalendarEvents, getCalendarStatus } from '../lib/calendarClient'
+import { fetchHolidays } from '../lib/holidaysClient'
 import { CalendarConnect } from './profile/CalendarConnect'
 
 const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
@@ -30,6 +31,19 @@ function formatDate(value) {
 
 function formatMonth(date) {
   return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+}
+
+function eventTime(iso) {
+  return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+}
+
+function eventDateLabel(iso) {
+  return new Date(iso).toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' })
+}
+
+function formatEventWhen(ev) {
+  if (ev.all_day) return `${eventDateLabel(ev.start)} · Dia todo`
+  return `${eventDateLabel(ev.start)} · ${eventTime(ev.start)}–${eventTime(ev.end)}`
 }
 
 function formatDays(days) {
@@ -80,9 +94,12 @@ export function VacationCalendarPage() {
     return new Date(today.getFullYear(), today.getMonth(), 1)
   })
   const [vacations, setVacations] = useState([])
-  const [currentVacations, setCurrentVacations] = useState([])
   const [calendarItems, setCalendarItems] = useState([]) // feriados + agenda Google
   const [tasks, setTasks] = useState([]) // minhas tarefas com prazo
+  const [upcomingHolidays, setUpcomingHolidays] = useState([]) // próximos feriados
+  const [upcomingEvents, setUpcomingEvents] = useState([]) // próximos eventos Google
+  const [connected, setConnected] = useState(false)
+  const [selectedEvent, setSelectedEvent] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [refresh, setRefresh] = useState(0)
@@ -104,19 +121,43 @@ export function VacationCalendarPage() {
     setError('')
     Promise.all([
       api.get(`/vacation-calendar?start_date=${rangeStart}&end_date=${rangeEnd}`),
-      api.get(`/vacation-calendar?start_date=${today}&end_date=${today}`),
       getCalendarEvents(rangeStart, rangeEnd).catch(() => ({ events: [] })),
       profile?.id ? api.get(`/tasks?assignee_id=${profile.id}`).catch(() => []) : Promise.resolve([]),
     ])
-      .then(([calendarData, todayData, evResp, tk]) => {
+      .then(([calendarData, evResp, tk]) => {
         setVacations(calendarData)
-        setCurrentVacations(todayData)
         setCalendarItems(Array.isArray(evResp.events) ? evResp.events : [])
         setTasks(Array.isArray(tk) ? tk : [])
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
-  }, [rangeStart, rangeEnd, today, refresh, profile?.id])
+  }, [rangeStart, rangeEnd, refresh, profile?.id])
+
+  // Painel "próximos" (independente do mês navegado): feriados do ano atual +
+  // seguinte a partir de hoje, e eventos do Google nos próximos 90 dias.
+  useEffect(() => {
+    const now = new Date()
+    const todayK = dateKey(now)
+    const horizon = dateKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 90))
+
+    Promise.all([fetchHolidays(now.getFullYear()), fetchHolidays(now.getFullYear() + 1)])
+      .then(([a, b]) => {
+        const list = [...a, ...b]
+          .filter((h) => h.date >= todayK)
+          .sort((x, y) => x.date.localeCompare(y.date))
+          .slice(0, 6)
+        setUpcomingHolidays(list)
+      })
+      .catch(() => {})
+
+    Promise.all([
+      getCalendarStatus().catch(() => ({ connected: false })),
+      getCalendarEvents(todayK, horizon).catch(() => ({ events: [] })),
+    ]).then(([st, resp]) => {
+      setConnected(Boolean(st.connected))
+      setUpcomingEvents((resp.events || []).filter((e) => e.source === 'google').slice(0, 6))
+    })
+  }, [refresh])
 
   // Feriados (1 por dia) e eventos da agenda Google, indexados por dia.
   const holidaysByDay = useMemo(() => {
@@ -259,14 +300,19 @@ export function VacationCalendarPage() {
                           </div>
                         )}
                         {(googleByDay[day.key] || []).slice(0, 6).map((ev) => (
-                          <div
+                          <button
                             key={ev.id}
-                            className="flex items-center gap-1 truncate rounded px-2 py-1 text-[11px] font-medium bg-sky-500/15 text-sky-700 dark:text-sky-300"
+                            type="button"
+                            onClick={() => setSelectedEvent(ev)}
+                            className="flex w-full items-center gap-1 truncate rounded px-2 py-1 text-left text-[11px] font-medium bg-sky-500/15 text-sky-700 dark:text-sky-300 hover:bg-sky-500/25 transition-colors"
                             title={`${ev.title}${ev.location ? ' · ' + ev.location : ''}`}
                           >
                             <Video size={10} className="flex-shrink-0" />
-                            <span className="truncate">{ev.title}</span>
-                          </div>
+                            <span className="truncate">
+                              {!ev.all_day && <span className="tabular-nums">{eventTime(ev.start)} </span>}
+                              {ev.title}
+                            </span>
+                          </button>
                         ))}
                         {(googleByDay[day.key] || []).length > 6 && (
                           <p className="text-[11px] text-sky-600 dark:text-sky-300 px-1">
@@ -309,37 +355,48 @@ export function VacationCalendarPage() {
         <div className="space-y-5">
           <Card padded={false} className="overflow-hidden">
             <div className="px-5 py-4 border-b border-border-subtle">
-              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary">
-                De férias hoje
+              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary inline-flex items-center gap-1.5">
+                <Flag size={13} className="text-rose-500" /> Próximos feriados
               </h2>
             </div>
-
             <div className="divide-y divide-border-subtle">
-              {loading ? (
-                <div className="py-8 text-center text-sm text-text-secondary">Carregando...</div>
-              ) : currentVacations.length === 0 ? (
-                <div className="py-8 px-5 text-center text-sm text-text-secondary">
-                  Ninguém de férias hoje.
-                </div>
+              {upcomingHolidays.length === 0 ? (
+                <div className="py-8 px-5 text-center text-sm text-text-secondary">Sem feriados próximos.</div>
               ) : (
-                currentVacations.map((vacation) => (
-                  <div key={vacation.id} className="p-4">
-                    <div className="flex items-center gap-3">
-                      <Avatar
-                        name={vacation.profile?.name}
-                        url={vacation.profile?.avatar_url}
-                        size={36}
-                      />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-text-primary truncate">
-                          {vacation.profile?.name || 'Colaborador'}
-                        </p>
-                        <p className="text-xs text-text-secondary">
-                          {formatDate(vacation.start_date)} → {formatDate(vacation.end_date)}
-                        </p>
-                      </div>
-                    </div>
+                upcomingHolidays.map((h) => (
+                  <div key={h.date} className="flex items-center justify-between gap-3 px-5 py-3">
+                    <span className="text-sm text-text-primary truncate">{h.name}</span>
+                    <span className="text-xs text-text-secondary tabular-nums flex-shrink-0">{formatDate(h.date)}</span>
                   </div>
+                ))
+              )}
+            </div>
+          </Card>
+
+          <Card padded={false} className="overflow-hidden">
+            <div className="px-5 py-4 border-b border-border-subtle">
+              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary inline-flex items-center gap-1.5">
+                <Video size={13} className="text-sky-500" /> Próximos eventos
+              </h2>
+            </div>
+            <div className="divide-y divide-border-subtle">
+              {!connected ? (
+                <div className="py-8 px-5 text-center text-sm text-text-secondary">
+                  Conecte sua agenda Google acima.
+                </div>
+              ) : upcomingEvents.length === 0 ? (
+                <div className="py-8 px-5 text-center text-sm text-text-secondary">Nada nos próximos 90 dias.</div>
+              ) : (
+                upcomingEvents.map((ev) => (
+                  <button
+                    key={ev.id}
+                    type="button"
+                    onClick={() => setSelectedEvent(ev)}
+                    className="w-full text-left px-5 py-3 hover:bg-surface-alt transition-colors"
+                  >
+                    <p className="text-sm text-text-primary truncate">{ev.title}</p>
+                    <p className="text-xs text-text-secondary">{formatEventWhen(ev)}</p>
+                  </button>
                 ))
               )}
             </div>
@@ -376,6 +433,37 @@ export function VacationCalendarPage() {
           </Card>
         </div>
       </div>
+
+      {selectedEvent && (
+        <Modal
+          open
+          onClose={() => setSelectedEvent(null)}
+          title={selectedEvent.title}
+          size="sm"
+          footer={<Button variant="secondary" onClick={() => setSelectedEvent(null)}>Fechar</Button>}
+        >
+          <div className="space-y-3 text-sm">
+            <div className="flex items-center gap-2 text-text-secondary">
+              <Clock size={15} className="flex-shrink-0" />
+              <span>{formatEventWhen(selectedEvent)}</span>
+            </div>
+            {selectedEvent.location && (
+              <div className="flex items-start gap-2 text-text-secondary">
+                <MapPin size={15} className="flex-shrink-0 mt-0.5" />
+                <span>{selectedEvent.location}</span>
+              </div>
+            )}
+            {selectedEvent.description && (
+              <p className="whitespace-pre-wrap text-text-primary border-t border-border-subtle pt-3">
+                {selectedEvent.description}
+              </p>
+            )}
+            {!selectedEvent.location && !selectedEvent.description && (
+              <p className="text-xs text-text-secondary">Sem mais detalhes neste evento.</p>
+            )}
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }
