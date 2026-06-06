@@ -9,7 +9,7 @@ export function PageHeader({ title, subtitle, badge, actions, children }) {
         {subtitle && <p className="text-sm text-text-secondary mt-1">{subtitle}</p>}
         {children}
       </div>
-      {actions && <div className="flex items-center gap-2 flex-wrap">{actions}</div>}
+      {actions && <div className="flex items-center gap-2 flex-wrap md:pr-12">{actions}</div>}
     </div>
   )
 }
