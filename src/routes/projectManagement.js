@@ -260,9 +260,8 @@ router.put('/tasks/:id', requireAuth, async (req, res) => {
     if (taskRows.length === 0) return res.status(404).json({ error: 'Tarefa não encontrada.' })
     const before = taskRows[0]
 
-    if (!(await canManageTasks(req.profile, before.project_id))) {
-      return res.status(403).json({ error: 'Apenas admin ou líder do projeto pode editar a tarefa.' })
-    }
+    // Editar é liberado a qualquer usuário logado (como criar/mover).
+    // Só excluir (DELETE) exige admin/líder.
 
     const updates = []
     const params = []

@@ -39,8 +39,10 @@ export function TaskDetailContent({
   }, [initialTask])
 
   const dirty = title !== task.title || (description || '') !== (task.description || '')
-  // Mover de coluna é liberado a qualquer usuário logado (edição segue restrita).
+  // Mover e editar são liberados a qualquer usuário logado.
+  // `canManage` (admin/líder) só controla a exclusão definitiva.
   const canMoveStatus = true
+  const canEdit = true
 
   async function loadTime() {
     try {
@@ -184,7 +186,7 @@ export function TaskDetailContent({
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          disabled={!canManage}
+          disabled={!canEdit}
           placeholder="Título da tarefa"
           className="w-full bg-transparent text-2xl font-display text-text-primary outline-none border-b border-transparent focus:border-border-subtle py-1 disabled:opacity-80"
         />
@@ -201,18 +203,18 @@ export function TaskDetailContent({
           users={users}
           value={task.assignee_id}
           onChange={(id) => patch({ assignee_id: id }, { assignee_id: id })}
-          disabled={!canManage}
+          disabled={!canEdit}
         />
         <PriorityChip
           value={task.priority}
           onChange={(p) => patch({ priority: p }, { priority: p })}
-          disabled={!canManage}
+          disabled={!canEdit}
         />
         <DueDateChip
           value={task.due_date}
           status={task.status}
           onChange={(d) => patch({ due_date: d }, { due_date: d })}
-          disabled={!canManage}
+          disabled={!canEdit}
         />
         <div className="ml-auto">
           <ActivityPopover taskId={task.id} />
@@ -227,9 +229,9 @@ export function TaskDetailContent({
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              disabled={!canManage}
+              disabled={!canEdit}
               rows={5}
-              placeholder={canManage ? 'Adicione mais detalhes... (arraste arquivos pra anexar)' : 'Sem descrição.'}
+              placeholder={canEdit ? 'Adicione mais detalhes... (arraste arquivos pra anexar)' : 'Sem descrição.'}
               className="w-full form-control border rounded-lg px-3 py-2 text-sm outline-none transition-colors resize-y disabled:opacity-70"
             />
             {descDragOver && (
@@ -330,7 +332,7 @@ export function TaskDetailContent({
             </button>
           )}
         </div>
-        {canManage && (
+        {canEdit && (
           <Button onClick={handleSave} disabled={saving || !dirty}>
             {saving ? 'Salvando...' : dirty ? 'Salvar' : 'Salvo'}
           </Button>
