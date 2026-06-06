@@ -1,9 +1,10 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import DatePicker, { registerLocale } from 'react-datepicker'
 import { ptBR } from 'date-fns/locale'
 import { Calendar, X } from 'lucide-react'
 import { urgency, urgencyClasses } from './helpers'
 import { useClickOutside } from '../../hooks/useClickOutside'
+import { fetchHolidays } from '../../lib/holidaysClient'
 import 'react-datepicker/dist/react-datepicker.css'
 
 registerLocale('pt-BR', ptBR)
@@ -31,10 +32,20 @@ function formatDate(iso) {
 
 export function DueDateChip({ value, status, onChange, disabled }) {
   const [open, setOpen] = useState(false)
+  const [holidays, setHolidays] = useState([])
   const ref = useRef(null)
   const u = urgency(value, status)
 
   useClickOutside(ref, open, () => setOpen(false))
+
+  // Carrega os feriados (ano atual + seguinte) quando o seletor abre.
+  useEffect(() => {
+    if (!open || holidays.length > 0) return
+    const year = new Date().getFullYear()
+    Promise.all([fetchHolidays(year), fetchHolidays(year + 1)])
+      .then(([a, b]) => setHolidays([...a, ...b].map((h) => ({ date: h.date, holidayName: h.name }))))
+      .catch(() => {})
+  }, [open, holidays.length])
 
   function clear() {
     setOpen(false)
@@ -66,6 +77,7 @@ export function DueDateChip({ value, status, onChange, disabled }) {
             onChange={(date) => { onChange(toIso(date)); setOpen(false) }}
             locale="pt-BR"
             dateFormat="dd/MM/yyyy"
+            holidays={holidays}
             inline
           />
           {value && (

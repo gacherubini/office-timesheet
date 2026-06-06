@@ -23,6 +23,7 @@ import {
   Sparkles,
   CalendarDays,
   CalendarOff,
+  CalendarClock,
   KanbanSquare,
   ChevronDown,
   Pin,
@@ -185,6 +186,7 @@ export function Layout({ children }) {
         { to: '/project-board', label: 'Tarefas', icon: KanbanSquare },
         { to: '/vacations', label: 'Férias', icon: CalendarOff },
         { to: '/vacation-calendar', label: 'Calendário', icon: CalendarDays },
+        { to: '/agenda', label: 'Agenda', icon: CalendarClock },
       ],
     },
     {
@@ -214,6 +216,7 @@ export function Layout({ children }) {
         { to: '/project-board', label: 'Tarefas', icon: KanbanSquare },
         { to: '/vacations', label: 'Férias', icon: CalendarOff },
         { to: '/vacation-calendar', label: 'Calendário', icon: CalendarDays },
+        { to: '/agenda', label: 'Agenda', icon: CalendarClock },
       ],
     },
     {
@@ -247,6 +250,7 @@ export function Layout({ children }) {
         { to: '/project-board', label: 'Tarefas', icon: KanbanSquare },
         { to: '/vacations', label: 'Férias', icon: CalendarOff },
         { to: '/vacation-calendar', label: 'Calendário', icon: CalendarDays },
+        { to: '/agenda', label: 'Agenda', icon: CalendarClock },
       ],
     },
     {

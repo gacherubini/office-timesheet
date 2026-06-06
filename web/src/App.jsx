@@ -12,6 +12,7 @@ import { ExpensesPage } from './pages/ExpensesPage'
 import { VacationsPage } from './pages/VacationsPage'
 import { VacationCalendarPage } from './pages/VacationCalendarPage'
 import { ProfilePage } from './pages/ProfilePage'
+import { AgendaPage } from './pages/AgendaPage'
 import { EmployeeDashboardPage } from './pages/EmployeeDashboardPage'
 import { FinancialPerspectivePage } from './pages/FinancialPerspectivePage'
 import { AdminLivePage } from './pages/admin/AdminLivePage'
@@ -65,6 +66,7 @@ export default function App() {
       <Route path="/clients" element={<ProtectedRoute><Layout><AdminClientsPage /></Layout></ProtectedRoute>} />
       <Route path="/suppliers" element={<ProtectedRoute><Layout><AdminSuppliersPage /></Layout></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Layout><ProfilePage /></Layout></ProtectedRoute>} />
+      <Route path="/agenda" element={<ProtectedRoute><Layout><AgendaPage /></Layout></ProtectedRoute>} />
 
       {/* Rotas do admin */}
       <Route path="/admin/approvals" element={<ProtectedRoute approverOnly><Layout><AdminApprovalsPage /></Layout></ProtectedRoute>} />

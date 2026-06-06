@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { Play, Pause, Square, RotateCcw, Eye, EyeOff, Coffee, Clock, Repeat } from 'lucide-react'
 import { Avatar } from '../components/Avatar'
 import { BirthdayCalendar } from '../components/BirthdayCalendar'
+import { AgendaCard } from '../components/AgendaCard'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Card } from '../components/ui/Card'
 
@@ -425,6 +426,7 @@ export function EmployeeDashboardPage() {
         </div>
 
         <div className="lg:w-72 flex flex-col gap-5">
+          <AgendaCard />
           <BirthdayCalendar />
         </div>
       </div>

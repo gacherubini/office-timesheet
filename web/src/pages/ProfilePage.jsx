@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { Avatar } from '../components/Avatar'
 import { DateField } from '../components/ui/DateField'
 import { roleLabel } from '../lib/permissions'
+import { CalendarConnect } from './profile/CalendarConnect'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? '/api'
 
@@ -349,6 +350,8 @@ export function ProfilePage() {
           </button>
         </div>
       </form>
+
+      <CalendarConnect />
     </div>
   )
 }
