@@ -542,7 +542,8 @@ router.get('/admin/live', requireAuth, requireOperationalAccess, async (req, res
               te.id as entry_id, te.project_id, te.started_at, te.duration_minutes,
               te.status as entry_status,
               p.name as project_name,
-              pauses.break_minutes, pauses.break_count, pauses.paused_since
+              pauses.break_minutes, pauses.break_count, pauses.paused_since,
+              curtask.task_id, curtask.task_title, curtask.task_started_at
        FROM users u
        LEFT JOIN time_entries te
          ON te.user_id = u.id AND te.status IN ('running', 'paused')
@@ -555,6 +556,16 @@ router.get('/admin/live', requireAuth, requireOperationalAccess, async (req, res
          FROM time_entry_pauses ep
          WHERE ep.time_entry_id = te.id
        ) pauses ON te.id IS NOT NULL
+       LEFT JOIN LATERAL (
+         -- Tarefa do kanban com cronômetro aberto. Prioriza a do projeto do
+         -- ponto ativo; senão, a sessão aberta mais recente do usuário.
+         SELECT tt.task_id, tk.title AS task_title, tt.started_at AS task_started_at
+         FROM task_time_logs tt
+         JOIN tasks tk ON tk.id = tt.task_id
+         WHERE tt.user_id = u.id AND tt.ended_at IS NULL
+         ORDER BY (tk.project_id = te.project_id) DESC NULLS LAST, tt.started_at DESC
+         LIMIT 1
+       ) curtask ON true
        WHERE u.deleted_at IS NULL AND u.is_active = true
        ORDER BY u.name`
     )
@@ -572,6 +583,9 @@ router.get('/admin/live', requireAuth, requireOperationalAccess, async (req, res
         break_minutes: row.entry_id ? (row.break_minutes || 0) : 0,
         break_count: row.entry_id ? (row.break_count || 0) : 0,
         paused_since: row.paused_since || null,
+        task: row.task_title || null,
+        task_id: row.task_id || null,
+        task_started_at: row.task_started_at || null,
       }))
     )
   } catch (err) {

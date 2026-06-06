@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { ListTodo } from 'lucide-react'
 import { api } from '../../lib/api'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
@@ -109,6 +110,12 @@ export function AdminLivePage() {
             <p className="text-sm font-medium text-text-primary truncate">{user.name}</p>
             {user.project && (
               <p className="text-xs text-text-secondary truncate">{user.project}</p>
+            )}
+            {user.task && (
+              <p className="mt-0.5 flex items-center gap-1 text-[11px] text-accent truncate">
+                <ListTodo size={12} className="flex-shrink-0" />
+                <span className="truncate">{user.task}</span>
+              </p>
             )}
             {user.status !== 'offline' && (
               <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-text-secondary">
