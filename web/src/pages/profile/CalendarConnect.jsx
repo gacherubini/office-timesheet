@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CalendarClock, Link2, Check, Unlink, HelpCircle, ChevronDown } from 'lucide-react'
+import { CalendarClock, Link2, Check, Unlink, HelpCircle, ChevronDown, ExternalLink } from 'lucide-react'
 import { getCalendarStatus, connectCalendar, disconnectCalendar } from '../../lib/calendarClient'
 
 // Conecta a agenda Google via "endereço secreto no formato iCal".
@@ -116,12 +116,36 @@ export function CalendarConnect({ onChange, hideWhenConnected = false }) {
             </button>
 
             {showHelp && (
-              <ol className="text-[13px] text-text-secondary list-decimal pl-5 space-y-1 border-l-2 border-border-subtle ml-1 pt-1">
-                <li>No <span className="text-text-primary">computador</span>, abra o Google Calendar (o app do celular não mostra esse link).</li>
-                <li>Em <span className="text-text-primary">Minhas agendas</span>, passe o mouse na agenda → <span className="text-text-primary">⋮</span> → <span className="text-text-primary">Configurações e compartilhamento</span>.</li>
-                <li>Role até <span className="text-text-primary">Integrar agenda</span>.</li>
-                <li>Copie o <span className="text-text-primary">Endereço secreto no formato iCal</span> e cole acima.</li>
-              </ol>
+              <div className="border-l-2 border-border-subtle ml-1 pl-3 pt-1 space-y-2">
+                <ol className="text-[13px] text-text-secondary list-decimal pl-4 space-y-1">
+                  <li>
+                    No <span className="text-text-primary">computador</span>, abra o{' '}
+                    <a href="https://calendar.google.com" target="_blank" rel="noreferrer" className="text-accent hover:underline">Google Calendar</a>{' '}
+                    (o app do celular não mostra esse link).
+                  </li>
+                  <li>
+                    Na coluna da esquerda, em <span className="text-text-primary">Minhas agendas</span>, passe o mouse no nome da
+                    sua agenda → clique nos <span className="text-text-primary">três pontinhos ⋮</span> →{' '}
+                    <span className="text-text-primary">Configurações e compartilhamento</span>.
+                  </li>
+                  <li>Role até a seção <span className="text-text-primary">Integrar agenda</span>.</li>
+                  <li>
+                    Copie o <span className="text-text-primary">Endereço secreto no formato iCal</span>{' '}
+                    (termina em <code className="text-text-primary">basic.ics</code>) e cole acima.
+                  </li>
+                </ol>
+                <a
+                  href="https://support.google.com/calendar/answer/37648?hl=pt-BR"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-[12px] text-accent hover:underline"
+                >
+                  <ExternalLink size={12} /> Ver o passo a passo com prints (ajuda do Google)
+                </a>
+                <p className="text-[11px] text-text-secondary">
+                  Conta da empresa (Workspace)? O endereço secreto pode estar bloqueado pelo administrador.
+                </p>
+              </div>
             )}
 
             <p className="text-[11px] text-text-secondary">
