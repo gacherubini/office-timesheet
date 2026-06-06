@@ -106,9 +106,8 @@ router.post('/projects/:id/tasks', requireAuth, async (req, res) => {
   }
 
   try {
-    if (!(await canManageTasks(req.profile, projectId))) {
-      return res.status(403).json({ error: 'Apenas admin ou líder do projeto pode criar tarefas.' })
-    }
+    // Criar tarefas é liberado a qualquer usuário logado.
+    // Só excluir (DELETE) exige admin/líder.
 
     // position = vai para o fim da coluna 'todo'
     const { rows: posRows } = await query(

@@ -53,7 +53,7 @@ export function LeaderManager({ projectId, users, onChange }) {
   const available = users.filter((u) => !leaders.some((l) => l.id === u.id))
 
   return (
-    <div className="mb-5 bg-surface-alt/40 rounded-xl p-4">
+    <div className="mb-5">
       <p className="text-[11px] uppercase tracking-wider text-text-secondary mb-2">Líderes do projeto</p>
       <div className="flex flex-wrap items-center gap-2 mb-3">
         {leaders.length === 0 && <span className="text-xs text-text-secondary">Nenhum líder vinculado.</span>}

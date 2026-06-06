@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { ArrowLeft } from 'lucide-react'
 import { api } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 import { PageHeader } from '../components/ui/PageHeader'
@@ -10,6 +11,7 @@ import { KanbanBoard } from './projectBoard/KanbanBoard'
 import { TaskDetailModal } from './projectBoard/TaskDetailModal'
 import { NewTaskModal } from './projectBoard/NewTaskModal'
 import { LeaderManager } from './projectBoard/LeaderManager'
+import { ProjectCatalog } from './projectBoard/ProjectCatalog'
 
 export function ProjectBoardPage() {
   const { profile } = useAuth()
@@ -95,6 +97,18 @@ export function ProjectBoardPage() {
     return isAdmin || leaderProjectIds.includes(projectId)
   }
 
+  function openProject(project) {
+    setSearch('')
+    setAssigneeFilter('')
+    setProjectFilter(project.id)
+  }
+
+  function backToCatalog() {
+    setSearch('')
+    setAssigneeFilter('')
+    setProjectFilter('')
+  }
+
   async function handleMove(task, status) {
     const prev = tasks
     setTasks((cur) => cur.map((t) => (t.id === task.id ? { ...t, status } : t)))
@@ -112,61 +126,93 @@ export function ProjectBoardPage() {
     return tasks.filter((t) => {
       if (assigneeFilter === 'me' && t.assignee_id !== profile?.id) return false
       if (assigneeFilter && assigneeFilter !== 'me' && t.assignee_id !== assigneeFilter) return false
-      if (q && !`${t.title} ${t.project_name}`.toLowerCase().includes(q)) return false
+      if (q && !t.title.toLowerCase().includes(q)) return false
       return true
     })
   }, [tasks, assigneeFilter, search, profile?.id])
 
-  const canCreate = projectFilter && canManageProject(projectFilter)
+  const selectedProject = projects.find((p) => p.id === projectFilter)
+  // Criar tarefa: liberado a qualquer usuário (só excluir exige admin/líder).
+  const canCreate = Boolean(projectFilter)
 
   return (
     <div>
-      <PageHeader title="Gerenciamento de Projetos" subtitle="Quadro de tarefas do escritório" />
-
-      <div className="mb-5 flex flex-wrap items-end gap-3">
-        <Select
-          label="Projeto"
-          value={projectFilter}
-          onChange={(e) => setProjectFilter(e.target.value)}
-          className="w-56"
-        >
-          <option value="">Todos os projetos</option>
-          {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </Select>
-        <Select
-          label="Responsável"
-          value={assigneeFilter}
-          onChange={(e) => setAssigneeFilter(e.target.value)}
-          className="w-52"
-        >
-          <option value="">Todos</option>
-          <option value="me">Minhas tarefas</option>
-          {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-        </Select>
-        <Input
-          label="Buscar"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Título ou projeto..."
-          className="w-60"
-        />
-        {canCreate && (
-          <Button onClick={() => setCreating(true)}>Nova tarefa</Button>
-        )}
-      </div>
-
-      {isAdmin && projectFilter && (
-        <LeaderManager
-          projectId={projectFilter}
-          users={users}
-          onChange={loadLeadership}
-        />
-      )}
-
-      {loading ? (
-        <div className="py-16 text-center text-text-secondary text-sm">Carregando...</div>
+      {!projectFilter ? (
+        // ── Nível 1: catálogo de projetos ──────────────────────────────
+        <>
+          <PageHeader
+            title="Gerenciamento de Projetos"
+            subtitle="Escolha um projeto para ver suas tarefas"
+          />
+          <div className="mb-5">
+            <Input
+              label="Buscar projeto"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Nome ou cliente..."
+              className="w-72"
+            />
+          </div>
+          {loading ? (
+            <div className="py-16 text-center text-text-secondary text-sm">Carregando...</div>
+          ) : (
+            <ProjectCatalog projects={projects} tasks={tasks} search={search} onOpen={openProject} />
+          )}
+        </>
       ) : (
-        <KanbanBoard tasks={visibleTasks} onOpenTask={(task) => setDrawer(task)} onMove={handleMove} />
+        // ── Nível 2: quadro do projeto selecionado ─────────────────────
+        <>
+          <button
+            type="button"
+            onClick={backToCatalog}
+            className="mb-3 inline-flex items-center gap-1.5 text-xs font-medium text-text-secondary transition-colors hover:text-text-primary"
+          >
+            <ArrowLeft size={14} />
+            Todos os projetos
+          </button>
+
+          <PageHeader
+            title={selectedProject?.name || 'Projeto'}
+            subtitle={selectedProject?.client || 'Quadro de tarefas'}
+          />
+
+          <div className="mb-5 flex flex-wrap items-end gap-3">
+            <Select
+              label="Responsável"
+              value={assigneeFilter}
+              onChange={(e) => setAssigneeFilter(e.target.value)}
+              className="w-52"
+            >
+              <option value="">Todos</option>
+              <option value="me">Minhas tarefas</option>
+              {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </Select>
+            <Input
+              label="Buscar tarefa"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Título da tarefa..."
+              className="w-60"
+            />
+            {canCreate && (
+              <Button onClick={() => setCreating(true)}>Nova tarefa</Button>
+            )}
+          </div>
+
+          {isAdmin && (
+            <LeaderManager
+              projectId={projectFilter}
+              users={users}
+              onChange={loadLeadership}
+            />
+          )}
+
+          {loading ? (
+            <div className="py-16 text-center text-text-secondary text-sm">Carregando...</div>
+          ) : (
+            <KanbanBoard tasks={visibleTasks} onOpenTask={(task) => setDrawer(task)} onMove={handleMove} />
+          )}
+        </>
       )}
 
       {drawer && (
