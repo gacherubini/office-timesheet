@@ -78,6 +78,12 @@ export function activityText(a) {
   }
 }
 
+export function formatShortDate(iso) {
+  if (!iso) return ''
+  const [, m, d] = String(iso).split('T')[0].split('-')
+  return `${d}/${m}`
+}
+
 export function formatMinutes(minutes) {
   const total = Math.max(0, Math.round(minutes || 0))
   if (total < 60) return `${total}min`

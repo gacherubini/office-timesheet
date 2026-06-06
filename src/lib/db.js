@@ -13,9 +13,14 @@ const { Pool } = pg
 const databaseUrl = process.env.DATABASE_URL
 if (!databaseUrl) throw new Error('DATABASE_URL não configurada.')
 
+// Teto de conexões do pool. Configurável por env (PG_POOL_MAX) — o pool só
+// abre conexões sob demanda e fecha as ociosas, então o teto é "quando precisar".
+// Regra: PG_POOL_MAX × nº de instâncias < limite de conexões do plano do Postgres.
+const poolMax = Number(process.env.PG_POOL_MAX) || 15
+
 export const pool = new Pool({
   connectionString: databaseUrl,
-  max: 5,
+  max: poolMax,
   idleTimeoutMillis: 30_000,
 })
 

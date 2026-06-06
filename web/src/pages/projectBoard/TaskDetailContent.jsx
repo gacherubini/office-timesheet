@@ -21,6 +21,7 @@ export function TaskDetailContent({
   const [task, setTask] = useState(initialTask)
   const [title, setTitle] = useState(initialTask.title)
   const [description, setDescription] = useState(initialTask.description || '')
+  const [dueDate, setDueDate] = useState(initialTask.due_date || null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [timeData, setTimeData] = useState(null)
@@ -36,9 +37,13 @@ export function TaskDetailContent({
     setTask(initialTask)
     setTitle(initialTask.title)
     setDescription(initialTask.description || '')
+    setDueDate(initialTask.due_date || null)
   }, [initialTask])
 
-  const dirty = title !== task.title || (description || '') !== (task.description || '')
+  const dirty =
+    title !== task.title ||
+    (description || '') !== (task.description || '') ||
+    (dueDate || null) !== (task.due_date || null)
   // Mover e editar são liberados a qualquer usuário logado.
   // `canManage` (admin/líder) só controla a exclusão definitiva.
   const canMoveStatus = true
@@ -93,6 +98,7 @@ export function TaskDetailContent({
       const updated = await api.put(`/tasks/${task.id}`, {
         title: title.trim(),
         description: description.trim() || null,
+        due_date: dueDate || null,
       })
       setTask((cur) => ({ ...cur, ...updated }))
       setSuccessMessage('Tarefa salva com sucesso!')
@@ -211,9 +217,9 @@ export function TaskDetailContent({
           disabled={!canEdit}
         />
         <DueDateChip
-          value={task.due_date}
+          value={dueDate}
           status={task.status}
-          onChange={(d) => patch({ due_date: d }, { due_date: d })}
+          onChange={(d) => setDueDate(d || null)}
           disabled={!canEdit}
         />
         <div className="ml-auto">

@@ -17,6 +17,7 @@ export function ProjectBoardPage() {
   const { profile } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const [tasks, setTasks] = useState([])
+  const [taskCounts, setTaskCounts] = useState([]) // [{ project_id, total, todo, ... }]
   const [projects, setProjects] = useState([])
   const [users, setUsers] = useState([])
   const [leaderProjectIds, setLeaderProjectIds] = useState([])
@@ -35,6 +36,15 @@ export function ProjectBoardPage() {
     setTasks(await api.get(`/tasks${q}`))
   }
 
+  // Contagem por projeto pro catálogo (agregada no banco, leve).
+  async function loadCounts() {
+    try {
+      setTaskCounts(await api.get('/tasks/counts'))
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
   async function loadLeadership() {
     try {
       const ids = await api.get('/me/leadership')
@@ -47,14 +57,14 @@ export function ProjectBoardPage() {
   useEffect(() => {
     async function init() {
       try {
-        const [proj, tk, usr, lead] = await Promise.all([
+        const [proj, counts, usr, lead] = await Promise.all([
           api.get('/projects'),
-          api.get('/tasks'),
+          api.get('/tasks/counts'),
           api.get('/users/basic').catch(() => []),
           api.get('/me/leadership').catch(() => []),
         ])
         setProjects(proj)
-        setTasks(tk)
+        setTaskCounts(Array.isArray(counts) ? counts : [])
         setUsers(Array.isArray(usr) ? usr : [])
         setLeaderProjectIds(Array.isArray(lead) ? lead : [])
       } catch (err) {
@@ -68,7 +78,14 @@ export function ProjectBoardPage() {
   }, [])
 
   useEffect(() => {
-    if (!loading) loadTasks().catch((err) => console.error(err))
+    if (loading) return
+    if (projectFilter) {
+      loadTasks().catch((err) => console.error(err))
+    } else {
+      // Voltou pro catálogo: não precisa das tarefas, só recarrega as contagens.
+      setTasks([])
+      loadCounts()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectFilter])
 
@@ -156,7 +173,7 @@ export function ProjectBoardPage() {
           {loading ? (
             <div className="py-16 text-center text-text-secondary text-sm">Carregando...</div>
           ) : (
-            <ProjectCatalog projects={projects} tasks={tasks} search={search} onOpen={openProject} />
+            <ProjectCatalog projects={projects} counts={taskCounts} search={search} onOpen={openProject} />
           )}
         </>
       ) : (

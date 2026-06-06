@@ -46,7 +46,8 @@ export function NewTaskModal({ projectId, users, onClose, onCreated }) {
     <Modal
       open
       onClose={onClose}
-      size="md"
+      size="lg"
+      overflowVisible
       title="Nova tarefa"
       footer={
         <>
@@ -58,9 +59,8 @@ export function NewTaskModal({ projectId, users, onClose, onCreated }) {
       }
     >
       {error && <p className="text-xs text-rose-500 mb-3">{error}</p>}
-      <div className="space-y-3">
+      <div className="space-y-4">
         <Input label="Título" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
-        <Input label="Descrição" as="textarea" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
         <div className="flex flex-wrap gap-4">
           <Field label="Responsável">
             <AssigneePicker users={users} value={assigneeId || null} onChange={(id) => setAssigneeId(id || '')} />
@@ -72,6 +72,7 @@ export function NewTaskModal({ projectId, users, onClose, onCreated }) {
             <DueDateChip value={dueDate || null} status="todo" onChange={(d) => setDueDate(d || '')} />
           </Field>
         </div>
+        <Input label="Descrição" as="textarea" rows={4} value={description} onChange={(e) => setDescription(e.target.value)} />
       </div>
     </Modal>
   )

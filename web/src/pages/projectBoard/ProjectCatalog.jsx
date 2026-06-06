@@ -3,18 +3,14 @@ import { ArrowRight, FolderKanban } from 'lucide-react'
 import { COLUMNS, ABANDONED_STATUS } from './helpers'
 
 // Catálogo de projetos: a "capa" do quadro. O usuário escolhe um projeto
-// aqui antes de ver as tarefas. As contagens saem da lista de tarefas que a
-// página já carregou — sem request extra.
-export function ProjectCatalog({ projects, tasks, search, onOpen }) {
+// aqui antes de ver as tarefas. As contagens vêm do endpoint /tasks/counts
+// (agregado no banco) — não baixa a tabela de tarefas inteira.
+export function ProjectCatalog({ projects, counts, search, onOpen }) {
   const countsByProject = useMemo(() => {
     const map = {}
-    for (const t of tasks) {
-      const c = (map[t.project_id] ||= { total: 0, todo: 0, in_progress: 0, done: 0, abandoned: 0 })
-      c.total++
-      if (c[t.status] !== undefined) c[t.status] += 1
-    }
+    for (const c of counts || []) map[c.project_id] = c
     return map
-  }, [tasks])
+  }, [counts])
 
   const q = search.trim().toLowerCase()
   const visible = q
@@ -35,8 +31,8 @@ export function ProjectCatalog({ projects, tasks, search, onOpen }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {visible.map((p) => {
-        const counts = countsByProject[p.id] || { total: 0, todo: 0, in_progress: 0, done: 0 }
-        const active = (counts.todo || 0) + (counts.in_progress || 0)
+        const c = countsByProject[p.id] || { total: 0, todo: 0, in_progress: 0, done: 0 }
+        const active = (c.todo || 0) + (c.in_progress || 0)
         const completed = p.status === 'completed'
         return (
           <button
@@ -85,7 +81,7 @@ export function ProjectCatalog({ projects, tasks, search, onOpen }) {
                   {COLUMNS.map((col) => (
                     <span key={col.key} className="inline-flex items-center gap-1 text-text-secondary">
                       <span className={`h-1.5 w-1.5 rounded-full ${col.dot}`} />
-                      <span className="tabular-nums">{counts[col.key] || 0}</span>
+                      <span className="tabular-nums">{c[col.key] || 0}</span>
                     </span>
                   ))}
                 </div>

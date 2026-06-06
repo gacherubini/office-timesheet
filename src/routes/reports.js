@@ -434,95 +434,57 @@ router.get('/reports/payroll', requireAuth, requireAdmin, async (req, res) => {
   }
 
   try {
-    const [
-      { rows: entries },
-      { rows: expenses },
-      { rows: bonuses },
-      { rows: profiles },
-    ] = await Promise.all([
-      query(
-        `SELECT user_id, duration_minutes, cost_snapshot FROM time_entries
+    // Agregação feita no Postgres (GROUP BY) em vez de baixar todas as linhas
+    // e somar em JS. As 3 CTEs somam por usuário; `ids` une todos os usuários
+    // que aparecem em qualquer fonte (horas, despesas aprovadas, bônus).
+    const { rows: records } = await query(
+      `WITH hours AS (
+         SELECT user_id, COALESCE(SUM(cost_snapshot), 0)::numeric AS hours_cost
+         FROM time_entries
          WHERE status = 'completed'
-           AND started_at >= $1::timestamp AND started_at <= $2::timestamp`,
-        [startOfDayIso(start_date), endOfDayIso(end_date)]
-      ),
-      query(
-        `SELECT user_id, amount, status FROM expense_requests
-         WHERE expense_date >= $1::date AND expense_date <= $2::date`,
-        [start_date, end_date]
-      ),
-      query(
-        `SELECT user_id, amount FROM bonuses
-         WHERE bonus_date >= $1::date AND bonus_date <= $2::date`,
-        [start_date, end_date]
-      ),
-      query(
-        `SELECT id, name, email, position FROM users WHERE deleted_at IS NULL`
-      ),
-    ])
+           AND started_at >= $1::timestamp AND started_at <= $2::timestamp
+         GROUP BY user_id
+       ),
+       exp AS (
+         SELECT user_id, COALESCE(SUM(amount), 0)::numeric AS expenses
+         FROM expense_requests
+         WHERE status = 'approved'
+           AND expense_date >= $3::date AND expense_date <= $4::date
+         GROUP BY user_id
+       ),
+       bon AS (
+         SELECT user_id, COALESCE(SUM(amount), 0)::numeric AS bonuses
+         FROM bonuses
+         WHERE bonus_date >= $3::date AND bonus_date <= $4::date
+         GROUP BY user_id
+       ),
+       ids AS (
+         SELECT user_id FROM hours
+         UNION SELECT user_id FROM exp
+         UNION SELECT user_id FROM bon
+       )
+       SELECT ids.user_id AS id, u.name, u.email, u.position,
+              COALESCE(h.hours_cost, 0) AS hours_cost,
+              COALESCE(e.expenses, 0)   AS expenses,
+              COALESCE(b.bonuses, 0)    AS bonuses
+       FROM ids
+       LEFT JOIN users u ON u.id = ids.user_id AND u.deleted_at IS NULL
+       LEFT JOIN hours h ON h.user_id = ids.user_id
+       LEFT JOIN exp e   ON e.user_id = ids.user_id
+       LEFT JOIN bon b   ON b.user_id = ids.user_id`,
+      [startOfDayIso(start_date), endOfDayIso(end_date), start_date, end_date]
+    )
 
-    const profileMap = new Map(profiles.map((profile) => [profile.id, profile]))
-    const payrollMap = new Map()
-
-    for (const entry of entries || []) {
-      const profile = profileMap.get(entry.user_id)
-      if (!payrollMap.has(entry.user_id)) {
-        payrollMap.set(entry.user_id, {
-          id: entry.user_id,
-          name: profile?.name || 'Desconhecido',
-          email: profile?.email || null,
-          position: profile?.position || null,
-          hours_cost: 0,
-          expenses: 0,
-          bonuses: 0,
-        })
-      }
-      const record = payrollMap.get(entry.user_id)
-      record.hours_cost += Number(entry.cost_snapshot) || 0
-    }
-
-    for (const expense of expenses || []) {
-      if (expense.status !== 'approved') continue
-      const profile = profileMap.get(expense.user_id)
-      if (!payrollMap.has(expense.user_id)) {
-        payrollMap.set(expense.user_id, {
-          id: expense.user_id,
-          name: profile?.name || 'Desconhecido',
-          email: profile?.email || null,
-          position: profile?.position || null,
-          hours_cost: 0,
-          expenses: 0,
-          bonuses: 0,
-        })
-      }
-      const record = payrollMap.get(expense.user_id)
-      record.expenses += Number(expense.amount) || 0
-    }
-
-    for (const bonus of bonuses || []) {
-      const profile = profileMap.get(bonus.user_id)
-      if (!payrollMap.has(bonus.user_id)) {
-        payrollMap.set(bonus.user_id, {
-          id: bonus.user_id,
-          name: profile?.name || 'Desconhecido',
-          email: profile?.email || null,
-          position: profile?.position || null,
-          hours_cost: 0,
-          expenses: 0,
-          bonuses: 0,
-        })
-      }
-      const record = payrollMap.get(bonus.user_id)
-      record.bonuses += Number(bonus.amount) || 0
-    }
-
-    const payroll = Array.from(payrollMap.values())
+    const payroll = records
       .map((record) => ({
-        ...record,
+        id: record.id,
+        name: record.name || 'Desconhecido',
+        email: record.email || null,
+        position: record.position || null,
         hours_cost: roundMoney(record.hours_cost),
         expenses: roundMoney(record.expenses),
         bonuses: roundMoney(record.bonuses),
-        total: roundMoney(record.hours_cost + record.expenses + record.bonuses),
+        total: roundMoney(Number(record.hours_cost) + Number(record.expenses) + Number(record.bonuses)),
       }))
       .sort((a, b) => b.total - a.total)
 
@@ -551,47 +513,32 @@ router.get('/reports/project-cost', requireAuth, requireAdmin, async (req, res) 
   }
 
   try {
-    const { rows: entries } = await query(
-      `SELECT project_id, user_id, duration_minutes, cost_snapshot FROM time_entries
-       WHERE status = 'completed'
-         AND started_at >= $1::timestamp AND started_at <= $2::timestamp`,
+    // Agregação por projeto direto no Postgres. COUNT(DISTINCT user_id) dá o
+    // nº de colaboradores sem precisar materializar um Set em JS.
+    const { rows } = await query(
+      `SELECT te.project_id,
+              p.name   AS project_name,
+              p.client AS project_client,
+              COALESCE(SUM(te.duration_minutes), 0)::int AS total_minutes,
+              COALESCE(SUM(te.cost_snapshot), 0)::numeric AS total_cost,
+              COUNT(DISTINCT te.user_id)::int AS members_count
+       FROM time_entries te
+       LEFT JOIN projects p ON p.id = te.project_id
+       WHERE te.status = 'completed'
+         AND te.started_at >= $1::timestamp AND te.started_at <= $2::timestamp
+       GROUP BY te.project_id, p.name, p.client`,
       [startOfDayIso(start_date), endOfDayIso(end_date)]
     )
 
-    const { rows: projects } = await query(
-      `SELECT id, name, client FROM projects`
-    )
-
-    const projectMap = new Map(projects.map((project) => [project.id, project]))
-    const projectCostMap = new Map()
-
-    for (const entry of entries || []) {
-      const project = projectMap.get(entry.project_id)
-      const projectId = entry.project_id || 'sem-projeto'
-
-      if (!projectCostMap.has(projectId)) {
-        projectCostMap.set(projectId, {
-          id: projectId,
-          name: project?.name || 'Sem projeto',
-          client: project?.client || null,
-          total_minutes: 0,
-          total_cost: 0,
-          members: new Set(),
-        })
-      }
-
-      const projectCost = projectCostMap.get(projectId)
-      projectCost.total_minutes += Number(entry.duration_minutes) || 0
-      projectCost.total_cost += Number(entry.cost_snapshot) || 0
-      projectCost.members.add(entry.user_id)
-    }
-
-    const projectCosts = Array.from(projectCostMap.values())
-      .map((cost) => ({
-        ...cost,
-        total_hours: hoursFromMinutes(cost.total_minutes),
-        total_cost: roundMoney(cost.total_cost),
-        members_count: cost.members.size,
+    const projectCosts = rows
+      .map((row) => ({
+        id: row.project_id || 'sem-projeto',
+        name: row.project_name || 'Sem projeto',
+        client: row.project_client || null,
+        total_minutes: row.total_minutes,
+        total_cost: roundMoney(row.total_cost),
+        total_hours: hoursFromMinutes(row.total_minutes),
+        members_count: row.members_count,
       }))
       .sort((a, b) => b.total_cost - a.total_cost)
 

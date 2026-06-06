@@ -1,6 +1,6 @@
-import { MessageSquare, Paperclip } from 'lucide-react'
+import { MessageSquare, Paperclip, Calendar } from 'lucide-react'
 import { Avatar } from '../../components/Avatar'
-import { urgency, urgencyClasses, formatMinutes, priorityMeta } from './helpers'
+import { urgency, urgencyClasses, formatMinutes, formatShortDate, priorityMeta } from './helpers'
 
 export function TaskCard({ task, onClick, onDragStart, muted = false }) {
   const u = urgency(task.due_date, task.status)
@@ -40,8 +40,13 @@ export function TaskCard({ task, onClick, onDragStart, muted = false }) {
           {task.total_minutes > 0 && (
             <span className="text-[11px] tabular-nums">{formatMinutes(task.total_minutes)}</span>
           )}
-          {u.level !== 'none' && (
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${urgencyClasses(u.level)}`}>{u.label}</span>
+          {task.due_date && (
+            <span
+              title={u.label || undefined}
+              className={`flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full ${urgencyClasses(u.level === 'none' ? 'normal' : u.level)}`}
+            >
+              <Calendar size={11} /> {formatShortDate(task.due_date)}
+            </span>
           )}
         </div>
       </div>

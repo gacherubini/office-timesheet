@@ -207,6 +207,27 @@ router.get('/tasks', requireAuth, async (req, res) => {
   }
 })
 
+// Contagem de tarefas por projeto e status (catálogo). Uma linha por projeto,
+// agregada no banco — evita baixar a tabela inteira só pra contar no front.
+// IMPORTANTE: tem que vir antes de '/tasks/:id' senão o Express casa "counts" como :id.
+router.get('/tasks/counts', requireAuth, async (_req, res) => {
+  try {
+    const { rows } = await query(
+      `SELECT project_id,
+              COUNT(*)::int AS total,
+              COUNT(*) FILTER (WHERE status = 'todo')::int        AS todo,
+              COUNT(*) FILTER (WHERE status = 'in_progress')::int AS in_progress,
+              COUNT(*) FILTER (WHERE status = 'done')::int        AS done,
+              COUNT(*) FILTER (WHERE status = 'abandoned')::int   AS abandoned
+       FROM tasks
+       GROUP BY project_id`
+    )
+    return res.json(rows)
+  } catch (err) {
+    return res.status(400).json({ error: err.message })
+  }
+})
+
 // Detalhe de uma tarefa (qualquer usuário logado).
 // Usado pelo deep-link /project-board?task=:id quando a tarefa
 // não está na lista atual (ex: filtrada por outro projeto).
