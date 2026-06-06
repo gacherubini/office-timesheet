@@ -258,16 +258,21 @@ export function VacationCalendarPage() {
                             <span className="truncate">{holidaysByDay[day.key]}</span>
                           </div>
                         )}
-                        {(googleByDay[day.key] || []).slice(0, 3).map((ev) => (
+                        {(googleByDay[day.key] || []).slice(0, 6).map((ev) => (
                           <div
                             key={ev.id}
                             className="flex items-center gap-1 truncate rounded px-2 py-1 text-[11px] font-medium bg-sky-500/15 text-sky-700 dark:text-sky-300"
-                            title={ev.title}
+                            title={`${ev.title}${ev.location ? ' · ' + ev.location : ''}`}
                           >
                             <Video size={10} className="flex-shrink-0" />
                             <span className="truncate">{ev.title}</span>
                           </div>
                         ))}
+                        {(googleByDay[day.key] || []).length > 6 && (
+                          <p className="text-[11px] text-sky-600 dark:text-sky-300 px-1">
+                            +{googleByDay[day.key].length - 6} eventos
+                          </p>
+                        )}
                         {(tasksByDay[day.key] || []).slice(0, 3).map((task) => (
                           <div
                             key={task.id}
