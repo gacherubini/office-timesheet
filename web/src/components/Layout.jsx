@@ -23,11 +23,13 @@ import {
   Sparkles,
   CalendarDays,
   CalendarOff,
+  KanbanSquare,
   ChevronDown,
   Pin,
   PinOff,
 } from 'lucide-react'
 import { Avatar } from './Avatar'
+import { NotificationBell } from './NotificationBell'
 import { Logo } from './Logo'
 
 function NavLinkItem({ item, active, nested = false, expanded = true }) {
@@ -180,6 +182,7 @@ export function Layout({ children }) {
       icon: CalendarDays,
       links: [
         { to: '/history', label: 'Histórico', icon: History },
+        { to: '/project-board', label: 'Tarefas', icon: KanbanSquare },
         { to: '/vacations', label: 'Férias', icon: CalendarOff },
         { to: '/vacation-calendar', label: 'Calendário', icon: CalendarDays },
       ],
@@ -208,6 +211,7 @@ export function Layout({ children }) {
       icon: Sparkles,
       links: [
         { to: '/admin/live', label: 'Painel Live', icon: Radio },
+        { to: '/project-board', label: 'Tarefas', icon: KanbanSquare },
         { to: '/vacations', label: 'Férias', icon: CalendarOff },
         { to: '/vacation-calendar', label: 'Calendário', icon: CalendarDays },
       ],
@@ -240,6 +244,7 @@ export function Layout({ children }) {
       icon: Sparkles,
       links: [
         { to: '/admin/live', label: 'Painel Live', icon: Radio },
+        { to: '/project-board', label: 'Tarefas', icon: KanbanSquare },
         { to: '/vacations', label: 'Férias', icon: CalendarOff },
         { to: '/vacation-calendar', label: 'Calendário', icon: CalendarDays },
       ],
@@ -389,7 +394,8 @@ export function Layout({ children }) {
         </div>
       </aside>
 
-      <main className="flex-1 bg-bg text-text-primary p-4 md:p-8 overflow-x-hidden transition-colors">
+      <main className="flex-1 bg-bg text-text-primary p-4 md:p-8 overflow-x-hidden transition-colors relative">
+        <NotificationBell />
         {children}
       </main>
     </div>

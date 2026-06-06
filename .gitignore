@@ -12,3 +12,5 @@ build/
 .codex
 .codex/
 .claude/
+.superpowers/
+src/uploads/
