@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '../../lib/api'
-import { AlertTriangle, CheckCircle2, MessageCircle, Plus } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, MessageCircle, Plus, Lock } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
@@ -13,6 +13,7 @@ const emptyForm = {
   email: '',
   phone: '',
   notes: '',
+  admin_only: false,
 }
 
 function whatsappLink(phone) {
@@ -24,7 +25,7 @@ function whatsappLink(phone) {
 }
 
 export function AdminClientsPage() {
-  const { canDeleteClients } = useAuth()
+  const { canDeleteClients, isAdmin } = useAuth()
   const [clients, setClients] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -66,6 +67,7 @@ export function AdminClientsPage() {
       email: client.email || '',
       phone: client.phone || '',
       notes: client.notes || '',
+      admin_only: Boolean(client.admin_only),
     })
     setEditingClient(client)
     setShowForm(true)
@@ -173,7 +175,19 @@ export function AdminClientsPage() {
                     key={client.id}
                     className="border-b border-border-subtle last:border-b-0 hover:bg-surface-alt transition-colors"
                   >
-                    <td className="px-4 py-3 font-medium text-text-primary">{client.name}</td>
+                    <td className="px-4 py-3 font-medium text-text-primary">
+                      <span className="inline-flex items-center gap-2">
+                        {client.name}
+                        {client.admin_only && (
+                          <span
+                            className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 px-2 py-0.5 text-[11px] font-medium"
+                            title="Visível apenas para administradores"
+                          >
+                            <Lock size={11} /> Só admin
+                          </span>
+                        )}
+                      </span>
+                    </td>
                     <td className="px-4 py-3 text-text-secondary">{client.email || '-'}</td>
                     <td className="px-4 py-3">
                       {client.phone ? (
@@ -261,6 +275,24 @@ export function AdminClientsPage() {
             value={form.notes}
             onChange={(e) => setForm({ ...form, notes: e.target.value })}
           />
+          {isAdmin && (
+            <label className="flex items-start gap-2.5 rounded-lg border border-border-subtle p-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.admin_only}
+                onChange={(e) => setForm({ ...form, admin_only: e.target.checked })}
+                className="mt-0.5"
+              />
+              <span className="text-sm">
+                <span className="inline-flex items-center gap-1.5 font-medium text-text-primary">
+                  <Lock size={13} /> Visível só para admins
+                </span>
+                <span className="block text-xs text-text-secondary">
+                  Colaboradores não veem este cliente.
+                </span>
+              </span>
+            </label>
+          )}
           <Button type="submit" className="w-full">
             {editingClient ? 'Salvar' : 'Criar Cliente'}
           </Button>

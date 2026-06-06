@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '../../lib/api'
-import { AlertTriangle, CheckCircle2, MessageCircle, Plus } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, MessageCircle, Plus, Lock } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
@@ -14,6 +14,7 @@ const emptyForm = {
   email: '',
   phone: '',
   notes: '',
+  admin_only: false,
 }
 
 function whatsappLink(phone) {
@@ -25,7 +26,7 @@ function whatsappLink(phone) {
 }
 
 export function AdminSuppliersPage() {
-  const { canDeleteSuppliers } = useAuth()
+  const { canDeleteSuppliers, isAdmin } = useAuth()
   const [suppliers, setSuppliers] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -68,6 +69,7 @@ export function AdminSuppliersPage() {
       email: supplier.email || '',
       phone: supplier.phone || '',
       notes: supplier.notes || '',
+      admin_only: Boolean(supplier.admin_only),
     })
     setEditingSupplier(supplier)
     setShowForm(true)
@@ -178,7 +180,19 @@ export function AdminSuppliersPage() {
                     key={supplier.id}
                     className="border-b border-border-subtle last:border-b-0 hover:bg-surface-alt transition-colors"
                   >
-                    <td className="px-4 py-3 font-medium text-text-primary">{supplier.name}</td>
+                    <td className="px-4 py-3 font-medium text-text-primary">
+                      <span className="inline-flex items-center gap-2">
+                        {supplier.name}
+                        {supplier.admin_only && (
+                          <span
+                            className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 px-2 py-0.5 text-[11px] font-medium"
+                            title="Visível apenas para administradores"
+                          >
+                            <Lock size={11} /> Só admin
+                          </span>
+                        )}
+                      </span>
+                    </td>
                     <td className="px-4 py-3 text-text-secondary">{supplier.category || '-'}</td>
                     <td className="px-4 py-3 text-text-secondary">{supplier.email || '-'}</td>
                     <td className="px-4 py-3">
@@ -273,6 +287,24 @@ export function AdminSuppliersPage() {
             value={form.notes}
             onChange={(e) => setForm({ ...form, notes: e.target.value })}
           />
+          {isAdmin && (
+            <label className="flex items-start gap-2.5 rounded-lg border border-border-subtle p-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.admin_only}
+                onChange={(e) => setForm({ ...form, admin_only: e.target.checked })}
+                className="mt-0.5"
+              />
+              <span className="text-sm">
+                <span className="inline-flex items-center gap-1.5 font-medium text-text-primary">
+                  <Lock size={13} /> Visível só para admins
+                </span>
+                <span className="block text-xs text-text-secondary">
+                  Colaboradores não veem este fornecedor.
+                </span>
+              </span>
+            </label>
+          )}
           <Button type="submit" className="w-full">
             {editingSupplier ? 'Salvar' : 'Criar Fornecedor'}
           </Button>
