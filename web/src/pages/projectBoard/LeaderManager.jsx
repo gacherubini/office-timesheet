@@ -4,7 +4,7 @@ import { Avatar } from '../../components/Avatar'
 import { Select } from '../../components/ui/Input'
 import { Button } from '../../components/ui/Button'
 
-export function LeaderManager({ projectId, users, onChange }) {
+export function LeaderManager({ projectId, users, onChange, readOnly = false }) {
   const [leaders, setLeaders] = useState([])
   const [selected, setSelected] = useState('')
   const [busy, setBusy] = useState(false)
@@ -61,21 +61,25 @@ export function LeaderManager({ projectId, users, onChange }) {
           <span key={l.id} className="inline-flex items-center gap-1.5 bg-surface border border-border-subtle rounded-full pl-1 pr-2 py-1">
             <Avatar name={l.name} url={l.avatar_url} size={18} />
             <span className="text-[11px] text-text-primary">{l.name}</span>
-            <button onClick={() => removeLeader(l.id)} disabled={busy} className="text-text-secondary hover:text-rose-500 text-xs leading-none">×</button>
+            {!readOnly && (
+              <button onClick={() => removeLeader(l.id)} disabled={busy} className="text-text-secondary hover:text-rose-500 text-xs leading-none">×</button>
+            )}
           </span>
         ))}
       </div>
-      <div className="flex items-end gap-2">
-        <Select
-          value={selected}
-          onChange={(e) => setSelected(e.target.value)}
-          className="flex-1"
-        >
-          <option value="">Adicionar líder...</option>
-          {available.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-        </Select>
-        <Button onClick={addLeader} disabled={busy || !selected}>Vincular</Button>
-      </div>
+      {!readOnly && (
+        <div className="flex items-end gap-2">
+          <Select
+            value={selected}
+            onChange={(e) => setSelected(e.target.value)}
+            className="flex-1"
+          >
+            <option value="">Adicionar líder...</option>
+            {available.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+          </Select>
+          <Button onClick={addLeader} disabled={busy || !selected}>Vincular</Button>
+        </div>
+      )}
     </div>
   )
 }

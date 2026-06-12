@@ -216,13 +216,12 @@ export function ProjectBoardPage() {
             )}
           </div>
 
-          {isAdmin && (
-            <LeaderManager
-              projectId={projectFilter}
-              users={users}
-              onChange={loadLeadership}
-            />
-          )}
+          <LeaderManager
+            projectId={projectFilter}
+            users={users}
+            onChange={loadLeadership}
+            readOnly={!isAdmin}
+          />
 
           {loading ? (
             <div className="py-16 text-center text-text-secondary text-sm">Carregando...</div>
