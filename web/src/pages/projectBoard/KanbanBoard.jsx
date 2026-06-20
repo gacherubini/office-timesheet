@@ -3,7 +3,7 @@ import { ChevronRight, Archive } from 'lucide-react'
 import { COLUMNS, ABANDONED_STATUS } from './helpers'
 import { TaskCard } from './TaskCard'
 
-export function KanbanBoard({ tasks, onOpenTask, onMove }) {
+export function KanbanBoard({ tasks, onOpenTask, onMove, currentUserId, timerElapsed, timerBusyId, onToggleTimer }) {
   const [dragOverCol, setDragOverCol] = useState(null)
   const [showAbandoned, setShowAbandoned] = useState(false)
 
@@ -58,7 +58,16 @@ export function KanbanBoard({ tasks, onOpenTask, onMove }) {
               </div>
               <div className={`h-0.5 rounded-full mb-3 ${col.bar} opacity-50`} />
               {colTasks.map((task) => (
-                <TaskCard key={task.id} task={task} onClick={onOpenTask} onDragStart={handleDragStart} />
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  onClick={onOpenTask}
+                  onDragStart={handleDragStart}
+                  currentUserId={currentUserId}
+                  timerElapsed={timerElapsed}
+                  timerBusy={timerBusyId === task.id}
+                  onToggleTimer={onToggleTimer}
+                />
               ))}
             </div>
           )

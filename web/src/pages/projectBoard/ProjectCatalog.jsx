@@ -1,11 +1,16 @@
 import { useMemo } from 'react'
-import { ArrowRight, FolderKanban } from 'lucide-react'
-import { COLUMNS, ABANDONED_STATUS } from './helpers'
+import { ArrowRight, FolderKanban, Pencil, Trash2, Upload } from 'lucide-react'
+import { COLUMNS } from './helpers'
 
 // Catálogo de projetos: a "capa" do quadro. O usuário escolhe um projeto
 // aqui antes de ver as tarefas. As contagens vêm do endpoint /tasks/counts
 // (agregado no banco) — não baixa a tabela de tarefas inteira.
-export function ProjectCatalog({ projects, counts, search, onOpen }) {
+// Para admin/operação, o card também vira ponto de gestão: trocar imagem,
+// editar e excluir o projeto (ações param a propagação pra não abrir o board).
+export function ProjectCatalog({
+  projects, counts, search, onOpen,
+  canManage = false, canDelete = false, onEdit, onDelete, onPickImage,
+}) {
   const countsByProject = useMemo(() => {
     const map = {}
     for (const c of counts || []) map[c.project_id] = c
@@ -35,11 +40,13 @@ export function ProjectCatalog({ projects, counts, search, onOpen }) {
         const active = (c.todo || 0) + (c.in_progress || 0)
         const completed = p.status === 'completed'
         return (
-          <button
+          <div
             key={p.id}
-            type="button"
+            role="button"
+            tabIndex={0}
             onClick={() => onOpen(p)}
-            className="group text-left rounded-xl border border-border-subtle bg-surface-alt/30 overflow-hidden transition-all hover:border-accent/50 hover:bg-surface-alt/60 hover:shadow-lg hover:shadow-black/5"
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(p) } }}
+            className="group text-left rounded-xl border border-border-subtle bg-surface-alt/30 overflow-hidden transition-all hover:border-accent/50 hover:bg-surface-alt/60 hover:shadow-lg hover:shadow-black/5 cursor-pointer"
           >
             <div className="relative h-24 overflow-hidden bg-gradient-to-br from-accent/15 via-accent/5 to-transparent">
               {p.image_url ? (
@@ -62,6 +69,16 @@ export function ProjectCatalog({ projects, counts, search, onOpen }) {
               >
                 {completed ? 'Concluído' : 'Ativo'}
               </span>
+              {canManage && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onPickImage?.(p) }}
+                  title="Trocar imagem"
+                  className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-md bg-black/40 px-2 py-1 text-[10px] font-medium text-white opacity-0 backdrop-blur-sm transition-opacity hover:bg-black/55 group-hover:opacity-100"
+                >
+                  <Upload size={11} /> Imagem
+                </button>
+              )}
             </div>
 
             <div className="p-4">
@@ -89,8 +106,31 @@ export function ProjectCatalog({ projects, counts, search, onOpen }) {
                   {active > 0 ? `${active} em aberto` : 'sem pendências'}
                 </span>
               </div>
+
+              {(canManage || canDelete) && (
+                <div className="mt-3 flex items-center gap-3 border-t border-border-subtle/60 pt-3">
+                  {canManage && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); onEdit?.(p) }}
+                      className="inline-flex items-center gap-1 text-[11px] text-text-secondary transition-colors hover:text-text-primary"
+                    >
+                      <Pencil size={12} /> Editar
+                    </button>
+                  )}
+                  {canDelete && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); onDelete?.(p) }}
+                      className="inline-flex items-center gap-1 text-[11px] text-rose-500 transition-colors hover:text-rose-400"
+                    >
+                      <Trash2 size={12} /> Excluir
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
-          </button>
+          </div>
         )
       })}
     </div>

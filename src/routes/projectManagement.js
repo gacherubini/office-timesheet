@@ -158,6 +158,9 @@ router.get('/tasks', requireAuth, async (req, res) => {
   try {
     const conditions = []
     const params = []
+    // $1 sempre é o usuário logado, usado pra trazer a sessão aberta DELE em cada tarefa.
+    params.push(req.profile.id)
+    const meIdx = params.length
     if (req.query.project_id) {
       params.push(req.query.project_id)
       conditions.push(`t.project_id = $${params.length}`)
@@ -179,7 +182,8 @@ router.get('/tasks', requireAuth, async (req, res) => {
               a.name AS assignee_name, a.avatar_url AS assignee_avatar_url,
               COALESCE(tl.total_minutes, 0) AS total_minutes,
               COALESCE(cc.comment_count, 0) AS comment_count,
-              COALESCE(ac.attachment_count, 0) AS attachment_count
+              COALESCE(ac.attachment_count, 0) AS attachment_count,
+              myopen.started_at AS open_started_at
        FROM tasks t
        JOIN projects p ON p.id = t.project_id
        LEFT JOIN users a ON a.id = t.assignee_id
@@ -197,6 +201,11 @@ router.get('/tasks', requireAuth, async (req, res) => {
        LEFT JOIN LATERAL (
          SELECT COUNT(*)::int AS attachment_count FROM task_attachments at WHERE at.task_id = t.id
        ) ac ON true
+       LEFT JOIN LATERAL (
+         SELECT started_at FROM task_time_logs
+         WHERE task_id = t.id AND user_id = $${meIdx} AND ended_at IS NULL
+         ORDER BY started_at DESC LIMIT 1
+       ) myopen ON true
        ${where}
        ORDER BY t.status, t.position, t.created_at`,
       params

@@ -56,7 +56,7 @@ export function AdminDeletedProjectsPage() {
         subtitle="Restaure projetos arquivados"
         badge={
           <Link
-            to="/admin/projects"
+            to="/project-board"
             className="text-text-secondary hover:text-text-primary transition-colors"
           >
             <ArrowLeft size={20} />

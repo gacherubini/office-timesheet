@@ -6,7 +6,7 @@ import {
   Home,
   History,
   Users,
-  FolderOpen,
+  FolderKanban,
   Building2,
   Truck,
   Radio,
@@ -23,7 +23,6 @@ import {
   Sparkles,
   CalendarDays,
   CalendarOff,
-  KanbanSquare,
   ChevronDown,
   Pin,
   PinOff,
@@ -182,7 +181,7 @@ export function Layout({ children }) {
       icon: CalendarDays,
       links: [
         { to: '/history', label: 'Histórico', icon: History },
-        { to: '/project-board', label: 'Tarefas', icon: KanbanSquare },
+        { to: '/project-board', label: 'Projetos', icon: FolderKanban },
         { to: '/vacations', label: 'Férias', icon: CalendarOff },
         { to: '/vacation-calendar', label: 'Calendário', icon: CalendarDays },
       ],
@@ -211,7 +210,7 @@ export function Layout({ children }) {
       icon: Sparkles,
       links: [
         { to: '/admin/live', label: 'Painel Live', icon: Radio },
-        { to: '/project-board', label: 'Tarefas', icon: KanbanSquare },
+        { to: '/project-board', label: 'Projetos', icon: FolderKanban },
         { to: '/vacations', label: 'Férias', icon: CalendarOff },
         { to: '/vacation-calendar', label: 'Calendário', icon: CalendarDays },
       ],
@@ -221,7 +220,6 @@ export function Layout({ children }) {
       icon: BriefcaseBusiness,
       links: [
         { to: '/admin/team', label: 'Equipe', icon: Users },
-        { to: '/admin/projects', label: 'Projetos', icon: FolderOpen },
         { to: '/admin/clients', label: 'Clientes', icon: Building2 },
         { to: '/admin/suppliers', label: 'Fornecedores', icon: Truck },
         { to: '/admin/manage-expenses', label: 'Despesas', icon: Receipt },
@@ -244,7 +242,7 @@ export function Layout({ children }) {
       icon: Sparkles,
       links: [
         { to: '/admin/live', label: 'Painel Live', icon: Radio },
-        { to: '/project-board', label: 'Tarefas', icon: KanbanSquare },
+        { to: '/project-board', label: 'Projetos', icon: FolderKanban },
         { to: '/vacations', label: 'Férias', icon: CalendarOff },
         { to: '/vacation-calendar', label: 'Calendário', icon: CalendarDays },
       ],
@@ -254,7 +252,6 @@ export function Layout({ children }) {
       icon: BriefcaseBusiness,
       links: [
         { to: '/admin/team', label: 'Equipe', icon: Users },
-        { to: '/admin/projects', label: 'Projetos', icon: FolderOpen },
         { to: '/admin/clients', label: 'Clientes', icon: Building2 },
         { to: '/admin/suppliers', label: 'Fornecedores', icon: Truck },
       ],

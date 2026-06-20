@@ -18,7 +18,6 @@ import { AdminLivePage } from './pages/admin/AdminLivePage'
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage'
 import { AdminTeamPage } from './pages/admin/AdminTeamPage'
 import { AdminDeletedUsersPage } from './pages/admin/AdminDeletedUsersPage'
-import { AdminProjectsPage } from './pages/admin/AdminProjectsPage'
 import { AdminDeletedProjectsPage } from './pages/admin/AdminDeletedProjectsPage'
 import { AdminClientsPage } from './pages/admin/AdminClientsPage'
 import { AdminSuppliersPage } from './pages/admin/AdminSuppliersPage'
@@ -72,7 +71,6 @@ export default function App() {
       <Route path="/admin/live" element={<ProtectedRoute approverOnly><Layout><AdminLivePage /></Layout></ProtectedRoute>} />
       <Route path="/admin/team" element={<ProtectedRoute approverOnly><Layout><AdminTeamPage /></Layout></ProtectedRoute>} />
       <Route path="/admin/deleted-users" element={<ProtectedRoute adminOnly><Layout><AdminDeletedUsersPage /></Layout></ProtectedRoute>} />
-      <Route path="/admin/projects" element={<ProtectedRoute approverOnly><Layout><AdminProjectsPage /></Layout></ProtectedRoute>} />
       <Route path="/admin/deleted-projects" element={<ProtectedRoute adminOnly><Layout><AdminDeletedProjectsPage /></Layout></ProtectedRoute>} />
       <Route path="/admin/clients" element={<ProtectedRoute approverOnly><Layout><AdminClientsPage /></Layout></ProtectedRoute>} />
       <Route path="/admin/suppliers" element={<ProtectedRoute approverOnly><Layout><AdminSuppliersPage /></Layout></ProtectedRoute>} />

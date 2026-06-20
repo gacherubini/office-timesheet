@@ -84,6 +84,15 @@ export function formatShortDate(iso) {
   return `${d}/${m}`
 }
 
+// Relógio ao vivo "HH:MM:SS" pra sessão de cronômetro em andamento.
+export function formatClock(totalSeconds) {
+  const s = Math.max(0, Math.floor(totalSeconds || 0))
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const sec = s % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+}
+
 export function formatMinutes(minutes) {
   const total = Math.max(0, Math.round(minutes || 0))
   if (total < 60) return `${total}min`

@@ -4,7 +4,6 @@ import { query } from '../lib/db.js'
 import { uploadFile, deleteFile, extractKeyFromUrl } from '../lib/storage.js'
 import { requireAuth } from '../middleware/auth.js'
 import { requireAdmin } from '../middleware/requireAdmin.js'
-import { requireOperationalAccess } from '../middleware/requireOperationalAccess.js'
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -23,10 +22,12 @@ const router = Router()
 router.get('/projects', requireAuth, async (req, res) => {
   try {
     const { rows } = await query(
-      `SELECT id, name, client, status, image_url, created_at, updated_at
-       FROM projects
-       WHERE deleted_at IS NULL
-       ORDER BY created_at DESC`,
+      `SELECT p.id, p.name, COALESCE(c.name, p.client) AS client, p.client_id,
+              p.address, p.start_date, p.status, p.image_url, p.created_at, p.updated_at
+       FROM projects p
+       LEFT JOIN clients c ON c.id = p.client_id
+       WHERE p.deleted_at IS NULL
+       ORDER BY p.created_at DESC`,
     )
     return res.json(rows)
   } catch (err) {
@@ -38,10 +39,12 @@ router.get('/projects', requireAuth, async (req, res) => {
 router.get('/projects/deleted', requireAuth, requireAdmin, async (_req, res) => {
   try {
     const { rows } = await query(
-      `SELECT id, name, client, status, image_url, deleted_at, created_at
-       FROM projects
-       WHERE deleted_at IS NOT NULL
-       ORDER BY deleted_at DESC`,
+      `SELECT p.id, p.name, COALESCE(c.name, p.client) AS client, p.client_id,
+              p.address, p.start_date, p.status, p.image_url, p.deleted_at, p.created_at
+       FROM projects p
+       LEFT JOIN clients c ON c.id = p.client_id
+       WHERE p.deleted_at IS NOT NULL
+       ORDER BY p.deleted_at DESC`,
     )
     return res.json(rows || [])
   } catch (err) {
@@ -50,15 +53,32 @@ router.get('/projects/deleted', requireAuth, requireAdmin, async (_req, res) => 
   }
 })
 
-router.post('/projects', requireAuth, requireOperationalAccess, async (req, res) => {
-  const { name, client, status = 'active' } = req.body
+router.post('/projects', requireAuth, requireAdmin, async (req, res) => {
+  const { name, client_id, address, start_date } = req.body
+
+  // Status nasce sempre "active"; a evolução (concluído/excluído) é tratada
+  // depois. Cliente vinculado e data de início são obrigatórios.
+  if (!name || !name.trim()) {
+    return res.status(400).json({ error: 'Informe o nome do projeto.' })
+  }
+  if (!client_id) {
+    return res.status(400).json({ error: 'Selecione um cliente para o projeto.' })
+  }
+  if (!start_date) {
+    return res.status(400).json({ error: 'Informe a data de início.' })
+  }
 
   try {
+    const { rows: cli } = await query('SELECT name FROM clients WHERE id = $1', [client_id])
+    if (!cli[0]) {
+      return res.status(400).json({ error: 'Cliente não encontrado.' })
+    }
+
     const { rows } = await query(
-      `INSERT INTO projects (name, client, status, sale_value)
-       VALUES ($1, $2, $3, 0)
-       RETURNING id, name, client, status, image_url, created_at, updated_at`,
-      [name, client, status],
+      `INSERT INTO projects (name, client, client_id, address, start_date, status, sale_value)
+       VALUES ($1, $2, $3, $4, $5, 'active', 0)
+       RETURNING id, name, client, client_id, address, start_date, status, image_url, created_at, updated_at`,
+      [name.trim(), cli[0].name, client_id, address?.trim() || null, start_date],
     )
     return res.status(201).json(rows[0])
   } catch (err) {
@@ -67,13 +87,14 @@ router.post('/projects', requireAuth, requireOperationalAccess, async (req, res)
   }
 })
 
-router.put('/projects/:id', requireAuth, requireOperationalAccess, async (req, res) => {
+router.put('/projects/:id', requireAuth, requireAdmin, async (req, res) => {
   const { id } = req.params
-  const { name, client, status } = req.body
+  const { name, client_id, address, start_date, status } = req.body
 
   const updates = {}
   if (name !== undefined) updates.name = name.trim()
-  if (client !== undefined) updates.client = client.trim()
+  if (address !== undefined) updates.address = address?.trim() || null
+  if (start_date !== undefined) updates.start_date = start_date || null
   if (status !== undefined) {
     if (!['active', 'completed'].includes(status)) {
       return res.status(400).json({ error: 'Status inválido. Use "active" ou "completed".' })
@@ -81,11 +102,24 @@ router.put('/projects/:id', requireAuth, requireOperationalAccess, async (req, r
     updates.status = status
   }
 
-  if (Object.keys(updates).length === 0) {
+  if (Object.keys(updates).length === 0 && client_id === undefined) {
     return res.status(400).json({ error: 'Nenhum campo para atualizar.' })
   }
 
   try {
+    // Cliente vinculado: valida e denormaliza o nome em `client`.
+    if (client_id !== undefined) {
+      if (!client_id) {
+        return res.status(400).json({ error: 'Selecione um cliente para o projeto.' })
+      }
+      const { rows: cli } = await query('SELECT name FROM clients WHERE id = $1', [client_id])
+      if (!cli[0]) {
+        return res.status(400).json({ error: 'Cliente não encontrado.' })
+      }
+      updates.client_id = client_id
+      updates.client = cli[0].name
+    }
+
     const setClauses = []
     const values = []
     let paramCount = 1
@@ -97,7 +131,7 @@ router.put('/projects/:id', requireAuth, requireOperationalAccess, async (req, r
     })
 
     values.push(id)
-    const sql = `UPDATE projects SET ${setClauses.join(', ')} WHERE id = $${paramCount} AND deleted_at IS NULL RETURNING id, name, client, status, image_url, created_at, updated_at`
+    const sql = `UPDATE projects SET ${setClauses.join(', ')} WHERE id = $${paramCount} AND deleted_at IS NULL RETURNING id, name, client, client_id, address, start_date, status, image_url, created_at, updated_at`
 
     const { rows } = await query(sql, values)
 
@@ -152,7 +186,7 @@ router.delete('/projects/:id', requireAuth, requireAdmin, async (req, res) => {
   }
 })
 
-router.post('/projects/:id/image', requireAuth, requireOperationalAccess, upload.single('image'), async (req, res) => {
+router.post('/projects/:id/image', requireAuth, requireAdmin, upload.single('image'), async (req, res) => {
   const { id } = req.params
 
   if (!req.file) {

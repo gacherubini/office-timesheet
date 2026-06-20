@@ -1,17 +1,22 @@
 import { useState, useEffect } from 'react'
 import { api } from '../../lib/api'
-import { AlertTriangle, CheckCircle2, MessageCircle, Plus, Lock } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, MessageCircle, Plus, Lock, Paperclip } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { Modal } from '../../components/ui/Modal'
 import { Input } from '../../components/ui/Input'
+import { DateField } from '../../components/ui/DateField'
 import { Button } from '../../components/ui/Button'
+import { ClientAttachments } from './ClientAttachments'
 
 const emptyForm = {
   name: '',
   email: '',
   phone: '',
+  cpf: '',
+  birth_date: '',
+  address: '',
   notes: '',
   admin_only: false,
 }
@@ -66,6 +71,9 @@ export function AdminClientsPage() {
       name: client.name || '',
       email: client.email || '',
       phone: client.phone || '',
+      cpf: client.cpf || '',
+      birth_date: client.birth_date || '',
+      address: client.address || '',
       notes: client.notes || '',
       admin_only: Boolean(client.admin_only),
     })
@@ -178,6 +186,14 @@ export function AdminClientsPage() {
                     <td className="px-4 py-3 font-medium text-text-primary">
                       <span className="inline-flex items-center gap-2">
                         {client.name}
+                        {client.attachment_count > 0 && (
+                          <span
+                            className="inline-flex items-center gap-1 rounded-full bg-surface-alt text-text-secondary px-2 py-0.5 text-[11px] font-medium"
+                            title={`${client.attachment_count} anexo(s)`}
+                          >
+                            <Paperclip size={11} /> {client.attachment_count}
+                          </span>
+                        )}
                         {client.admin_only && (
                           <span
                             className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 px-2 py-0.5 text-[11px] font-medium"
@@ -268,6 +284,26 @@ export function AdminClientsPage() {
             value={form.phone}
             onChange={(e) => setForm({ ...form, phone: e.target.value })}
           />
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="CPF"
+              value={form.cpf}
+              onChange={(e) => setForm({ ...form, cpf: e.target.value })}
+              placeholder="000.000.000-00"
+            />
+            <DateField
+              label="Data de nascimento"
+              value={form.birth_date}
+              onChange={(e) => setForm({ ...form, birth_date: e.target.value })}
+              showYearDropdown
+              showMonthDropdown
+            />
+          </div>
+          <Input
+            label="Endereço"
+            value={form.address}
+            onChange={(e) => setForm({ ...form, address: e.target.value })}
+          />
           <Input
             label="Observações"
             as="textarea"
@@ -275,6 +311,11 @@ export function AdminClientsPage() {
             value={form.notes}
             onChange={(e) => setForm({ ...form, notes: e.target.value })}
           />
+          {editingClient && (
+            <div className="rounded-lg border border-border-subtle p-3">
+              <ClientAttachments clientId={editingClient.id} />
+            </div>
+          )}
           {isAdmin && (
             <label className="flex items-start gap-2.5 rounded-lg border border-border-subtle p-3 cursor-pointer">
               <input

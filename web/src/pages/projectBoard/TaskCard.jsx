@@ -1,20 +1,45 @@
-import { MessageSquare, Paperclip, Calendar } from 'lucide-react'
+import { MessageSquare, Paperclip, Calendar, Play, Square } from 'lucide-react'
 import { Avatar } from '../../components/Avatar'
-import { urgency, urgencyClasses, formatMinutes, formatShortDate, priorityMeta } from './helpers'
+import { urgency, urgencyClasses, formatMinutes, formatClock, formatShortDate, priorityMeta } from './helpers'
 
-export function TaskCard({ task, onClick, onDragStart, muted = false }) {
+const TIMER_STATUSES = ['todo', 'in_progress']
+
+export function TaskCard({
+  task, onClick, onDragStart, muted = false,
+  currentUserId, timerElapsed = 0, timerBusy = false, onToggleTimer,
+}) {
   const u = urgency(task.due_date, task.status)
   const prio = priorityMeta(task.priority)
+  const isRunning = Boolean(task.open_started_at)
+  // Cronômetro direto no card: só nas tarefas atribuídas a mim e ainda ativas.
+  const canTime = Boolean(
+    onToggleTimer && currentUserId && task.assignee_id === currentUserId && TIMER_STATUSES.includes(task.status)
+  )
   return (
     <div
       draggable
       onDragStart={(e) => onDragStart(e, task)}
       onClick={() => onClick(task)}
-      className={`bg-surface border border-border-subtle rounded-lg p-3 mb-2 cursor-pointer hover:border-border transition-colors ${
+      className={`relative bg-surface border border-border-subtle rounded-lg p-3 mb-2 cursor-pointer hover:border-border transition-colors ${
         muted ? 'opacity-60 hover:opacity-100' : ''
       }`}
     >
-      <div className="flex items-start gap-1.5 mb-1">
+      {canTime && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onToggleTimer(task) }}
+          disabled={timerBusy}
+          title={isRunning ? 'Parar cronômetro' : 'Iniciar cronômetro'}
+          className={`absolute top-2 right-2 inline-flex items-center justify-center w-7 h-7 rounded-md shrink-0 disabled:opacity-50 transition-colors ${
+            isRunning
+              ? 'bg-rose-500/15 text-rose-500 hover:bg-rose-500/25'
+              : 'bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/25'
+          }`}
+        >
+          {isRunning ? <Square size={13} /> : <Play size={13} />}
+        </button>
+      )}
+      <div className={`flex items-start gap-1.5 mb-1 ${canTime ? 'pr-9' : ''}`}>
         <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${prio.dot}`} title={`Prioridade ${prio.label}`} />
         <p className={`text-sm font-medium text-text-primary ${muted ? 'line-through decoration-text-secondary/50' : ''}`}>{task.title}</p>
       </div>
@@ -37,8 +62,12 @@ export function TaskCard({ task, onClick, onDragStart, muted = false }) {
           {task.attachment_count > 0 && (
             <span className="flex items-center gap-0.5 text-[11px]"><Paperclip size={12} />{task.attachment_count}</span>
           )}
-          {task.total_minutes > 0 && (
-            <span className="text-[11px] tabular-nums">{formatMinutes(task.total_minutes)}</span>
+          {isRunning ? (
+            <span className="text-[11px] tabular-nums text-emerald-500 font-medium">{formatClock(timerElapsed)}</span>
+          ) : (
+            task.total_minutes > 0 && (
+              <span className="text-[11px] tabular-nums">{formatMinutes(task.total_minutes)}</span>
+            )
           )}
           {task.due_date && (
             <span

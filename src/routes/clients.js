@@ -1,7 +1,14 @@
 import { Router } from 'express'
+import multer from 'multer'
 import { query } from '../lib/db.js'
 import { requireAuth } from '../middleware/auth.js'
 import { canDeleteClients, canManageClients, isAdmin } from '../lib/permissions.js'
+import { uploadFile, deleteFile, extractKeyFromUrl } from '../lib/storage.js'
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+})
 
 const router = Router()
 
@@ -22,6 +29,9 @@ function parseClientPayload(body = {}) {
       email: optionalText(body.email),
       phone: optionalText(body.phone),
       notes: optionalText(body.notes),
+      cpf: optionalText(body.cpf),
+      birth_date: optionalText(body.birth_date),
+      address: optionalText(body.address),
     },
   }
 }
@@ -46,23 +56,30 @@ router.get('/admin/clients', requireAuth, requireCanManageClients, async (req, r
   const q = req.query.q?.trim()
 
   try {
-    let sql = `SELECT id, name, email, phone, notes, admin_only, created_at, updated_at FROM clients`
+    let sql = `SELECT c.id, c.name, c.email, c.phone, c.notes, c.cpf, c.birth_date, c.address,
+                      c.admin_only, c.created_at, c.updated_at,
+                      COALESCE(ac.attachment_count, 0)::int AS attachment_count
+               FROM clients c
+               LEFT JOIN LATERAL (
+                 SELECT COUNT(*)::int AS attachment_count
+                 FROM client_attachments a WHERE a.client_id = c.id
+               ) ac ON true`
     const conditions = []
     const params = []
 
     // Clientes restritos só aparecem para admins.
     if (!isAdmin(req.profile)) {
-      conditions.push(`admin_only = false`)
+      conditions.push(`c.admin_only = false`)
     }
     if (q) {
       params.push(`%${q}%`)
-      conditions.push(`name ILIKE $${params.length}`)
+      conditions.push(`c.name ILIKE $${params.length}`)
     }
     if (conditions.length) {
       sql += ` WHERE ${conditions.join(' AND ')}`
     }
 
-    sql += ` ORDER BY name ASC`
+    sql += ` ORDER BY c.name ASC`
 
     const { rows } = await query(sql, params)
     return res.json(rows || [])
@@ -81,8 +98,10 @@ router.post('/admin/clients', requireAuth, requireCanManageClients, async (req, 
 
   try {
     const { rows } = await query(
-      `INSERT INTO clients (name, email, phone, notes, admin_only) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [parsed.data.name, parsed.data.email, parsed.data.phone, parsed.data.notes, adminOnly],
+      `INSERT INTO clients (name, email, phone, notes, cpf, birth_date, address, admin_only)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [parsed.data.name, parsed.data.email, parsed.data.phone, parsed.data.notes,
+       parsed.data.cpf, parsed.data.birth_date, parsed.data.address, adminOnly],
     )
     return res.status(201).json(rows[0])
   } catch (err) {
@@ -109,8 +128,11 @@ router.put('/admin/clients/:id', requireAuth, requireCanManageClients, async (re
     const adminOnly = isAdmin(req.profile) ? Boolean(req.body.admin_only) : existing.admin_only
 
     const { rows } = await query(
-      `UPDATE clients SET name = $1, email = $2, phone = $3, notes = $4, admin_only = $5 WHERE id = $6 RETURNING *`,
-      [parsed.data.name, parsed.data.email, parsed.data.phone, parsed.data.notes, adminOnly, req.params.id],
+      `UPDATE clients SET name = $1, email = $2, phone = $3, notes = $4,
+                          cpf = $5, birth_date = $6, address = $7, admin_only = $8
+       WHERE id = $9 RETURNING *`,
+      [parsed.data.name, parsed.data.email, parsed.data.phone, parsed.data.notes,
+       parsed.data.cpf, parsed.data.birth_date, parsed.data.address, adminOnly, req.params.id],
     )
 
     if (!rows[0]) {
@@ -137,6 +159,85 @@ router.delete('/admin/clients/:id', requireAuth, requireCanDeleteClients, async 
     return res.json({ message: 'Cliente excluído com sucesso.' })
   } catch (err) {
     console.error('Erro em DELETE /admin/clients/:id:', err)
+    return res.status(400).json({ error: err.message })
+  }
+})
+
+// ─── ANEXOS DO CLIENTE ─────────────────────────────────────────────────
+// Garante que o cliente existe e é visível para o usuário (restritos só admin).
+async function loadVisibleClient(req) {
+  const { rows } = await query('SELECT id, admin_only FROM clients WHERE id = $1', [req.params.id])
+  const client = rows[0]
+  if (!client || (client.admin_only && !isAdmin(req.profile))) return null
+  return client
+}
+
+router.get('/admin/clients/:id/attachments', requireAuth, requireCanManageClients, async (req, res) => {
+  try {
+    const client = await loadVisibleClient(req)
+    if (!client) return res.status(404).json({ error: 'Cliente não encontrado.' })
+
+    const { rows } = await query(
+      `SELECT a.id, a.file_url, a.file_name, a.file_size, a.mime_type, a.created_at,
+              a.uploaded_by, u.name AS uploaded_by_name
+       FROM client_attachments a
+       LEFT JOIN users u ON u.id = a.uploaded_by
+       WHERE a.client_id = $1
+       ORDER BY a.created_at DESC`,
+      [req.params.id],
+    )
+    return res.json(rows)
+  } catch (err) {
+    console.error('Erro em GET /admin/clients/:id/attachments:', err)
+    return res.status(400).json({ error: err.message })
+  }
+})
+
+router.post('/admin/clients/:id/attachments', requireAuth, requireCanManageClients, upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' })
+  try {
+    const client = await loadVisibleClient(req)
+    if (!client) return res.status(404).json({ error: 'Cliente não encontrado.' })
+
+    const { url } = await uploadFile('clients', {
+      buffer: req.file.buffer,
+      mimetype: req.file.mimetype,
+    })
+
+    const { rows } = await query(
+      `INSERT INTO client_attachments (client_id, uploaded_by, file_url, file_name, file_size, mime_type)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, file_url, file_name, file_size, mime_type, created_at, uploaded_by`,
+      [req.params.id, req.profile.id, url, req.file.originalname, req.file.size, req.file.mimetype],
+    )
+    return res.status(201).json(rows[0])
+  } catch (err) {
+    console.error('Erro em POST /admin/clients/:id/attachments:', err)
+    return res.status(400).json({ error: err.message })
+  }
+})
+
+router.delete('/admin/clients/:id/attachments/:attId', requireAuth, requireCanManageClients, async (req, res) => {
+  try {
+    const client = await loadVisibleClient(req)
+    if (!client) return res.status(404).json({ error: 'Cliente não encontrado.' })
+
+    const { rows } = await query(
+      'SELECT id, file_url, uploaded_by FROM client_attachments WHERE id = $1 AND client_id = $2',
+      [req.params.attId, req.params.id],
+    )
+    const att = rows[0]
+    if (!att) return res.status(404).json({ error: 'Anexo não encontrado.' })
+    if (att.uploaded_by !== req.profile.id && !isAdmin(req.profile)) {
+      return res.status(403).json({ error: 'Sem permissão para excluir o anexo.' })
+    }
+
+    const key = extractKeyFromUrl(att.file_url)
+    if (key) await deleteFile(key)
+    await query('DELETE FROM client_attachments WHERE id = $1', [req.params.attId])
+    return res.status(204).send()
+  } catch (err) {
+    console.error('Erro em DELETE /admin/clients/:id/attachments/:attId:', err)
     return res.status(400).json({ error: err.message })
   }
 })
