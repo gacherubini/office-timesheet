@@ -9,6 +9,16 @@ import { CalendarConnect } from './profile/CalendarConnect'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? '/api'
 
+function formatHours(minutes) {
+  const h = Math.floor((minutes || 0) / 60)
+  const m = Math.floor((minutes || 0) % 60)
+  return `${h}h${String(m).padStart(2, '0')}`
+}
+
+function formatCurrency(value) {
+  return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
 export function ProfilePage() {
   const { profile, updateProfile } = useAuth()
   const [form, setForm] = useState({
@@ -20,6 +30,7 @@ export function ProfilePage() {
     birth_date: '',
     avatar_url: '',
   })
+  const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -51,6 +62,7 @@ export function ProfilePage() {
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
+    api.get('/me/stats').then(setStats).catch(() => {})
   }, [])
 
   async function handleSubmit(e) {
@@ -249,6 +261,24 @@ export function ProfilePage() {
               <label className="block text-sm font-medium text-text-secondary mb-1">Perfil</label>
               <input
                 value={roleLabel(form.role)}
+                className="w-full form-control-muted rounded-lg border px-3 py-2 text-sm"
+                disabled
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-1">Horas trabalhadas (mês)</label>
+              <input
+                value={stats ? formatHours(stats.total_minutes) : '—'}
+                className="w-full form-control-muted rounded-lg border px-3 py-2 text-sm"
+                disabled
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-1">Valor por hora</label>
+              <input
+                value={stats ? `${formatCurrency(stats.hourly_rate)}/h` : '—'}
                 className="w-full form-control-muted rounded-lg border px-3 py-2 text-sm"
                 disabled
               />

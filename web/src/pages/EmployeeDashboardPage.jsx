@@ -1,21 +1,12 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
-import { useAuth } from '../contexts/AuthContext'
-import { Play, Pause, Square, RotateCcw, Eye, EyeOff, Coffee, Clock, Repeat } from 'lucide-react'
-import { Avatar } from '../components/Avatar'
+import { Play, Pause, Square, RotateCcw, Coffee, Clock, Repeat } from 'lucide-react'
 import { BirthdayCalendar } from '../components/BirthdayCalendar'
 import { AgendaCard } from '../components/AgendaCard'
 import { MyTasksTimer } from '../components/MyTasksTimer'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Card } from '../components/ui/Card'
-
-function formatTime(totalSeconds) {
-  const h = Math.floor(totalSeconds / 3600)
-  const m = Math.floor((totalSeconds % 3600) / 60)
-  const s = totalSeconds % 60
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-}
 
 function formatHours(minutes) {
   const h = Math.floor((minutes || 0) / 60)
@@ -23,42 +14,18 @@ function formatHours(minutes) {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`
 }
 
-function formatCurrency(value) {
-  return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
-
-function KpiCard({ label, value, sub, action }) {
-  return (
-    <Card className="!p-4 flex flex-col gap-1">
-      <div className="flex items-center justify-between">
-        <span className="text-[11px] uppercase tracking-wider font-medium text-text-secondary">
-          {label}
-        </span>
-        {action}
-      </div>
-      <p className="font-display text-2xl text-text-primary truncate">{value}</p>
-      {sub && <p className="text-xs text-text-secondary">{sub}</p>}
-    </Card>
-  )
-}
-
 const TIMER_BTN =
   'inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50'
 
 export function EmployeeDashboardPage() {
-  const { profile } = useAuth()
-
   const [stats, setStats] = useState(null)
   const [statsLoading, setStatsLoading] = useState(true)
-  const [showCost, setShowCost] = useState(false)
 
   const [projects, setProjects] = useState([])
   const [selectedProject, setSelectedProject] = useState('')
   const [currentEntry, setCurrentEntry] = useState(null)
-  const [elapsed, setElapsed] = useState(0)
   const [timerLoading, setTimerLoading] = useState(false)
   const [timerError, setTimerError] = useState('')
-  const intervalRef = useRef(null)
 
   function loadStats() {
     setStatsLoading(true)
@@ -88,18 +55,6 @@ export function EmployeeDashboardPage() {
     })
   }, [])
 
-  useEffect(() => {
-    if (currentEntry?.status === 'running') {
-      const start = new Date(currentEntry.started_at).getTime()
-      intervalRef.current = setInterval(() => {
-        setElapsed(Math.floor((Date.now() - start) / 1000))
-      }, 1000)
-    } else {
-      clearInterval(intervalRef.current)
-    }
-    return () => clearInterval(intervalRef.current)
-  }, [currentEntry?.status, currentEntry?.started_at])
-
   async function handleStart() {
     if (!selectedProject) {
       setTimerError('Selecione um projeto.')
@@ -117,7 +72,6 @@ export function EmployeeDashboardPage() {
         project_name: proj?.name || 'Projeto',
         project_id: selectedProject,
       })
-      setElapsed(0)
     } catch (err) {
       setTimerError(err.message)
     } finally {
@@ -154,7 +108,6 @@ export function EmployeeDashboardPage() {
     try {
       await api.post('/time-entries/stop')
       setCurrentEntry(null)
-      setElapsed(0)
       loadStats()
     } catch (err) {
       setTimerError(err.message)
@@ -178,57 +131,6 @@ export function EmployeeDashboardPage() {
 
       <div className="flex flex-col lg:flex-row gap-5">
         <div className="flex-1 flex flex-col gap-5">
-          <Card className="flex items-center gap-4">
-            <Avatar name={profile?.name} url={profile?.avatar_url} size={56} />
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-text-primary truncate">{profile?.name}</p>
-              {profile?.position && (
-                <p className="text-sm text-text-secondary truncate">{profile.position}</p>
-              )}
-            </div>
-            <div className="text-right">
-              <p className="font-display text-3xl tabular-nums text-text-primary">
-                {formatTime(elapsed)}
-              </p>
-              {isRunning && <span className="text-xs text-emerald-500 font-medium">Em andamento</span>}
-              {isPaused && <span className="text-xs text-accent font-medium">Pausado</span>}
-              {isIdle && <span className="text-xs text-text-secondary">Aguardando</span>}
-            </div>
-          </Card>
-
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <KpiCard
-              label="Horas (Mês)"
-              value={statsLoading ? '—' : formatHours(stats?.total_minutes ?? 0)}
-            />
-            <KpiCard
-              label="Média Horas/Dia"
-              value={statsLoading ? '—' : formatHours(stats?.avg_minutes_per_day ?? 0)}
-            />
-            <KpiCard
-              label="Projetos (Mês)"
-              value={statsLoading ? '—' : String(stats?.project_count ?? 0)}
-            />
-            <KpiCard
-              label="Recebido (Mês)"
-              value={
-                statsLoading
-                  ? '—'
-                  : showCost
-                    ? formatCurrency(stats?.total_cost)
-                    : 'R$ ••••••'
-              }
-              action={
-                <button
-                  onClick={() => setShowCost((v) => !v)}
-                  className="text-text-secondary hover:text-text-primary transition-colors"
-                >
-                  {showCost ? <EyeOff size={14} /> : <Eye size={14} />}
-                </button>
-              }
-            />
-          </div>
-
           <Card padded={false} className="overflow-hidden">
             <div className="px-5 py-3 border-b border-border-subtle bg-surface-alt">
               <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary">
