@@ -1,9 +1,10 @@
 import { Router } from 'express'
 import multer from 'multer'
-import { query } from '../lib/db.js'
+import { query, withTransaction } from '../lib/db.js'
 import { uploadFile, deleteFile, extractKeyFromUrl } from '../lib/storage.js'
 import { requireAuth } from '../middleware/auth.js'
 import { requireAdmin } from '../middleware/requireAdmin.js'
+import { requireProjectManagement } from '../middleware/requireProjectManagement.js'
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -53,8 +54,8 @@ router.get('/projects/deleted', requireAuth, requireAdmin, async (_req, res) => 
   }
 })
 
-router.post('/projects', requireAuth, requireAdmin, async (req, res) => {
-  const { name, client_id, address, start_date } = req.body
+router.post('/projects', requireAuth, requireProjectManagement, async (req, res) => {
+  const { name, client_id, address, start_date, template_id } = req.body
 
   // Status nasce sempre "active"; a evolução (concluído/excluído) é tratada
   // depois. Cliente vinculado e data de início são obrigatórios.
@@ -74,20 +75,50 @@ router.post('/projects', requireAuth, requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Cliente não encontrado.' })
     }
 
-    const { rows } = await query(
-      `INSERT INTO projects (name, client, client_id, address, start_date, status, sale_value)
-       VALUES ($1, $2, $3, $4, $5, 'active', 0)
-       RETURNING id, name, client, client_id, address, start_date, status, image_url, created_at, updated_at`,
-      [name.trim(), cli[0].name, client_id, address?.trim() || null, start_date],
-    )
-    return res.status(201).json(rows[0])
+    // Itens do template (se houver) — validados antes de abrir a transação.
+    let templateItems = []
+    if (template_id) {
+      const { rows: tpl } = await query('SELECT id FROM project_templates WHERE id = $1', [template_id])
+      if (!tpl[0]) {
+        return res.status(400).json({ error: 'Template não encontrado.' })
+      }
+      const { rows: items } = await query(
+        `SELECT title, description, priority FROM project_template_items
+         WHERE template_id = $1 ORDER BY position, created_at`,
+        [template_id],
+      )
+      templateItems = items
+    }
+
+    const project = await withTransaction(async (client) => {
+      const { rows } = await client.query(
+        `INSERT INTO projects (name, client, client_id, address, start_date, status, sale_value)
+         VALUES ($1, $2, $3, $4, $5, 'active', 0)
+         RETURNING id, name, client, client_id, address, start_date, status, image_url, created_at, updated_at`,
+        [name.trim(), cli[0].name, client_id, address?.trim() || null, start_date],
+      )
+      const created = rows[0]
+
+      // Gera as tarefas do template, em ordem, na coluna "A fazer".
+      for (let i = 0; i < templateItems.length; i++) {
+        const item = templateItems[i]
+        await client.query(
+          `INSERT INTO tasks (project_id, title, description, priority, status, position, created_by)
+           VALUES ($1, $2, $3, $4::task_priority, 'todo', $5, $6)`,
+          [created.id, item.title, item.description || null, item.priority || 'medium', i, req.profile.id],
+        )
+      }
+      return created
+    })
+
+    return res.status(201).json(project)
   } catch (err) {
     console.error('Erro em POST /projects:', err)
     return res.status(400).json({ error: err.message })
   }
 })
 
-router.put('/projects/:id', requireAuth, requireAdmin, async (req, res) => {
+router.put('/projects/:id', requireAuth, requireProjectManagement, async (req, res) => {
   const { id } = req.params
   const { name, client_id, address, start_date, status } = req.body
 
@@ -186,7 +217,7 @@ router.delete('/projects/:id', requireAuth, requireAdmin, async (req, res) => {
   }
 })
 
-router.post('/projects/:id/image', requireAuth, requireAdmin, upload.single('image'), async (req, res) => {
+router.post('/projects/:id/image', requireAuth, requireProjectManagement, upload.single('image'), async (req, res) => {
   const { id } = req.params
 
   if (!req.file) {

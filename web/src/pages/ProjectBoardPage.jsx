@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Plus, Trash2, AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, AlertTriangle, CheckCircle2, LayoutTemplate } from 'lucide-react'
 import { api } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 import { PageHeader } from '../components/ui/PageHeader'
@@ -12,20 +12,19 @@ import { Toast } from '../components/ui/Toast'
 import { KanbanBoard } from './projectBoard/KanbanBoard'
 import { TaskDetailModal } from './projectBoard/TaskDetailModal'
 import { NewTaskModal } from './projectBoard/NewTaskModal'
-import { LeaderManager } from './projectBoard/LeaderManager'
 import { ProjectCatalog } from './projectBoard/ProjectCatalog'
+import { TemplateManager } from './projectBoard/TemplateManager'
 
 export function ProjectBoardPage() {
-  const { profile, isAdmin } = useAuth()
-  // Gestão de projetos (criar/editar/excluir/imagem) é exclusiva de admin.
-  const canManageProjects = isAdmin
+  const { profile, isAdmin, canManageProjects } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const [tasks, setTasks] = useState([])
   const [taskCounts, setTaskCounts] = useState([]) // [{ project_id, total, todo, ... }]
   const [projects, setProjects] = useState([])
   const [clients, setClients] = useState([])
+  const [templates, setTemplates] = useState([])
   const [users, setUsers] = useState([])
-  const [leaderProjectIds, setLeaderProjectIds] = useState([])
+  const [view, setView] = useState('catalog') // 'catalog' | 'templates'
   const [projectFilter, setProjectFilter] = useState('')
   const [assigneeFilter, setAssigneeFilter] = useState('') // '', 'me' ou user id
   const [search, setSearch] = useState('')
@@ -101,15 +100,6 @@ export function ProjectBoardPage() {
     }
   }
 
-  async function loadLeadership() {
-    try {
-      const ids = await api.get('/me/leadership')
-      setLeaderProjectIds(Array.isArray(ids) ? ids : [])
-    } catch (err) {
-      console.error(err)
-    }
-  }
-
   async function loadProjects() {
     try {
       setProjects(await api.get('/projects'))
@@ -118,9 +108,18 @@ export function ProjectBoardPage() {
     }
   }
 
+  async function loadTemplates() {
+    if (!canManageProjects) return
+    try {
+      setTemplates(await api.get('/project-templates'))
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
   // ── Gestão de projetos no catálogo ────────────────────────────────
   function resetProjectForm() {
-    setForm({ name: '', client_id: '', address: '', start_date: '', status: 'active' })
+    setForm({ name: '', client_id: '', address: '', start_date: '', status: 'active', template_id: '' })
     setEditingProject(null)
     setShowForm(false)
     setFormError('')
@@ -143,6 +142,7 @@ export function ProjectBoardPage() {
       address: project.address || '',
       start_date: project.start_date || '',
       status: project.status,
+      template_id: '',
     })
     setEditingProject(project)
     setShowForm(true)
@@ -166,7 +166,7 @@ export function ProjectBoardPage() {
       if (wasEditing) {
         await api.put(`/projects/${editingProject.id}`, { ...payload, status: form.status })
       } else {
-        await api.post('/projects', payload)
+        await api.post('/projects', { ...payload, template_id: form.template_id || null })
       }
       resetProjectForm()
       await loadProjects()
@@ -226,18 +226,18 @@ export function ProjectBoardPage() {
   useEffect(() => {
     async function init() {
       try {
-        const [proj, counts, usr, lead, cli] = await Promise.all([
+        const [proj, counts, usr, cli, tpl] = await Promise.all([
           api.get('/projects'),
           api.get('/tasks/counts'),
           api.get('/users/basic').catch(() => []),
-          api.get('/me/leadership').catch(() => []),
           api.get('/admin/clients').catch(() => []),
+          canManageProjects ? api.get('/project-templates').catch(() => []) : Promise.resolve([]),
         ])
         setProjects(proj)
         setTaskCounts(Array.isArray(counts) ? counts : [])
         setUsers(Array.isArray(usr) ? usr : [])
-        setLeaderProjectIds(Array.isArray(lead) ? lead : [])
         setClients(Array.isArray(cli) ? cli : [])
+        setTemplates(Array.isArray(tpl) ? tpl : [])
       } catch (err) {
         console.error(err)
       } finally {
@@ -281,10 +281,6 @@ export function ProjectBoardPage() {
     }
   }
 
-  function canManageProject(projectId) {
-    return isAdmin || leaderProjectIds.includes(projectId)
-  }
-
   function openProject(project) {
     setSearch('')
     setAssigneeFilter('')
@@ -325,14 +321,21 @@ export function ProjectBoardPage() {
 
   return (
     <div>
-      {!projectFilter ? (
+      {!projectFilter && view === 'templates' ? (
+        // ── Gestão de templates (3º "nível" da página Projetos) ────────
+        <TemplateManager
+          templates={templates}
+          onBack={() => setView('catalog')}
+          onChanged={loadTemplates}
+        />
+      ) : !projectFilter ? (
         // ── Nível 1: catálogo de projetos ──────────────────────────────
         <>
           <PageHeader
             title="Gerenciamento de Projetos"
             subtitle="Escolha um projeto para ver suas tarefas"
             actions={
-              (canManageProjects || isAdmin) && (
+              canManageProjects && (
                 <>
                   {isAdmin && (
                     <Link
@@ -343,12 +346,14 @@ export function ProjectBoardPage() {
                       Excluídos
                     </Link>
                   )}
-                  {canManageProjects && (
-                    <Button onClick={startCreateProject}>
-                      <Plus size={16} />
-                      Novo Projeto
-                    </Button>
-                  )}
+                  <Button variant="secondary" onClick={() => setView('templates')}>
+                    <LayoutTemplate size={16} />
+                    Templates
+                  </Button>
+                  <Button onClick={startCreateProject}>
+                    <Plus size={16} />
+                    Novo Projeto
+                  </Button>
                 </>
               )
             }
@@ -418,13 +423,6 @@ export function ProjectBoardPage() {
             )}
           </div>
 
-          <LeaderManager
-            projectId={projectFilter}
-            users={users}
-            onChange={loadLeadership}
-            readOnly={!isAdmin}
-          />
-
           {loading ? (
             <div className="py-16 text-center text-text-secondary text-sm">Carregando...</div>
           ) : (
@@ -445,7 +443,7 @@ export function ProjectBoardPage() {
         <TaskDetailModal
           task={drawer}
           users={users}
-          canManage={canManageProject(drawer.project_id)}
+          canManage={canManageProjects}
           currentUserId={profile?.id}
           isAdmin={isAdmin}
           onClose={closeDrawer}
@@ -513,6 +511,18 @@ export function ProjectBoardPage() {
             onChange={(e) => setForm({ ...form, address: e.target.value })}
             placeholder="Opcional"
           />
+          {!editingProject && templates.length > 0 && (
+            <Select
+              label="Template (opcional)"
+              value={form.template_id}
+              onChange={(e) => setForm({ ...form, template_id: e.target.value })}
+            >
+              <option value="">Nenhum — projeto vazio</option>
+              {templates.map((t) => (
+                <option key={t.id} value={t.id}>{t.name} ({t.item_count} tasks)</option>
+              ))}
+            </Select>
+          )}
           {editingProject && (
             <Select
               label="Status"

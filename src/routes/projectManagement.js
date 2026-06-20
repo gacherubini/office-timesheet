@@ -1,95 +1,17 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
-import { requireAdmin } from '../middleware/requireAdmin.js'
-import { isAdmin } from '../lib/permissions.js'
+import { isAdmin, canManageProjects } from '../lib/permissions.js'
 import { query } from '../lib/db.js'
 import { createNotification } from '../lib/notificationsHub.js'
 import { logActivity } from '../lib/taskActivity.js'
 
 const router = Router()
 
-// ─── Helpers de permissão (dependem do banco) ──────────────────────────
-async function isProjectLeader(userId, projectId) {
-  const { rows } = await query(
-    'SELECT 1 FROM project_leaders WHERE project_id = $1 AND user_id = $2',
-    [projectId, userId]
-  )
-  return rows.length > 0
+// ─── Helpers de permissão ──────────────────────────────────────────────
+// Ações destrutivas de tarefa: admin + Gestor de Projetos (global, sem líder).
+function canManageTasks(profile) {
+  return canManageProjects(profile)
 }
-
-async function canManageTasks(profile, projectId) {
-  if (isAdmin(profile)) return true
-  return isProjectLeader(profile.id, projectId)
-}
-
-// ─── LÍDERES ───────────────────────────────────────────────────────────
-// Lista líderes de um projeto (qualquer usuário logado)
-router.get('/projects/:id/leaders', requireAuth, async (req, res) => {
-  try {
-    const { rows } = await query(
-      `SELECT u.id, u.name, u.email, u.avatar_url, u.position
-       FROM project_leaders pl
-       JOIN users u ON u.id = pl.user_id
-       WHERE pl.project_id = $1 AND u.deleted_at IS NULL
-       ORDER BY u.name`,
-      [req.params.id]
-    )
-    return res.json(rows)
-  } catch (err) {
-    return res.status(400).json({ error: err.message })
-  }
-})
-
-// Projetos onde o usuário logado é líder (1 request no lugar de N no board)
-router.get('/me/leadership', requireAuth, async (req, res) => {
-  try {
-    const { rows } = await query(
-      'SELECT project_id FROM project_leaders WHERE user_id = $1',
-      [req.profile.id]
-    )
-    return res.json(rows.map((r) => r.project_id))
-  } catch (err) {
-    return res.status(400).json({ error: err.message })
-  }
-})
-
-// Vincula um líder (admin)
-router.post('/projects/:id/leaders', requireAuth, requireAdmin, async (req, res) => {
-  const { user_id } = req.body
-  if (!user_id) return res.status(400).json({ error: 'user_id é obrigatório.' })
-  try {
-    await query(
-      `INSERT INTO project_leaders (project_id, user_id)
-       VALUES ($1, $2)
-       ON CONFLICT (project_id, user_id) DO NOTHING`,
-      [req.params.id, user_id]
-    )
-    const { rows } = await query(
-      `SELECT u.id, u.name, u.email, u.avatar_url, u.position
-       FROM users u WHERE u.id = $1`,
-      [user_id]
-    )
-    return res.status(201).json(rows[0] || null)
-  } catch (err) {
-    return res.status(400).json({ error: err.message })
-  }
-})
-
-// Desvincula um líder (admin)
-router.delete('/projects/:id/leaders/:userId', requireAuth, requireAdmin, async (req, res) => {
-  try {
-    const { rows } = await query(
-      'DELETE FROM project_leaders WHERE project_id = $1 AND user_id = $2 RETURNING user_id',
-      [req.params.id, req.params.userId]
-    )
-    if (rows.length === 0) {
-      return res.status(404).json({ error: 'Vínculo não encontrado.' })
-    }
-    return res.status(204).send()
-  } catch (err) {
-    return res.status(400).json({ error: err.message })
-  }
-})
 
 // ─── TAREFAS ───────────────────────────────────────────────────────────
 // Cria tarefa num projeto (admin ou líder do projeto)
@@ -432,8 +354,8 @@ router.delete('/tasks/:id', requireAuth, async (req, res) => {
     const { rows: taskRows } = await query('SELECT project_id FROM tasks WHERE id = $1', [id])
     if (taskRows.length === 0) return res.status(404).json({ error: 'Tarefa não encontrada.' })
 
-    if (!(await canManageTasks(req.profile, taskRows[0].project_id))) {
-      return res.status(403).json({ error: 'Apenas admin ou líder do projeto pode excluir a tarefa.' })
+    if (!canManageTasks(req.profile)) {
+      return res.status(403).json({ error: 'Apenas admin ou gestor de projetos pode excluir a tarefa.' })
     }
     await query('DELETE FROM tasks WHERE id = $1', [id])
     return res.status(204).send()
@@ -519,4 +441,4 @@ router.get('/tasks/:id/time', requireAuth, async (req, res) => {
 })
 
 export default router
-export { isProjectLeader, canManageTasks }
+export { canManageTasks }

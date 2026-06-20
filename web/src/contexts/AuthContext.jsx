@@ -9,8 +9,10 @@ import {
   canDeleteSuppliersRole,
   canManageClientsRole,
   canManageSuppliersRole,
+  canManageProjectsRole,
   isAdministrativeInternRole,
   isAdminRole,
+  isProjectManagerRole,
 } from '../lib/permissions'
 
 const AuthContext = createContext(null)
@@ -60,6 +62,8 @@ export function AuthProvider({ children }) {
 
   const isAdmin = isAdminRole(profile?.role)
   const isAdministrativeIntern = isAdministrativeInternRole(profile?.role)
+  const isProjectManager = isProjectManagerRole(profile?.role)
+  const canManageProjects = canManageProjectsRole(profile?.role)
   const canApproveRequests = canApproveRequestsRole(profile?.role)
   const canAccessAdminArea = canAccessAdminAreaRole(profile?.role)
   const canAccessMoney = canAccessMoneyRole(profile?.role)
@@ -76,6 +80,8 @@ export function AuthProvider({ children }) {
         profile,
         isAdmin,
         isAdministrativeIntern,
+        isProjectManager,
+        canManageProjects,
         canApproveRequests,
         canAccessAdminArea,
         canAccessMoney,

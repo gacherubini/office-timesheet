@@ -2,6 +2,7 @@ export const ROLES = {
   ADMIN: 'admin',
   EMPLOYEE: 'employee',
   ADMINISTRATIVE_INTERN: 'administrative_intern',
+  PROJECT_MANAGER: 'project_manager',
 }
 
 export const VALID_ROLES = Object.values(ROLES)
@@ -12,6 +13,15 @@ export function isAdmin(profile) {
 
 export function isAdministrativeIntern(profile) {
   return profile?.role === ROLES.ADMINISTRATIVE_INTERN
+}
+
+export function isProjectManager(profile) {
+  return profile?.role === ROLES.PROJECT_MANAGER
+}
+
+// Gestão de projetos e templates: admin + Gestor de Projetos.
+export function canManageProjects(profile) {
+  return isAdmin(profile) || isProjectManager(profile)
 }
 
 export function canApproveRequests(profile) {
@@ -71,5 +81,6 @@ export function canApproveVacationRequest(profile, requesterProfile) {
 export function roleLabel(role) {
   if (role === ROLES.ADMIN) return 'Administrador'
   if (role === ROLES.ADMINISTRATIVE_INTERN) return 'Estagiário Administrativo'
+  if (role === ROLES.PROJECT_MANAGER) return 'Gestor de Projetos'
   return 'Colaborador'
 }

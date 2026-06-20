@@ -1,10 +1,9 @@
 import { Router } from 'express'
 import multer from 'multer'
 import { requireAuth } from '../middleware/auth.js'
-import { isAdmin } from '../lib/permissions.js'
+import { isAdmin, isProjectManager } from '../lib/permissions.js'
 import { query } from '../lib/db.js'
 import { uploadFile, deleteFile, extractKeyFromUrl } from '../lib/storage.js'
-import { canManageTasks, isProjectLeader } from './projectManagement.js'
 import { createNotification } from '../lib/notificationsHub.js'
 import { logActivity } from '../lib/taskActivity.js'
 
@@ -216,7 +215,7 @@ router.delete('/tasks/:id/attachments/:attId', requireAuth, async (req, res) => 
     const allowed =
       att.uploaded_by === req.profile.id ||
       isAdmin(req.profile) ||
-      (await isProjectLeader(req.profile.id, att.project_id))
+      isProjectManager(req.profile)
     if (!allowed) return res.status(403).json({ error: 'Sem permissão para excluir o anexo.' })
 
     const key = extractKeyFromUrl(att.file_url)

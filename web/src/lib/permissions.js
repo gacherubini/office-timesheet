@@ -2,6 +2,7 @@ export const ROLES = {
   ADMIN: 'admin',
   EMPLOYEE: 'employee',
   ADMINISTRATIVE_INTERN: 'administrative_intern',
+  PROJECT_MANAGER: 'project_manager',
 }
 
 export function isAdminRole(role) {
@@ -10,6 +11,15 @@ export function isAdminRole(role) {
 
 export function isAdministrativeInternRole(role) {
   return role === ROLES.ADMINISTRATIVE_INTERN
+}
+
+export function isProjectManagerRole(role) {
+  return role === ROLES.PROJECT_MANAGER
+}
+
+// Gestão de projetos e templates: admin + Gestor de Projetos.
+export function canManageProjectsRole(role) {
+  return isAdminRole(role) || isProjectManagerRole(role)
 }
 
 export function canApproveRequestsRole(role) {
@@ -53,5 +63,6 @@ export function canApproveVacationRequestRole(role, requesterRole) {
 export function roleLabel(role) {
   if (role === ROLES.ADMIN) return 'Administrador'
   if (role === ROLES.ADMINISTRATIVE_INTERN) return 'Estagiário Administrativo'
+  if (role === ROLES.PROJECT_MANAGER) return 'Gestor de Projetos'
   return 'Colaborador'
 }

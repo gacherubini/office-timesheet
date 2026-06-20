@@ -9,6 +9,7 @@ import meRoutes from './routes/me.js'
 import usersBasicRoutes from './routes/usersBasic.js'
 import projectsRoutes from './routes/projects.js'
 import projectManagementRoutes from './routes/projectManagement.js'
+import projectTemplatesRoutes from './routes/projectTemplates.js'
 import taskCollaborationRoutes from './routes/taskCollaboration.js'
 import notificationsRoutes from './routes/notifications.js'
 import timeEntriesRoutes from './routes/timeEntries.js'
@@ -49,6 +50,7 @@ app.use(usersBasicRoutes)
 app.use(authRoutes)
 app.use(projectsRoutes)
 app.use(projectManagementRoutes)
+app.use(projectTemplatesRoutes)
 app.use(taskCollaborationRoutes)
 app.use(notificationsRoutes)
 app.use(timeEntriesRoutes)

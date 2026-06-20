@@ -27,6 +27,7 @@ function formatCurrency(value) {
 function roleBadgeTone(role) {
   if (role === ROLES.ADMIN) return 'accent'
   if (role === ROLES.ADMINISTRATIVE_INTERN) return 'warning'
+  if (role === ROLES.PROJECT_MANAGER) return 'success'
   return 'info'
 }
 
@@ -447,6 +448,7 @@ export function AdminTeamPage() {
               onChange={(e) => setForm({ ...form, role: e.target.value })}
             >
               <option value={ROLES.EMPLOYEE}>Colaborador</option>
+              <option value={ROLES.PROJECT_MANAGER}>Gestor de Projetos</option>
               <option value={ROLES.ADMINISTRATIVE_INTERN}>Estagiário Administrativo</option>
               <option value={ROLES.ADMIN}>Administrador</option>
             </Select>
