@@ -29,6 +29,7 @@ import {
 } from 'lucide-react'
 import { Avatar } from './Avatar'
 import { NotificationBell } from './NotificationBell'
+import { ClockInReminder } from './ClockInReminder'
 import { Logo } from './Logo'
 
 function NavLinkItem({ item, active, nested = false, expanded = true }) {
@@ -395,6 +396,7 @@ export function Layout({ children }) {
         <NotificationBell />
         {children}
       </main>
+      <ClockInReminder />
     </div>
   )
 }

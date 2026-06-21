@@ -36,6 +36,12 @@ export function ProjectBoardPage() {
   const [timerElapsed, setTimerElapsed] = useState(0)
   const tickRef = useRef(null)
 
+  // Apontamento de horas (time-entry) — 1 por vez, controlado no card do catálogo.
+  const [activeTimer, setActiveTimer] = useState(null)
+  const [entryElapsed, setEntryElapsed] = useState(0)
+  const [entryBusy, setEntryBusy] = useState(false)
+  const entryTickRef = useRef(null)
+
   // Gestão de projetos (catálogo): criar/editar/excluir/imagem.
   const [showForm, setShowForm] = useState(false)
   const [showNoClient, setShowNoClient] = useState(false)
@@ -83,6 +89,61 @@ export function ProjectBoardPage() {
       setFeedback(err.message || 'Não foi possível atualizar o cronômetro.')
     } finally {
       setTimerBusyId(null)
+    }
+  }
+
+  // ── Apontamento de horas (time-entry) no card do catálogo ─────────
+  async function loadActiveTimer() {
+    try {
+      setActiveTimer(await api.get('/me/active-timer'))
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  // Relógio ao vivo: (ref - início) - pausas fechadas. Pausado congela em paused_at.
+  useEffect(() => {
+    clearInterval(entryTickRef.current)
+    if (!activeTimer) {
+      setEntryElapsed(0)
+      return
+    }
+    const start = new Date(activeTimer.started_at).getTime()
+    const base = activeTimer.total_paused_seconds || 0
+    const compute = () => {
+      const ref = activeTimer.paused && activeTimer.paused_at
+        ? new Date(activeTimer.paused_at).getTime()
+        : Date.now()
+      setEntryElapsed(Math.max(0, Math.floor((ref - start) / 1000) - base))
+    }
+    compute()
+    if (!activeTimer.paused) entryTickRef.current = setInterval(compute, 1000)
+    return () => clearInterval(entryTickRef.current)
+  }, [activeTimer?.id, activeTimer?.paused, activeTimer?.paused_at, activeTimer?.total_paused_seconds, activeTimer?.started_at])
+
+  // Iniciar apontamento num projeto. Só 1 por vez: encerra o anterior antes.
+  async function startEntry(project) {
+    setEntryBusy(true)
+    try {
+      if (activeTimer) await api.post('/time-entries/stop', {})
+      await api.post('/time-entries/start', { project_id: project.id })
+      await loadActiveTimer()
+    } catch (err) {
+      setFeedback(err.message || 'Não foi possível iniciar o apontamento.')
+    } finally {
+      setEntryBusy(false)
+    }
+  }
+
+  async function entryAction(path) {
+    setEntryBusy(true)
+    try {
+      await api.post(`/time-entries/${path}`, {})
+      await loadActiveTimer()
+    } catch (err) {
+      setFeedback(err.message || 'Não foi possível atualizar o apontamento.')
+    } finally {
+      setEntryBusy(false)
     }
   }
 
@@ -238,6 +299,7 @@ export function ProjectBoardPage() {
         setUsers(Array.isArray(usr) ? usr : [])
         setClients(Array.isArray(cli) ? cli : [])
         setTemplates(Array.isArray(tpl) ? tpl : [])
+        loadActiveTimer()
       } catch (err) {
         console.error(err)
       } finally {
@@ -259,6 +321,17 @@ export function ProjectBoardPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectFilter])
+
+  // Deep-link: /project-board?project=<id> abre o quadro daquele projeto.
+  useEffect(() => {
+    const pid = searchParams.get('project')
+    if (loading || !pid) return
+    setView('catalog')
+    setProjectFilter(pid)
+    searchParams.delete('project')
+    setSearchParams(searchParams, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, searchParams])
 
   // Deep-link legado: /project-board?task=<id> abre o drawer.
   useEffect(() => {
@@ -380,6 +453,13 @@ export function ProjectBoardPage() {
               onEdit={startEditProject}
               onDelete={(p) => { setProjectToDelete(p); setDeleteError('') }}
               onPickImage={pickProjectImage}
+              activeTimer={activeTimer}
+              entryElapsed={entryElapsed}
+              entryBusy={entryBusy}
+              onStartEntry={startEntry}
+              onStopEntry={() => entryAction('stop')}
+              onPauseEntry={() => entryAction('pause')}
+              onResumeEntry={() => entryAction('resume')}
             />
           )}
         </>

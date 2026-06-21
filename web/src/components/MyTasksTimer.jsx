@@ -1,15 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Play, Square } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 import { api } from '../lib/api'
 import { Card } from './ui/Card'
-
-function formatClock(totalSeconds) {
-  const h = Math.floor(totalSeconds / 3600)
-  const m = Math.floor((totalSeconds % 3600) / 60)
-  const s = totalSeconds % 60
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-}
 
 function formatTotal(minutes) {
   const h = Math.floor((minutes || 0) / 60)
@@ -23,16 +16,12 @@ const PRIORITY = {
   low: { label: 'Baixa', cls: 'text-text-secondary' },
 }
 
-// Cronômetro por tarefa no dashboard: minhas tarefas ativas, com play/stop e
-// contador ao vivo da que estiver rodando. Uma tarefa de cada vez — iniciar
-// outra para a anterior automaticamente.
+// Minhas tarefas no dashboard: lista clicável. O cronômetro fica no quadro do
+// projeto (card/detalhe) — aqui é só atalho pra chegar lá.
 export function MyTasksTimer() {
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [busyId, setBusyId] = useState(null)
-  const [elapsed, setElapsed] = useState(0)
-  const intervalRef = useRef(null)
 
   async function load() {
     try {
@@ -47,50 +36,6 @@ export function MyTasksTimer() {
   useEffect(() => {
     load()
   }, [])
-
-  const running = tasks.find((t) => t.open_started_at)
-
-  useEffect(() => {
-    clearInterval(intervalRef.current)
-    if (running) {
-      const start = new Date(running.open_started_at).getTime()
-      const tick = () => setElapsed(Math.floor((Date.now() - start) / 1000))
-      tick()
-      intervalRef.current = setInterval(tick, 1000)
-    } else {
-      setElapsed(0)
-    }
-    return () => clearInterval(intervalRef.current)
-  }, [running?.id, running?.open_started_at])
-
-  async function startTask(task) {
-    setError('')
-    setBusyId(task.id)
-    try {
-      if (running && running.id !== task.id) {
-        await api.post(`/tasks/${running.id}/time/stop`, {})
-      }
-      await api.post(`/tasks/${task.id}/time/start`, {})
-      await load()
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setBusyId(null)
-    }
-  }
-
-  async function stopTask(task) {
-    setError('')
-    setBusyId(task.id)
-    try {
-      await api.post(`/tasks/${task.id}/time/stop`, {})
-      await load()
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setBusyId(null)
-    }
-  }
 
   return (
     <Card padded={false} className="overflow-hidden">
@@ -125,17 +70,15 @@ export function MyTasksTimer() {
         ) : (
           tasks.map((t) => {
             const isRunning = Boolean(t.open_started_at)
-            const busy = busyId === t.id
             const prio = PRIORITY[t.priority]
             return (
-              <div key={t.id} className="flex items-center gap-3 px-5 py-3">
+              <Link
+                key={t.id}
+                to={`/project-board?project=${t.project_id}`}
+                className="flex items-center gap-3 px-5 py-3 hover:bg-surface-alt transition-colors"
+              >
                 <div className="flex-1 min-w-0">
-                  <Link
-                    to={`/project-board?task=${t.id}`}
-                    className="text-sm font-medium text-text-primary truncate block hover:underline"
-                  >
-                    {t.title}
-                  </Link>
+                  <p className="text-sm font-medium text-text-primary truncate">{t.title}</p>
                   <p className="text-xs text-text-secondary truncate">
                     {t.project_name}
                     {prio && (
@@ -147,29 +90,13 @@ export function MyTasksTimer() {
                   </p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p
-                    className={`text-sm tabular-nums ${
-                      isRunning ? 'text-emerald-500 font-medium' : 'text-text-primary'
-                    }`}
-                  >
-                    {isRunning ? formatClock(elapsed) : formatTotal(t.my_minutes)}
+                  <p className={`text-sm tabular-nums ${isRunning ? 'text-emerald-500 font-medium' : 'text-text-primary'}`}>
+                    {formatTotal(t.my_minutes)}
                   </p>
                   {isRunning && <p className="text-[10px] text-emerald-500">em andamento</p>}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => (isRunning ? stopTask(t) : startTask(t))}
-                  disabled={busy}
-                  title={isRunning ? 'Parar cronômetro' : 'Iniciar cronômetro'}
-                  className={`inline-flex items-center justify-center w-9 h-9 rounded-lg shrink-0 disabled:opacity-50 transition-colors ${
-                    isRunning
-                      ? 'bg-rose-500/15 text-rose-500 hover:bg-rose-500/25'
-                      : 'bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/25'
-                  }`}
-                >
-                  {isRunning ? <Square size={15} /> : <Play size={15} />}
-                </button>
-              </div>
+                <ChevronRight size={16} className="text-text-secondary shrink-0" />
+              </Link>
             )
           })
         )}

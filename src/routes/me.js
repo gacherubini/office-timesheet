@@ -435,6 +435,100 @@ router.get('/me/stats', requireAuth, async (req, res) => {
   }
 })
 
+// Ganhos por projeto do usuário logado (histórico). Agrega apontamentos
+// concluídos por projeto, com filtro opcional de período (from/to). Ganho =
+// soma de cost_snapshot (valor real registrado em cada apontamento).
+router.get('/me/project-earnings', requireAuth, async (req, res) => {
+  // Estagiário administrativo é salário fixo (sem ganho por hora/projeto).
+  if (!canAccessMoney(req.profile) && req.profile?.role === 'administrative_intern') {
+    return res.status(403).json({ error: 'Acesso restrito a dados financeiros.' })
+  }
+
+  const conditions = ['te.user_id = $1', "te.status = 'completed'"]
+  const params = [req.profile.id]
+  if (req.query.from) {
+    params.push(req.query.from)
+    conditions.push(`te.started_at >= ($${params.length}::date AT TIME ZONE 'America/Sao_Paulo')`)
+  }
+  if (req.query.to) {
+    params.push(req.query.to)
+    conditions.push(`te.started_at < (($${params.length}::date + interval '1 day') AT TIME ZONE 'America/Sao_Paulo')`)
+  }
+
+  try {
+    const { rows } = await query(
+      `SELECT p.id AS project_id, p.name AS project_name, p.image_url AS project_image,
+              COALESCE(SUM(te.duration_minutes), 0)::int AS total_minutes,
+              COALESCE(SUM(te.cost_snapshot), 0) AS total_cost,
+              COUNT(*)::int AS entry_count
+       FROM time_entries te
+       LEFT JOIN projects p ON p.id = te.project_id
+       WHERE ${conditions.join(' AND ')}
+       GROUP BY p.id, p.name, p.image_url
+       ORDER BY total_cost DESC, total_minutes DESC`,
+      params,
+    )
+    return res.json(rows)
+  } catch (err) {
+    console.error('Erro em GET /me/project-earnings:', err)
+    return res.status(400).json({ error: err.message })
+  }
+})
+
+// Apontamento de horas aberto do usuário logado (1 por vez). Inclui info de
+// pausa para o cronômetro nos cards do catálogo mostrar o estado certo.
+router.get('/me/active-timer', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await query(
+      `SELECT te.id, te.project_id, te.started_at,
+              COALESCE(
+                SUM(EXTRACT(EPOCH FROM (ep.resumed_at - ep.paused_at)))
+                  FILTER (WHERE ep.resumed_at IS NOT NULL), 0
+              )::int AS total_paused_seconds,
+              COALESCE(BOOL_OR(ep.resumed_at IS NULL), false) AS paused,
+              MAX(ep.paused_at) FILTER (WHERE ep.resumed_at IS NULL) AS paused_at
+       FROM time_entries te
+       LEFT JOIN time_entry_pauses ep ON ep.time_entry_id = te.id
+       WHERE te.user_id = $1 AND te.status = 'running'
+       GROUP BY te.id, te.project_id, te.started_at
+       LIMIT 1`,
+      [req.profile.id],
+    )
+    return res.json(rows[0] || null)
+  } catch (err) {
+    console.error('Erro em GET /me/active-timer:', err)
+    return res.status(400).json({ error: err.message })
+  }
+})
+
+// Status de ponto do usuário: se tem apontamento rodando e se já bateu ponto
+// hoje (data do servidor, fuso America/Sao_Paulo). Usado pelo lembrete de ponto.
+router.get('/me/time-clock-status', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await query(
+      `SELECT
+         EXISTS(
+           SELECT 1 FROM time_entries
+           WHERE user_id = $1 AND status = 'running'
+         ) AS active,
+         EXISTS(
+           SELECT 1 FROM time_entries
+           WHERE user_id = $1
+             AND (started_at AT TIME ZONE 'America/Sao_Paulo')::date
+                 = (now() AT TIME ZONE 'America/Sao_Paulo')::date
+         ) AS clocked_in_today,
+         EXISTS(
+           SELECT 1 FROM time_entries WHERE user_id = $1
+         ) AS has_any_entry`,
+      [req.profile.id],
+    )
+    return res.json(rows[0] || { active: false, clocked_in_today: false, has_any_entry: false })
+  } catch (err) {
+    console.error('Erro em GET /me/time-clock-status:', err)
+    return res.status(400).json({ error: err.message })
+  }
+})
+
 // ─── ANIVERSARIANTES (compartilhado: admin e employee) ────────────────
 router.get('/birthdays', requireAuth, async (_req, res) => {
   try {

@@ -3,10 +3,12 @@ import DatePicker, { registerLocale } from 'react-datepicker'
 import { ptBR } from 'date-fns/locale'
 import 'react-datepicker/dist/react-datepicker.css'
 import { api } from '../lib/api'
+import { useAuth } from '../contexts/AuthContext'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Card } from '../components/ui/Card'
 import { Modal } from '../components/ui/Modal'
 import { Input, Select } from '../components/ui/Input'
+import { DateField } from '../components/ui/DateField'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { CheckCircle2 } from 'lucide-react'
@@ -37,6 +39,16 @@ function formatDuration(minutes) {
   return `${h}h ${m}min`
 }
 
+function formatHours(minutes) {
+  const h = Math.floor((minutes || 0) / 60)
+  const m = Math.floor((minutes || 0) % 60)
+  return `${h}h ${String(m).padStart(2, '0')}min`
+}
+
+function formatCurrency(value) {
+  return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
 const STATUS_TONE = {
   completed: 'success',
   running: 'info',
@@ -62,7 +74,12 @@ const REQUEST_LABEL = {
 }
 
 export function HistoryPage() {
+  const { isAdministrativeIntern } = useAuth()
+  const showEarnings = !isAdministrativeIntern
   const [entries, setEntries] = useState([])
+  const [earnings, setEarnings] = useState([])
+  const [earningsLoading, setEarningsLoading] = useState(false)
+  const [range, setRange] = useState({ from: '', to: '' })
   const [projects, setProjects] = useState([])
   const [requests, setRequests] = useState([])
   const [pagination, setPagination] = useState({ page: 1, pages: 1 })
@@ -116,6 +133,38 @@ export function HistoryPage() {
   useEffect(() => {
     loadHistory()
   }, [])
+
+  async function loadEarnings() {
+    if (!showEarnings) return
+    setEarningsLoading(true)
+    try {
+      const qs = new URLSearchParams()
+      if (range.from) qs.set('from', range.from)
+      if (range.to) qs.set('to', range.to)
+      const q = qs.toString()
+      setEarnings(await api.get(`/me/project-earnings${q ? `?${q}` : ''}`))
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setEarningsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadEarnings()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [range.from, range.to])
+
+  const earningsTotal = useMemo(
+    () => earnings.reduce(
+      (acc, e) => ({
+        minutes: acc.minutes + (e.total_minutes || 0),
+        cost: acc.cost + Number(e.total_cost || 0),
+      }),
+      { minutes: 0, cost: 0 },
+    ),
+    [earnings],
+  )
 
   function openRequestModal(entry) {
     setSelectedEntry(entry)
@@ -190,6 +239,78 @@ export function HistoryPage() {
         <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mb-4">
           {error}
         </div>
+      )}
+
+      {showEarnings && (
+        <Card padded={false} className="overflow-hidden mb-5">
+          <div className="px-5 py-3 border-b border-border-subtle bg-surface-alt flex flex-wrap items-end justify-between gap-3">
+            <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary">
+              Ganhos por projeto
+            </h2>
+            <div className="flex items-end gap-2">
+              <DateField
+                label="De"
+                value={range.from}
+                onChange={(e) => setRange((r) => ({ ...r, from: e.target.value }))}
+                max={range.to || undefined}
+                className="w-36"
+              />
+              <DateField
+                label="Até"
+                value={range.to}
+                onChange={(e) => setRange((r) => ({ ...r, to: e.target.value }))}
+                min={range.from || undefined}
+                className="w-36"
+              />
+              {(range.from || range.to) && (
+                <Button variant="ghost" size="sm" onClick={() => setRange({ from: '', to: '' })}>
+                  Limpar
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {earningsLoading ? (
+            <p className="text-sm text-text-secondary text-center py-6">Carregando...</p>
+          ) : earnings.length === 0 ? (
+            <p className="text-sm text-text-secondary text-center py-6">
+              Nenhum apontamento concluído no período.
+            </p>
+          ) : (
+            <div className="divide-y divide-border-subtle">
+              {earnings.map((e) => (
+                <div key={e.project_id || 'none'} className="flex items-center gap-3 px-5 py-3">
+                  {e.project_image ? (
+                    <img src={e.project_image} alt="" className="w-9 h-9 rounded-lg object-cover flex-shrink-0" />
+                  ) : (
+                    <div className="w-9 h-9 rounded-lg bg-surface-alt flex-shrink-0" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-text-primary truncate">
+                      {e.project_name || 'Sem projeto'}
+                    </p>
+                    <p className="text-xs text-text-secondary">{e.entry_count} apontamento(s)</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-medium text-text-primary tabular-nums">
+                      {formatCurrency(e.total_cost)}
+                    </p>
+                    <p className="text-xs text-text-secondary tabular-nums">{formatHours(e.total_minutes)}</p>
+                  </div>
+                </div>
+              ))}
+              <div className="flex items-center gap-3 px-5 py-3 bg-surface-alt/50">
+                <p className="flex-1 text-sm font-semibold text-text-primary">Total</p>
+                <div className="text-right shrink-0">
+                  <p className="text-sm font-semibold text-text-primary tabular-nums">
+                    {formatCurrency(earningsTotal.cost)}
+                  </p>
+                  <p className="text-xs text-text-secondary tabular-nums">{formatHours(earningsTotal.minutes)}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </Card>
       )}
 
       <Card padded={false} className="overflow-x-auto">
