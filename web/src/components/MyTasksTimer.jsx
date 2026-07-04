@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, Timer } from 'lucide-react'
 import { api } from '../lib/api'
 import { Card } from './ui/Card'
+import { LiveDot } from './LiveDot'
 
 function formatTotal(minutes) {
   const h = Math.floor((minutes || 0) / 60)
@@ -12,12 +13,12 @@ function formatTotal(minutes) {
 
 const PRIORITY = {
   high: { label: 'Alta', cls: 'text-rose-500' },
-  medium: { label: 'Média', cls: 'text-amber-500' },
+  medium: { label: 'Média', cls: 'text-amber-600 dark:text-amber-400' },
   low: { label: 'Baixa', cls: 'text-text-secondary' },
 }
 
 // Minhas tarefas no dashboard: lista clicável. O cronômetro fica no quadro do
-// projeto (card/detalhe) — aqui é só atalho pra chegar lá.
+// projeto — aqui é atalho + indício de apontamento em curso.
 export function MyTasksTimer() {
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
@@ -38,14 +39,24 @@ export function MyTasksTimer() {
   }, [])
 
   return (
-    <Card padded={false} className="overflow-hidden">
-      <div className="px-5 py-3 border-b border-border-subtle bg-surface-alt flex items-center justify-between">
-        <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary">
-          Minhas tarefas
-        </h2>
+    <Card padded={false} className="overflow-hidden rounded-2xl">
+      <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-border-subtle">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[color:var(--color-accent)]/12 text-[color:var(--color-accent)]">
+            <Timer size={15} />
+          </span>
+          <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary truncate">
+            Minhas tarefas
+          </h2>
+          {tasks.length > 0 && (
+            <span className="text-[10px] font-semibold tabular-nums text-text-secondary bg-surface-alt rounded-full px-1.5 py-0.5">
+              {tasks.length}
+            </span>
+          )}
+        </div>
         <Link
           to="/project-board"
-          className="text-xs text-text-secondary hover:text-text-primary underline transition-colors"
+          className="text-xs text-text-secondary hover:text-[color:var(--color-accent)] underline transition-colors"
         >
           Ver board
         </Link>
@@ -59,11 +70,11 @@ export function MyTasksTimer() {
 
       <div className="divide-y divide-border-subtle">
         {loading ? (
-          <p className="text-sm text-text-secondary text-center py-6">Carregando...</p>
+          <p className="text-sm text-text-secondary text-center py-8">Carregando...</p>
         ) : tasks.length === 0 ? (
-          <p className="text-sm text-text-secondary text-center py-6">
+          <p className="text-sm text-text-secondary text-center py-8">
             Nenhuma tarefa atribuída a você.{' '}
-            <Link to="/project-board" className="text-accent hover:underline">
+            <Link to="/project-board" className="text-[color:var(--color-accent)] hover:underline">
               Ver board
             </Link>
           </p>
@@ -75,10 +86,13 @@ export function MyTasksTimer() {
               <Link
                 key={t.id}
                 to={`/project-board?project=${t.project_id}`}
-                className="flex items-center gap-3 px-5 py-3 hover:bg-surface-alt transition-colors"
+                className="flex items-center gap-3 px-5 py-3.5 hover:bg-surface-alt transition-colors group"
               >
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-text-primary truncate">{t.title}</p>
+                  <p className="flex items-center gap-2 text-sm font-medium text-text-primary truncate">
+                    <span className="truncate">{t.title}</span>
+                    {isRunning && <LiveDot />}
+                  </p>
                   <p className="text-xs text-text-secondary truncate">
                     {t.project_name}
                     {prio && (
@@ -90,12 +104,21 @@ export function MyTasksTimer() {
                   </p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className={`text-sm tabular-nums ${isRunning ? 'text-emerald-500 font-medium' : 'text-text-primary'}`}>
+                  <p
+                    className={`text-sm tabular-nums ${
+                      isRunning ? 'text-[color:var(--color-accent)] font-semibold' : 'text-text-primary'
+                    }`}
+                  >
                     {formatTotal(t.my_minutes)}
                   </p>
-                  {isRunning && <p className="text-[10px] text-emerald-500">em andamento</p>}
+                  {isRunning && (
+                    <p className="text-[10px] text-[color:var(--color-accent)] uppercase tracking-wide">em curso</p>
+                  )}
                 </div>
-                <ChevronRight size={16} className="text-text-secondary shrink-0" />
+                <ChevronRight
+                  size={16}
+                  className="text-text-secondary shrink-0 transition-transform group-hover:translate-x-0.5"
+                />
               </Link>
             )
           })

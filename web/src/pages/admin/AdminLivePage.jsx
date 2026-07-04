@@ -8,9 +8,9 @@ import { Avatar } from '../../components/Avatar'
 const REFRESH_INTERVAL_S = 15
 
 const STATUS_META = {
-  running: { label: 'Em andamento', color: '#4CAF50' },
-  paused: { label: 'Pausado', color: 'var(--color-accent)' },
-  offline: { label: 'Offline', color: '#A09A90' },
+  running: { label: 'Em andamento', color: '#16A34A' },
+  paused: { label: 'Pausado', color: '#E8B004' },
+  offline: { label: 'Offline', color: '#94A0AE' },
 }
 
 function formatTime(iso) {

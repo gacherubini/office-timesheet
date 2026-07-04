@@ -37,32 +37,48 @@ export function AgendaCard() {
   }, [])
 
   return (
-    <Card padded={false} className="overflow-hidden">
-      <div className="px-4 py-3 border-b border-border-subtle bg-surface-alt flex items-center justify-between">
-        <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary inline-flex items-center gap-1.5">
-          <CalendarClock size={13} /> Minha Agenda
+    <Card padded={false} className="overflow-hidden rounded-2xl">
+      <div className="px-4 py-3.5 border-b border-border-subtle flex items-center justify-between">
+        <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary inline-flex items-center gap-2">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[color:var(--color-accent)]/12 text-[color:var(--color-accent)]">
+            <CalendarClock size={14} />
+          </span>
+          Minha Agenda
         </h2>
-        <Link to="/vacation-calendar" className="text-[11px] text-accent hover:underline">Ver tudo</Link>
+        <Link to="/vacation-calendar" className="text-[11px] text-[color:var(--color-accent)] hover:underline">Ver tudo</Link>
       </div>
 
       <div className="divide-y divide-border-subtle">
         {loading ? (
-          <p className="text-xs text-text-secondary text-center py-5">Carregando...</p>
+          <p className="text-xs text-text-secondary text-center py-6">Carregando...</p>
         ) : !connected ? (
-          <Link to="/profile" className="block px-4 py-5 text-center text-xs text-text-secondary hover:text-text-primary">
+          <Link
+            to="/profile"
+            className="flex items-center justify-center gap-1.5 px-4 py-6 text-center text-xs font-medium text-[color:var(--color-accent)] hover:opacity-80 transition-opacity"
+          >
             Conectar agenda do Google →
           </Link>
         ) : events.length === 0 ? (
-          <p className="text-xs text-text-secondary text-center py-5">Nada nos próximos 14 dias.</p>
+          <p className="font-serif italic text-[13px] text-text-secondary text-center py-6">Nada nos próximos 14 dias.</p>
         ) : (
           events.map((it) => {
-            const Icon = it.source === 'holiday' ? Flag : Video
-            const color = it.source === 'holiday' ? 'text-rose-500' : 'text-sky-500'
+            const holiday = it.source === 'holiday'
+            const Icon = holiday ? Flag : Video
             return (
-              <div key={it.id} className="flex items-center gap-2.5 px-4 py-2.5">
-                <Icon size={13} className={`flex-shrink-0 ${color}`} />
+              <div key={it.id} className="flex items-center gap-3 px-4 py-3">
+                <span
+                  className="flex h-8 w-8 items-center justify-center rounded-lg flex-shrink-0"
+                  style={{
+                    background: holiday
+                      ? 'color-mix(in srgb, #E5484D 14%, transparent)'
+                      : 'color-mix(in srgb, var(--color-accent) 14%, transparent)',
+                    color: holiday ? '#E5484D' : 'var(--color-accent)',
+                  }}
+                >
+                  <Icon size={14} />
+                </span>
                 <p className="text-[13px] text-text-primary truncate flex-1">{it.title}</p>
-                <span className="text-[11px] text-text-secondary tabular-nums flex-shrink-0">{dayLabel(it.start)}</span>
+                <span className="text-[11px] font-medium text-text-secondary tabular-nums flex-shrink-0">{dayLabel(it.start)}</span>
               </div>
             )
           })

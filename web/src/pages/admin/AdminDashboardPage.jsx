@@ -4,7 +4,7 @@ import { CalendarOff, Check, CheckCircle2, Clock, FolderOpen, Receipt, Users, X 
 import { BirthdayCalendar } from '../../components/BirthdayCalendar'
 import { Avatar } from '../../components/Avatar'
 import { PageHeader } from '../../components/ui/PageHeader'
-import { MetricCard } from '../../components/ui/MetricCard'
+import { LiveDot } from '../../components/LiveDot'
 import { Card } from '../../components/ui/Card'
 import { Tabs } from '../../components/ui/Tabs'
 import { Modal } from '../../components/ui/Modal'
@@ -21,6 +21,12 @@ function formatHours(minutes) {
   const h = Math.floor((minutes || 0) / 60)
   const m = Math.floor((minutes || 0) % 60)
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`
+}
+
+function formatHM(minutes) {
+  const h = Math.floor((minutes || 0) / 60)
+  const m = Math.floor((minutes || 0) % 60)
+  return `${h}h${String(m).padStart(2, '0')}`
 }
 
 function formatDateTime(iso) {
@@ -78,6 +84,16 @@ export function AdminDashboardPage() {
   const [decidingExpenseId, setDecidingExpenseId] = useState(null)
   const [decidingVacationId, setDecidingVacationId] = useState(null)
   const [successMessage, setSuccessMessage] = useState('')
+  const [live, setLive] = useState([])
+
+  useEffect(() => {
+    function loadLive() {
+      api.get('/admin/live').then(setLive).catch(() => {})
+    }
+    loadLive()
+    const poll = setInterval(loadLive, 20000)
+    return () => clearInterval(poll)
+  }, [])
 
   useEffect(() => {
     if (!startDate || !endDate) return
@@ -232,6 +248,10 @@ export function AdminDashboardPage() {
   }
 
   const kpis = data?.kpis
+  const liveStatusById = {}
+  for (const l of live) {
+    if (l.status === 'running' || l.status === 'paused') liveStatusById[l.id] = l.status
+  }
 
   return (
     <div>
@@ -243,26 +263,37 @@ export function AdminDashboardPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-7">
-        <MetricCard
-          label="Horas no Período"
-          value={loading ? '—' : formatHours(kpis?.total_minutes ?? 0)}
-          icon={Clock}
-          iconColor="var(--color-accent)"
-        />
-        <MetricCard
-          label="Usuários Ativos"
-          value={loading ? '—' : `${kpis?.active_users ?? 0} de ${kpis?.total_users ?? 0}`}
-          icon={Users}
-          iconColor="#8B7355"
-        />
-        <MetricCard
-          label="Projetos Ativos"
-          value={loading ? '—' : `${kpis?.active_projects ?? 0} de ${kpis?.total_projects ?? 0}`}
-          icon={FolderOpen}
-          iconColor="#3D5C5C"
-        />
-      </div>
+      <Card padded={false} className="rounded-2xl overflow-hidden mb-7">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-border-subtle">
+          <div className="bg-surface px-5 py-4">
+            <div className="flex items-center gap-1.5 text-text-secondary">
+              <Clock size={13} />
+              <span className="text-[10px] font-semibold uppercase tracking-wider">Horas da equipe</span>
+            </div>
+            <p className="font-display text-[30px] tabular-nums text-text-primary mt-1.5 leading-none">
+              {loading ? '—' : formatHM(kpis?.total_minutes ?? 0)}
+            </p>
+          </div>
+          <div className="bg-surface px-5 py-4">
+            <div className="flex items-center gap-1.5 text-text-secondary">
+              <Users size={13} />
+              <span className="text-[10px] font-semibold uppercase tracking-wider">Usuários ativos</span>
+            </div>
+            <p className="font-display text-2xl tabular-nums text-text-primary mt-1.5 leading-none">
+              {loading ? '—' : `${kpis?.active_users ?? 0} de ${kpis?.total_users ?? 0}`}
+            </p>
+          </div>
+          <div className="bg-surface px-5 py-4">
+            <div className="flex items-center gap-1.5 text-text-secondary">
+              <FolderOpen size={13} />
+              <span className="text-[10px] font-semibold uppercase tracking-wider">Projetos ativos</span>
+            </div>
+            <p className="font-display text-2xl tabular-nums text-text-primary mt-1.5 leading-none">
+              {loading ? '—' : `${kpis?.active_projects ?? 0} de ${kpis?.total_projects ?? 0}`}
+            </p>
+          </div>
+        </div>
+      </Card>
 
       <div className="flex flex-col lg:flex-row gap-5">
         <Card padded={false} className="flex-1 overflow-hidden lg:self-start">
@@ -294,8 +325,11 @@ export function AdminDashboardPage() {
                     <div className="flex items-center gap-3 min-w-0">
                       <Avatar name={member.name} url={member.avatar_url} size={36} />
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-text-primary truncate">
-                          {member.name}
+                        <p className="flex items-center gap-2 text-sm font-medium text-text-primary truncate">
+                          <span className="truncate">{member.name}</span>
+                          {liveStatusById[member.user_id] && (
+                            <LiveDot paused={liveStatusById[member.user_id] === 'paused'} />
+                          )}
                         </p>
                         {member.position && (
                           <p className="text-xs text-text-secondary truncate">{member.position}</p>

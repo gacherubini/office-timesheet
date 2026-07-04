@@ -16,7 +16,10 @@ import { ProjectCatalog } from './projectBoard/ProjectCatalog'
 import { TemplateManager } from './projectBoard/TemplateManager'
 
 export function ProjectBoardPage() {
-  const { profile, isAdmin, canManageProjects } = useAuth()
+  const { profile, isAdmin, isAdministrativeIntern, canManageProjects } = useAuth()
+  // Só quem bate ponto (colaborador / gestor de projetos) pode apontar horas —
+  // admin e estagiário administrativo não iniciam apontamentos.
+  const canClockIn = !isAdmin && !isAdministrativeIntern
   const [searchParams, setSearchParams] = useSearchParams()
   const [tasks, setTasks] = useState([])
   const [taskCounts, setTaskCounts] = useState([]) // [{ project_id, total, todo, ... }]
@@ -95,7 +98,11 @@ export function ProjectBoardPage() {
   // ── Apontamento de horas (time-entry) no card do catálogo ─────────
   async function loadActiveTimer() {
     try {
-      setActiveTimer(await api.get('/me/active-timer'))
+      const t = await api.get('/me/active-timer')
+      // A API reporta paused=true quando o apontamento ainda não tem nenhuma
+      // pausa registrada (recém-iniciado). Só é pausa real quando há paused_at.
+      if (t) t.paused = Boolean(t.paused && t.paused_at)
+      setActiveTimer(t)
     } catch (err) {
       console.error(err)
     }
@@ -456,7 +463,7 @@ export function ProjectBoardPage() {
               activeTimer={activeTimer}
               entryElapsed={entryElapsed}
               entryBusy={entryBusy}
-              onStartEntry={startEntry}
+              onStartEntry={canClockIn ? startEntry : undefined}
               onStopEntry={() => entryAction('stop')}
               onPauseEntry={() => entryAction('pause')}
               onResumeEntry={() => entryAction('resume')}

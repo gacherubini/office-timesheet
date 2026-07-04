@@ -393,8 +393,25 @@ export function Layout({ children }) {
       </aside>
 
       <main className="flex-1 bg-bg text-text-primary p-4 md:p-8 overflow-x-hidden transition-colors relative">
-        <NotificationBell />
-        {children}
+        {/* Grafismo da marca: brilho quente + traços singulares na diagonal */}
+        <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden" style={{ zIndex: 0 }}>
+          <div
+            className="absolute -top-48 -right-40 h-[560px] w-[560px] rounded-full"
+            style={{
+              background:
+                'radial-gradient(circle, color-mix(in srgb, var(--color-accent) 15%, transparent), transparent 70%)',
+              filter: 'blur(30px)',
+            }}
+          />
+          <svg className="absolute inset-0 h-full w-full" preserveAspectRatio="none">
+            <line x1="0" y1="88%" x2="100%" y2="26%" stroke="var(--grafismo-a)" strokeWidth="1.25" />
+            <line x1="0" y1="100%" x2="100%" y2="48%" stroke="var(--grafismo-b)" strokeWidth="1" />
+          </svg>
+        </div>
+        <div className="relative" style={{ zIndex: 1 }}>
+          <NotificationBell />
+          {children}
+        </div>
       </main>
       <ClockInReminder />
     </div>

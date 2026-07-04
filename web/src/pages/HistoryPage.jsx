@@ -243,11 +243,11 @@ export function HistoryPage() {
 
       {showEarnings && (
         <Card padded={false} className="overflow-hidden mb-5">
-          <div className="px-5 py-3 border-b border-border-subtle bg-surface-alt flex flex-wrap items-end justify-between gap-3">
+          <div className="px-5 py-3.5 border-b border-border-subtle bg-surface-alt flex flex-col gap-3">
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary">
               Ganhos por projeto
             </h2>
-            <div className="flex items-end gap-2">
+            <div className="flex flex-wrap items-end gap-2">
               <DateField
                 label="De"
                 value={range.from}
@@ -313,7 +313,7 @@ export function HistoryPage() {
         </Card>
       )}
 
-      <Card padded={false} className="overflow-x-auto">
+      <Card padded={false} className="overflow-x-auto rounded-2xl">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border-subtle bg-surface-alt">
@@ -365,7 +365,7 @@ export function HistoryPage() {
                 return (
                   <tr
                     key={entry.id}
-                    className="border-b border-border-subtle last:border-b-0 hover:bg-surface-alt transition-colors"
+                    className="border-b border-border-subtle last:border-b-0 even:bg-surface-alt/40 hover:bg-surface-alt transition-colors"
                   >
                     <td className="px-4 py-3 whitespace-nowrap text-text-primary">
                       {formatDate(entry.started_at)}

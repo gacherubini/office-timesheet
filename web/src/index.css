@@ -3,47 +3,62 @@
 @tailwind utilities;
 
 :root {
-  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --color-bg: #F1EDE6;
-  --color-surface: #FBF8F3;
-  --color-surface-alt: #EDE7DC;
-  --color-text: #2A2620;
-  --color-text-sec: #6E685E;
-  --color-border: #DDD7CB;
-  --color-accent: #D4792C;
-  --color-sidebar: #3A5050;
-  --color-field-bg: #FBF8F3;
-  --color-field-text: #2A2620;
-  --color-field-placeholder: #8A8275;
-  --color-field-border: #CFC8B9;
-  --color-field-focus: #B8611F;
-  --color-field-focus-ring: rgba(212, 121, 44, 0.18);
-  --color-field-muted-bg: #EDE7DC;
-  --color-field-muted-text: #3A332C;
-  --color-field-muted-border: #CFC8B9;
-  --shadow-card: 0 1px 3px rgba(60, 50, 30, 0.05);
+  /* ── Studio Vivian / Terracota · type ──────────────────── */
+  --font-sans: 'Funnel Sans Variable', 'Funnel Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: var(--font-sans);
+  --font-serif: 'Instrument Serif', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  --font-mono: ui-monospace, 'Cascadia Code', 'Consolas', 'SFMono-Regular', monospace;
+
+  /* ── Terracota · light (papel quente) ──────────────────── */
+  --color-bg: #EDE6DC;
+  --color-surface: #FFFFFF;
+  --color-surface-alt: #E6DFD3;
+  --color-text: #2C2216;
+  --color-text-sec: #7A6A55;
+  --color-border: #E1D7C8;
+  --color-accent: #CB6D31;
+  --color-accent-2: #4C665E;
+  --color-accent-3: #615142;
+  --color-sidebar: #2C2216;
+  --color-field-bg: #FFFFFF;
+  --color-field-text: #2C2216;
+  --color-field-placeholder: #A2937E;
+  --color-field-border: #DFD4C4;
+  --color-field-focus: #CB6D31;
+  --color-field-focus-ring: rgba(203, 109, 49, 0.18);
+  --color-field-muted-bg: #E6DFD3;
+  --color-field-muted-text: #4A3D2E;
+  --color-field-muted-border: #DFD4C4;
+  --shadow-card: 0 1px 2px rgba(44, 34, 22, 0.05), 0 10px 24px -14px rgba(44, 34, 22, 0.18);
+  --grafismo-a: rgba(203, 109, 49, 0.32);
+  --grafismo-b: rgba(97, 81, 66, 0.20);
   color-scheme: light;
 }
 
 .dark {
-  --color-bg: #1C2626;
-  --color-surface: #2C3D3D;
-  --color-surface-alt: #324848;
-  --color-text: #E8E4DF;
-  --color-text-sec: rgba(232, 228, 223, 0.62);
-  --color-border: rgba(255, 255, 255, 0.10);
-  --color-accent: #D4792C;
-  --color-sidebar: #253535;
-  --color-field-bg: #314343;
-  --color-field-text: #F4EFE8;
-  --color-field-placeholder: #BDB4AA;
-  --color-field-border: rgba(255, 255, 255, 0.2);
-  --color-field-focus: #F09A4A;
-  --color-field-focus-ring: rgba(240, 154, 74, 0.22);
-  --color-field-muted-bg: #2D3E3E;
-  --color-field-muted-text: #E8E4DF;
-  --color-field-muted-border: rgba(255, 255, 255, 0.18);
+  /* ── Terracota · dark (marrom escuro) ──────────────────── */
+  --color-bg: #221A11;
+  --color-surface: #2C2217;
+  --color-surface-alt: #382B1D;
+  --color-text: #EDE6DC;
+  --color-text-sec: rgba(237, 230, 220, 0.60);
+  --color-border: rgba(255, 255, 255, 0.09);
+  --color-accent: #E0803F;
+  --color-accent-2: #7C978C;
+  --color-accent-3: #A98F6E;
+  --color-sidebar: #171009;
+  --color-field-bg: #2A2015;
+  --color-field-text: #EDE6DC;
+  --color-field-placeholder: #B7A891;
+  --color-field-border: rgba(255, 255, 255, 0.16);
+  --color-field-focus: #E0803F;
+  --color-field-focus-ring: rgba(224, 128, 63, 0.25);
+  --color-field-muted-bg: #322619;
+  --color-field-muted-text: #EDE6DC;
+  --color-field-muted-border: rgba(255, 255, 255, 0.14);
   --shadow-card: none;
+  --grafismo-a: rgba(224, 128, 63, 0.16);
+  --grafismo-b: rgba(255, 255, 255, 0.06);
   color-scheme: dark;
 }
 
@@ -58,8 +73,47 @@ body {
 }
 
 .font-display {
-  font-family: var(--font-sans);
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+/* Assinatura editorial da marca: ênfase em itálico serifado (Instrument Serif). */
+.font-serif-em {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+}
+
+/* Números em tabular (Funnel Sans) para alinhar colunas de dados. */
+.tabular-nums {
+  font-feature-settings: 'tnum' 1;
+}
+
+/* ─── Indicador REC (apontamento em curso) ──────────────────────── */
+@keyframes rec-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(224, 62, 62, 0.55); }
+  50% { opacity: 0.4; box-shadow: 0 0 0 7px rgba(224, 62, 62, 0); }
+}
+.rec-dot { animation: rec-pulse 1.25s ease-in-out infinite; }
+@keyframes soft-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.soft-pulse { animation: soft-pulse 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .rec-dot, .soft-pulse { animation: none; }
+}
+
+/* Foco de teclado visível (piso de acessibilidade). Inputs mantêm o
+   próprio anel via .form-control:focus. */
+a:focus-visible,
+button:focus-visible,
+[role='button']:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 @layer components {

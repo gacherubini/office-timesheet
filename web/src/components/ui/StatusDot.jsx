@@ -1,10 +1,10 @@
 const STATUS_COLORS = {
-  online: '#4CAF50',
-  running: '#4CAF50',
-  active: '#4CAF50',
-  paused: '#D4792C',
-  offline: '#A09A90',
-  inactive: '#A09A90',
+  online: '#16A34A',
+  running: '#16A34A',
+  active: '#16A34A',
+  paused: '#E8B004',
+  offline: '#94A0AE',
+  inactive: '#94A0AE',
 }
 
 const STATUS_LABELS = {

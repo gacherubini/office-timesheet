@@ -146,7 +146,7 @@ export function ProjectCatalog({
                       type="button"
                       onClick={(e) => { e.stopPropagation(); onStartEntry?.(p) }}
                       disabled={entryBusy}
-                      className="inline-flex items-center justify-center gap-2 w-full h-9 rounded-lg bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/25 disabled:opacity-50 text-sm font-medium transition-colors"
+                      className="inline-flex items-center justify-center gap-2 w-full h-9 rounded-lg text-white bg-[color:var(--color-accent)] hover:opacity-90 disabled:opacity-50 text-sm font-medium transition-opacity"
                     >
                       <Play size={16} /> Apontar horas
                     </button>

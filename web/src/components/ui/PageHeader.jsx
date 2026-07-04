@@ -6,7 +6,7 @@ export function PageHeader({ title, subtitle, badge, actions, children }) {
           <h1 className="font-display text-3xl text-text-primary leading-tight">{title}</h1>
           {badge}
         </div>
-        {subtitle && <p className="text-sm text-text-secondary mt-1">{subtitle}</p>}
+        {subtitle && <p className="font-serif italic text-[15px] leading-snug text-text-secondary mt-1">{subtitle}</p>}
         {children}
       </div>
       {actions && <div className="flex items-center gap-2 flex-wrap md:pr-12">{actions}</div>}

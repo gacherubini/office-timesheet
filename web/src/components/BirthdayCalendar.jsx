@@ -67,7 +67,7 @@ export function BirthdayCalendar() {
     d === today.getDate() && viewMonth === today.getMonth() && viewYear === today.getFullYear()
 
   return (
-    <Card padded={false} className="overflow-hidden">
+    <Card padded={false} className="overflow-hidden rounded-2xl">
       <div className="px-4 pt-4 pb-2 flex items-center justify-between">
         <button
           onClick={prevMonth}

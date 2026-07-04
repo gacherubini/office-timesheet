@@ -464,7 +464,7 @@ export function AdminTimeEntriesPage() {
               {expenses.map((expense) => (
                 <tr
                   key={expense.id}
-                  className="border-b border-border-subtle last:border-b-0 hover:bg-surface-alt transition-colors"
+                  className="border-b border-border-subtle last:border-b-0 even:bg-surface-alt/40 hover:bg-surface-alt transition-colors"
                 >
                   <td className="px-3 py-3 whitespace-nowrap text-text-primary">
                     {formatDate(expense.expense_date)}
@@ -545,7 +545,7 @@ export function AdminTimeEntriesPage() {
               {bonuses.map((bonus) => (
                 <tr
                   key={bonus.id}
-                  className="border-b border-border-subtle last:border-b-0 hover:bg-surface-alt transition-colors"
+                  className="border-b border-border-subtle last:border-b-0 even:bg-surface-alt/40 hover:bg-surface-alt transition-colors"
                 >
                   <td className="px-3 py-3 whitespace-nowrap text-text-primary">
                     {formatDate(bonus.bonus_date)}
@@ -845,7 +845,7 @@ export function AdminTimeEntriesPage() {
               tableEntries.map((entry) => (
                 <tr
                   key={entry.id}
-                  className="border-b border-border-subtle last:border-b-0 hover:bg-surface-alt transition-colors align-top"
+                  className="border-b border-border-subtle last:border-b-0 even:bg-surface-alt/40 hover:bg-surface-alt transition-colors align-top"
                 >
                   <td className="px-3 py-3 whitespace-nowrap text-text-primary">
                     {formatDate(entry.started_at)}

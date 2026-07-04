@@ -25,11 +25,15 @@ export default {
         'text-secondary': 'var(--color-text-sec)',
         'border-subtle': 'var(--color-border)',
         accent: 'var(--color-accent)',
+        'accent-2': 'var(--color-accent-2)',
+        'accent-3': 'var(--color-accent-3)',
         sidebar: 'var(--color-sidebar)',
       },
       fontFamily: {
         sans: ['var(--font-sans)'],
-        serif: ['var(--font-sans)'],
+        serif: ['var(--font-serif)'],
+        display: ['var(--font-display)'],
+        mono: ['var(--font-mono)'],
       },
       boxShadow: {
         card: '0 1px 3px rgba(0,0,0,0.06)',
