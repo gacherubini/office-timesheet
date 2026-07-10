@@ -27,8 +27,8 @@ describe('Relatórios de admin — folha e custo por projeto', () => {
     await entry(admin, emp2, projectB, '2026-07-15T09:00:00-03:00', '2026-07-15T12:00:00-03:00')
   })
 
-  it('/reports/payroll soma o custo de horas por colaborador (é o valor a pagar)', async () => {
-    const res = await asUser(admin).get('/reports/payroll?start_date=2026-07-01&end_date=2026-07-31')
+  it('/admin/reports/payroll soma o custo de horas por colaborador (é o valor a pagar)', async () => {
+    const res = await asUser(admin).get('/admin/reports/payroll?start_date=2026-07-01&end_date=2026-07-31')
     expect(res.status).toBe(200)
 
     const ana = res.body.payroll.find((p) => p.id === emp1.id)
@@ -44,15 +44,15 @@ describe('Relatórios de admin — folha e custo por projeto', () => {
     expect(cents(res.body.summary.total_bonuses)).toBe(0)
   })
 
-  it('/reports/payroll sem datas → 400; sem ser admin → 403', async () => {
-    const noDates = await asUser(admin).get('/reports/payroll')
+  it('/admin/reports/payroll sem datas → 400; sem ser admin → 403', async () => {
+    const noDates = await asUser(admin).get('/admin/reports/payroll')
     expect(noDates.status).toBe(400)
-    const asEmployee = await asUser(emp1).get('/reports/payroll?start_date=2026-07-01&end_date=2026-07-31')
+    const asEmployee = await asUser(emp1).get('/admin/reports/payroll?start_date=2026-07-01&end_date=2026-07-31')
     expect(asEmployee.status).toBe(403)
   })
 
-  it('/reports/project-cost agrega minutos/custo por projeto', async () => {
-    const res = await asUser(admin).get('/reports/project-cost?start_date=2026-07-01&end_date=2026-07-31')
+  it('/admin/reports/project-cost agrega minutos/custo por projeto', async () => {
+    const res = await asUser(admin).get('/admin/reports/project-cost?start_date=2026-07-01&end_date=2026-07-31')
     expect(res.status).toBe(200)
 
     const a = res.body.projects.find((p) => p.id === projectA.id)
