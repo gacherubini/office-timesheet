@@ -76,12 +76,14 @@ export async function makePause({ time_entry_id, paused_at, resumed_at = null })
   return rows[0]
 }
 
-export async function makeApprovedVacation({ user_id, start_date, end_date, days_count = 1 }) {
+export async function makeVacation({ user_id, start_date, end_date, days_count = 1, status = 'approved' }) {
   const { rows } = await query(
     `INSERT INTO vacation_requests (user_id, start_date, end_date, days_count, status)
-     VALUES ($1, $2, $3, $4, 'approved')
+     VALUES ($1, $2, $3, $4, $5)
      RETURNING id, user_id, start_date, end_date, status`,
-    [user_id, start_date, end_date, days_count],
+    [user_id, start_date, end_date, days_count, status],
   )
   return rows[0]
 }
+
+export const makeApprovedVacation = (opts) => makeVacation({ ...opts, status: 'approved' })
