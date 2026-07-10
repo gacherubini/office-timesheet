@@ -54,6 +54,7 @@ export function DateField({
         maxDate={toDate(max) || undefined}
         dateFormat="dd/MM/yyyy"
         locale="pt-BR"
+        popperPlacement="bottom-start"
         placeholderText={placeholder}
         required={required}
         disabled={disabled}

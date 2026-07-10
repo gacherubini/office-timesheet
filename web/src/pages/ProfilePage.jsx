@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Camera, KeyRound, Save } from 'lucide-react'
+import { Camera, KeyRound, Save, X } from 'lucide-react'
 import { api } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 import { Avatar } from '../components/Avatar'
@@ -44,7 +44,15 @@ export function ProfilePage() {
   const [passwordSaving, setPasswordSaving] = useState(false)
   const [passwordError, setPasswordError] = useState('')
   const [passwordSuccess, setPasswordSuccess] = useState('')
+  const [photoOpen, setPhotoOpen] = useState(false)
   const fileInputRef = useRef(null)
+
+  useEffect(() => {
+    if (!photoOpen) return
+    const onKey = (e) => e.key === 'Escape' && setPhotoOpen(false)
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [photoOpen])
 
   useEffect(() => {
     api.get('/me/profile')
@@ -173,7 +181,18 @@ export function ProfilePage() {
       <form onSubmit={handleSubmit} className="bg-surface rounded-xl border border-border-subtle shadow-card overflow-hidden">
         <div className="p-5 border-b border-border-subtle flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <div className="relative">
-            <Avatar name={form.name || profile?.name} url={form.avatar_url} size={72} />
+            {form.avatar_url ? (
+              <button
+                type="button"
+                onClick={() => setPhotoOpen(true)}
+                className="rounded-full block cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                title="Ampliar foto"
+              >
+                <Avatar name={form.name || profile?.name} url={form.avatar_url} size={72} />
+              </button>
+            ) : (
+              <Avatar name={form.name || profile?.name} url={form.avatar_url} size={72} />
+            )}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -382,6 +401,28 @@ export function ProfilePage() {
       </form>
 
       <CalendarConnect />
+
+      {photoOpen && form.avatar_url && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+          onClick={() => setPhotoOpen(false)}
+        >
+          <button
+            type="button"
+            onClick={() => setPhotoOpen(false)}
+            className="absolute top-4 right-4 text-white/80 hover:text-white transition-colors"
+            title="Fechar"
+          >
+            <X size={28} />
+          </button>
+          <img
+            src={form.avatar_url}
+            alt={form.name || 'Foto de perfil'}
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[85vh] max-w-[85vw] rounded-2xl object-contain shadow-2xl"
+          />
+        </div>
+      )}
     </div>
   )
 }

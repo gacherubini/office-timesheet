@@ -4,10 +4,10 @@ const ThemeContext = createContext(null)
 const STORAGE_KEY = 'gestao-void-theme'
 
 function readInitialTheme() {
-  if (typeof window === 'undefined') return 'dark'
+  if (typeof window === 'undefined') return 'light'
   const stored = window.localStorage.getItem(STORAGE_KEY)
   if (stored === 'dark' || stored === 'light') return stored
-  return 'dark'
+  return 'light'
 }
 
 export function ThemeProvider({ children }) {

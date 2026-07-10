@@ -16,10 +16,4 @@ export function Input({ label, error, className = '', as = 'input', children, ..
   )
 }
 
-export function Select({ label, children, className = '', ...props }) {
-  return (
-    <Input label={label} as="select" className={className} {...props}>
-      {children}
-    </Input>
-  )
-}
+export { Select } from './Select'

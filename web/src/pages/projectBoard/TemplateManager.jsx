@@ -246,15 +246,15 @@ export function TemplateManager({ templates, onBack, onChanged }) {
                               placeholder="Título da task"
                               className="flex-1 form-control rounded-lg border px-3 py-2 text-sm outline-none transition-colors"
                             />
-                            <select
+                            <Select
                               value={item.priority}
                               onChange={(e) => updateItem(idx, { priority: e.target.value })}
-                              className="form-control rounded-lg border px-2 py-2 text-sm outline-none transition-colors"
+                              className="w-36 flex-shrink-0"
                             >
                               {PRIORITIES.map((p) => (
                                 <option key={p.value} value={p.value}>{p.label}</option>
                               ))}
-                            </select>
+                            </Select>
                           </div>
                           <textarea
                             value={item.description}
