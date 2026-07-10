@@ -44,10 +44,53 @@ jobs:
         working-directory: ${{ matrix.working-directory }}
         run: ${{ matrix.command }}
 
+  api-tests:
+    name: API Tests (cronômetro & ganhos)
+    runs-on: ubuntu-latest
+
+    # Postgres num container que o GitHub sobe e derruba automaticamente.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: office_timesheet_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/office_timesheet_test
+      JWT_SECRET: test-secret-ci
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/package-lock.json
+
+      - name: Install dependencies
+        working-directory: src
+        run: npm ci
+
+      - name: Run tests (unit + integração)
+        working-directory: src
+        run: npm test
+
   deploy-api:
     name: Deploy API
     runs-on: ubuntu-latest
-    needs: ci
+    needs: [ci, api-tests]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
@@ -66,7 +109,7 @@ jobs:
   deploy-web:
     name: Deploy Web
     runs-on: ubuntu-latest
-    needs: ci
+    needs: [ci, api-tests]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:

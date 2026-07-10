@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
-import { Paperclip } from 'lucide-react'
+import { Paperclip, UploadCloud } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useAuth } from '../../contexts/AuthContext'
+import { useDropzone } from '../../hooks/useDropzone'
 import { AttachmentChip } from '../projectBoard/AttachmentChip'
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? '/api'
@@ -69,6 +70,8 @@ export function ClientAttachments({ clientId }) {
     return att.uploaded_by === profile?.id || isAdmin
   }
 
+  const { dragOver, dropProps } = useDropzone(handleFiles)
+
   return (
     <div>
       <div className="flex items-center justify-between mb-1.5">
@@ -90,15 +93,30 @@ export function ClientAttachments({ clientId }) {
         onChange={(e) => handleFiles(Array.from(e.target.files || []))}
       />
       {error && <p className="text-[11px] text-rose-500 mb-2">{error}</p>}
-      {items.length === 0 ? (
-        <p className="text-xs text-text-secondary">Nenhum anexo.</p>
-      ) : (
-        <div className="flex flex-wrap items-center gap-1.5">
-          {items.map((a) => (
-            <AttachmentChip key={a.id} att={a} onRemove={canRemove(a) ? () => remove(a) : undefined} />
-          ))}
-        </div>
-      )}
+      <div
+        {...dropProps}
+        onClick={() => items.length === 0 && !uploading && inputRef.current?.click()}
+        className={`relative rounded-lg border border-dashed p-3 transition-colors ${
+          dragOver ? 'border-accent bg-accent/10' : 'border-border-subtle'
+        } ${items.length === 0 ? 'cursor-pointer' : ''}`}
+      >
+        {items.length === 0 ? (
+          <p className={`flex items-center justify-center gap-1.5 text-xs text-text-secondary py-2 ${dragOver ? 'invisible' : ''}`}>
+            <UploadCloud size={14} /> Arraste arquivos aqui ou clique para selecionar
+          </p>
+        ) : (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {items.map((a) => (
+              <AttachmentChip key={a.id} att={a} onRemove={canRemove(a) ? () => remove(a) : undefined} />
+            ))}
+          </div>
+        )}
+        {dragOver && (
+          <div className="absolute inset-0 rounded-lg border-2 border-dashed border-accent bg-accent/10 flex items-center justify-center pointer-events-none">
+            <span className="text-xs font-medium text-accent">Solte para anexar ao cliente</span>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

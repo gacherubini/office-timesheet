@@ -10,11 +10,13 @@ const router = Router()
 router.get('/notifications', requireAuth, async (req, res) => {
   try {
     const { rows } = await query(
-      `SELECT n.id, n.type, n.task_id, n.comment_id, n.actor_id, n.read_at, n.created_at,
+      `SELECT n.id, n.type, n.task_id, n.comment_id, n.project_id, n.actor_id, n.read_at, n.created_at,
               t.title AS task_title,
+              p.name AS project_name,
               a.name AS actor_name, a.avatar_url AS actor_avatar_url
        FROM notifications n
        LEFT JOIN tasks t ON t.id = n.task_id
+       LEFT JOIN projects p ON p.id = n.project_id
        LEFT JOIN users a ON a.id = n.actor_id
        WHERE n.user_id = $1
        ORDER BY n.created_at DESC

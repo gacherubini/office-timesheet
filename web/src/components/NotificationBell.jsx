@@ -51,7 +51,8 @@ export function NotificationBell() {
       setUnread((u) => Math.max(0, u - 1))
       api.put(`/notifications/${n.id}/read`).catch(() => {})
     }
-    if (n.task_id) navigate(`/project-board?task=${n.task_id}`)
+    if (n.type === 'time_entry_started' || n.type === 'time_entry_stopped') navigate('/admin/live')
+    else if (n.task_id) navigate(`/project-board?task=${n.task_id}`)
   }
 
   async function markAllRead() {
