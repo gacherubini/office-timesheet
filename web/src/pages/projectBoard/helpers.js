@@ -57,9 +57,12 @@ export function relativeTime(iso) {
 export function notificationText(n) {
   const who = n.actor_name || 'Alguém'
   const task = n.task_title ? `"${n.task_title}"` : 'uma tarefa'
+  const project = n.project_name ? `"${n.project_name}"` : 'um projeto'
   if (n.type === 'mention') return `${who} mencionou você em ${task}`
   if (n.type === 'task_assigned') return `${who} atribuiu ${task} a você`
   if (n.type === 'task_comment') return `${who} comentou em ${task}`
+  if (n.type === 'time_entry_started') return `${who} iniciou um apontamento em ${project}`
+  if (n.type === 'time_entry_stopped') return `${who} parou um apontamento em ${project}`
   return `${who} · ${task}`
 }
 

@@ -5,16 +5,10 @@ import { requireApprover } from '../middleware/requireApprover.js'
 import { requireOperationalAccess } from '../middleware/requireOperationalAccess.js'
 import { canAccessMoney } from '../lib/permissions.js'
 import { query, withTransaction } from '../lib/db.js'
+import { notifyAdmins } from '../lib/notificationsHub.js'
+import { calculateDurationMinutes, calculateCostSnapshot } from '../lib/timeMath.js'
 
 const router = Router()
-
-function calculateDurationMinutes(start, end) {
-  return Math.max(0, Math.round((end.getTime() - start.getTime()) / 60000))
-}
-
-function calculateCostSnapshot(durationMinutes, hourlyRate) {
-  return Number(((durationMinutes / 60) * (Number(hourlyRate) || 0)).toFixed(2))
-}
 
 function todayValue() {
   const today = new Date()
@@ -125,6 +119,12 @@ router.post('/time-entries/start', requireAuth, blockTimerDuringVacation, async 
        VALUES ($1, $2, now(), 'running') RETURNING *`,
       [req.profile.id, project_id]
     )
+
+    await notifyAdmins({
+      type: 'time_entry_started',
+      projectId: project_id,
+      actorId: req.profile.id,
+    })
 
     return res.json(rows[0])
   } catch (err) {
@@ -244,6 +244,12 @@ router.post('/time-entries/stop', requireAuth, async (req, res) => {
        WHERE id = $3 RETURNING *`,
       [durationMinutes, costSnapshot, entry.id]
     )
+
+    await notifyAdmins({
+      type: 'time_entry_stopped',
+      projectId: entry.project_id,
+      actorId: req.profile.id,
+    })
 
     return res.json(rows[0])
   } catch (err) {

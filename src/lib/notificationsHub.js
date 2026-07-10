@@ -35,12 +35,14 @@ function publish(userId, payload) {
 // Retorna a notificação enriquecida (com nomes) para render/SSE.
 async function fetchNotification(id) {
   const { rows } = await query(
-    `SELECT n.id, n.user_id, n.type, n.task_id, n.comment_id, n.actor_id,
+    `SELECT n.id, n.user_id, n.type, n.task_id, n.comment_id, n.project_id, n.actor_id,
             n.read_at, n.created_at,
             t.title AS task_title,
+            p.name AS project_name,
             a.name AS actor_name, a.avatar_url AS actor_avatar_url
      FROM notifications n
      LEFT JOIN tasks t ON t.id = n.task_id
+     LEFT JOIN projects p ON p.id = n.project_id
      LEFT JOIN users a ON a.id = n.actor_id
      WHERE n.id = $1`,
     [id]
@@ -49,15 +51,31 @@ async function fetchNotification(id) {
 }
 
 // Cria a notificação e empurra via SSE. Não notifica o próprio ator.
-export async function createNotification({ userId, type, taskId, commentId = null, actorId }) {
+export async function createNotification({ userId, type, taskId, commentId = null, projectId = null, actorId }) {
   if (!userId || userId === actorId) return null
   const { rows } = await query(
-    `INSERT INTO notifications (user_id, type, task_id, comment_id, actor_id)
-     VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO notifications (user_id, type, task_id, comment_id, project_id, actor_id)
+     VALUES ($1, $2, $3, $4, $5, $6)
      RETURNING id`,
-    [userId, type, taskId || null, commentId, actorId || null]
+    [userId, type, taskId || null, commentId, projectId || null, actorId || null]
   )
   const enriched = await fetchNotification(rows[0].id)
   if (enriched) publish(userId, enriched)
   return enriched
+}
+
+// Notifica todos os admins ativos (exceto o próprio ator). Falhas são
+// engolidas: uma notificação não pode quebrar a ação que a disparou.
+export async function notifyAdmins({ type, projectId = null, taskId = null, actorId }) {
+  try {
+    const { rows: admins } = await query(
+      `SELECT id FROM users
+       WHERE role = 'admin' AND deleted_at IS NULL AND is_active = true`
+    )
+    for (const admin of admins) {
+      await createNotification({ userId: admin.id, type, projectId, taskId, actorId })
+    }
+  } catch (err) {
+    console.error('Erro em notifyAdmins:', err)
+  }
 }

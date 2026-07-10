@@ -10,7 +10,7 @@ const { Pool } = pg
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const MIGRATIONS_DIR = path.resolve(__dirname, '..', 'migrations')
 
-async function runMigrations(pool) {
+export async function runMigrations(pool) {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS _migrations (
       filename text PRIMARY KEY,
@@ -82,7 +82,12 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error(err)
-  process.exit(1)
-})
+// Só executa quando chamado direto (`node scripts/migrate.js`), não quando
+// importado pelos testes (que reusam runMigrations com um pool próprio).
+const invokedDirectly = process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])
+if (invokedDirectly) {
+  main().catch((err) => {
+    console.error(err)
+    process.exit(1)
+  })
+}
