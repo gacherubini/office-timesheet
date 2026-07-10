@@ -151,6 +151,18 @@ router.post('/time-entries/pause', requireAuth, async (req, res) => {
 
     const entryId = openEntries[0].id
 
+    // Impede duplo-pause: uma pausa aberta sobreposta a outra faria o stop
+    // descontar tempo a mais (risco de subpagamento).
+    const { rows: openPauses } = await query(
+      `SELECT id FROM time_entry_pauses
+       WHERE time_entry_id = $1 AND resumed_at IS NULL
+       LIMIT 1`,
+      [entryId]
+    )
+    if (openPauses.length > 0) {
+      return res.status(409).json({ error: 'O apontamento já está pausado.' })
+    }
+
     const { rows } = await query(
       `INSERT INTO time_entry_pauses (time_entry_id, paused_at)
        VALUES ($1, now()) RETURNING id, time_entry_id, paused_at, resumed_at`,
@@ -159,6 +171,10 @@ router.post('/time-entries/pause', requireAuth, async (req, res) => {
 
     return res.json(rows[0])
   } catch (err) {
+    // Backstop do índice único parcial (one_open_pause_per_entry).
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'O apontamento já está pausado.' })
+    }
     return res.status(400).json({ error: err.message })
   }
 })
