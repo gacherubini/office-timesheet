@@ -108,6 +108,19 @@ describe('Cronômetro de projeto — ciclo de vida', () => {
     expect(resumeAgain.status).toBe(404)
   })
 
+  it('pausar duas vezes seguidas → 409 (sem duplo-pause)', async () => {
+    await asUser(employee).post('/time-entries/start').send({ project_id: project.id })
+    const first = await asUser(employee).post('/time-entries/pause').send({})
+    expect(first.status).toBe(200)
+    const second = await asUser(employee).post('/time-entries/pause').send({})
+    expect(second.status).toBe(409)
+
+    // depois de retomar, pode pausar de novo
+    await asUser(employee).post('/time-entries/resume').send({})
+    const third = await asUser(employee).post('/time-entries/pause').send({})
+    expect(third.status).toBe(200)
+  })
+
   it('resume é bloqueado durante férias (mas pause não)', async () => {
     await asUser(employee).post('/time-entries/start').send({ project_id: project.id })
     const pause = await asUser(employee).post('/time-entries/pause').send({})
