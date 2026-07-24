@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
-import { ArrowRight, FolderKanban, Pencil, Trash2, Upload } from 'lucide-react'
-import { COLUMNS } from './helpers'
+import { ArrowRight, FolderKanban, Pencil, Trash2, Upload, Play, Pause, Square } from 'lucide-react'
+import { COLUMNS, formatClock } from './helpers'
 
 // Catálogo de projetos: a "capa" do quadro. O usuário escolhe um projeto
 // aqui antes de ver as tarefas. As contagens vêm do endpoint /tasks/counts
@@ -10,6 +10,8 @@ import { COLUMNS } from './helpers'
 export function ProjectCatalog({
   projects, counts, search, onOpen,
   canManage = false, canDelete = false, onEdit, onDelete, onPickImage,
+  activeTimer = null, entryElapsed = 0, entryBusy = false,
+  onStartEntry, onStopEntry, onPauseEntry, onResumeEntry,
 }) {
   const countsByProject = useMemo(() => {
     const map = {}
@@ -39,6 +41,9 @@ export function ProjectCatalog({
         const c = countsByProject[p.id] || { total: 0, todo: 0, in_progress: 0, in_review: 0, done: 0 }
         const active = (c.todo || 0) + (c.in_progress || 0) + (c.in_review || 0)
         const completed = p.status === 'completed'
+        const isTiming = activeTimer?.project_id === p.id
+        const isPaused = isTiming && activeTimer?.paused
+        const showTimer = Boolean(onStartEntry) && !completed
         return (
           <div
             key={p.id}
@@ -106,6 +111,48 @@ export function ProjectCatalog({
                   {active > 0 ? `${active} em aberto` : 'sem pendências'}
                 </span>
               </div>
+
+              {showTimer && (
+                <div className="mt-3 flex items-center gap-2 border-t border-border-subtle/60 pt-3">
+                  {isTiming ? (
+                    <>
+                      <span className={`flex-1 text-sm font-semibold tabular-nums ${isPaused ? 'text-amber-500' : 'text-emerald-500'}`}>
+                        {formatClock(entryElapsed)}
+                        <span className="ml-1.5 text-[10px] font-medium uppercase tracking-wider">
+                          {isPaused ? 'pausado' : 'em andamento'}
+                        </span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); (isPaused ? onResumeEntry : onPauseEntry)?.() }}
+                        disabled={entryBusy}
+                        title={isPaused ? 'Retomar' : 'Pausar'}
+                        className="inline-flex items-center justify-center w-9 h-9 rounded-lg shrink-0 bg-amber-500/15 text-amber-600 hover:bg-amber-500/25 disabled:opacity-50 transition-colors"
+                      >
+                        {isPaused ? <Play size={16} /> : <Pause size={16} />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); onStopEntry?.() }}
+                        disabled={entryBusy}
+                        title="Encerrar"
+                        className="inline-flex items-center justify-center w-9 h-9 rounded-lg shrink-0 bg-rose-500/15 text-rose-500 hover:bg-rose-500/25 disabled:opacity-50 transition-colors"
+                      >
+                        <Square size={16} />
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); onStartEntry?.(p) }}
+                      disabled={entryBusy}
+                      className="inline-flex items-center justify-center gap-2 w-full h-9 rounded-lg text-white bg-[color:var(--color-accent)] hover:opacity-90 disabled:opacity-50 text-sm font-medium transition-opacity"
+                    >
+                      <Play size={16} /> Apontar horas
+                    </button>
+                  )}
+                </div>
+              )}
 
               {(canManage || canDelete) && (
                 <div className="mt-3 flex items-center gap-3 border-t border-border-subtle/60 pt-3">

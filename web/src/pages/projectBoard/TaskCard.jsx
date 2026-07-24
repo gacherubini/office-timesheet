@@ -11,9 +11,10 @@ export function TaskCard({
   const u = urgency(task.due_date, task.status)
   const prio = priorityMeta(task.priority)
   const isRunning = Boolean(task.open_started_at)
-  // Cronômetro direto no card: só nas tarefas atribuídas a mim e ainda ativas.
+  // Cronômetro direto no card: qualquer pessoa que bate ponto pode contar suas
+  // próprias horas em tarefas ainda ativas (o log é por usuário).
   const canTime = Boolean(
-    onToggleTimer && currentUserId && task.assignee_id === currentUserId && TIMER_STATUSES.includes(task.status)
+    onToggleTimer && currentUserId && TIMER_STATUSES.includes(task.status)
   )
   return (
     <div

@@ -1,15 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import {
-  ArrowLeft, Clock, Play, Pause, Square, MessageSquareWarning,
-  FileText, Upload, Trash2, User, MapPin, Phone, Plus, Pencil, Save, X, Clock3,
+  ArrowLeft, FileText, Upload, Trash2, User, MapPin, Phone, Plus, Pencil, Save, X, Clock3,
 } from 'lucide-react'
 import { api } from '../../lib/api'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Input, Select } from '../../components/ui/Input'
 import { KanbanBoard } from './KanbanBoard'
-import { formatClock, formatMinutes } from './helpers'
+import { formatMinutes } from './helpers'
 
 function formatFileSize(bytes) {
   if (!bytes) return ''
@@ -24,11 +22,9 @@ export function ProjectPage({
   tasks, onOpenTask, onMove, currentUserId, taskTimerElapsed, timerBusyId, onToggleTimer,
   // filtros
   assigneeFilter, setAssigneeFilter, search, setSearch, users, onNewTask, canCreate,
-  // apontamento (time-entry)
-  canClockIn = false, activeTimer, entryElapsed = 0, entryBusy = false,
-  onStartEntry, onStopEntry, onPauseEntry, onResumeEntry,
+  // apontamento (time-entry) — usado só para recarregar horas quando o timer muda
+  activeTimer,
 }) {
-  const navigate = useNavigate()
   const [hours, setHours] = useState({ today_minutes: 0, month_minutes: 0 })
   const [documents, setDocuments] = useState([])
   const [docBusy, setDocBusy] = useState(false)
@@ -39,8 +35,6 @@ export function ProjectPage({
   const fileRef = useRef(null)
 
   const completed = project?.status === 'completed'
-  const isTiming = activeTimer?.project_id === project?.id
-  const isPaused = isTiming && activeTimer?.paused
   const taskCount = tasks?.length || 0
 
   async function loadHours() {
@@ -158,59 +152,6 @@ export function ProjectPage({
         <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mb-4">
           {feedback}
         </div>
-      )}
-
-      {/* Card: registrar horas neste projeto */}
-      {canClockIn && !completed && (
-        <Card className="mb-4 border-accent/40">
-          <div className="flex flex-col md:flex-row md:items-center gap-4">
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-              <span className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-accent/15 text-accent">
-                <Clock size={20} />
-              </span>
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-text-primary">Registrar horas neste projeto</p>
-                <p className="text-xs text-text-secondary">
-                  Hoje: {formatMinutes(hours.today_minutes)} · Este mês: {formatMinutes(hours.month_minutes)}
-                  {isTiming && (
-                    <span className={`ml-2 font-medium tabular-nums ${isPaused ? 'text-amber-500' : 'text-emerald-500'}`}>
-                      {formatClock(entryElapsed)} {isPaused ? '(pausado)' : '(em andamento)'}
-                    </span>
-                  )}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              {isTiming ? (
-                <>
-                  <Button
-                    variant="secondary"
-                    onClick={isPaused ? onResumeEntry : onPauseEntry}
-                    disabled={entryBusy}
-                  >
-                    {isPaused ? <Play size={16} /> : <Pause size={16} />}
-                    {isPaused ? 'Retomar' : 'Pausar'}
-                  </Button>
-                  <Button variant="secondary" onClick={onStopEntry} disabled={entryBusy}>
-                    <Square size={16} /> Finalizar
-                  </Button>
-                </>
-              ) : (
-                <Button onClick={() => onStartEntry?.(project)} disabled={entryBusy}>
-                  <Play size={16} /> Iniciar
-                </Button>
-              )}
-              <button
-                type="button"
-                onClick={() => navigate('/history')}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border-subtle px-3 py-2 text-sm text-text-secondary transition-colors hover:text-text-primary hover:border-border"
-                title="Solicitar correção de horas"
-              >
-                <MessageSquareWarning size={15} /> Solicitação
-              </button>
-            </div>
-          </div>
-        </Card>
       )}
 
       {/* Grid: briefing (principal) + sidebar (cliente / documentos / horas) */}

@@ -460,6 +460,13 @@ export function ProjectBoardPage() {
               onEdit={startEditProject}
               onDelete={(p) => { setProjectToDelete(p); setDeleteError('') }}
               onPickImage={pickProjectImage}
+              activeTimer={activeTimer}
+              entryElapsed={entryElapsed}
+              entryBusy={entryBusy}
+              onStartEntry={canClockIn ? startEntry : undefined}
+              onStopEntry={() => entryAction('stop')}
+              onPauseEntry={() => entryAction('pause')}
+              onResumeEntry={() => entryAction('resume')}
             />
           )}
         </>
@@ -477,7 +484,7 @@ export function ProjectBoardPage() {
           currentUserId={profile?.id}
           taskTimerElapsed={timerElapsed}
           timerBusyId={timerBusyId}
-          onToggleTimer={toggleTimer}
+          onToggleTimer={canClockIn ? toggleTimer : undefined}
           assigneeFilter={assigneeFilter}
           setAssigneeFilter={setAssigneeFilter}
           search={search}
