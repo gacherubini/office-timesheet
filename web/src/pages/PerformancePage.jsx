@@ -112,22 +112,54 @@ function HoursByProject({ breakdown, loading }) {
   )
 }
 
-// Placeholder honesto: depende de classificar tarefas por etapa (schema futuro).
-function TaskTypesPanel() {
+// Horas por etapa (task_type), a partir dos cronômetros de tarefa do mês.
+function TaskTypesPanel({ breakdown, loading }) {
+  const rows = useMemo(() => {
+    const items = [...(breakdown || [])]
+      .map((t) => ({ name: t.task_type || 'Sem etapa', minutes: t.total_minutes || 0 }))
+      .filter((t) => t.minutes > 0)
+      .sort((a, b) => b.minutes - a.minutes)
+
+    const TOP = 5
+    if (items.length <= TOP + 1) return items
+    const top = items.slice(0, TOP)
+    const restMinutes = items.slice(TOP).reduce((s, t) => s + t.minutes, 0)
+    if (restMinutes > 0) top.push({ name: 'Outros', minutes: restMinutes, muted: true })
+    return top
+  }, [breakdown])
+
+  const max = rows.reduce((m, r) => Math.max(m, r.minutes), 0) || 1
+
   return (
     <Card>
       <div className="flex items-center gap-2 mb-4">
         <ListChecks size={16} className="text-text-secondary" />
         <h2 className="text-[15px] font-semibold text-text-primary">Tipos de tarefa mais feitas</h2>
       </div>
-      <div className="flex flex-col items-center justify-center text-center py-10 px-4">
-        <span className="inline-flex items-center rounded-full bg-surface-alt px-2.5 py-1 text-[11px] font-medium uppercase tracking-wider text-text-secondary mb-3">
-          Em breve
-        </span>
-        <p className="text-sm text-text-secondary max-w-xs">
-          Disponível quando as tarefas passarem a ter etapa (Executivo, Anteprojeto, Compatibilização…).
+      {loading ? (
+        <p className="text-sm text-text-secondary py-6 text-center">Carregando...</p>
+      ) : rows.length === 0 ? (
+        <p className="text-sm text-text-secondary py-6 text-center">
+          Nenhuma etapa registrada. Defina a etapa nas tarefas e use o cronômetro delas.
         </p>
-      </div>
+      ) : (
+        <div className="space-y-3.5">
+          {rows.map((r) => (
+            <div key={r.name}>
+              <div className="flex items-baseline justify-between gap-3 mb-1.5">
+                <span className="text-sm text-text-primary truncate">{r.name}</span>
+                <span className="text-sm font-medium text-text-primary tabular-nums flex-none">{hm(r.minutes)}</span>
+              </div>
+              <div className="h-2 rounded-full bg-surface-alt overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-emerald-500 transition-all"
+                  style={{ width: `${Math.max(4, (r.minutes / max) * 100)}%`, opacity: r.muted ? 0.55 : 1 }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </Card>
   )
 }
@@ -321,7 +353,7 @@ function EmployeePerformancePage() {
 
       <div className="grid lg:grid-cols-2 gap-3 mb-4">
         <HoursByProject breakdown={stats?.project_breakdown} loading={loading} />
-        <TaskTypesPanel />
+        <TaskTypesPanel breakdown={stats?.task_type_breakdown} loading={loading} />
       </div>
 
       <HistoryStrip history={history} loading={historyLoading} />

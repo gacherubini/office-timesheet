@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button'
 import { AssigneePicker } from './AssigneePicker'
 import { PriorityChip } from './PriorityChip'
 import { DueDateChip } from './DueDateChip'
+import { TASK_TYPES } from '../../lib/taskTypes'
 
 function Field({ label, children }) {
   return (
@@ -26,6 +27,7 @@ export function NewTaskModal({ projectId, projects, users, onClose, onCreated })
   const [assigneeId, setAssigneeId] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [priority, setPriority] = useState('medium')
+  const [taskType, setTaskType] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -40,6 +42,7 @@ export function NewTaskModal({ projectId, projects, users, onClose, onCreated })
         assignee_id: assigneeId || null,
         due_date: dueDate || null,
         priority,
+        task_type: taskType || null,
       })
       onCreated(created)
     } catch (err) {
@@ -83,6 +86,10 @@ export function NewTaskModal({ projectId, projects, users, onClose, onCreated })
             <DueDateChip value={dueDate || null} status="todo" onChange={(d) => setDueDate(d || '')} />
           </Field>
         </div>
+        <Select label="Etapa" value={taskType} onChange={(e) => setTaskType(e.target.value)}>
+          <option value="">Sem etapa</option>
+          {TASK_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+        </Select>
         <Input label="Descrição" as="textarea" rows={4} value={description} onChange={(e) => setDescription(e.target.value)} />
       </div>
     </Modal>

@@ -17,7 +17,7 @@ function canManageTasks(profile) {
 // Cria tarefa num projeto (admin ou líder do projeto)
 router.post('/projects/:id/tasks', requireAuth, async (req, res) => {
   const projectId = req.params.id
-  const { title, description, assignee_id, due_date, priority } = req.body
+  const { title, description, assignee_id, due_date, priority, task_type } = req.body
   const VALID_PRIORITY = ['low', 'medium', 'high']
 
   if (!title || !title.trim()) {
@@ -40,9 +40,9 @@ router.post('/projects/:id/tasks', requireAuth, async (req, res) => {
     const position = posRows[0].next
 
     const { rows } = await query(
-      `INSERT INTO tasks (project_id, title, description, assignee_id, due_date, priority, position, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6::task_priority, $7, $8)
-       RETURNING id, project_id, title, description, status, assignee_id, due_date, priority, position, created_by, completed_at, created_at, updated_at`,
+      `INSERT INTO tasks (project_id, title, description, assignee_id, due_date, priority, task_type, position, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6::task_priority, $7, $8, $9)
+       RETURNING id, project_id, title, description, status, assignee_id, due_date, priority, task_type, position, created_by, completed_at, created_at, updated_at`,
       [
         projectId,
         title.trim(),
@@ -50,6 +50,7 @@ router.post('/projects/:id/tasks', requireAuth, async (req, res) => {
         assignee_id || null,
         due_date || null,
         priority || 'medium',
+        task_type?.trim() || null,
         position,
         req.profile.id,
       ]
@@ -99,7 +100,7 @@ router.get('/tasks', requireAuth, async (req, res) => {
 
     const { rows } = await query(
       `SELECT t.id, t.project_id, t.title, t.description, t.status, t.assignee_id,
-              t.due_date, t.position, t.priority, t.created_by, t.completed_at, t.created_at, t.updated_at,
+              t.due_date, t.position, t.priority, t.task_type, t.created_by, t.completed_at, t.created_at, t.updated_at,
               p.name AS project_name,
               a.name AS assignee_name, a.avatar_url AS assignee_avatar_url,
               COALESCE(tl.total_minutes, 0) AS total_minutes,
@@ -204,7 +205,7 @@ router.get('/tasks/:id', requireAuth, async (req, res) => {
   try {
     const { rows } = await query(
       `SELECT t.id, t.project_id, t.title, t.description, t.status, t.assignee_id,
-              t.due_date, t.position, t.priority, t.created_by, t.completed_at, t.created_at, t.updated_at,
+              t.due_date, t.position, t.priority, t.task_type, t.created_by, t.completed_at, t.created_at, t.updated_at,
               p.name AS project_name,
               a.name AS assignee_name, a.avatar_url AS assignee_avatar_url,
               COALESCE(tl.total_minutes, 0) AS total_minutes,
@@ -240,7 +241,7 @@ router.get('/tasks/:id', requireAuth, async (req, res) => {
 // Edição completa de tarefa (admin ou líder do projeto)
 router.put('/tasks/:id', requireAuth, async (req, res) => {
   const { id } = req.params
-  const { title, description, assignee_id, due_date, priority } = req.body
+  const { title, description, assignee_id, due_date, priority, task_type } = req.body
   const VALID_PRIORITY = ['low', 'medium', 'high']
   try {
     const { rows: taskRows } = await query(
@@ -274,12 +275,15 @@ router.put('/tasks/:id', requireAuth, async (req, res) => {
       }
       params.push(priority); updates.push(`priority = $${params.length}::task_priority`)
     }
+    if (task_type !== undefined) {
+      params.push(task_type?.trim() || null); updates.push(`task_type = $${params.length}`)
+    }
     if (updates.length === 0) return res.status(400).json({ error: 'Nenhum campo para atualizar.' })
 
     params.push(id)
     const { rows } = await query(
       `UPDATE tasks SET ${updates.join(', ')} WHERE id = $${params.length}
-       RETURNING id, project_id, title, description, status, assignee_id, due_date, position, priority, completed_at, created_at, updated_at`,
+       RETURNING id, project_id, title, description, status, assignee_id, due_date, position, priority, task_type, completed_at, created_at, updated_at`,
       params
     )
     const after = rows[0]

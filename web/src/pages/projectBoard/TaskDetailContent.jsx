@@ -10,6 +10,7 @@ import { formatMinutes, ABANDONED_STATUS } from './helpers'
 import { StatusChip } from './StatusChip'
 import { AssigneePicker } from './AssigneePicker'
 import { PriorityChip } from './PriorityChip'
+import { EtapaChip } from './EtapaChip'
 import { DueDateChip } from './DueDateChip'
 import { DescriptionAttachments } from './DescriptionAttachments'
 import { CommentThread } from './CommentThread'
@@ -214,6 +215,11 @@ export function TaskDetailContent({
         <PriorityChip
           value={task.priority}
           onChange={(p) => patch({ priority: p }, { priority: p })}
+          disabled={!canEdit}
+        />
+        <EtapaChip
+          value={task.task_type || ''}
+          onChange={(t) => patch({ task_type: t }, { task_type: t })}
           disabled={!canEdit}
         />
         <DueDateChip

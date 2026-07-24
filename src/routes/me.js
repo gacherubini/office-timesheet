@@ -407,6 +407,22 @@ router.get('/me/stats', requireAuth, async (req, res) => {
       }
     }
 
+    // "Tipos de tarefa mais feitas" (Performance): soma os cronômetros de tarefa
+    // concluídos no mês, agrupados pela etapa (tasks.task_type).
+    const { rows: taskTypeRows } = await query(
+      `SELECT COALESCE(NULLIF(TRIM(t.task_type), ''), 'Sem etapa') AS task_type,
+              COALESCE(SUM(ttl.duration_minutes), 0)::int AS total_minutes
+       FROM task_time_logs ttl
+       JOIN tasks t ON t.id = ttl.task_id
+       WHERE ttl.user_id = $1 AND ttl.ended_at IS NOT NULL
+         AND ttl.started_at >= ($2::date AT TIME ZONE 'America/Sao_Paulo')
+         AND ttl.started_at < (($3::date + interval '1 day') AT TIME ZONE 'America/Sao_Paulo')
+       GROUP BY 1
+       HAVING COALESCE(SUM(ttl.duration_minutes), 0) > 0
+       ORDER BY total_minutes DESC`,
+      [userId, startDate, endDate]
+    )
+
     return res.json({
       total_minutes,
       total_cost,
@@ -429,6 +445,7 @@ router.get('/me/stats', requireAuth, async (req, res) => {
         minutes,
       })),
       project_breakdown: Object.values(projectMap),
+      task_type_breakdown: taskTypeRows,
     })
   } catch (err) {
     return res.status(400).json({ error: err.message })
