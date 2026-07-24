@@ -24,22 +24,7 @@ export function TaskCard({
         muted ? 'opacity-60 hover:opacity-100' : ''
       }`}
     >
-      {canTime && (
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onToggleTimer(task) }}
-          disabled={timerBusy}
-          title={isRunning ? 'Parar cronômetro' : 'Iniciar cronômetro'}
-          className={`absolute top-2 right-2 inline-flex items-center justify-center w-7 h-7 rounded-md shrink-0 disabled:opacity-50 transition-colors ${
-            isRunning
-              ? 'bg-rose-500/15 text-rose-500 hover:bg-rose-500/25'
-              : 'bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/25'
-          }`}
-        >
-          {isRunning ? <Square size={13} /> : <Play size={13} />}
-        </button>
-      )}
-      <div className={`flex items-start gap-1.5 mb-1 ${canTime ? 'pr-9' : ''}`}>
+      <div className="flex items-start gap-1.5 mb-1">
         <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${prio.dot}`} title={`Prioridade ${prio.label}`} />
         <p className={`text-sm font-medium text-text-primary ${muted ? 'line-through decoration-text-secondary/50' : ''}`}>{task.title}</p>
       </div>
@@ -79,6 +64,25 @@ export function TaskCard({
           )}
         </div>
       </div>
+
+      {canTime && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onToggleTimer(task) }}
+          disabled={timerBusy}
+          className={`mt-2.5 inline-flex w-full items-center justify-center gap-1.5 h-8 rounded-lg text-[13px] font-semibold disabled:opacity-50 transition-colors ${
+            isRunning
+              ? 'bg-rose-500/15 text-rose-500 hover:bg-rose-500/25'
+              : 'bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/25'
+          }`}
+        >
+          {isRunning ? (
+            <><Square size={13} /> Parar · <span className="tabular-nums">{formatClock(timerElapsed)}</span></>
+          ) : (
+            <><Play size={13} /> Contar horas</>
+          )}
+        </button>
+      )}
     </div>
   )
 }

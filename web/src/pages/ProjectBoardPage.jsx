@@ -460,13 +460,6 @@ export function ProjectBoardPage() {
               onEdit={startEditProject}
               onDelete={(p) => { setProjectToDelete(p); setDeleteError('') }}
               onPickImage={pickProjectImage}
-              activeTimer={activeTimer}
-              entryElapsed={entryElapsed}
-              entryBusy={entryBusy}
-              onStartEntry={canClockIn ? startEntry : undefined}
-              onStopEntry={() => entryAction('stop')}
-              onPauseEntry={() => entryAction('pause')}
-              onResumeEntry={() => entryAction('resume')}
             />
           )}
         </>
