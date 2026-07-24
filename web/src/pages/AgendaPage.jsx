@@ -10,13 +10,13 @@ import {
   Clock,
   MapPin,
   Plus,
-  Info,
 } from 'lucide-react'
 import { api } from '../lib/api'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
+import { Input } from '../components/ui/Input'
 import { DateField } from '../components/ui/DateField'
 import { getCalendarEvents, getCalendarStatus } from '../lib/calendarClient'
 import { CalendarConnect } from './profile/CalendarConnect'
@@ -111,6 +111,7 @@ export function AgendaPage() {
   const [cursor, setCursor] = useState(() => new Date())
   const [events, setEvents] = useState([]) // google + office + holiday
   const [vacations, setVacations] = useState([])
+  const [presences, setPresences] = useState([])
   const [connected, setConnected] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState(null)
   const [presenceOpen, setPresenceOpen] = useState(false)
@@ -150,10 +151,12 @@ export function AgendaPage() {
     Promise.all([
       getCalendarEvents(rangeStart, rangeEnd).catch(() => ({ events: [] })),
       api.get(`/vacation-calendar?start_date=${rangeStart}&end_date=${rangeEnd}`).catch(() => []),
+      api.get(`/presences?start_date=${rangeStart}&end_date=${rangeEnd}`).catch(() => []),
     ])
-      .then(([evResp, vac]) => {
+      .then(([evResp, vac, pres]) => {
         setEvents(Array.isArray(evResp.events) ? evResp.events : [])
         setVacations(Array.isArray(vac) ? vac : [])
+        setPresences(Array.isArray(pres) ? pres : [])
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
@@ -215,6 +218,18 @@ export function AgendaPage() {
       }
     }
 
+    // Presença (chego / não vou) — sempre visível, cor accent.
+    for (const p of presences) {
+      const day = String(p.date).slice(0, 10)
+      const firstName = (p.user_name || 'Colaborador').split(' ')[0]
+      const arrival = p.arrival_time ? String(p.arrival_time).slice(0, 5) : null
+      const title =
+        p.status === 'absent'
+          ? `${firstName} · não vai`
+          : `${firstName}${arrival ? ` · chega ${arrival}` : ' · vem'}`
+      push(day, { id: `pres:${p.id}`, kind: 'presence', title, allDay: !arrival, start: arrival ? `${day}T${arrival}` : undefined })
+    }
+
     // Ordena: dia todo primeiro, depois por horário.
     for (const key of Object.keys(map)) {
       map[key].sort((a, b) => {
@@ -223,7 +238,7 @@ export function AgendaPage() {
       })
     }
     return map
-  }, [events, vacations, layers, rangeDays])
+  }, [events, vacations, presences, layers, rangeDays])
 
   const periodLabel = useMemo(() => {
     if (view === 'month') {
@@ -338,7 +353,7 @@ export function AgendaPage() {
               <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary">Legenda</h2>
             </div>
             <div className="p-4 space-y-2.5 text-sm">
-              <LegendItem colorClass="bg-[color:var(--color-accent)]" label="Presença (chego / não vou)" muted="Em breve" />
+              <LegendItem colorClass="bg-[color:var(--color-accent)]" label="Presença (chego / não vou)" />
               <LegendItem colorClass="bg-violet-500" label="Férias" />
               <LegendItem colorClass="bg-rose-500" label="Feriado / aviso" />
               <div className="pt-2 mt-1 border-t border-border-subtle space-y-2.5">
@@ -502,7 +517,11 @@ export function AgendaPage() {
         </Modal>
       )}
 
-      <PresenceModal open={presenceOpen} onClose={() => setPresenceOpen(false)} />
+      <PresenceModal
+        open={presenceOpen}
+        onClose={() => setPresenceOpen(false)}
+        onSaved={() => { setPresenceOpen(false); setRefresh((r) => r + 1) }}
+      />
     </div>
   )
 }
@@ -574,12 +593,32 @@ function EventChip({ item, onOpen }) {
   )
 }
 
-// Marcar presença — layout fiel ao mockup. Ainda SEM backend: salvar está
-// desabilitado e há um aviso honesto de "em breve".
-function PresenceModal({ open, onClose }) {
+// Marcar presença: chego (com horário) ou não vou, com motivo opcional.
+function PresenceModal({ open, onClose, onSaved }) {
   const [date, setDate] = useState(dateKey(new Date()))
+  const [status, setStatus] = useState('coming') // 'coming' | 'absent'
   const [time, setTime] = useState('')
   const [reason, setReason] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  async function handleSave() {
+    setSaving(true)
+    setError('')
+    try {
+      await api.post('/presences', {
+        date,
+        status,
+        arrival_time: status === 'coming' ? (time || null) : null,
+        reason: reason.trim() || null,
+      })
+      onSaved?.()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
     <Modal
@@ -589,43 +628,64 @@ function PresenceModal({ open, onClose }) {
       size="sm"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" onClick={onClose} disabled={saving}>
             Cancelar
           </Button>
-          <Button disabled title="Ainda não disponível">
-            Salvar
+          <Button onClick={handleSave} disabled={saving || !date}>
+            {saving ? 'Salvando...' : 'Salvar'}
           </Button>
         </>
       }
     >
       <div className="space-y-4">
-        <div className="flex items-start gap-2 rounded-lg bg-[color:var(--color-accent)]/10 text-accent p-3 text-xs">
-          <Info size={15} className="flex-shrink-0 mt-0.5" />
-          <span>
-            Em breve. Marcar presença (chego / não vou) ainda não tem onde ser salvo — falta o backend.
-            Os campos abaixo mostram como vai funcionar.
-          </span>
-        </div>
+        {error && (
+          <div className="rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 p-3 text-xs">{error}</div>
+        )}
+
         <DateField label="Data" value={date} onChange={(e) => setDate(e.target.value)} />
+
         <div>
-          <label className="block text-xs font-medium text-text-secondary mb-1.5">Horário de chegada</label>
-          <input
+          <label className="block text-xs font-medium text-text-secondary mb-1.5">Vou ao escritório?</label>
+          <div className="inline-flex w-full rounded-lg border border-border-subtle bg-surface p-0.5">
+            <button
+              type="button"
+              onClick={() => setStatus('coming')}
+              className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                status === 'coming' ? 'bg-[color:var(--color-accent)] text-white' : 'text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              Chego
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatus('absent')}
+              className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                status === 'absent' ? 'bg-[color:var(--color-accent)] text-white' : 'text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              Não vou
+            </button>
+          </div>
+        </div>
+
+        {status === 'coming' && (
+          <Input
+            label="Horário de chegada"
             type="time"
             value={time}
             onChange={(e) => setTime(e.target.value)}
-            className="w-full form-control border rounded-lg px-3 py-2 text-sm outline-none transition-colors"
           />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-text-secondary mb-1.5">Motivo (opcional)</label>
-          <textarea
-            rows={3}
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="Ex.: consulta médica, home office…"
-            className="w-full form-control border rounded-lg px-3 py-2 text-sm outline-none transition-colors resize-none"
-          />
-        </div>
+        )}
+
+        <Input
+          label="Motivo (opcional)"
+          as="textarea"
+          rows={3}
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder={status === 'absent' ? 'Ex.: home office, consulta médica…' : 'Ex.: chego mais tarde…'}
+          className="[&_textarea]:resize-none"
+        />
       </div>
     </Modal>
   )

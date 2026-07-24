@@ -23,6 +23,7 @@ import clientsRoutes from './routes/clients.js'
 import suppliersRoutes from './routes/suppliers.js'
 import holidaysRoutes from './routes/holidays.js'
 import calendarRoutes from './routes/calendar.js'
+import presencesRoutes from './routes/presences.js'
 
 // Constrói e exporta o app Express (sem escutar porta). Assim o server.js
 // sobe a porta em produção e os testes (Supertest) usam o app direto.
@@ -62,6 +63,7 @@ app.use(clientsRoutes)
 app.use(suppliersRoutes)
 app.use(holidaysRoutes)
 app.use(calendarRoutes)
+app.use(presencesRoutes)
 app.use('/admin', reportsRoutes)
 app.use('/admin', dashboardRoutes)
 
