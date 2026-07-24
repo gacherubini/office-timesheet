@@ -263,8 +263,8 @@ export function ProjectPage({
 
           {/* Tarefas do projeto — board de 4 colunas */}
           <Card padded={false} className="p-4">
-            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-4">
-              <h2 className="text-[15px] font-semibold text-text-primary">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+              <h2 className="text-[15px] font-semibold text-text-primary sm:pt-1">
                 Tarefas do projeto · {taskCount}
               </h2>
               <div className="flex items-end gap-2 flex-wrap">
