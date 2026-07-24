@@ -18,8 +18,10 @@ import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
 import { Input } from '../components/ui/Input'
 import { DateField } from '../components/ui/DateField'
+import { TimeField } from '../components/ui/TimeField'
 import { getCalendarEvents, getCalendarStatus } from '../lib/calendarClient'
 import { CalendarConnect } from './profile/CalendarConnect'
+import { useAuth } from '../contexts/AuthContext'
 
 const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
@@ -107,6 +109,7 @@ const ICON_BY_KIND = {
 }
 
 export function AgendaPage() {
+  const { profile } = useAuth()
   const [view, setView] = useState('week') // 'week' | 'month'
   const [cursor, setCursor] = useState(() => new Date())
   const [events, setEvents] = useState([]) // google + office + holiday
@@ -115,6 +118,7 @@ export function AgendaPage() {
   const [connected, setConnected] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState(null)
   const [presenceOpen, setPresenceOpen] = useState(false)
+  const [presenceInitial, setPresenceInitial] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [refresh, setRefresh] = useState(0)
@@ -227,7 +231,15 @@ export function AgendaPage() {
         p.status === 'absent'
           ? `${firstName} · não vai`
           : `${firstName}${arrival ? ` · chega ${arrival}` : ' · vem'}`
-      push(day, { id: `pres:${p.id}`, kind: 'presence', title, allDay: !arrival, start: arrival ? `${day}T${arrival}` : undefined })
+      push(day, {
+        id: `pres:${p.id}`,
+        kind: 'presence',
+        title,
+        allDay: !arrival,
+        start: arrival ? `${day}T${arrival}` : undefined,
+        mine: p.user_id === profile?.id,
+        presence: { ...p, date: day, arrival_time: arrival },
+      })
     }
 
     // Ordena: dia todo primeiro, depois por horário.
@@ -238,7 +250,16 @@ export function AgendaPage() {
       })
     }
     return map
-  }, [events, vacations, presences, layers, rangeDays])
+  }, [events, vacations, presences, layers, rangeDays, profile?.id])
+
+  // Clique num chip: presença própria abre o editor; eventos abrem o detalhe.
+  function handleChipOpen(item) {
+    if (item.kind === 'presence') {
+      if (item.mine) { setPresenceInitial(item.presence); setPresenceOpen(true) }
+      return
+    }
+    setSelectedEvent(item.raw)
+  }
 
   const periodLabel = useMemo(() => {
     if (view === 'month') {
@@ -289,8 +310,8 @@ export function AgendaPage() {
                 Mês
               </button>
             </div>
-            <Button onClick={() => setPresenceOpen(true)}>
-              <Plus size={16} /> Criar horário
+            <Button onClick={() => { setPresenceInitial(null); setPresenceOpen(true) }}>
+              <Plus size={16} /> Marcar presença
             </Button>
           </>
         }
@@ -414,7 +435,7 @@ export function AgendaPage() {
                       ) : items.length === 0 ? (
                         <p className="text-center text-[11px] text-text-secondary/70 pt-2">—</p>
                       ) : (
-                        items.map((item) => <EventChip key={item.id} item={item} onOpen={setSelectedEvent} />)
+                        items.map((item) => <EventChip key={item.id} item={item} onOpen={handleChipOpen} />)
                       )}
                     </div>
                   </div>
@@ -463,7 +484,7 @@ export function AgendaPage() {
                         ) : (
                           <>
                             {items.slice(0, 4).map((item) => (
-                              <EventChip key={item.id} item={item} onOpen={setSelectedEvent} />
+                              <EventChip key={item.id} item={item} onOpen={handleChipOpen} />
                             ))}
                             {items.length > 4 && (
                               <p className="text-[11px] text-text-secondary px-1">+{items.length - 4}</p>
@@ -519,8 +540,9 @@ export function AgendaPage() {
 
       <PresenceModal
         open={presenceOpen}
-        onClose={() => setPresenceOpen(false)}
-        onSaved={() => { setPresenceOpen(false); setRefresh((r) => r + 1) }}
+        initial={presenceInitial}
+        onClose={() => { setPresenceOpen(false); setPresenceInitial(null) }}
+        onSaved={() => { setPresenceOpen(false); setPresenceInitial(null); setRefresh((r) => r + 1) }}
       />
     </div>
   )
@@ -561,7 +583,9 @@ function LegendItem({ colorClass, label, muted }) {
 function EventChip({ item, onOpen }) {
   const Icon = ICON_BY_KIND[item.kind] || CalendarClock
   const style = LAYER_STYLE[item.kind] || LAYER_STYLE.google
-  const clickable = item.raw && (item.kind === 'google' || item.kind === 'office')
+  const clickable =
+    (item.raw && (item.kind === 'google' || item.kind === 'office')) ||
+    (item.kind === 'presence' && item.mine)
   const content = (
     <>
       <Icon size={10} className="flex-shrink-0" />
@@ -575,8 +599,8 @@ function EventChip({ item, onOpen }) {
     return (
       <button
         type="button"
-        onClick={() => onOpen(item.raw)}
-        title={item.title}
+        onClick={() => onOpen(item)}
+        title={item.kind === 'presence' ? 'Editar/remover minha presença' : item.title}
         className={`flex w-full items-center gap-1 truncate rounded px-2 py-1 text-left text-[11px] font-medium transition-opacity hover:opacity-80 ${style}`}
       >
         {content}
@@ -594,13 +618,25 @@ function EventChip({ item, onOpen }) {
 }
 
 // Marcar presença: chego (com horário) ou não vou, com motivo opcional.
-function PresenceModal({ open, onClose, onSaved }) {
+// `initial` (opcional) = presença existente para editar/remover.
+function PresenceModal({ open, initial, onClose, onSaved }) {
+  const editing = Boolean(initial)
   const [date, setDate] = useState(dateKey(new Date()))
   const [status, setStatus] = useState('coming') // 'coming' | 'absent'
   const [time, setTime] = useState('')
   const [reason, setReason] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  // Sincroniza os campos quando abre (novo ou edição).
+  useEffect(() => {
+    if (!open) return
+    setError('')
+    setDate(initial?.date || dateKey(new Date()))
+    setStatus(initial?.status || 'coming')
+    setTime(initial?.arrival_time ? String(initial.arrival_time).slice(0, 5) : '')
+    setReason(initial?.reason || '')
+  }, [open, initial])
 
   async function handleSave() {
     setSaving(true)
@@ -620,14 +656,32 @@ function PresenceModal({ open, onClose, onSaved }) {
     }
   }
 
+  async function handleDelete() {
+    setSaving(true)
+    setError('')
+    try {
+      await api.delete(`/presences/${date}`)
+      onSaved?.()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <Modal
       open={open}
       onClose={onClose}
-      title="Marcar presença"
+      title={editing ? 'Editar presença' : 'Marcar presença'}
       size="sm"
       footer={
         <>
+          {editing && (
+            <Button variant="danger" onClick={handleDelete} disabled={saving} className="mr-auto">
+              Remover
+            </Button>
+          )}
           <Button variant="secondary" onClick={onClose} disabled={saving}>
             Cancelar
           </Button>
@@ -669,9 +723,8 @@ function PresenceModal({ open, onClose, onSaved }) {
         </div>
 
         {status === 'coming' && (
-          <Input
+          <TimeField
             label="Horário de chegada"
-            type="time"
             value={time}
             onChange={(e) => setTime(e.target.value)}
           />
