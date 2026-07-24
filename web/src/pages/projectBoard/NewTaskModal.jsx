@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { api } from '../../lib/api'
 import { Modal } from '../../components/ui/Modal'
-import { Input } from '../../components/ui/Input'
+import { Input, Select } from '../../components/ui/Input'
 import { Button } from '../../components/ui/Button'
 import { AssigneePicker } from './AssigneePicker'
 import { PriorityChip } from './PriorityChip'
@@ -16,7 +16,11 @@ function Field({ label, children }) {
   )
 }
 
-export function NewTaskModal({ projectId, users, onClose, onCreated }) {
+// `projects` (opcional) habilita o seletor de projeto (usado no board global de
+// Tarefas). No board de um projeto, passe `projectId` e omita `projects`.
+export function NewTaskModal({ projectId, projects, users, onClose, onCreated }) {
+  const showProjectPicker = Array.isArray(projects) && projects.length > 0 && !projectId
+  const [selectedProject, setSelectedProject] = useState(projectId || '')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [assigneeId, setAssigneeId] = useState('')
@@ -27,9 +31,10 @@ export function NewTaskModal({ projectId, users, onClose, onCreated }) {
 
   async function handleCreate() {
     if (!title.trim()) { setError('Informe um título.'); return }
+    if (!selectedProject) { setError('Selecione um projeto.'); return }
     setSaving(true); setError('')
     try {
-      const created = await api.post(`/projects/${projectId}/tasks`, {
+      const created = await api.post(`/projects/${selectedProject}/tasks`, {
         title: title.trim(),
         description: description.trim() || null,
         assignee_id: assigneeId || null,
@@ -60,6 +65,12 @@ export function NewTaskModal({ projectId, users, onClose, onCreated }) {
     >
       {error && <p className="text-xs text-rose-500 mb-3">{error}</p>}
       <div className="space-y-4">
+        {showProjectPicker && (
+          <Select label="Projeto" value={selectedProject} onChange={(e) => setSelectedProject(e.target.value)}>
+            <option value="">Selecione um projeto...</option>
+            {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </Select>
+        )}
         <Input label="Título" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
         <div className="flex flex-wrap gap-4">
           <Field label="Responsável">

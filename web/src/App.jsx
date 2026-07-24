@@ -11,9 +11,12 @@ import { ProjectBoardPage } from './pages/ProjectBoardPage'
 import { ExpensesPage } from './pages/ExpensesPage'
 import { VacationsPage } from './pages/VacationsPage'
 import { VacationCalendarPage } from './pages/VacationCalendarPage'
+import { AgendaPage } from './pages/AgendaPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { EmployeeDashboardPage } from './pages/EmployeeDashboardPage'
-import { FinancialPerspectivePage } from './pages/FinancialPerspectivePage'
+import { GlobalTasksPage } from './pages/GlobalTasksPage'
+import { PessoasPage } from './pages/PessoasPage'
+import { PerformancePage } from './pages/PerformancePage'
 import { AdminLivePage } from './pages/admin/AdminLivePage'
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage'
 import { AdminTeamPage } from './pages/admin/AdminTeamPage'
@@ -55,7 +58,7 @@ export default function App() {
       <Route path="/" element={<ProtectedRoute><HomeRedirect /></ProtectedRoute>} />
       <Route path="/dashboard" element={<ProtectedRoute disallowAdministrativeIntern><Layout><EmployeeDashboardPage /></Layout></ProtectedRoute>} />
       <Route path="/timer" element={<ProtectedRoute><Layout><TimerPage /></Layout></ProtectedRoute>} />
-      <Route path="/financial-perspective" element={<ProtectedRoute disallowAdministrativeIntern><Layout><FinancialPerspectivePage /></Layout></ProtectedRoute>} />
+      <Route path="/financial-perspective" element={<ProtectedRoute disallowAdministrativeIntern><Layout><PerformancePage /></Layout></ProtectedRoute>} />
       <Route path="/history" element={<ProtectedRoute><Layout><HistoryPage /></Layout></ProtectedRoute>} />
       <Route path="/project-board" element={<ProtectedRoute><Layout><ProjectBoardPage /></Layout></ProtectedRoute>} />
       <Route path="/expenses" element={<ProtectedRoute disallowAdministrativeIntern><Layout><ExpensesPage /></Layout></ProtectedRoute>} />
@@ -64,6 +67,14 @@ export default function App() {
       <Route path="/clients" element={<ProtectedRoute><Layout><AdminClientsPage /></Layout></ProtectedRoute>} />
       <Route path="/suppliers" element={<ProtectedRoute><Layout><AdminSuppliersPage /></Layout></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Layout><ProfilePage /></Layout></ProtectedRoute>} />
+
+      {/* Nova navegação VOID — rotas em português apontando para as páginas atuais.
+          As rotas antigas acima continuam vivas para não quebrar deep-links. */}
+      <Route path="/tarefas" element={<ProtectedRoute><Layout><GlobalTasksPage /></Layout></ProtectedRoute>} />
+      <Route path="/projetos" element={<ProtectedRoute><Layout><ProjectBoardPage /></Layout></ProtectedRoute>} />
+      <Route path="/pessoas" element={<ProtectedRoute><Layout><PessoasPage /></Layout></ProtectedRoute>} />
+      <Route path="/agenda" element={<ProtectedRoute><Layout><AgendaPage /></Layout></ProtectedRoute>} />
+      <Route path="/performance" element={<ProtectedRoute disallowAdministrativeIntern><Layout><PerformancePage /></Layout></ProtectedRoute>} />
 
       {/* Rotas do admin */}
       <Route path="/admin/approvals" element={<ProtectedRoute approverOnly><Layout><AdminApprovalsPage /></Layout></ProtectedRoute>} />

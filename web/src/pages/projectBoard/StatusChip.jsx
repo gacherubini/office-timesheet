@@ -6,6 +6,7 @@ import { useClickOutside } from '../../hooks/useClickOutside'
 const STATUS_STYLES = {
   todo: 'bg-slate-400/15 text-slate-500',
   in_progress: 'bg-amber-500/15 text-amber-600',
+  in_review: 'bg-sky-500/15 text-sky-600',
   done: 'bg-emerald-500/15 text-emerald-600',
   abandoned: 'bg-rose-500/15 text-rose-500',
 }

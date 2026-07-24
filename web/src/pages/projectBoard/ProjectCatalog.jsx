@@ -38,8 +38,8 @@ export function ProjectCatalog({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {visible.map((p) => {
-        const c = countsByProject[p.id] || { total: 0, todo: 0, in_progress: 0, done: 0 }
-        const active = (c.todo || 0) + (c.in_progress || 0)
+        const c = countsByProject[p.id] || { total: 0, todo: 0, in_progress: 0, in_review: 0, done: 0 }
+        const active = (c.todo || 0) + (c.in_progress || 0) + (c.in_review || 0)
         const completed = p.status === 'completed'
         const isTiming = activeTimer?.project_id === p.id
         const isPaused = isTiming && activeTimer?.paused

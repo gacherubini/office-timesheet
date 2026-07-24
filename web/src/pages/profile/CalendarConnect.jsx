@@ -87,19 +87,19 @@ export function CalendarConnect({ onChange, hideWhenConnected = false }) {
           </div>
         ) : (
           <form onSubmit={handleConnect} className="space-y-3">
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <input
                 type="url"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://calendar.google.com/calendar/ical/.../basic.ics"
-                className="flex-1 form-control rounded-lg border px-3 py-2 text-sm outline-none transition-colors"
+                className="flex-1 min-w-0 form-control rounded-lg border px-3 py-2 text-sm outline-none transition-colors"
                 required
               />
               <button
                 type="submit"
                 disabled={busy || !url.trim()}
-                className="inline-flex items-center gap-1.5 text-white px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity whitespace-nowrap"
+                className="inline-flex items-center justify-center gap-1.5 text-white px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity whitespace-nowrap"
                 style={{ background: 'var(--color-accent)' }}
               >
                 <Link2 size={15} /> {busy ? 'Conectando...' : 'Conectar'}

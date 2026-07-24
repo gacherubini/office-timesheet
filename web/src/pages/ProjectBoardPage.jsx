@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Plus, Trash2, AlertTriangle, CheckCircle2, LayoutTemplate } from 'lucide-react'
+import { Plus, Trash2, AlertTriangle, CheckCircle2, LayoutTemplate } from 'lucide-react'
 import { api } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 import { PageHeader } from '../components/ui/PageHeader'
@@ -9,10 +9,10 @@ import { DateField } from '../components/ui/DateField'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
 import { Toast } from '../components/ui/Toast'
-import { KanbanBoard } from './projectBoard/KanbanBoard'
 import { TaskDetailModal } from './projectBoard/TaskDetailModal'
 import { NewTaskModal } from './projectBoard/NewTaskModal'
 import { ProjectCatalog } from './projectBoard/ProjectCatalog'
+import { ProjectPage } from './projectBoard/ProjectPage'
 import { TemplateManager } from './projectBoard/TemplateManager'
 
 export function ProjectBoardPage() {
@@ -471,59 +471,36 @@ export function ProjectBoardPage() {
           )}
         </>
       ) : (
-        // ── Nível 2: quadro do projeto selecionado ─────────────────────
-        <>
-          <button
-            type="button"
-            onClick={backToCatalog}
-            className="mb-3 inline-flex items-center gap-1.5 text-xs font-medium text-text-secondary transition-colors hover:text-text-primary"
-          >
-            <ArrowLeft size={14} />
-            Todos os projetos
-          </button>
-
-          <PageHeader
-            title={selectedProject?.name || 'Projeto'}
-            subtitle={selectedProject?.client || 'Quadro de tarefas'}
-          />
-
-          <div className="mb-5 flex flex-wrap items-end gap-3">
-            <Select
-              label="Responsável"
-              value={assigneeFilter}
-              onChange={(e) => setAssigneeFilter(e.target.value)}
-              className="w-52"
-            >
-              <option value="">Todos</option>
-              <option value="me">Minhas tarefas</option>
-              {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-            </Select>
-            <Input
-              label="Buscar tarefa"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Título da tarefa..."
-              className="w-60"
-            />
-            {canCreate && (
-              <Button onClick={() => setCreating(true)}>Nova tarefa</Button>
-            )}
-          </div>
-
-          {loading ? (
-            <div className="py-16 text-center text-text-secondary text-sm">Carregando...</div>
-          ) : (
-            <KanbanBoard
-              tasks={visibleTasks}
-              onOpenTask={(task) => setDrawer(task)}
-              onMove={handleMove}
-              currentUserId={profile?.id}
-              timerElapsed={timerElapsed}
-              timerBusyId={timerBusyId}
-              onToggleTimer={toggleTimer}
-            />
-          )}
-        </>
+        // ── Nível 2: página do projeto (layout do mockup) ──────────────
+        <ProjectPage
+          project={selectedProject}
+          onBack={backToCatalog}
+          onProjectChanged={loadProjects}
+          canManage={canManageProjects}
+          loading={loading}
+          tasks={visibleTasks}
+          onOpenTask={(task) => setDrawer(task)}
+          onMove={handleMove}
+          currentUserId={profile?.id}
+          taskTimerElapsed={timerElapsed}
+          timerBusyId={timerBusyId}
+          onToggleTimer={toggleTimer}
+          assigneeFilter={assigneeFilter}
+          setAssigneeFilter={setAssigneeFilter}
+          search={search}
+          setSearch={setSearch}
+          users={users}
+          onNewTask={() => setCreating(true)}
+          canCreate={canCreate}
+          canClockIn={canClockIn}
+          activeTimer={activeTimer}
+          entryElapsed={entryElapsed}
+          entryBusy={entryBusy}
+          onStartEntry={startEntry}
+          onStopEntry={() => entryAction('stop')}
+          onPauseEntry={() => entryAction('pause')}
+          onResumeEntry={() => entryAction('resume')}
+        />
       )}
 
       {drawer && (

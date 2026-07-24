@@ -435,6 +435,57 @@ router.get('/me/stats', requireAuth, async (req, res) => {
   }
 })
 
+// Histórico de performance dos últimos N meses (horas + valor por mês).
+// Alimenta a faixa "Histórico — últimos meses" da página Performance.
+// Mesma guarda financeira do /me/stats.
+router.get('/me/monthly-history', requireAuth, async (req, res) => {
+  if (!canAccessMoney(req.profile) && req.profile?.role === 'administrative_intern') {
+    return res.status(403).json({ error: 'Acesso restrito a dados financeiros.' })
+  }
+
+  const userId = req.profile.id
+  const months = Math.min(24, Math.max(1, Number(req.query.months) || 6))
+
+  const now = new Date()
+  const anchorYear = now.getFullYear()
+  const anchorMonth = now.getMonth() + 1 // 1-12
+  // Primeiro dia do mês inicial da janela (N-1 meses atrás).
+  const windowStart = new Date(anchorYear, anchorMonth - 1 - (months - 1), 1)
+  const startDate = `${windowStart.getFullYear()}-${String(windowStart.getMonth() + 1).padStart(2, '0')}-01`
+
+  try {
+    const { rows } = await query(
+      `SELECT to_char(date_trunc('month', te.started_at AT TIME ZONE 'America/Sao_Paulo'), 'YYYY-MM') AS ym,
+              SUM(te.duration_minutes) AS minutes,
+              SUM(te.cost_snapshot) AS cost
+       FROM time_entries te
+       WHERE te.user_id = $1 AND te.status = 'completed'
+         AND te.started_at >= ($2::date AT TIME ZONE 'America/Sao_Paulo')
+       GROUP BY 1`,
+      [userId, startDate]
+    )
+
+    const map = new Map(
+      rows.map((r) => [r.ym, { minutes: Number(r.minutes) || 0, cost: Number(r.cost) || 0 }])
+    )
+
+    // Preenche todos os N meses (com zeros onde não houve apontamento), do mais antigo ao atual.
+    const history = []
+    for (let i = 0; i < months; i++) {
+      const d = new Date(anchorYear, anchorMonth - 1 - (months - 1) + i, 1)
+      const y = d.getFullYear()
+      const m = d.getMonth() + 1
+      const ym = `${y}-${String(m).padStart(2, '0')}`
+      const found = map.get(ym) || { minutes: 0, cost: 0 }
+      history.push({ year: y, month: m, ym, total_minutes: found.minutes, total_cost: found.cost })
+    }
+
+    return res.json({ history })
+  } catch (err) {
+    return res.status(400).json({ error: err.message })
+  }
+})
+
 // Ganhos por projeto do usuário logado (histórico). Agrega apontamentos
 // concluídos por projeto, com filtro opcional de período (from/to). Ganho =
 // soma de cost_snapshot (valor real registrado em cada apontamento).

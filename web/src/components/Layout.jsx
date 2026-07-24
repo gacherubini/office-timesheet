@@ -1,28 +1,20 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import {
   Home,
-  History,
-  Users,
+  ListChecks,
   FolderKanban,
-  Building2,
-  Truck,
-  Radio,
-  FileText,
-  LogOut,
+  Users,
+  CalendarDays,
   BarChart3,
+  FileText,
+  Gift,
   Receipt,
-  Target,
+  LogOut,
   Sun,
   Moon,
-  BriefcaseBusiness,
-  CircleDollarSign,
-  Gift,
-  Sparkles,
-  CalendarDays,
-  CalendarOff,
   ChevronDown,
   Pin,
   PinOff,
@@ -32,120 +24,66 @@ import { NotificationBell } from './NotificationBell'
 import { ClockInReminder } from './ClockInReminder'
 import { Logo } from './Logo'
 
-function NavLinkItem({ item, active, nested = false, expanded = true }) {
+// Item de menu de nível 1 (plano, estilo mockup VOID). Ativo em laranja/accent.
+function NavRow({ item, active, expanded, open, onToggle }) {
   const Icon = item.icon
-  const sizeClass = nested
-    ? 'mx-3 md:ml-10 md:mr-4 rounded-md px-3 py-2 text-[13px]'
-    : expanded
-      ? 'px-4 md:px-6 py-3 text-sm'
-      : 'px-4 md:px-0 py-3 text-sm md:justify-center'
-  const stateClass = nested
-    ? active
-      ? 'bg-white/10 text-white font-medium'
-      : 'text-white/55 hover:text-white hover:bg-white/5'
-    : active
-      ? 'text-white font-medium md:border-l-[3px] bg-white/10'
-      : 'text-white/60 hover:text-white hover:bg-white/5 md:border-l-[3px] md:border-transparent'
+  const hasChildren = Boolean(item.children?.length)
+  const base =
+    'flex items-center gap-3 transition-colors whitespace-nowrap text-[15px] font-medium'
+  const pad = expanded ? 'px-6 py-2.5' : 'px-4 md:px-0 py-2.5 md:justify-center'
+  const state = active
+    ? 'text-accent'
+    : 'text-white/65 hover:text-white'
 
+  return (
+    <div className="contents md:block">
+      <div className="flex items-center">
+        <Link
+          to={item.to}
+          title={!expanded ? item.label : undefined}
+          className={`flex-1 ${base} ${pad} ${state}`}
+        >
+          <Icon size={18} className="flex-none" />
+          <span className={`hidden ${expanded ? 'md:inline' : 'md:hidden'}`}>{item.label}</span>
+        </Link>
+        {hasChildren && expanded && (
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-label={open ? `Recolher ${item.label}` : `Expandir ${item.label}`}
+            aria-expanded={open}
+            className="mr-3 flex h-7 w-7 items-center justify-center rounded-md text-white/45 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            <ChevronDown size={15} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+          </button>
+        )}
+      </div>
+      {hasChildren && expanded && open && (
+        <div className="mb-1">
+          {item.children.map((child) => (
+            <NavSubRow key={child.to} item={child} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Sub-item só-admin (indentado sob o item pai).
+function NavSubRow({ item }) {
+  const location = useLocation()
+  const Icon = item.icon
+  const active = location.pathname === item.to
   return (
     <Link
       to={item.to}
-      className={`flex items-center gap-2.5 transition-all whitespace-nowrap ${sizeClass} ${stateClass}`}
-      style={active && !nested ? { borderLeftColor: 'var(--color-accent)' } : undefined}
-      title={!expanded ? item.label : undefined}
+      className={`ml-9 mr-3 flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] transition-colors ${
+        active ? 'bg-white/10 text-white font-medium' : 'text-white/50 hover:bg-white/5 hover:text-white'
+      }`}
     >
-      <Icon size={nested ? 16 : 18} />
-      <span className={`hidden ${expanded ? 'md:inline' : 'md:hidden'}`}>{item.label}</span>
+      <Icon size={15} className="flex-none" />
+      <span>{item.label}</span>
     </Link>
-  )
-}
-
-function NavCategoryLink({ item, active, expanded = true }) {
-  const Icon = item.icon
-  const categoryClass = `mx-2 my-1.5 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm md:text-[12px] font-semibold md:uppercase md:tracking-wider transition-all whitespace-nowrap ${
-    expanded
-      ? 'md:mx-4 md:px-3.5'
-      : 'md:mx-auto md:h-10 md:w-10 md:justify-center md:px-0 md:py-0'
-  } ${
-    active && expanded
-      ? 'bg-white/12 text-white shadow-sm'
-      : expanded
-        ? 'bg-transparent text-white/60 hover:bg-white/8 hover:text-white'
-        : 'bg-transparent text-white/60 hover:text-white'
-  }`
-
-  return (
-    <div className="contents md:block">
-      <Link
-        to={item.to}
-        title={!expanded ? item.label : undefined}
-        className={categoryClass}
-      >
-        <span
-          className={`flex h-7 w-7 items-center justify-center rounded-md ${
-            active ? 'bg-white/15 text-white' : 'bg-white/5 text-white/65'
-          }`}
-        >
-          <Icon size={16} />
-        </span>
-        <span className={`hidden ${expanded ? 'md:inline' : 'md:hidden'}`}>{item.label}</span>
-      </Link>
-    </div>
-  )
-}
-
-function NavSection({ section, pathname, open, active, expanded, onToggle }) {
-  const SectionIcon = section.icon
-  const highlighted = active
-  const categoryClass = `mx-2 my-1.5 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm md:text-[12px] font-semibold md:uppercase md:tracking-wider transition-all whitespace-nowrap ${
-    expanded
-      ? 'md:mx-4 md:px-3.5'
-      : 'md:mx-auto md:h-10 md:w-10 md:justify-center md:px-0 md:py-0'
-  } ${
-    highlighted && expanded
-      ? 'bg-white/12 text-white shadow-sm'
-      : expanded
-        ? 'bg-transparent text-white/60 hover:bg-white/8 hover:text-white'
-        : 'bg-transparent text-white/60 hover:text-white'
-  }`
-
-  return (
-    <div className="contents md:block">
-      <button
-        type="button"
-        onClick={onToggle}
-        title={section.label}
-        className={categoryClass}
-      >
-        <span
-          className={`flex h-7 w-7 items-center justify-center rounded-md ${
-            highlighted ? 'bg-white/15 text-white' : 'bg-white/5 text-white/65'
-          }`}
-        >
-          <SectionIcon size={16} />
-        </span>
-        <span className={`hidden ${expanded ? 'md:inline' : 'md:hidden'}`}>{section.label}</span>
-        <ChevronDown
-          size={15}
-          className={`hidden ml-auto transition-transform ${
-            expanded ? 'md:block' : 'md:hidden'
-          } ${open ? 'rotate-180' : ''}`}
-        />
-      </button>
-      {open && expanded && (
-        <>
-          {section.links.map((item) => (
-            <NavLinkItem
-              key={item.to}
-              item={item}
-              active={pathname === item.to}
-              expanded={expanded}
-              nested
-            />
-          ))}
-        </>
-      )}
-    </div>
   )
 }
 
@@ -171,111 +109,61 @@ export function Layout({ children }) {
     window.localStorage.setItem('sidebarPinned', String(isSidebarPinned))
   }, [isSidebarPinned])
 
-  const employeeHomeLink = { to: '/dashboard', label: 'Início', icon: Home }
-  const adminHomeLink = { to: '/admin/dashboard', label: 'Início', icon: Home }
+  // ── Menu plano do mockup VOID (mesmo topo p/ todos) ────────────────
+  // Sub-itens (children) só aparecem para admin / estagiário administrativo.
+  const nav = useMemo(() => {
+    const homeTo = isAdmin
+      ? '/admin/dashboard'
+      : isAdministrativeIntern
+        ? '/admin/approvals'
+        : '/dashboard'
 
-  const administrativeInternHomeLink = { to: '/admin/approvals', label: 'Início', icon: Home }
+    // Ferramentas extras de admin, aninhadas sob o item pai.
+    const adminChildren = isAdmin
+      ? {
+          performance: [
+            { to: '/admin/reports', label: 'Relatórios', icon: BarChart3 },
+            { to: '/admin/time-entries', label: 'Apontamentos', icon: FileText },
+            { to: '/admin/manage-bonuses', label: 'Bônus', icon: Gift },
+            { to: '/admin/manage-expenses', label: 'Despesas', icon: Receipt },
+          ],
+        }
+      : {}
 
-  const employeeSections = [
-    {
-      label: 'Rotina',
-      icon: CalendarDays,
-      links: [
-        { to: '/history', label: 'Histórico', icon: History },
-        { to: '/project-board', label: 'Projetos', icon: FolderKanban },
-        { to: '/vacations', label: 'Férias', icon: CalendarOff },
-        { to: '/vacation-calendar', label: 'Calendário', icon: CalendarDays },
-      ],
-    },
-    {
-      label: 'Financeiro',
-      icon: CircleDollarSign,
-      links: [
-        { to: '/financial-perspective', label: 'Perspectiva', icon: Target },
-        { to: '/expenses', label: 'Despesas', icon: Receipt },
-      ],
-    },
-    {
-      label: 'Gerenciamento',
-      icon: BriefcaseBusiness,
-      links: [
-        { to: '/clients', label: 'Clientes', icon: Building2 },
-        { to: '/suppliers', label: 'Fornecedores', icon: Truck },
-      ],
-    },
-  ]
+    const items = [
+      { to: homeTo, label: 'Home', icon: Home },
+      { to: '/tarefas', label: 'Tarefas', icon: ListChecks },
+      { to: '/projetos', label: 'Projetos', icon: FolderKanban },
+      { to: '/pessoas', label: 'Pessoas', icon: Users },
+      { to: '/agenda', label: 'Agenda', icon: CalendarDays },
+      // Estagiário administrativo não acessa Performance.
+      ...(isAdministrativeIntern
+        ? []
+        : [{ to: '/performance', label: 'Performance', icon: BarChart3, children: adminChildren.performance }]),
+    ]
 
-  const adminSections = [
-    {
-      label: 'Operação',
-      icon: Sparkles,
-      links: [
-        { to: '/admin/live', label: 'Painel Live', icon: Radio },
-        { to: '/project-board', label: 'Projetos', icon: FolderKanban },
-        { to: '/vacations', label: 'Férias', icon: CalendarOff },
-        { to: '/vacation-calendar', label: 'Calendário', icon: CalendarDays },
-      ],
-    },
-    {
-      label: 'Gerenciamento',
-      icon: BriefcaseBusiness,
-      links: [
-        { to: '/admin/team', label: 'Equipe', icon: Users },
-        { to: '/admin/clients', label: 'Clientes', icon: Building2 },
-        { to: '/admin/suppliers', label: 'Fornecedores', icon: Truck },
-        { to: '/admin/manage-expenses', label: 'Despesas', icon: Receipt },
-        { to: '/admin/manage-bonuses', label: 'Bônus', icon: Gift },
-      ],
-    },
-    {
-      label: 'Financeiro',
-      icon: CircleDollarSign,
-      links: [
-        { to: '/admin/time-entries', label: 'Apontamentos', icon: FileText },
-        { to: '/admin/reports', label: 'Relatórios', icon: BarChart3 },
-      ],
-    },
-  ]
+    return items
+  }, [isAdmin, isAdministrativeIntern])
 
-  const administrativeInternSections = [
-    {
-      label: 'Operação',
-      icon: Sparkles,
-      links: [
-        { to: '/admin/live', label: 'Painel Live', icon: Radio },
-        { to: '/project-board', label: 'Projetos', icon: FolderKanban },
-        { to: '/vacations', label: 'Férias', icon: CalendarOff },
-        { to: '/vacation-calendar', label: 'Calendário', icon: CalendarDays },
-      ],
-    },
-    {
-      label: 'Gerenciamento',
-      icon: BriefcaseBusiness,
-      links: [
-        { to: '/admin/team', label: 'Equipe', icon: Users },
-        { to: '/admin/clients', label: 'Clientes', icon: Building2 },
-        { to: '/admin/suppliers', label: 'Fornecedores', icon: Truck },
-      ],
-    },
-  ]
-
-  const homeLink = isAdmin
-    ? adminHomeLink
-    : isAdministrativeIntern
-      ? administrativeInternHomeLink
-      : employeeHomeLink
-  const sections = isAdmin
-    ? adminSections
-    : isAdministrativeIntern
-      ? administrativeInternSections
-      : employeeSections
   const isSidebarExpanded = isSidebarPinned || isSidebarHovered
 
+  function isItemActive(item) {
+    if (location.pathname === item.to) return true
+    return Boolean(item.children?.some((c) => c.to === location.pathname))
+  }
+
+  // Abre automaticamente a seção cujo sub-item está ativo.
+  useEffect(() => {
+    const activeParent = nav.find((item) =>
+      item.children?.some((c) => c.to === location.pathname),
+    )
+    if (activeParent) {
+      setOpenSections((cur) => (cur[activeParent.label] ? cur : { ...cur, [activeParent.label]: true }))
+    }
+  }, [location.pathname, nav])
+
   function toggleSection(label) {
-    setOpenSections((current) => ({
-      ...current,
-      [label]: !current[label],
-    }))
+    setOpenSections((current) => ({ ...current, [label]: !current[label] }))
   }
 
   return (
@@ -318,27 +206,16 @@ export function Layout({ children }) {
         </div>
 
         <nav className="flex md:flex-col flex-row flex-1 md:gap-0.5 overflow-x-auto md:overflow-x-visible md:overflow-y-auto">
-          <NavCategoryLink
-            item={homeLink}
-            active={location.pathname === homeLink.to}
-            expanded={isSidebarExpanded}
-          />
-
-          {sections.map((section) => {
-            const sectionActive = section.links.some((item) => item.to === location.pathname)
-
-            return (
-              <NavSection
-                key={section.label}
-                section={section}
-                pathname={location.pathname}
-                open={Boolean(openSections[section.label])}
-                active={sectionActive}
-                expanded={isSidebarExpanded}
-                onToggle={() => toggleSection(section.label)}
-              />
-            )
-          })}
+          {nav.map((item) => (
+            <NavRow
+              key={item.label}
+              item={item}
+              active={isItemActive(item)}
+              expanded={isSidebarExpanded}
+              open={Boolean(openSections[item.label])}
+              onToggle={() => toggleSection(item.label)}
+            />
+          ))}
         </nav>
 
         <div

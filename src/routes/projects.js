@@ -18,13 +18,21 @@ const upload = multer({
   },
 })
 
+// Documentos do projeto: aceita qualquer tipo de arquivo (pdf, docx, imagens…).
+const uploadDoc = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024 }, // 15MB
+})
+
 const router = Router()
 
 router.get('/projects', requireAuth, async (req, res) => {
   try {
     const { rows } = await query(
       `SELECT p.id, p.name, COALESCE(c.name, p.client) AS client, p.client_id,
-              p.address, p.start_date, p.status, p.image_url, p.created_at, p.updated_at
+              p.address, p.start_date, p.status, p.image_url, p.briefing,
+              c.phone AS client_phone, c.email AS client_email, c.address AS client_address,
+              p.created_at, p.updated_at
        FROM projects p
        LEFT JOIN clients c ON c.id = p.client_id
        WHERE p.deleted_at IS NULL
@@ -120,12 +128,13 @@ router.post('/projects', requireAuth, requireProjectManagement, async (req, res)
 
 router.put('/projects/:id', requireAuth, requireProjectManagement, async (req, res) => {
   const { id } = req.params
-  const { name, client_id, address, start_date, status } = req.body
+  const { name, client_id, address, start_date, status, briefing } = req.body
 
   const updates = {}
   if (name !== undefined) updates.name = name.trim()
   if (address !== undefined) updates.address = address?.trim() || null
   if (start_date !== undefined) updates.start_date = start_date || null
+  if (briefing !== undefined) updates.briefing = briefing || null
   if (status !== undefined) {
     if (!['active', 'completed'].includes(status)) {
       return res.status(400).json({ error: 'Status inválido. Use "active" ou "completed".' })
@@ -162,7 +171,7 @@ router.put('/projects/:id', requireAuth, requireProjectManagement, async (req, r
     })
 
     values.push(id)
-    const sql = `UPDATE projects SET ${setClauses.join(', ')} WHERE id = $${paramCount} AND deleted_at IS NULL RETURNING id, name, client, client_id, address, start_date, status, image_url, created_at, updated_at`
+    const sql = `UPDATE projects SET ${setClauses.join(', ')} WHERE id = $${paramCount} AND deleted_at IS NULL RETURNING id, name, client, client_id, address, start_date, status, image_url, briefing, created_at, updated_at`
 
     const { rows } = await query(sql, values)
 
@@ -262,6 +271,102 @@ router.post('/projects/:id/image', requireAuth, requireProjectManagement, upload
     return res.json(rows[0])
   } catch (err) {
     console.error('Erro em POST /projects/:id/image:', err)
+    return res.status(400).json({ error: err.message })
+  }
+})
+
+// ─── DOCUMENTOS DO PROJETO ──────────────────────────────────────────
+// Projetos são visíveis a qualquer usuário autenticado; anexos seguem a
+// mesma regra (listar/anexar liberado; excluir só quem enviou ou admin).
+router.get('/projects/:id/documents', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await query(
+      `SELECT d.id, d.file_url, d.file_name, d.file_size, d.mime_type, d.created_at,
+              d.uploaded_by, u.name AS uploaded_by_name
+       FROM project_documents d
+       LEFT JOIN users u ON u.id = d.uploaded_by
+       WHERE d.project_id = $1
+       ORDER BY d.created_at DESC`,
+      [req.params.id],
+    )
+    return res.json(rows)
+  } catch (err) {
+    console.error('Erro em GET /projects/:id/documents:', err)
+    return res.status(400).json({ error: err.message })
+  }
+})
+
+router.post('/projects/:id/documents', requireAuth, uploadDoc.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' })
+  try {
+    const { rows: proj } = await query(
+      'SELECT id FROM projects WHERE id = $1 AND deleted_at IS NULL',
+      [req.params.id],
+    )
+    if (!proj[0]) return res.status(404).json({ error: 'Projeto não encontrado.' })
+
+    const { url } = await uploadFile('projects', {
+      buffer: req.file.buffer,
+      mimetype: req.file.mimetype,
+    })
+
+    const { rows } = await query(
+      `INSERT INTO project_documents (project_id, uploaded_by, file_url, file_name, file_size, mime_type)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, file_url, file_name, file_size, mime_type, created_at, uploaded_by`,
+      [req.params.id, req.profile.id, url, req.file.originalname, req.file.size, req.file.mimetype],
+    )
+    return res.status(201).json(rows[0])
+  } catch (err) {
+    console.error('Erro em POST /projects/:id/documents:', err)
+    return res.status(400).json({ error: err.message })
+  }
+})
+
+router.delete('/projects/:id/documents/:docId', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await query(
+      'SELECT id, file_url, uploaded_by FROM project_documents WHERE id = $1 AND project_id = $2',
+      [req.params.docId, req.params.id],
+    )
+    const doc = rows[0]
+    if (!doc) return res.status(404).json({ error: 'Documento não encontrado.' })
+    if (doc.uploaded_by !== req.profile.id && req.profile.role !== 'admin') {
+      return res.status(403).json({ error: 'Sem permissão para excluir o documento.' })
+    }
+
+    const key = extractKeyFromUrl(doc.file_url)
+    if (key) await deleteFile(key)
+    await query('DELETE FROM project_documents WHERE id = $1', [req.params.docId])
+    return res.status(204).send()
+  } catch (err) {
+    console.error('Erro em DELETE /projects/:id/documents/:docId:', err)
+    return res.status(400).json({ error: err.message })
+  }
+})
+
+// Horas do usuário logado neste projeto (hoje / mês corrente), apontamentos concluídos.
+router.get('/projects/:id/my-hours', requireAuth, async (req, res) => {
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = now.getMonth() + 1
+  const monthStart = `${y}-${String(m).padStart(2, '0')}-01`
+  const todayStr = now.toISOString().slice(0, 10)
+  try {
+    const { rows } = await query(
+      `SELECT
+         COALESCE(SUM(duration_minutes), 0)::int AS month_minutes,
+         COALESCE(SUM(duration_minutes) FILTER (
+           WHERE started_at >= ($3::date AT TIME ZONE 'America/Sao_Paulo')
+         ), 0)::int AS today_minutes
+       FROM time_entries
+       WHERE user_id = $1 AND project_id = $2 AND status = 'completed'
+         AND started_at >= ($4::date AT TIME ZONE 'America/Sao_Paulo')`,
+      [req.profile.id, req.params.id, todayStr, monthStart],
+    )
+    return res.json(rows[0] || { month_minutes: 0, today_minutes: 0 })
+  } catch (err) {
+    console.error('Erro em GET /projects/:id/my-hours:', err)
     return res.status(400).json({ error: err.message })
   }
 })

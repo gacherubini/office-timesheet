@@ -148,6 +148,7 @@ router.get('/tasks/counts', requireAuth, async (_req, res) => {
               COUNT(*)::int AS total,
               COUNT(*) FILTER (WHERE status = 'todo')::int        AS todo,
               COUNT(*) FILTER (WHERE status = 'in_progress')::int AS in_progress,
+              COUNT(*) FILTER (WHERE status = 'in_review')::int   AS in_review,
               COUNT(*) FILTER (WHERE status = 'done')::int        AS done,
               COUNT(*) FILTER (WHERE status = 'abandoned')::int   AS abandoned
        FROM tasks
@@ -314,9 +315,9 @@ router.put('/tasks/:id', requireAuth, async (req, res) => {
 router.put('/tasks/:id/status', requireAuth, async (req, res) => {
   const { id } = req.params
   const { status, position } = req.body
-  const VALID = ['todo', 'in_progress', 'done', 'abandoned']
+  const VALID = ['todo', 'in_progress', 'in_review', 'done', 'abandoned']
   if (!VALID.includes(status)) {
-    return res.status(400).json({ error: 'status inválido. Use todo, in_progress, done ou abandoned.' })
+    return res.status(400).json({ error: 'status inválido. Use todo, in_progress, in_review, done ou abandoned.' })
   }
   try {
     const { rows: taskRows } = await query(

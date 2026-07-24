@@ -1,7 +1,8 @@
 // Colunas ativas do quadro. `dot`/`bar` dão a cor de cada coluna.
 export const COLUMNS = [
   { key: 'todo', label: 'A fazer', dot: 'bg-slate-400', bar: 'bg-slate-400/70' },
-  { key: 'in_progress', label: 'Em andamento', dot: 'bg-amber-500', bar: 'bg-amber-500/80' },
+  { key: 'in_progress', label: 'Fazendo', dot: 'bg-amber-500', bar: 'bg-amber-500/80' },
+  { key: 'in_review', label: 'Em revisão', dot: 'bg-sky-500', bar: 'bg-sky-500/80' },
   { key: 'done', label: 'Concluído', dot: 'bg-emerald-500', bar: 'bg-emerald-500/80' },
 ]
 

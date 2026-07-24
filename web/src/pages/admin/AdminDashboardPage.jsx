@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../../lib/api'
-import { CalendarOff, Check, CheckCircle2, Clock, FolderOpen, Receipt, Users, X } from 'lucide-react'
+import { CalendarOff, Check, CheckCircle2, Clock, FolderOpen, Receipt, Users, X, Radio, ChevronRight, ListTodo } from 'lucide-react'
 import { BirthdayCalendar } from '../../components/BirthdayCalendar'
 import { Avatar } from '../../components/Avatar'
 import { PageHeader } from '../../components/ui/PageHeader'
@@ -65,6 +66,82 @@ function formatRange(startedAt, endedAt) {
 function isoToDateKey(iso) {
   if (!iso) return ''
   return new Date(iso).toLocaleDateString('pt-BR')
+}
+
+const LIVE_STATUS_META = {
+  running: { label: 'Em andamento', color: '#16A34A' },
+  paused: { label: 'Pausado', color: '#E8B004' },
+}
+
+// Resumo "Ao vivo" na home: quem está com o ponto rodando/pausado agora.
+// O painel completo (com offline e intervalos) fica em /admin/live.
+function LiveNowCard({ live }) {
+  const online = (live || []).filter((m) => m.status === 'running' || m.status === 'paused')
+  return (
+    <Card padded={false} className="overflow-hidden">
+      <div className="px-5 py-4 border-b border-border-subtle flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Radio size={14} className="text-emerald-500" />
+          <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary">
+            Ao vivo
+          </h2>
+          <span className="text-[11px] font-semibold text-emerald-500 tabular-nums">
+            {online.length} online
+          </span>
+        </div>
+        <Link
+          to="/admin/live"
+          className="inline-flex items-center gap-0.5 text-[11px] font-medium text-accent hover:opacity-80 transition-opacity"
+        >
+          Painel completo <ChevronRight size={13} />
+        </Link>
+      </div>
+
+      <div className="divide-y divide-border-subtle">
+        {online.length === 0 ? (
+          <div className="py-8 px-5 text-center text-sm text-text-secondary">
+            Ninguém batendo ponto agora.
+          </div>
+        ) : (
+          online.map((u) => {
+            const meta = LIVE_STATUS_META[u.status]
+            return (
+              <div key={u.id} className="flex items-center justify-between gap-3 px-5 py-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="relative flex-shrink-0">
+                    <Avatar name={u.name} url={u.avatar_url} size={34} />
+                    <span
+                      className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-surface"
+                      style={{ background: meta.color }}
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-text-primary truncate">{u.name}</p>
+                    {u.task ? (
+                      <p className="flex items-center gap-1 text-[11px] text-accent truncate">
+                        <ListTodo size={11} className="flex-shrink-0" />
+                        <span className="truncate">{u.task}</span>
+                      </p>
+                    ) : u.project ? (
+                      <p className="text-[11px] text-text-secondary truncate">{u.project}</p>
+                    ) : (
+                      <p className="text-[11px] text-text-secondary">
+                        {u.started_at ? `Entrou às ${formatTime(u.started_at)}` : 'Em andamento'}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <span className="inline-flex items-center gap-1.5 text-[11px] text-text-secondary flex-none">
+                  <span className="w-2 h-2 rounded-full" style={{ background: meta.color }} />
+                  {meta.label}
+                </span>
+              </div>
+            )
+          })
+        )}
+      </div>
+    </Card>
+  )
 }
 
 export function AdminDashboardPage() {
@@ -296,7 +373,8 @@ export function AdminDashboardPage() {
       </Card>
 
       <div className="flex flex-col lg:flex-row gap-5">
-        <Card padded={false} className="flex-1 overflow-hidden lg:self-start">
+        <div className="flex-1 min-w-0 space-y-5">
+        <Card padded={false} className="overflow-hidden">
           <div className="px-2 pt-2">
             <Tabs
               value={tab}
@@ -376,6 +454,9 @@ export function AdminDashboardPage() {
             )}
           </div>
         </Card>
+
+        <LiveNowCard live={live} />
+        </div>
 
         <div className="lg:w-80 space-y-5">
           <Card padded={false} className="overflow-hidden">
