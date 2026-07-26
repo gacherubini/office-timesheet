@@ -1,6 +1,11 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { EventEmitter } from 'node:events'
-import { caminhoDe, makeErrorHandler, installProcessHandlers } from '../../middleware/errorHandler.js'
+import {
+  caminhoDe,
+  makeErrorHandler,
+  installProcessHandlers,
+  encerraDepoisDoFlush,
+} from '../../middleware/errorHandler.js'
 
 function fakeLogger() {
   const linhas = []
@@ -92,6 +97,68 @@ describe('installProcessHandlers — deixa rastro e encerra', () => {
     target.emit('unhandledRejection', 'string solta')
 
     expect(logger.linhas[0].err.message).toBe('string solta')
+    expect(saidas).toEqual([1])
+  })
+
+  it('espera o flush do transporte antes de encerrar', () => {
+    const logger = fakeLogger()
+    const ordem = []
+    logger.flush = (cb) => { ordem.push('flush'); cb() }
+    const target = new EventEmitter()
+    installProcessHandlers(logger, { exit: () => ordem.push('exit'), target })
+
+    target.emit('uncaughtException', new Error('explodiu'))
+
+    // Sem o flush, a linha do crash morre com o processo antes de sair da
+    // worker thread do pino — nem `fly logs` nem Axiom a recebem.
+    expect(ordem).toEqual(['flush', 'exit'])
+  })
+})
+
+describe('encerraDepoisDoFlush — o flush não pode segurar o processo', () => {
+  it('encerra assim que o flush chama o callback', () => {
+    const saidas = []
+    const logger = { flush: (cb) => cb() }
+    encerraDepoisDoFlush(logger, (c) => saidas.push(c))
+
+    expect(saidas).toEqual([1])
+  })
+
+  it('encerra pelo timeout se o flush nunca responder', () => {
+    vi.useFakeTimers()
+    try {
+      const saidas = []
+      const logger = { flush: () => {} } // transporte travado: nunca chama de volta
+      encerraDepoisDoFlush(logger, (c) => saidas.push(c), 500)
+
+      expect(saidas).toEqual([])
+      vi.advanceTimersByTime(500)
+      expect(saidas).toEqual([1])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('encerra uma vez só quando flush e timeout disparam', () => {
+    vi.useFakeTimers()
+    try {
+      const saidas = []
+      let guardado
+      const logger = { flush: (cb) => { guardado = cb } }
+      encerraDepoisDoFlush(logger, (c) => saidas.push(c), 500)
+
+      guardado()
+      vi.advanceTimersByTime(1000)
+      expect(saidas).toEqual([1])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('logger sem flush encerra na hora', () => {
+    const saidas = []
+    encerraDepoisDoFlush({}, (c) => saidas.push(c))
+
     expect(saidas).toEqual([1])
   })
 })
