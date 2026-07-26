@@ -29,6 +29,17 @@ export function makeRequestLogger(logger) {
     req.req_id = randomUUID()
     res.setHeader('x-request-id', req.req_id)
 
+    // A mensagem de erro só existe no corpo da resposta. Guardamos apenas o
+    // campo `error` (nunca o corpo inteiro, pra não vazar dado de negócio) e
+    // devolvemos exatamente o que res.json devolveria — nenhuma resposta muda.
+    const jsonOriginal = res.json.bind(res)
+    res.json = (body) => {
+      if (res.statusCode >= 400 && typeof body?.error === 'string') {
+        req._erroMsg = body.error.slice(0, 200)
+      }
+      return jsonOriginal(body)
+    }
+
     let logged = false
     const emit = () => {
       if (logged) return
@@ -45,6 +56,7 @@ export function makeRequestLogger(logger) {
         duracao_ms: Math.round(duracao_ms * 100) / 100,
         user_id: req.profile?.id,
         ip: req.ip,
+        erro_msg: req._erroMsg,
       })
     }
 

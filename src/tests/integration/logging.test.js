@@ -66,4 +66,18 @@ describe('log de request', () => {
     const res = await asUser(user).get('/me/stats')
     expect(res.headers['x-request-id']).toBeTruthy()
   })
+
+  it('4xx registra a mensagem devolvida em erro_msg', async () => {
+    await request.get('/me/stats') // 401 { error: 'Token ausente.' }
+    const log = lastRequestLog()
+
+    expect(log.erro_msg).toBe('Token ausente.')
+  })
+
+  it('2xx não tem erro_msg', async () => {
+    await asUser(user).get('/me/stats')
+    const log = lastRequestLog()
+
+    expect(log.erro_msg).toBeUndefined()
+  })
 })
