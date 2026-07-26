@@ -3,6 +3,7 @@ import cors from 'cors'
 
 import { pool } from './lib/db.js'
 import { localUploadsDir } from './lib/storage.js'
+import { requestLogger } from './middleware/requestLogger.js'
 
 import meRoutes from './routes/me.js'
 import usersBasicRoutes from './routes/usersBasic.js'
@@ -28,6 +29,13 @@ import presencesRoutes from './routes/presences.js'
 // Constrói e exporta o app Express (sem escutar porta). Assim o server.js
 // sobe a porta em produção e os testes (Supertest) usam o app direto.
 const app = express()
+
+// No Fly a API fica atrás do proxy da plataforma. Sem isso req.ip registra o IP
+// interno do proxy — igual para todo mundo, portanto inútil.
+app.set('trust proxy', true)
+
+// Antes de tudo: cronometra e identifica o request desde o primeiro byte.
+app.use(requestLogger)
 
 app.use(cors({
   origin: process.env.ALLOWED_ORIGIN ? process.env.ALLOWED_ORIGIN.split(',') : true,
