@@ -5,6 +5,7 @@ import { uploadFile, deleteFile, extractKeyFromUrl } from '../lib/storage.js'
 import { requireAuth } from '../middleware/auth.js'
 import { requireAdmin } from '../middleware/requireAdmin.js'
 import { requireProjectManagement } from '../middleware/requireProjectManagement.js'
+import { logger } from '../lib/logger.js'
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -40,7 +41,7 @@ router.get('/projects', requireAuth, async (req, res) => {
     )
     return res.json(rows)
   } catch (err) {
-    console.error('Erro em GET /projects:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em GET /projects')
     return res.status(400).json({ error: err.message })
   }
 })
@@ -57,7 +58,7 @@ router.get('/projects/deleted', requireAuth, requireAdmin, async (_req, res) => 
     )
     return res.json(rows || [])
   } catch (err) {
-    console.error('Erro em GET /projects/deleted:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em GET /projects/deleted')
     return res.status(400).json({ error: err.message })
   }
 })
@@ -121,7 +122,7 @@ router.post('/projects', requireAuth, requireProjectManagement, async (req, res)
 
     return res.status(201).json(project)
   } catch (err) {
-    console.error('Erro em POST /projects:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em POST /projects')
     return res.status(400).json({ error: err.message })
   }
 })
@@ -181,7 +182,7 @@ router.put('/projects/:id', requireAuth, requireProjectManagement, async (req, r
 
     return res.json(rows[0])
   } catch (err) {
-    console.error('Erro em PUT /projects/:id:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em PUT /projects/:id')
     return res.status(400).json({ error: err.message })
   }
 })
@@ -201,7 +202,7 @@ router.post('/projects/:id/restore', requireAuth, requireAdmin, async (req, res)
 
     return res.json(rows[0])
   } catch (err) {
-    console.error('Erro em POST /projects/:id/restore:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em POST /projects/:id/restore')
     return res.status(400).json({ error: err.message })
   }
 })
@@ -221,7 +222,7 @@ router.delete('/projects/:id', requireAuth, requireAdmin, async (req, res) => {
 
     return res.status(204).send()
   } catch (err) {
-    console.error('Erro em DELETE /projects/:id:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em DELETE /projects/:id')
     return res.status(400).json({ error: err.message })
   }
 })
@@ -270,7 +271,7 @@ router.post('/projects/:id/image', requireAuth, requireProjectManagement, upload
 
     return res.json(rows[0])
   } catch (err) {
-    console.error('Erro em POST /projects/:id/image:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em POST /projects/:id/image')
     return res.status(400).json({ error: err.message })
   }
 })
@@ -291,7 +292,7 @@ router.get('/projects/:id/documents', requireAuth, async (req, res) => {
     )
     return res.json(rows)
   } catch (err) {
-    console.error('Erro em GET /projects/:id/documents:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em GET /projects/:id/documents')
     return res.status(400).json({ error: err.message })
   }
 })
@@ -318,7 +319,7 @@ router.post('/projects/:id/documents', requireAuth, uploadDoc.single('file'), as
     )
     return res.status(201).json(rows[0])
   } catch (err) {
-    console.error('Erro em POST /projects/:id/documents:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em POST /projects/:id/documents')
     return res.status(400).json({ error: err.message })
   }
 })
@@ -340,7 +341,7 @@ router.delete('/projects/:id/documents/:docId', requireAuth, async (req, res) =>
     await query('DELETE FROM project_documents WHERE id = $1', [req.params.docId])
     return res.status(204).send()
   } catch (err) {
-    console.error('Erro em DELETE /projects/:id/documents/:docId:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em DELETE /projects/:id/documents/:docId')
     return res.status(400).json({ error: err.message })
   }
 })
@@ -366,7 +367,7 @@ router.get('/projects/:id/my-hours', requireAuth, async (req, res) => {
     )
     return res.json(rows[0] || { month_minutes: 0, today_minutes: 0 })
   } catch (err) {
-    console.error('Erro em GET /projects/:id/my-hours:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em GET /projects/:id/my-hours')
     return res.status(400).json({ error: err.message })
   }
 })

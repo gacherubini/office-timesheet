@@ -116,6 +116,107 @@ npm run dev
 
 Frontend em `http://localhost:5173`. No desenvolvimento, o Vite encaminha chamadas `/api` para `http://localhost:3333`.
 
+## Observabilidade
+
+Cada request da API gera uma linha JSON com método, rota, status, duração e usuário. Em
+desenvolvimento sai formatada e colorida no terminal; em produção vai pro stdout (`fly logs`) e,
+se configurado, pro [Axiom](https://app.axiom.co).
+
+### Nível de log (`LOG_LEVEL`)
+
+Controla o que sai do logger. Níveis, do mais verboso ao mais silencioso:
+`trace`, `debug`, `info`, `warn`, `error`, `fatal`.
+
+| Ambiente | Padrão | O que aparece |
+| --- | --- | --- |
+| Produção | `info` | Linha de cada request, avisos (4xx) e erros (5xx). O `/health` fica de fora. |
+| Desenvolvimento / teste | `debug` | O mesmo, mais o `/health` e o que for logado em `debug`. |
+
+Para investigar algo em produção dá pra subir a verbosidade temporariamente:
+
+```bash
+fly secrets set LOG_LEVEL=debug -a office-timesheet-api   # investigação
+fly secrets unset LOG_LEVEL -a office-timesheet-api       # volta pro padrão (info)
+```
+
+Não deixe `debug` ligado em produção: ele inclui o `/health`, que o Fly bate o tempo todo e que
+sozinho gera mais volume que os usuários reais — enche o free tier do Axiom e polui a busca.
+
+### Ligar o Axiom
+
+O token vem do próprio Axiom:
+
+1. Crie uma conta em [app.axiom.co](https://app.axiom.co).
+2. Crie um **dataset** (ex.: `office-timesheet`) — é onde os logs ficam guardados.
+3. Em **Settings → API tokens**, crie um token com permissão de **ingest** nesse dataset.
+   O valor começa com `xaat-` e só aparece uma vez.
+
+Depois, grave os dois como secrets do Fly:
+
+```bash
+fly secrets set AXIOM_TOKEN=xaat-... AXIOM_DATASET=office-timesheet -a office-timesheet-api
+```
+
+Sem essas variáveis a API funciona normalmente, logando só no stdout.
+
+### Queries (APL)
+
+```sql
+-- p50/p95/p99 ao longo do tempo
+['office-timesheet']
+| where isnotnull(duracao_ms)
+| summarize p50=percentile(duracao_ms,50),
+            p95=percentile(duracao_ms,95),
+            p99=percentile(duracao_ms,99)
+  by bin_auto(_time)
+
+-- rotas mais lentas
+['office-timesheet']
+| where isnotnull(duracao_ms)
+| summarize p99=percentile(duracao_ms,99), qtd=count() by route
+| order by p99 desc
+
+-- taxa de erro
+['office-timesheet']
+| summarize erros=countif(status >= 500), total=count() by bin_auto(_time)
+
+-- investigar um usuário
+['office-timesheet']
+| where user_id == 42
+| order by _time desc
+
+-- seguir um request específico (traz a linha do request e os erros dele)
+['office-timesheet']
+| where req_id == "cole-o-req-id-aqui"
+
+-- conexões SSE: quanto tempo o pessoal fica com a aba aberta
+['office-timesheet']
+| where evento == "stream_encerrado"
+| summarize qtd=count(), mediana_min=percentile(duracao_conexao_ms,50)/60000 by bin_auto(_time)
+```
+
+O `req_id` aparece no header `x-request-id` de toda resposta e no corpo das respostas 500. Ele
+também carimba automaticamente os logs de erro das rotas, então a query "seguir um request
+específico" devolve a linha do request **e** o erro que a explica.
+
+### Streaming (SSE) e latência
+
+O `GET /notifications/stream` é uma conexão de longa duração: fica aberta enquanto o usuário
+estiver com a aba aberta. O tempo dela não é tempo de resposta, então ela **não** gera
+`duracao_ms` — sai como `evento: "stream_encerrado"` com o tempo de conexão em
+`duracao_conexao_ms`. É por isso que as queries de percentil filtram por `isnotnull(duracao_ms)`:
+sem esse cuidado uma aba aberta a tarde inteira dominaria o p95/p99 da API inteira.
+
+### Privacidade dos logs
+
+O usuário é identificado por `user_id` numérico — nunca por e-mail ou nome. Token, senha e cookie
+são censurados antes de qualquer serialização, e a URL registrada nos erros vai sem a query string
+(o SSE recebe o token por `?token=...`).
+
+O **IP do cliente é gravado por inteiro** no log center, sem máscara. É uma escolha deliberada:
+mascarar inutilizaria os logs para investigar abuso. Isso significa que o Axiom guarda endereços
+IP de usuários pelo período de retenção do dataset (~30 dias).
+
 ## Scripts
 
 API:
@@ -155,7 +256,10 @@ API (`src/.env`):
 | `AWS_ENDPOINT_URL_S3` | Endpoint do bucket S3-compatible. |
 | `AWS_REGION` | Region (Tigris usa `auto`). |
 | `BUCKET_NAME` | Nome do bucket. |
-| `RESEND_API_KEY` | API key do Resend. Vazio = link de reset aparece no console. |
+| `RESEND_API_KEY` | API key do Resend. Vazio = link de reset aparece no terminal (só fora de produção). |
+| `LOG_LEVEL` | Nível do logger. Padrão: `info` em produção, `debug` fora dela. Ver [Observabilidade](#observabilidade). |
+| `AXIOM_TOKEN` | Token de ingest do Axiom (`xaat-...`). Vazio = logs só no stdout. |
+| `AXIOM_DATASET` | Nome do dataset no Axiom. |
 
 Frontend:
 

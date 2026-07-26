@@ -4,6 +4,7 @@ import { query } from '../lib/db.js'
 import { requireAuth } from '../middleware/auth.js'
 import { canDeleteClients, canManageClients, isAdmin } from '../lib/permissions.js'
 import { uploadFile, deleteFile, extractKeyFromUrl } from '../lib/storage.js'
+import { logger } from '../lib/logger.js'
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -84,7 +85,7 @@ router.get('/admin/clients', requireAuth, requireCanManageClients, async (req, r
     const { rows } = await query(sql, params)
     return res.json(rows || [])
   } catch (err) {
-    console.error('Erro em GET /admin/clients:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em GET /admin/clients')
     return res.status(400).json({ error: err.message })
   }
 })
@@ -105,7 +106,7 @@ router.post('/admin/clients', requireAuth, requireCanManageClients, async (req, 
     )
     return res.status(201).json(rows[0])
   } catch (err) {
-    console.error('Erro em POST /admin/clients:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em POST /admin/clients')
     return res.status(400).json({ error: err.message })
   }
 })
@@ -141,7 +142,7 @@ router.put('/admin/clients/:id', requireAuth, requireCanManageClients, async (re
 
     return res.json(rows[0])
   } catch (err) {
-    console.error('Erro em PUT /admin/clients/:id:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em PUT /admin/clients/:id')
     return res.status(400).json({ error: err.message })
   }
 })
@@ -158,7 +159,7 @@ router.delete('/admin/clients/:id', requireAuth, requireCanDeleteClients, async 
     }
     return res.json({ message: 'Cliente excluído com sucesso.' })
   } catch (err) {
-    console.error('Erro em DELETE /admin/clients/:id:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em DELETE /admin/clients/:id')
     return res.status(400).json({ error: err.message })
   }
 })
@@ -188,7 +189,7 @@ router.get('/admin/clients/:id/attachments', requireAuth, requireCanManageClient
     )
     return res.json(rows)
   } catch (err) {
-    console.error('Erro em GET /admin/clients/:id/attachments:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em GET /admin/clients/:id/attachments')
     return res.status(400).json({ error: err.message })
   }
 })
@@ -212,7 +213,7 @@ router.post('/admin/clients/:id/attachments', requireAuth, requireCanManageClien
     )
     return res.status(201).json(rows[0])
   } catch (err) {
-    console.error('Erro em POST /admin/clients/:id/attachments:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em POST /admin/clients/:id/attachments')
     return res.status(400).json({ error: err.message })
   }
 })
@@ -237,7 +238,7 @@ router.delete('/admin/clients/:id/attachments/:attId', requireAuth, requireCanMa
     await query('DELETE FROM client_attachments WHERE id = $1', [req.params.attId])
     return res.status(204).send()
   } catch (err) {
-    console.error('Erro em DELETE /admin/clients/:id/attachments/:attId:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em DELETE /admin/clients/:id/attachments/:attId')
     return res.status(400).json({ error: err.message })
   }
 })

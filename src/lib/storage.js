@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdir, writeFile, unlink } from 'node:fs/promises'
 import path from 'node:path'
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
+import { logger } from './logger.js'
 
 const BUCKET = process.env.BUCKET_NAME
 const ENDPOINT = process.env.AWS_ENDPOINT_URL_S3
@@ -54,7 +55,7 @@ export async function deleteFile(key) {
     try {
       await unlink(path.join(LOCAL_DIR, key))
     } catch (err) {
-      if (err.code !== 'ENOENT') console.error(`Falha ao deletar local ${key}:`, err.message)
+      if (err.code !== 'ENOENT') logger.error({ key, err: { message: err.message } }, 'Falha ao deletar arquivo local')
     }
     return
   }
@@ -63,7 +64,7 @@ export async function deleteFile(key) {
   try {
     await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }))
   } catch (err) {
-    console.error(`Falha ao deletar ${key}:`, err.message)
+    logger.error({ key, err: { message: err.message } }, 'Falha ao deletar arquivo')
   }
 }
 

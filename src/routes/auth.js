@@ -4,6 +4,7 @@ import { query } from '../lib/db.js'
 import { comparePassword, hashPassword } from '../lib/password.js'
 import { signAccessToken } from '../lib/jwt.js'
 import { sendResetEmail } from '../lib/email.js'
+import { logger } from '../lib/logger.js'
 
 const router = Router()
 
@@ -40,7 +41,7 @@ router.post('/auth/login', async (req, res) => {
       user: { id: user.id, email: user.email, name: user.name, role: user.role },
     })
   } catch (err) {
-    console.error('Erro em /auth/login:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em /auth/login')
     return res.status(500).json({ error: 'Erro interno no login.' })
   }
 })
@@ -69,7 +70,7 @@ router.post('/auth/forgot-password', async (req, res) => {
     // Sempre responde igual pra não vazar enumeração
     return res.json({ message: 'Se o email existir, você receberá um link de redefinição.' })
   } catch (err) {
-    console.error('Erro em /auth/forgot-password:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em /auth/forgot-password')
     return res.status(500).json({ error: 'Erro interno.' })
   }
 })
@@ -108,7 +109,7 @@ router.post('/auth/reset-password', async (req, res) => {
 
     return res.json({ message: 'Senha redefinida com sucesso.' })
   } catch (err) {
-    console.error('Erro em /auth/reset-password:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em /auth/reset-password')
     return res.status(500).json({ error: 'Erro interno.' })
   }
 })

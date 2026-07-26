@@ -3,6 +3,8 @@ import cors from 'cors'
 
 import { pool } from './lib/db.js'
 import { localUploadsDir } from './lib/storage.js'
+import { requestLogger } from './middleware/requestLogger.js'
+import { notFound, errorHandler } from './middleware/errorHandler.js'
 
 import meRoutes from './routes/me.js'
 import usersBasicRoutes from './routes/usersBasic.js'
@@ -29,8 +31,20 @@ import presencesRoutes from './routes/presences.js'
 // sobe a porta em produção e os testes (Supertest) usam o app direto.
 const app = express()
 
+// No Fly a API fica atrás do proxy da plataforma. Sem isso req.ip registra o IP
+// interno do proxy — igual para todo mundo, portanto inútil.
+// `1` = confia em exatamente um salto (o proxy do Fly). Com `true` o Express
+// confiaria na cadeia inteira do X-Forwarded-For e pegaria o valor mais à
+// esquerda, que quem chama escolhe — daria pra forjar o IP que vai pro log.
+app.set('trust proxy', 1)
+
+// Antes de tudo: cronometra e identifica o request desde o primeiro byte.
+app.use(requestLogger)
+
 app.use(cors({
   origin: process.env.ALLOWED_ORIGIN ? process.env.ALLOWED_ORIGIN.split(',') : true,
+  // Sem isso o browser não deixa o frontend ler o x-request-id da resposta.
+  exposedHeaders: ['x-request-id'],
 }))
 app.use(express.json())
 
@@ -66,5 +80,10 @@ app.use(calendarRoutes)
 app.use(presencesRoutes)
 app.use('/admin', reportsRoutes)
 app.use('/admin', dashboardRoutes)
+
+// Depois de todas as rotas: 404 pra caminho inexistente, e o handler central
+// como último elo da cadeia.
+app.use(notFound)
+app.use(errorHandler)
 
 export { app }

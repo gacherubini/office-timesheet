@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { query } from '../lib/db.js'
 import { requireAuth } from '../middleware/auth.js'
 import { canDeleteSuppliers, canManageSuppliers, isAdmin } from '../lib/permissions.js'
+import { logger } from '../lib/logger.js'
 
 const router = Router()
 
@@ -68,7 +69,7 @@ router.get('/admin/suppliers', requireAuth, requireCanManageSuppliers, async (re
     const { rows } = await query(sql, params)
     return res.json(rows || [])
   } catch (err) {
-    console.error('Erro em GET /admin/suppliers:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em GET /admin/suppliers')
     return res.status(400).json({ error: err.message })
   }
 })
@@ -87,7 +88,7 @@ router.post('/admin/suppliers', requireAuth, requireCanManageSuppliers, async (r
     )
     return res.status(201).json(rows[0])
   } catch (err) {
-    console.error('Erro em POST /admin/suppliers:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em POST /admin/suppliers')
     return res.status(400).json({ error: err.message })
   }
 })
@@ -120,7 +121,7 @@ router.put('/admin/suppliers/:id', requireAuth, requireCanManageSuppliers, async
 
     return res.json(rows[0])
   } catch (err) {
-    console.error('Erro em PUT /admin/suppliers/:id:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em PUT /admin/suppliers/:id')
     return res.status(400).json({ error: err.message })
   }
 })
@@ -137,7 +138,7 @@ router.delete('/admin/suppliers/:id', requireAuth, requireCanDeleteSuppliers, as
     }
     return res.json({ message: 'Fornecedor excluído com sucesso.' })
   } catch (err) {
-    console.error('Erro em DELETE /admin/suppliers/:id:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em DELETE /admin/suppliers/:id')
     return res.status(400).json({ error: err.message })
   }
 })
