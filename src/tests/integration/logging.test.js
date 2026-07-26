@@ -81,3 +81,44 @@ describe('log de request', () => {
     expect(log.erro_msg).toBeUndefined()
   })
 })
+
+describe('404 e erro não tratado', () => {
+  beforeEach(() => clearTestSink())
+
+  it('rota inexistente devolve 404 em JSON', async () => {
+    const res = await request.get('/rota-que-nao-existe')
+
+    expect(res.status).toBe(404)
+    expect(res.body.error).toBe('Rota não encontrada.')
+  })
+
+  it('rota inexistente é logada como unmatched', async () => {
+    await request.get('/rota-que-nao-existe')
+    const log = lastRequestLog()
+
+    expect(log.route).toBe('unmatched')
+    expect(log.status).toBe(404)
+  })
+
+  it('JSON malformado devolve 500 com req_id no corpo', async () => {
+    const res = await request
+      .post('/auth/login')
+      .set('Content-Type', 'application/json')
+      .send('{ isso não é json')
+
+    expect(res.status).toBe(500)
+    expect(res.body.error).toBe('Erro interno.')
+    expect(typeof res.body.req_id).toBe('string')
+  })
+
+  it('erro não tratado gera log de nível error com stack', async () => {
+    await request
+      .post('/auth/login')
+      .set('Content-Type', 'application/json')
+      .send('{ isso não é json')
+
+    const erro = testSink.find((l) => l.level === 50)
+    expect(erro).toBeDefined()
+    expect(erro.err.stack).toBeTruthy()
+  })
+})

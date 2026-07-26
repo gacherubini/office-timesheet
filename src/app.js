@@ -4,6 +4,7 @@ import cors from 'cors'
 import { pool } from './lib/db.js'
 import { localUploadsDir } from './lib/storage.js'
 import { requestLogger } from './middleware/requestLogger.js'
+import { notFound, errorHandler } from './middleware/errorHandler.js'
 
 import meRoutes from './routes/me.js'
 import usersBasicRoutes from './routes/usersBasic.js'
@@ -74,5 +75,10 @@ app.use(calendarRoutes)
 app.use(presencesRoutes)
 app.use('/admin', reportsRoutes)
 app.use('/admin', dashboardRoutes)
+
+// Depois de todas as rotas: 404 pra caminho inexistente, e o handler central
+// como último elo da cadeia.
+app.use(notFound)
+app.use(errorHandler)
 
 export { app }
