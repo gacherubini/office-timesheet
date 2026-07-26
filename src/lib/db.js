@@ -1,5 +1,6 @@
 import 'dotenv/config'
 import pg from 'pg'
+import { logger } from './logger.js'
 
 // Mantém colunas DATE (OID 1082) como string "YYYY-MM-DD" em vez de objeto Date,
 // para preservar paridade com o que a API retornava no tempo do Supabase.
@@ -25,7 +26,7 @@ export const pool = new Pool({
 })
 
 pool.on('error', (err) => {
-  console.error('Erro inesperado no pool do Postgres:', err)
+  logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro inesperado no pool do Postgres')
 })
 
 export async function query(text, params) {

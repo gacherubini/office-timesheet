@@ -1,4 +1,5 @@
 import { query } from './db.js'
+import { logger } from './logger.js'
 
 // Registra um evento no histórico da tarefa. Best-effort: erros são logados
 // mas não derrubam a operação principal.
@@ -10,6 +11,6 @@ export async function logActivity(taskId, actorId, type, detail = null) {
       [taskId, actorId || null, type, detail ? JSON.stringify(detail) : null]
     )
   } catch (err) {
-    console.error('logActivity falhou:', err.message)
+    logger.error({ err: { message: err.message } }, 'logActivity falhou')
   }
 }

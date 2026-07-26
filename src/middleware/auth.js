@@ -1,5 +1,6 @@
 import { verifyAccessToken } from '../lib/jwt.js'
 import { query } from '../lib/db.js'
+import { logger } from '../lib/logger.js'
 
 export async function requireAuth(req, res, next) {
   try {
@@ -34,7 +35,7 @@ export async function requireAuth(req, res, next) {
     req.profile = profile
     next()
   } catch (err) {
-    console.error('Erro em requireAuth:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em requireAuth')
     return res.status(500).json({ error: 'Erro interno na autenticação.' })
   }
 }

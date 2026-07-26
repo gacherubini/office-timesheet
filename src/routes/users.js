@@ -7,6 +7,7 @@ import { requireAuth } from '../middleware/auth.js'
 import { requireAdmin } from '../middleware/requireAdmin.js'
 import { requireOperationalAccess } from '../middleware/requireOperationalAccess.js'
 import { ROLES, VALID_ROLES, canAccessMoney, roleLabel } from '../lib/permissions.js'
+import { logger } from '../lib/logger.js'
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -96,7 +97,7 @@ router.post('/create-user', requireAuth, requireAdmin, async (req, res) => {
       profile,
     })
   } catch (err) {
-    console.error('Erro em /create-user:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em /create-user')
     return res.status(500).json({
       error: 'Erro interno ao criar usuário.',
     })
@@ -118,7 +119,7 @@ router.get('/users', requireAuth, requireOperationalAccess, async (req, res) => 
     )
     return res.json(rows)
   } catch (err) {
-    console.error('Erro em GET /users:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em GET /users')
     return res.status(400).json({ error: err.message })
   }
 })
@@ -134,7 +135,7 @@ router.get('/users/deleted', requireAuth, requireAdmin, async (req, res) => {
     )
     return res.json(rows)
   } catch (err) {
-    console.error('Erro em GET /users/deleted:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em GET /users/deleted')
     return res.status(400).json({ error: err.message })
   }
 })
@@ -158,7 +159,7 @@ router.post('/users/:id/restore', requireAuth, requireAdmin, async (req, res) =>
 
     return res.json(rows[0])
   } catch (err) {
-    console.error('Erro em POST /users/:id/restore:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em POST /users/:id/restore')
     return res.status(400).json({ error: err.message })
   }
 })
@@ -228,7 +229,7 @@ router.put('/users/:id', requireAuth, requireAdmin, async (req, res) => {
 
     return res.json(rows[0])
   } catch (err) {
-    console.error('Erro em PUT /users/:id:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em PUT /users/:id')
     return res.status(400).json({ error: err.message })
   }
 })
@@ -256,7 +257,7 @@ router.delete('/users/:id', requireAuth, requireAdmin, async (req, res) => {
 
     return res.status(204).send()
   } catch (err) {
-    console.error('Erro em DELETE /users/:id:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em DELETE /users/:id')
     return res.status(400).json({ error: err.message })
   }
 })
@@ -306,7 +307,7 @@ router.post('/users/:id/avatar', requireAuth, requireAdmin, upload.single('image
 
     return res.json(rows[0])
   } catch (err) {
-    console.error('Erro em POST /users/:id/avatar:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em POST /users/:id/avatar')
     return res.status(400).json({ error: err.message })
   }
 })

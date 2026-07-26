@@ -5,6 +5,7 @@ import { query } from '../lib/db.js'
 import { comparePassword, hashPassword } from '../lib/password.js'
 import { uploadFile, deleteFile, extractKeyFromUrl } from '../lib/storage.js'
 import { canAccessMoney } from '../lib/permissions.js'
+import { logger } from '../lib/logger.js'
 
 const router = Router()
 
@@ -538,7 +539,7 @@ router.get('/me/project-earnings', requireAuth, async (req, res) => {
     )
     return res.json(rows)
   } catch (err) {
-    console.error('Erro em GET /me/project-earnings:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em GET /me/project-earnings')
     return res.status(400).json({ error: err.message })
   }
 })
@@ -564,7 +565,7 @@ router.get('/me/active-timer', requireAuth, async (req, res) => {
     )
     return res.json(rows[0] || null)
   } catch (err) {
-    console.error('Erro em GET /me/active-timer:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em GET /me/active-timer')
     return res.status(400).json({ error: err.message })
   }
 })
@@ -592,7 +593,7 @@ router.get('/me/time-clock-status', requireAuth, async (req, res) => {
     )
     return res.json(rows[0] || { active: false, clocked_in_today: false, has_any_entry: false })
   } catch (err) {
-    console.error('Erro em GET /me/time-clock-status:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em GET /me/time-clock-status')
     return res.status(400).json({ error: err.message })
   }
 })

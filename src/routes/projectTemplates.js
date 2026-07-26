@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { query, withTransaction } from '../lib/db.js'
 import { requireAuth } from '../middleware/auth.js'
 import { requireProjectManagement } from '../middleware/requireProjectManagement.js'
+import { logger } from '../lib/logger.js'
 
 const router = Router()
 
@@ -39,7 +40,7 @@ router.get('/project-templates', requireAuth, requireProjectManagement, async (_
     )
     return res.json(rows)
   } catch (err) {
-    console.error('Erro em GET /project-templates:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em GET /project-templates')
     return res.status(400).json({ error: err.message })
   }
 })
@@ -60,7 +61,7 @@ router.get('/project-templates/:id', requireAuth, requireProjectManagement, asyn
     )
     return res.json({ ...rows[0], items })
   } catch (err) {
-    console.error('Erro em GET /project-templates/:id:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em GET /project-templates/:id')
     return res.status(400).json({ error: err.message })
   }
 })
@@ -86,7 +87,7 @@ router.post('/project-templates', requireAuth, requireProjectManagement, async (
     })
     return res.status(201).json(created)
   } catch (err) {
-    console.error('Erro em POST /project-templates:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em POST /project-templates')
     return res.status(400).json({ error: err.message })
   }
 })
@@ -114,7 +115,7 @@ router.put('/project-templates/:id', requireAuth, requireProjectManagement, asyn
     if (!updated) return res.status(404).json({ error: 'Template não encontrado.' })
     return res.json(updated)
   } catch (err) {
-    console.error('Erro em PUT /project-templates/:id:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em PUT /project-templates/:id')
     return res.status(400).json({ error: err.message })
   }
 })
@@ -128,7 +129,7 @@ router.delete('/project-templates/:id', requireAuth, requireProjectManagement, a
     if (!rows[0]) return res.status(404).json({ error: 'Template não encontrado.' })
     return res.status(204).send()
   } catch (err) {
-    console.error('Erro em DELETE /project-templates/:id:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em DELETE /project-templates/:id')
     return res.status(400).json({ error: err.message })
   }
 })

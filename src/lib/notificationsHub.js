@@ -1,4 +1,5 @@
 import { query } from './db.js'
+import { logger } from './logger.js'
 
 // ─── Hub SSE em memória ────────────────────────────────────────────────
 // Map<userId, Set<res>> das conexões SSE abertas.
@@ -76,6 +77,6 @@ export async function notifyAdmins({ type, projectId = null, taskId = null, acto
       await createNotification({ userId: admin.id, type, projectId, taskId, actorId })
     }
   } catch (err) {
-    console.error('Erro em notifyAdmins:', err)
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em notifyAdmins')
   }
 }
