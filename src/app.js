@@ -33,13 +33,18 @@ const app = express()
 
 // No Fly a API fica atrás do proxy da plataforma. Sem isso req.ip registra o IP
 // interno do proxy — igual para todo mundo, portanto inútil.
-app.set('trust proxy', true)
+// `1` = confia em exatamente um salto (o proxy do Fly). Com `true` o Express
+// confiaria na cadeia inteira do X-Forwarded-For e pegaria o valor mais à
+// esquerda, que quem chama escolhe — daria pra forjar o IP que vai pro log.
+app.set('trust proxy', 1)
 
 // Antes de tudo: cronometra e identifica o request desde o primeiro byte.
 app.use(requestLogger)
 
 app.use(cors({
   origin: process.env.ALLOWED_ORIGIN ? process.env.ALLOWED_ORIGIN.split(',') : true,
+  // Sem isso o browser não deixa o frontend ler o x-request-id da resposta.
+  exposedHeaders: ['x-request-id'],
 }))
 app.use(express.json())
 

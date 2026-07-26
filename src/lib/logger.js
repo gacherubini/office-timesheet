@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks'
 import pino from 'pino'
 
 // Logger único da API. O destino muda por ambiente:
@@ -35,6 +36,20 @@ export function clearTestSink() {
 
 const level = process.env.LOG_LEVEL || (isProd ? 'info' : 'debug')
 
+// Contexto do request corrente. O requestLogger abre o escopo com o req_id e
+// tudo que for logado dentro dele — inclusive nos ~48 catch das rotas, que não
+// recebem req — sai carimbado com o mesmo req_id, sem mudar assinatura nenhuma.
+export const requestContext = new AsyncLocalStorage()
+
+// mixin roda a cada linha logada. Fora de um request (boot, handlers de
+// processo, migrations) não há store e o campo simplesmente não aparece.
+// Em conflito o objeto passado na chamada vence (comportamento padrão do pino),
+// então a linha do requestLogger, que já traz req_id explícito, não duplica.
+function mixin() {
+  const req_id = requestContext.getStore()?.req_id
+  return req_id ? { req_id } : {}
+}
+
 function build() {
   if (isTest) {
     const stream = {
@@ -42,13 +57,14 @@ function build() {
         testSink.push(JSON.parse(line))
       },
     }
-    return pino({ level: 'debug', redact, base: undefined }, stream)
+    return pino({ level: 'debug', redact, mixin, base: undefined }, stream)
   }
 
   if (!isProd) {
     return pino({
       level,
       redact,
+      mixin,
       transport: {
         target: 'pino-pretty',
         options: { colorize: true, translateTime: 'HH:MM:ss', ignore: 'pid,hostname' },
@@ -67,7 +83,7 @@ function build() {
     targets.push({ target: '@axiomhq/pino', options: { token, dataset }, level })
   }
 
-  return pino({ level, redact }, pino.transport({ targets }))
+  return pino({ level, redact, mixin }, pino.transport({ targets }))
 }
 
 export const logger = build()
