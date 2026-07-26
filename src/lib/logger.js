@@ -56,7 +56,18 @@ function build() {
     })
   }
 
-  return pino({ level, redact })
+  // Produção: sempre stdout (visível no `fly logs`) e, se configurado, também o
+  // Axiom. O envio é best-effort: token errado ou serviço fora do ar não pode
+  // derrubar request nem travar a API — os logs seguem saindo no stdout.
+  const targets = [{ target: 'pino/file', options: { destination: 1 }, level }]
+
+  const token = process.env.AXIOM_TOKEN
+  const dataset = process.env.AXIOM_DATASET
+  if (token && dataset) {
+    targets.push({ target: '@axiomhq/pino', options: { token, dataset }, level })
+  }
+
+  return pino({ level, redact }, pino.transport({ targets }))
 }
 
 export const logger = build()

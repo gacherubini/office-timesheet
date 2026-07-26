@@ -116,6 +116,51 @@ npm run dev
 
 Frontend em `http://localhost:5173`. No desenvolvimento, o Vite encaminha chamadas `/api` para `http://localhost:3333`.
 
+## Observabilidade
+
+Cada request da API gera uma linha JSON com método, rota, status, duração e usuário. Em
+desenvolvimento sai formatada e colorida no terminal; em produção vai pro stdout (`fly logs`) e,
+se configurado, pro [Axiom](https://app.axiom.co).
+
+### Ligar o Axiom
+
+```bash
+fly secrets set AXIOM_TOKEN=xaat-... AXIOM_DATASET=office-timesheet -a office-timesheet-api
+```
+
+Sem essas variáveis a API funciona normalmente, logando só no stdout.
+
+### Queries (APL)
+
+```sql
+-- p50/p95/p99 ao longo do tempo
+['office-timesheet']
+| summarize p50=percentile(duracao_ms,50),
+            p95=percentile(duracao_ms,95),
+            p99=percentile(duracao_ms,99)
+  by bin_auto(_time)
+
+-- rotas mais lentas
+['office-timesheet']
+| summarize p99=percentile(duracao_ms,99), qtd=count() by route
+| order by p99 desc
+
+-- taxa de erro
+['office-timesheet']
+| summarize erros=countif(status >= 500), total=count() by bin_auto(_time)
+
+-- investigar um usuário
+['office-timesheet']
+| where user_id == 42
+| order by _time desc
+
+-- seguir um request específico
+['office-timesheet']
+| where req_id == "cole-o-req-id-aqui"
+```
+
+O `req_id` aparece no header `x-request-id` de toda resposta e no corpo das respostas 500.
+
 ## Scripts
 
 API:
