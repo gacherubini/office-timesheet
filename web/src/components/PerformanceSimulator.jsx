@@ -14,8 +14,10 @@ function todayYmd() {
   return ymd(n.getFullYear(), n.getMonth() + 1, n.getDate())
 }
 function hoursLabel(h) {
-  if (!h) return '0h'
-  return Number.isInteger(h) ? `${h}h` : `${h}h${String(Math.round((h % 1) * 60)).padStart(2, '0')}`
+  const totalMin = Math.round((h || 0) * 60)
+  const hrs = Math.floor(totalMin / 60)
+  const min = totalMin % 60
+  return min ? `${hrs}h${String(min).padStart(2, '0')}` : `${hrs}h`
 }
 function formatCurrency(value) {
   return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -34,6 +36,7 @@ export function PerformanceSimulator({ stats, cursor }) {
   }, [stats])
 
   const [planned, setPlanned] = useState({}) // { date: horas } só dias futuros editados
+  const [drafts, setDrafts] = useState({}) // { date: texto digitado } valor exato exibido no input, antes de virar número
   const [holidays, setHolidays] = useState(new Set())
   const [saveState, setSaveState] = useState('idle') // idle | saving | saved
   const monthParam = `${year}-${String(month).padStart(2, '0')}`
@@ -57,8 +60,9 @@ export function PerformanceSimulator({ stats, cursor }) {
         const p = {}
         for (const [date, minutes] of Object.entries(data.planned || {})) p[date] = minutes / 60
         setPlanned(p)
+        setDrafts({})
       })
-      .catch(() => { if (alive) setPlanned({}) })
+      .catch(() => { if (alive) { setPlanned({}); setDrafts({}) } })
     return () => { alive = false }
   }, [monthParam])
 
@@ -86,6 +90,10 @@ export function PerformanceSimulator({ stats, cursor }) {
   }
 
   const debounceRef = useRef(null)
+  // Limpa o debounce pendente ao desmontar, para não disparar setSaveState depois.
+  useEffect(() => {
+    return () => clearTimeout(debounceRef.current)
+  }, [])
   function scheduleSave(nextPlanned) {
     setSaveState('saving')
     clearTimeout(debounceRef.current)
@@ -103,7 +111,10 @@ export function PerformanceSimulator({ stats, cursor }) {
 
   function setDayHours(day, raw) {
     const date = ymd(year, month, day)
-    let h = Number(raw)
+    // Mantém o texto exatamente como digitado (ex.: "7." antes do próximo dígito);
+    // só o valor numérico usado em totais/payload é convertido e travado em [0,24].
+    setDrafts((prev) => ({ ...prev, [date]: raw }))
+    let h = raw === '' ? 0 : Number(raw)
     if (Number.isNaN(h)) h = 0
     h = Math.max(0, Math.min(24, h))
     const next = { ...planned, [date]: h }
@@ -161,6 +172,7 @@ export function PerformanceSimulator({ stats, cursor }) {
           const editable = isEditable(date)
           const isToday = date === today
           const value = hoursFor(day)
+          const inputValue = date in drafts ? drafts[date] : String(value)
           return (
             <div
               key={date}
@@ -175,7 +187,7 @@ export function PerformanceSimulator({ stats, cursor }) {
                   min="0"
                   max="24"
                   step="0.5"
-                  value={value}
+                  value={inputValue}
                   onChange={(e) => setDayHours(day, e.target.value)}
                   aria-label={`Horas em ${date}`}
                   className="form-control mt-auto w-full rounded-md border px-1 py-0.5 text-sm text-right tabular-nums outline-none"
