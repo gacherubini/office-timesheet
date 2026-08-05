@@ -14,6 +14,7 @@ import { api } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Card } from '../components/ui/Card'
+import { PerformanceSimulator } from '../components/PerformanceSimulator'
 
 const MONTHS_PT = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -357,6 +358,10 @@ function EmployeePerformancePage() {
       </div>
 
       <HistoryStrip history={history} loading={historyLoading} />
+
+      <div className="mt-4">
+        <PerformanceSimulator stats={stats} cursor={cursor} />
+      </div>
     </div>
   )
 }
