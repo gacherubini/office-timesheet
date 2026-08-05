@@ -14,6 +14,7 @@ import { api } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Card } from '../components/ui/Card'
+import { Modal } from '../components/ui/Modal'
 import { PerformanceSimulator } from '../components/PerformanceSimulator'
 
 const MONTHS_PT = [
@@ -59,8 +60,9 @@ function Kpi({ label, value, detail, highlight = false }) {
   )
 }
 
+// Corpo puro (sem Card/título) — usado dentro do Modal.
 // Lista de barras horizontais (horas por projeto). `top` limita e agrupa o resto em "Outros".
-function HoursByProject({ breakdown, loading }) {
+function HoursByProjectBody({ breakdown, loading }) {
   const rows = useMemo(() => {
     const items = [...(breakdown || [])]
       .map((p) => ({ name: p.project_name || 'Sem projeto', minutes: p.total_minutes || 0 }))
@@ -77,44 +79,35 @@ function HoursByProject({ breakdown, loading }) {
 
   const max = rows.reduce((m, r) => Math.max(m, r.minutes), 0) || 1
 
+  if (loading) return <p className="text-sm text-text-secondary py-6 text-center">Carregando...</p>
+  if (rows.length === 0) return <p className="text-sm text-text-secondary py-6 text-center">Nenhuma hora registrada neste mês.</p>
   return (
-    <Card>
-      <div className="flex items-center gap-2 mb-4">
-        <FolderKanban size={16} className="text-text-secondary" />
-        <h2 className="text-[15px] font-semibold text-text-primary">Horas por projeto</h2>
-      </div>
-      {loading ? (
-        <p className="text-sm text-text-secondary py-6 text-center">Carregando...</p>
-      ) : rows.length === 0 ? (
-        <p className="text-sm text-text-secondary py-6 text-center">Nenhuma hora registrada neste mês.</p>
-      ) : (
-        <div className="space-y-3.5">
-          {rows.map((r) => (
-            <div key={r.name}>
-              <div className="flex items-baseline justify-between gap-3 mb-1.5">
-                <span className="text-sm text-text-primary truncate">{r.name}</span>
-                <span className="text-sm font-medium text-text-primary tabular-nums flex-none">{hm(r.minutes)}</span>
-              </div>
-              <div className="h-2 rounded-full bg-surface-alt overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all"
-                  style={{
-                    width: `${Math.max(4, (r.minutes / max) * 100)}%`,
-                    background: r.muted ? 'var(--color-accent-2)' : 'var(--color-accent)',
-                    opacity: r.muted ? 0.6 : 1,
-                  }}
-                />
-              </div>
-            </div>
-          ))}
+    <div className="space-y-3.5">
+      {rows.map((r) => (
+        <div key={r.name}>
+          <div className="flex items-baseline justify-between gap-3 mb-1.5">
+            <span className="text-sm text-text-primary truncate">{r.name}</span>
+            <span className="text-sm font-medium text-text-primary tabular-nums flex-none">{hm(r.minutes)}</span>
+          </div>
+          <div className="h-2 rounded-full bg-surface-alt overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all"
+              style={{
+                width: `${Math.max(4, (r.minutes / max) * 100)}%`,
+                background: r.muted ? 'var(--color-accent-2)' : 'var(--color-accent)',
+                opacity: r.muted ? 0.6 : 1,
+              }}
+            />
+          </div>
         </div>
-      )}
-    </Card>
+      ))}
+    </div>
   )
 }
 
+// Corpo puro (sem Card/título) — usado dentro do Modal.
 // Horas por etapa (task_type), a partir dos cronômetros de tarefa do mês.
-function TaskTypesPanel({ breakdown, loading }) {
+function TaskTypesBody({ breakdown, loading }) {
   const rows = useMemo(() => {
     const items = [...(breakdown || [])]
       .map((t) => ({ name: t.task_type || 'Sem etapa', minutes: t.total_minutes || 0 }))
@@ -131,63 +124,71 @@ function TaskTypesPanel({ breakdown, loading }) {
 
   const max = rows.reduce((m, r) => Math.max(m, r.minutes), 0) || 1
 
+  if (loading) return <p className="text-sm text-text-secondary py-6 text-center">Carregando...</p>
+  if (rows.length === 0) {
+    return (
+      <p className="text-sm text-text-secondary py-6 text-center">
+        Nenhuma etapa registrada. Defina a etapa nas tarefas e use o cronômetro delas.
+      </p>
+    )
+  }
   return (
-    <Card>
-      <div className="flex items-center gap-2 mb-4">
-        <ListChecks size={16} className="text-text-secondary" />
-        <h2 className="text-[15px] font-semibold text-text-primary">Tipos de tarefa mais feitas</h2>
-      </div>
-      {loading ? (
-        <p className="text-sm text-text-secondary py-6 text-center">Carregando...</p>
-      ) : rows.length === 0 ? (
-        <p className="text-sm text-text-secondary py-6 text-center">
-          Nenhuma etapa registrada. Defina a etapa nas tarefas e use o cronômetro delas.
-        </p>
-      ) : (
-        <div className="space-y-3.5">
-          {rows.map((r) => (
-            <div key={r.name}>
-              <div className="flex items-baseline justify-between gap-3 mb-1.5">
-                <span className="text-sm text-text-primary truncate">{r.name}</span>
-                <span className="text-sm font-medium text-text-primary tabular-nums flex-none">{hm(r.minutes)}</span>
-              </div>
-              <div className="h-2 rounded-full bg-surface-alt overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-emerald-500 transition-all"
-                  style={{ width: `${Math.max(4, (r.minutes / max) * 100)}%`, opacity: r.muted ? 0.55 : 1 }}
-                />
-              </div>
-            </div>
-          ))}
+    <div className="space-y-3.5">
+      {rows.map((r) => (
+        <div key={r.name}>
+          <div className="flex items-baseline justify-between gap-3 mb-1.5">
+            <span className="text-sm text-text-primary truncate">{r.name}</span>
+            <span className="text-sm font-medium text-text-primary tabular-nums flex-none">{hm(r.minutes)}</span>
+          </div>
+          <div className="h-2 rounded-full bg-surface-alt overflow-hidden">
+            <div
+              className="h-full rounded-full bg-emerald-500 transition-all"
+              style={{ width: `${Math.max(4, (r.minutes / max) * 100)}%`, opacity: r.muted ? 0.55 : 1 }}
+            />
+          </div>
         </div>
-      )}
-    </Card>
+      ))}
+    </div>
   )
 }
 
-function HistoryStrip({ history, loading }) {
+// Corpo puro (sem Card/título) — usado dentro do Modal.
+function HistoryBody({ history, loading }) {
+  if (loading) return <p className="text-sm text-text-secondary py-4 text-center">Carregando...</p>
+  if ((history || []).length === 0) return <p className="text-sm text-text-secondary py-4 text-center">Sem histórico disponível.</p>
   return (
-    <Card>
-      <h2 className="text-[15px] font-semibold text-text-primary mb-4">Histórico — últimos meses</h2>
-      {loading ? (
-        <p className="text-sm text-text-secondary py-4 text-center">Carregando...</p>
-      ) : (history || []).length === 0 ? (
-        <p className="text-sm text-text-secondary py-4 text-center">Sem histórico disponível.</p>
-      ) : (
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-4">
-          {history.map((h) => (
-            <div key={h.ym}>
-              <p className="font-display text-lg text-text-primary tabular-nums leading-tight">
-                {formatCurrency(h.total_cost)}
-              </p>
-              <p className="text-xs text-text-secondary mt-0.5">
-                {MONTHS_ABBR[h.month - 1]} · {hm(h.total_minutes)}
-              </p>
-            </div>
-          ))}
+    <div className="grid grid-cols-3 sm:grid-cols-6 gap-4">
+      {history.map((h) => (
+        <div key={h.ym}>
+          <p className="font-display text-lg text-text-primary tabular-nums leading-tight">
+            {formatCurrency(h.total_cost)}
+          </p>
+          <p className="text-xs text-text-secondary mt-0.5">
+            {MONTHS_ABBR[h.month - 1]} · {hm(h.total_minutes)}
+          </p>
         </div>
-      )}
-    </Card>
+      ))}
+    </div>
+  )
+}
+
+// Cartão compacto que abre o corpo completo do painel num Modal.
+function CollapsiblePanelCard({ icon: Icon, title, summary, onOpen }) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="group flex items-center gap-3 rounded-xl border border-border-subtle bg-surface p-4 text-left hover:border-[color:var(--color-accent)]/40 hover:bg-surface-alt transition-colors w-full"
+    >
+      <span className="w-9 h-9 rounded-lg bg-[color:var(--color-accent)]/15 text-accent flex items-center justify-center flex-none">
+        <Icon size={18} />
+      </span>
+      <span className="min-w-0">
+        <span className="block font-medium text-text-primary text-sm truncate">{title}</span>
+        <span className="block text-[12px] text-text-secondary truncate">{summary}</span>
+      </span>
+      <ChevronRight size={16} className="ml-auto text-text-secondary group-hover:translate-x-0.5 transition-transform flex-none" />
+    </button>
   )
 }
 
@@ -248,6 +249,7 @@ function EmployeePerformancePage() {
   const [loading, setLoading] = useState(true)
   const [historyLoading, setHistoryLoading] = useState(true)
   const [error, setError] = useState('')
+  const [openPanel, setOpenPanel] = useState(null) // 'projetos' | 'tarefas' | 'historico' | null
 
   const monthParam = `${cursor.year}-${String(cursor.month).padStart(2, '0')}`
 
@@ -352,12 +354,36 @@ function EmployeePerformancePage() {
         />
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-3 mb-4">
-        <HoursByProject breakdown={stats?.project_breakdown} loading={loading} />
-        <TaskTypesPanel breakdown={stats?.task_type_breakdown} loading={loading} />
+      <div className="grid sm:grid-cols-3 gap-3 mb-4">
+        <CollapsiblePanelCard
+          icon={FolderKanban}
+          title="Horas por projeto"
+          summary={loading ? 'Carregando…' : `${(stats?.project_breakdown || []).length} projeto(s)`}
+          onOpen={() => setOpenPanel('projetos')}
+        />
+        <CollapsiblePanelCard
+          icon={ListChecks}
+          title="Tipos de tarefa mais feitas"
+          summary={loading ? 'Carregando…' : `${(stats?.task_type_breakdown || []).length} etapa(s)`}
+          onOpen={() => setOpenPanel('tarefas')}
+        />
+        <CollapsiblePanelCard
+          icon={FileText}
+          title="Histórico — últimos meses"
+          summary={historyLoading ? 'Carregando…' : `${(history || []).length} mês(es)`}
+          onOpen={() => setOpenPanel('historico')}
+        />
       </div>
 
-      <HistoryStrip history={history} loading={historyLoading} />
+      <Modal open={openPanel === 'projetos'} onClose={() => setOpenPanel(null)} size="lg" title="Horas por projeto">
+        <HoursByProjectBody breakdown={stats?.project_breakdown} loading={loading} />
+      </Modal>
+      <Modal open={openPanel === 'tarefas'} onClose={() => setOpenPanel(null)} size="lg" title="Tipos de tarefa mais feitas">
+        <TaskTypesBody breakdown={stats?.task_type_breakdown} loading={loading} />
+      </Modal>
+      <Modal open={openPanel === 'historico'} onClose={() => setOpenPanel(null)} size="lg" title="Histórico — últimos meses">
+        <HistoryBody history={history} loading={historyLoading} />
+      </Modal>
 
       <div className="mt-4">
         <PerformanceSimulator stats={stats} cursor={cursor} />
