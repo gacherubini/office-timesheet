@@ -75,7 +75,7 @@ export function AdminDeletedUsersPage() {
         subtitle="Restaure colaboradores arquivados"
         badge={
           <Link
-            to="/admin/team"
+            to="/pessoas"
             className="text-text-secondary hover:text-text-primary transition-colors"
           >
             <ArrowLeft size={20} />

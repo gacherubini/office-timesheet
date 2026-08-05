@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
 import {
@@ -15,6 +15,9 @@ import {
   X,
   ChevronRight,
   Pencil,
+  Camera,
+  AlertTriangle,
+  CheckCircle2,
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { Avatar } from '../components/Avatar'
@@ -23,7 +26,9 @@ import { Card } from '../components/ui/Card'
 import { Modal } from '../components/ui/Modal'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
-import { roleLabel } from '../lib/permissions'
+import { Input, Select } from '../components/ui/Input'
+import { DateField } from '../components/ui/DateField'
+import { ROLES, roleLabel } from '../lib/permissions'
 
 function whatsappLink(phone) {
   if (!phone) return null
@@ -36,6 +41,32 @@ function whatsappLink(phone) {
 function formatDate(iso) {
   if (!iso) return '-'
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
+function formatCurrency(value) {
+  return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
+// Remuneração exibida conforme o perfil: Estagiário Administrativo tem salário
+// fixo mensal; os demais perfis têm valor por hora.
+function compensationLabel(user) {
+  if (user.role === ROLES.ADMINISTRATIVE_INTERN) {
+    return `${formatCurrency(user.fixed_salary)} / mês`
+  }
+  return `${formatCurrency(user.hourly_rate)} / hora`
+}
+
+const EMPTY_COLLABORATOR_FORM = {
+  name: '',
+  email: '',
+  password: '',
+  role: ROLES.EMPLOYEE,
+  hourly_rate: '',
+  fixed_salary: '',
+  is_active: true,
+  position: '',
+  birth_date: '',
+  phone: '',
 }
 
 // Metadados de cada "legenda" (aba) do mockup VOID.
@@ -72,7 +103,8 @@ function TabChip({ active, label, count, tone, onClick }) {
 }
 
 export function PessoasPage() {
-  const { isAdmin, canAccessAdminArea, canManageClients, canManageSuppliers } = useAuth()
+  const { isAdmin, canAccessAdminArea, canAccessMoney, canManageClients, canManageSuppliers } =
+    useAuth()
   const navigate = useNavigate()
 
   const [people, setPeople] = useState([])
@@ -83,6 +115,19 @@ export function PessoasPage() {
   const [selected, setSelected] = useState(null)
   const [showNewChooser, setShowNewChooser] = useState(false)
   const [restoringId, setRestoringId] = useState(null)
+
+  // Gestão de colaboradores (portada da antiga página "Equipe").
+  const [showForm, setShowForm] = useState(false)
+  const [editingUser, setEditingUser] = useState(null)
+  const [form, setForm] = useState(EMPTY_COLLABORATOR_FORM)
+  const [formError, setFormError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [userToDelete, setUserToDelete] = useState(null)
+  const [deleteError, setDeleteError] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('')
+  const [uploadingId, setUploadingId] = useState(null)
+  const fileInputRef = useRef(null)
 
   async function loadPeople() {
     setPageError('')
@@ -222,6 +267,129 @@ export function PessoasPage() {
     }
   }
 
+  // ---- CRUD de colaborador (portado da antiga página "Equipe") ----
+
+  function resetForm() {
+    setForm(EMPTY_COLLABORATOR_FORM)
+    setEditingUser(null)
+    setShowForm(false)
+    setFormError('')
+  }
+
+  // Abre o formulário in-page já preenchido. Recebe o registro completo do
+  // colaborador (person.raw vindo de /admin/users).
+  function startEditColaborador(user) {
+    setForm({
+      name: user.name || '',
+      email: user.email || '',
+      password: '',
+      role: user.role || ROLES.EMPLOYEE,
+      hourly_rate: user.hourly_rate || '',
+      fixed_salary: user.fixed_salary || '',
+      is_active: user.is_active,
+      position: user.position || '',
+      birth_date: user.birth_date || '',
+      phone: user.phone || '',
+    })
+    setEditingUser(user)
+    setShowForm(true)
+    setFormError('')
+  }
+
+  function startCreateColaborador() {
+    resetForm()
+    setShowForm(true)
+  }
+
+  function triggerUpload(userId) {
+    setUploadingId(userId)
+    fileInputRef.current?.click()
+  }
+
+  async function handleAvatarUpload(e) {
+    const file = e.target.files?.[0]
+    if (!file || !uploadingId) return
+
+    const formData = new FormData()
+    formData.append('image', file)
+
+    try {
+      const token = localStorage.getItem('access_token')
+      const baseUrl = import.meta.env.VITE_API_URL ?? '/api'
+      const res = await fetch(`${baseUrl}/admin/users/${uploadingId}/avatar`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      })
+      const data = res.status === 204 ? {} : await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || `Erro ${res.status}`)
+      await loadPeople()
+    } catch (err) {
+      alert(err.message || 'Erro ao enviar imagem.')
+    } finally {
+      setUploadingId(null)
+      e.target.value = ''
+    }
+  }
+
+  async function handleDeleteColaborador() {
+    if (!userToDelete) return
+    setDeleteError('')
+    setDeleting(true)
+    try {
+      await api.delete(`/admin/users/${userToDelete.id}`)
+      setUserToDelete(null)
+      setSelected(null)
+      await loadPeople()
+      setSuccessMessage('Colaborador excluído com sucesso!')
+    } catch (err) {
+      setDeleteError(err.message)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  async function handleSubmitColaborador(e) {
+    e.preventDefault()
+    setFormError('')
+    setSaving(true)
+
+    const isAdministrativeIntern = form.role === ROLES.ADMINISTRATIVE_INTERN
+    const payload = {
+      name: form.name,
+      role: form.role,
+      hourly_rate: isAdministrativeIntern ? 0 : Number(form.hourly_rate) || 0,
+      fixed_salary: isAdministrativeIntern ? Number(form.fixed_salary) || 0 : 0,
+      is_active: form.is_active,
+      position: roleLabel(form.role),
+      birth_date: form.birth_date,
+      phone: form.phone,
+    }
+
+    try {
+      const wasEditing = Boolean(editingUser)
+      if (wasEditing) {
+        await api.put(`/admin/users/${editingUser.id}`, payload)
+      } else {
+        await api.post('/admin/create-user', {
+          ...payload,
+          email: form.email,
+          password: form.password,
+        })
+      }
+
+      await loadPeople()
+      resetForm()
+      setSuccessMessage(
+        wasEditing ? 'Colaborador atualizado com sucesso!' : 'Colaborador cadastrado com sucesso!'
+      )
+    } catch (err) {
+      setFormError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const tabs = [
     { key: 'todos', label: 'Todos', tone: 'neutral' },
     { key: 'cliente', label: KINDS.cliente.label, tone: KINDS.cliente.tone },
@@ -291,11 +459,21 @@ export function PessoasPage() {
                 onRestore={() => handleRestore(p)}
                 restoring={restoringId === p.rawId}
                 canRestore={isAdmin}
+                canAccessMoney={canAccessMoney}
               />
             ))}
           </ul>
         )}
       </Card>
+
+      {/* Input de arquivo (oculto) compartilhado para upload de foto de colaborador. */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleAvatarUpload}
+      />
 
       <PersonDetailModal
         person={selected}
@@ -303,6 +481,8 @@ export function PessoasPage() {
         onRestore={handleRestore}
         restoring={selected ? restoringId === selected.rawId : false}
         canRestore={isAdmin}
+        isAdmin={isAdmin}
+        canAccessMoney={canAccessMoney}
         canEdit={
           selected
             ? (selected.kind === 'cliente' && canManageClients) ||
@@ -311,11 +491,22 @@ export function PessoasPage() {
             : false
         }
         onEdit={(p) => {
+          if (p.kind === 'colaborador') {
+            setSelected(null)
+            startEditColaborador(p.raw)
+            return
+          }
           setSelected(null)
           if (p.kind === 'cliente') navigate('/clients')
           else if (p.kind === 'fornecedor') navigate('/suppliers')
-          else if (p.kind === 'colaborador') navigate('/admin/team')
         }}
+        onDelete={(p) => {
+          setSelected(null)
+          setDeleteError('')
+          setUserToDelete(p.raw)
+        }}
+        onUploadAvatar={(p) => triggerUpload(p.rawId)}
+        uploading={selected ? uploadingId === selected.rawId : false}
       />
 
       <NewPersonChooser
@@ -325,20 +516,205 @@ export function PessoasPage() {
           setShowNewChooser(false)
           if (kind === 'cliente') navigate('/clients')
           else if (kind === 'fornecedor') navigate('/suppliers')
-          else if (kind === 'colaborador') navigate('/admin/team')
+          else if (kind === 'colaborador') startCreateColaborador()
         }}
         canManageClients={canManageClients}
         canManageSuppliers={canManageSuppliers}
         canManageColaboradores={isAdmin}
       />
+
+      {/* Formulário de criar/editar colaborador (portado da página "Equipe"). */}
+      <Modal
+        open={showForm}
+        onClose={() => {
+          if (!saving) resetForm()
+        }}
+        closeOnBackdrop={false}
+        title={editingUser ? 'Editar Colaborador' : 'Novo Colaborador'}
+      >
+        {formError && (
+          <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mb-4">
+            {formError}
+          </div>
+        )}
+        <form onSubmit={handleSubmitColaborador} className="space-y-3" autoComplete="off">
+          <Input
+            label="Nome"
+            required
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+          />
+
+          <div className="grid grid-cols-2 gap-3">
+            <DateField
+              label="Data de Nascimento"
+              value={form.birth_date}
+              onChange={(e) => setForm({ ...form, birth_date: e.target.value })}
+              showYearDropdown
+              showMonthDropdown
+              max={new Date()}
+            />
+            <Input
+              label="Telefone"
+              type="tel"
+              placeholder="(11) 99999-9999"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            />
+          </div>
+
+          {!editingUser && (
+            <>
+              <Input
+                label="E-mail"
+                type="email"
+                autoComplete="new-email"
+                required
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+              />
+              <Input
+                label="Senha"
+                type="password"
+                autoComplete="new-password"
+                required
+                minLength={6}
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+              />
+            </>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <Select
+              label="Perfil"
+              value={form.role}
+              onChange={(e) => setForm({ ...form, role: e.target.value })}
+            >
+              <option value={ROLES.EMPLOYEE}>Colaborador</option>
+              <option value={ROLES.PROJECT_MANAGER}>Gestor de Projetos</option>
+              <option value={ROLES.ADMINISTRATIVE_INTERN}>Estagiário Administrativo</option>
+              <option value={ROLES.ADMIN}>Administrador</option>
+            </Select>
+            {form.role === ROLES.ADMINISTRATIVE_INTERN ? (
+              <Input
+                label="Salário fixo mensal (R$)"
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.fixed_salary}
+                onChange={(e) => setForm({ ...form, fixed_salary: e.target.value })}
+              />
+            ) : (
+              <Input
+                label="Valor/Hora (R$)"
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.hourly_rate}
+                onChange={(e) => setForm({ ...form, hourly_rate: e.target.value })}
+              />
+            )}
+          </div>
+
+          {editingUser && (
+            <label className="flex items-center gap-2 text-sm text-text-primary">
+              <input
+                type="checkbox"
+                checked={form.is_active}
+                onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
+                className="rounded border-border-subtle"
+              />
+              Ativo
+            </label>
+          )}
+
+          <Button type="submit" className="w-full" disabled={saving}>
+            {saving
+              ? editingUser
+                ? 'Salvando...'
+                : 'Criando...'
+              : editingUser
+                ? 'Salvar'
+                : 'Criar Colaborador'}
+          </Button>
+        </form>
+      </Modal>
+
+      {/* Confirmação de exclusão de colaborador. */}
+      <Modal
+        open={Boolean(userToDelete)}
+        onClose={() => {
+          setUserToDelete(null)
+          setDeleteError('')
+        }}
+        size="lg"
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setUserToDelete(null)
+                setDeleteError('')
+              }}
+              disabled={deleting}
+            >
+              Cancelar
+            </Button>
+            <Button variant="danger" onClick={handleDeleteColaborador} disabled={deleting}>
+              {deleting ? 'Excluindo...' : 'Sim, excluir'}
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col items-center text-center mb-5">
+          <div className="bg-rose-500/15 rounded-full p-4 mb-4">
+            <AlertTriangle className="text-rose-500" size={36} />
+          </div>
+          <h3 className="font-display text-2xl text-text-primary mb-2">Excluir colaborador?</h3>
+          <p className="text-text-secondary">
+            Você está prestes a excluir{' '}
+            <strong className="text-text-primary">{userToDelete?.name}</strong>
+          </p>
+        </div>
+        <div className="bg-sky-500/10 border border-sky-500/20 rounded-lg p-4 text-sm">
+          <p className="font-medium text-text-primary mb-1">Os apontamentos serão preservados.</p>
+          <p className="text-text-secondary">
+            Você pode restaurar este colaborador a qualquer momento na aba{' '}
+            <strong className="text-text-primary">Excluídos</strong>.
+          </p>
+        </div>
+        {deleteError && (
+          <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mt-3">
+            {deleteError}
+          </div>
+        )}
+      </Modal>
+
+      {/* Modal de sucesso (criar/editar/excluir). */}
+      <Modal
+        open={Boolean(successMessage)}
+        onClose={() => setSuccessMessage('')}
+        size="sm"
+        footer={<Button onClick={() => setSuccessMessage('')}>OK</Button>}
+      >
+        <div className="flex flex-col items-center text-center py-2">
+          <div className="bg-emerald-500/15 rounded-full p-4 mb-4">
+            <CheckCircle2 className="text-emerald-500" size={36} />
+          </div>
+          <p className="text-text-primary font-medium">{successMessage}</p>
+        </div>
+      </Modal>
     </div>
   )
 }
 
 // Linha da lista: avatar, nome, subtítulo, badge de tipo e contato.
-function PersonRow({ person, onOpen, onRestore, restoring, canRestore }) {
+function PersonRow({ person, onOpen, onRestore, restoring, canRestore, canAccessMoney }) {
   const kind = KINDS[person.kind]
   const wa = whatsappLink(person.phone)
+  const isColaborador = person.kind === 'colaborador'
+  const raw = person.raw
   return (
     <li className="flex items-center gap-3 px-4 py-3 hover:bg-surface-alt transition-colors">
       <button onClick={onOpen} className="flex items-center gap-3 min-w-0 flex-1 text-left">
@@ -356,12 +732,21 @@ function PersonRow({ person, onOpen, onRestore, restoring, canRestore }) {
         </div>
       </button>
 
-      <Badge tone={kind.tone} className="hidden sm:inline-flex flex-none">
-        {kind.singular}
-      </Badge>
+      <div className="hidden sm:flex items-center gap-2 flex-none">
+        <Badge tone={kind.tone}>{kind.singular}</Badge>
+        {isColaborador && (
+          <Badge tone={raw.is_active === false ? 'danger' : 'success'}>
+            {raw.is_active === false ? 'Inativo' : 'Ativo'}
+          </Badge>
+        )}
+      </div>
 
       <div className="hidden md:flex items-center gap-2 w-56 flex-none">
-        {person.phone ? (
+        {isColaborador && canAccessMoney ? (
+          <span className="text-[13px] text-text-primary tabular-nums truncate">
+            {compensationLabel(raw)}
+          </span>
+        ) : person.phone ? (
           <span className="text-[13px] text-text-secondary truncate">{person.phone}</span>
         ) : person.email ? (
           <span className="text-[13px] text-text-secondary truncate">{person.email}</span>
@@ -411,16 +796,45 @@ function DetailRow({ label, children }) {
 
 // Pop-up de detalhe (mockup pág. 10). Mostra os campos que temos por tipo;
 // CRM, documentos e projetos vinculados ficam para a próxima etapa.
-function PersonDetailModal({ person, onClose, onRestore, restoring, canRestore, canEdit, onEdit }) {
+function PersonDetailModal({
+  person,
+  onClose,
+  onRestore,
+  restoring,
+  canRestore,
+  canEdit,
+  onEdit,
+  isAdmin,
+  canAccessMoney,
+  onDelete,
+  onUploadAvatar,
+  uploading,
+}) {
   if (!person) return null
   const kind = KINDS[person.kind]
   const raw = person.raw
   const wa = whatsappLink(person.phone)
+  const canManageColaborador = person.kind === 'colaborador' && isAdmin
 
   return (
     <Modal open={Boolean(person)} onClose={onClose} size="lg">
       <div className="flex items-start gap-4 mb-5">
-        <Avatar name={person.name} url={person.avatarUrl} size={56} />
+        {canManageColaborador ? (
+          <button
+            type="button"
+            onClick={() => onUploadAvatar(person)}
+            disabled={uploading}
+            title="Clique para alterar a foto"
+            className="relative group flex-none disabled:opacity-60"
+          >
+            <Avatar name={person.name} url={person.avatarUrl} size={56} />
+            <span className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/40 flex items-center justify-center transition-colors">
+              <Camera size={16} className="text-white opacity-0 group-hover:opacity-100" />
+            </span>
+          </button>
+        ) : (
+          <Avatar name={person.name} url={person.avatarUrl} size={56} />
+        )}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="font-display text-2xl text-text-primary leading-tight">{person.name}</h3>
@@ -472,7 +886,14 @@ function PersonDetailModal({ person, onClose, onRestore, restoring, canRestore, 
             <DetailRow label="E-mail">{raw.email}</DetailRow>
             <DetailRow label="Telefone">{raw.phone}</DetailRow>
             <DetailRow label="Perfil">{roleLabel(raw.role)}</DetailRow>
-            <DetailRow label="Status">{raw.is_active === false ? 'Inativo' : 'Ativo'}</DetailRow>
+            {canAccessMoney && (
+              <DetailRow label="Remuneração">{compensationLabel(raw)}</DetailRow>
+            )}
+            <DetailRow label="Status">
+              <Badge tone={raw.is_active === false ? 'danger' : 'success'}>
+                {raw.is_active === false ? 'Inativo' : 'Ativo'}
+              </Badge>
+            </DetailRow>
           </>
         )}
         {person.kind === 'excluido' && (
@@ -506,6 +927,14 @@ function PersonDetailModal({ person, onClose, onRestore, restoring, canRestore, 
           >
             <Mail size={15} /> E-mail
           </a>
+        )}
+        {canManageColaborador && (
+          <button
+            onClick={() => onDelete(person)}
+            className="inline-flex items-center gap-1.5 text-sm text-rose-500 hover:text-rose-400 px-3 py-2 rounded-lg hover:bg-rose-500/10 transition-colors"
+          >
+            <Trash2 size={15} /> Excluir
+          </button>
         )}
         {person.kind === 'excluido' && canRestore && (
           <Button onClick={() => onRestore(person)} disabled={restoring}>
