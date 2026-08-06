@@ -3,6 +3,11 @@ primary_region = "gru"
 
 [build]
   dockerfile = "Dockerfile"
+  # Base da API embutida no bundle em tempo de build. Sem isso, o Vite embute
+  # VITE_API_URL vazio e o frontend chama a si mesmo (login quebra). As rotas
+  # da API ficam na raiz do host, então NÃO leva sufixo /api.
+  [build.args]
+    VITE_API_URL = "https://office-timesheet-api.fly.dev"
 
 [http_service]
   internal_port = 8080
