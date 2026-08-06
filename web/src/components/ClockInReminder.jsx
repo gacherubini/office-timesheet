@@ -100,9 +100,9 @@ export function ClockInReminder() {
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-500/15">
           <AlarmClock className="text-amber-500" size={32} />
         </div>
-        <h2 className="font-display text-2xl text-text-primary mb-2">Bateu ponto?</h2>
+        <h2 className="font-display text-2xl text-text-primary mb-2">Entrou no projeto?</h2>
         <p className="text-sm text-text-secondary mb-6">
-          Você está no sistema há um tempo e ainda não iniciou seu apontamento de horas hoje.
+          Você está no sistema há um tempo e ainda não iniciou seu projeto.
           Que tal começar agora?
         </p>
         <div className="flex flex-col sm:flex-row gap-2 justify-center">
