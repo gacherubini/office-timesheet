@@ -450,19 +450,31 @@ export function PessoasPage() {
             {search ? 'Nenhuma pessoa encontrada.' : 'Nenhuma pessoa nesta categoria.'}
           </p>
         ) : (
-          <ul className="divide-y divide-border-subtle">
-            {visible.map((p) => (
-              <PersonRow
-                key={p.id}
-                person={p}
-                onOpen={() => setSelected(p)}
-                onRestore={() => handleRestore(p)}
-                restoring={restoringId === p.rawId}
-                canRestore={isAdmin}
-                canAccessMoney={canAccessMoney}
-              />
-            ))}
-          </ul>
+          <>
+            {/* Cabeçalho de colunas — diz o que é cada valor da linha. */}
+            <div className="hidden sm:flex items-center gap-3 px-4 py-2.5 border-b border-border-subtle bg-surface-alt text-[11px] font-semibold uppercase tracking-wider text-text-secondary">
+              <span className="flex-1">Nome</span>
+              <span className="w-28 flex-none">Tipo</span>
+              <span className="w-20 flex-none">Status</span>
+              <span className="hidden md:block w-56 flex-none">
+                {canAccessMoney ? 'Remuneração · contato' : 'Contato'}
+              </span>
+              <span className="w-8 flex-none" aria-hidden="true" />
+            </div>
+            <ul className="divide-y divide-border-subtle">
+              {visible.map((p) => (
+                <PersonRow
+                  key={p.id}
+                  person={p}
+                  onOpen={() => setSelected(p)}
+                  onRestore={() => handleRestore(p)}
+                  restoring={restoringId === p.rawId}
+                  canRestore={isAdmin}
+                  canAccessMoney={canAccessMoney}
+                />
+              ))}
+            </ul>
+          </>
         )}
       </Card>
 
@@ -732,8 +744,11 @@ function PersonRow({ person, onOpen, onRestore, restoring, canRestore, canAccess
         </div>
       </button>
 
-      <div className="hidden sm:flex items-center gap-2 flex-none">
+      <div className="hidden sm:block w-28 flex-none">
         <Badge tone={kind.tone}>{kind.singular}</Badge>
+      </div>
+
+      <div className="hidden sm:block w-20 flex-none">
         {isColaborador && (
           <Badge tone={raw.is_active === false ? 'danger' : 'success'}>
             {raw.is_active === false ? 'Inativo' : 'Ativo'}
