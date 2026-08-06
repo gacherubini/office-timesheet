@@ -58,7 +58,7 @@ export function ResetPasswordPage() {
         <div className="bg-surface rounded-xl shadow-card border border-border-subtle p-6 space-y-4">
           {invalidLink && (
             <div className="text-center space-y-3">
-              <p className="text-sm text-rose-600 dark:text-rose-400">Link inválido ou expirado.</p>
+              <p className="text-sm text-rose-600">Link inválido ou expirado.</p>
               <Link to="/forgot-password" className="block text-sm text-text-secondary hover:text-text-primary underline transition-colors">
                 Solicitar novo link
               </Link>
@@ -86,7 +86,7 @@ export function ResetPasswordPage() {
               </div>
 
               {error && (
-                <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3">{error}</div>
+                <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3">{error}</div>
               )}
 
               <form onSubmit={handleSubmit} className="space-y-4">

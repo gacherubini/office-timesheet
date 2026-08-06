@@ -45,14 +45,14 @@ function Kpi({ label, value, detail, highlight = false }) {
           : ''
       }
     >
-      <p className={`text-[13px] font-medium ${highlight ? 'text-emerald-700 dark:text-emerald-400' : 'text-text-secondary'}`}>
+      <p className={`text-[13px] font-medium ${highlight ? 'text-emerald-700' : 'text-text-secondary'}`}>
         {label}
       </p>
-      <p className={`font-display text-[28px] leading-none tabular-nums mt-2 ${highlight ? 'text-emerald-700 dark:text-emerald-300' : 'text-text-primary'}`}>
+      <p className={`font-display text-[28px] leading-none tabular-nums mt-2 ${highlight ? 'text-emerald-700' : 'text-text-primary'}`}>
         {value}
       </p>
       {detail && (
-        <p className={`text-xs mt-1.5 ${highlight ? 'text-emerald-700/70 dark:text-emerald-400/70' : 'text-text-secondary'}`}>
+        <p className={`text-xs mt-1.5 ${highlight ? 'text-emerald-700/70' : 'text-text-secondary'}`}>
           {detail}
         </p>
       )}
@@ -325,7 +325,7 @@ function EmployeePerformancePage() {
       />
 
       {error && (
-        <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mb-4">
+        <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">
           {error}
         </div>
       )}

@@ -52,7 +52,7 @@ export function ForgotPasswordPage() {
               </div>
 
               {error && (
-                <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3">{error}</div>
+                <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3">{error}</div>
               )}
 
               <form onSubmit={handleSubmit} className="space-y-4">

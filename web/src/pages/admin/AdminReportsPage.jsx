@@ -50,9 +50,9 @@ function statusTone(status) {
 function SummaryCard({ label, value, detail, tone = 'default' }) {
   const toneClass =
     tone === 'success'
-      ? 'text-emerald-600 dark:text-emerald-400'
+      ? 'text-emerald-600'
       : tone === 'warning'
-        ? 'text-amber-600 dark:text-amber-400'
+        ? 'text-amber-600'
         : 'text-text-primary'
 
   return (
@@ -136,7 +136,7 @@ export function AdminReportsPage() {
       </Card>
 
       {error && (
-        <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mb-4">
+        <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">
           {error}
         </div>
       )}
@@ -179,7 +179,7 @@ export function AdminReportsPage() {
               {financialData.alerts.map((alert, index) => (
                 <div
                   key={`${alert.message}-${index}`}
-                  className="bg-amber-500/10 text-amber-700 dark:text-amber-300 text-sm rounded-lg p-3"
+                  className="bg-amber-500/10 text-amber-700 text-sm rounded-lg p-3"
                 >
                   {alert.message}
                 </div>
@@ -317,10 +317,10 @@ export function AdminReportsPage() {
                         <td className="px-4 py-3 text-right text-text-primary tabular-nums">
                           {formatCurrency(user.approved_expenses)}
                         </td>
-                        <td className="px-4 py-3 text-right text-amber-600 dark:text-amber-400 tabular-nums">
+                        <td className="px-4 py-3 text-right text-amber-600 tabular-nums">
                           {formatCurrency(user.pending_expenses)}
                         </td>
-                        <td className="px-4 py-3 text-right text-emerald-600 dark:text-emerald-400 tabular-nums">
+                        <td className="px-4 py-3 text-right text-emerald-600 tabular-nums">
                           {formatCurrency(user.bonuses)}
                         </td>
                         <td className="px-4 py-3 text-right font-bold text-text-primary tabular-nums">
@@ -554,7 +554,7 @@ export function AdminReportsPage() {
                           <p className="font-medium text-text-primary">{bonus.title}</p>
                           <p className="text-xs text-text-secondary">{bonus.description || '-'}</p>
                         </td>
-                        <td className="px-4 py-3 text-right font-medium text-emerald-600 dark:text-emerald-400 tabular-nums">
+                        <td className="px-4 py-3 text-right font-medium text-emerald-600 tabular-nums">
                           {formatCurrency(bonus.amount)}
                         </td>
                       </tr>

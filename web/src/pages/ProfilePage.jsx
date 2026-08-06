@@ -222,8 +222,8 @@ export function ProfilePage() {
         </div>
 
         <div className="p-5 space-y-4">
-          {error && <div className="rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm p-3">{error}</div>}
-          {success && <div className="rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-sm p-3">{success}</div>}
+          {error && <div className="rounded-lg bg-rose-500/10 text-rose-600 text-sm p-3">{error}</div>}
+          {success && <div className="rounded-lg bg-emerald-500/10 text-emerald-600 text-sm p-3">{success}</div>}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -333,12 +333,12 @@ export function ProfilePage() {
 
         <div className="p-5 space-y-4">
           {passwordError && (
-            <div className="rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm p-3">
+            <div className="rounded-lg bg-rose-500/10 text-rose-600 text-sm p-3">
               {passwordError}
             </div>
           )}
           {passwordSuccess && (
-            <div className="rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-sm p-3">
+            <div className="rounded-lg bg-emerald-500/10 text-emerald-600 text-sm p-3">
               {passwordSuccess}
             </div>
           )}

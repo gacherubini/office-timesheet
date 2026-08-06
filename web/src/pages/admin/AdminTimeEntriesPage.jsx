@@ -425,7 +425,7 @@ export function AdminTimeEntriesPage() {
       </div>
 
       {error && (
-        <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mb-4">
+        <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">
           {error}
         </div>
       )}
@@ -596,7 +596,7 @@ export function AdminTimeEntriesPage() {
         title={editingEntry ? 'Editar Registro' : 'Adicionar Registro'}
       >
         {error && (
-          <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mb-4">
+          <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">
             {error}
           </div>
         )}
@@ -673,7 +673,7 @@ export function AdminTimeEntriesPage() {
         title={editingBonus ? 'Editar Bônus' : 'Adicionar Bônus'}
       >
         {bonusError && (
-          <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mb-4">
+          <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">
             {bonusError}
           </div>
         )}
