@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
 import {
   Search,
@@ -28,6 +27,8 @@ import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Input, Select } from '../components/ui/Input'
 import { DateField } from '../components/ui/DateField'
+import { ClientFormModal } from '../components/ClientFormModal'
+import { SupplierFormModal } from '../components/SupplierFormModal'
 import { ROLES, roleLabel } from '../lib/permissions'
 
 function whatsappLink(phone) {
@@ -103,9 +104,15 @@ function TabChip({ active, label, count, tone, onClick }) {
 }
 
 export function PessoasPage() {
-  const { isAdmin, canAccessAdminArea, canAccessMoney, canManageClients, canManageSuppliers } =
-    useAuth()
-  const navigate = useNavigate()
+  const {
+    isAdmin,
+    canAccessAdminArea,
+    canAccessMoney,
+    canManageClients,
+    canManageSuppliers,
+    canDeleteClients,
+    canDeleteSuppliers,
+  } = useAuth()
 
   const [people, setPeople] = useState([])
   const [loading, setLoading] = useState(true)
@@ -128,6 +135,13 @@ export function PessoasPage() {
   const [successMessage, setSuccessMessage] = useState('')
   const [uploadingId, setUploadingId] = useState(null)
   const fileInputRef = useRef(null)
+
+  // Gestão de clientes e fornecedores (portada das antigas páginas admin).
+  const [clientModal, setClientModal] = useState({ open: false, client: null })
+  const [supplierModal, setSupplierModal] = useState({ open: false, supplier: null })
+  const [contactToDelete, setContactToDelete] = useState(null) // { kind, raw }
+  const [contactDeleteError, setContactDeleteError] = useState('')
+  const [contactDeleting, setContactDeleting] = useState(false)
 
   async function loadPeople() {
     setPageError('')
@@ -390,6 +404,51 @@ export function PessoasPage() {
     }
   }
 
+  // ---- CRUD de cliente e fornecedor (portado das antigas páginas admin) ----
+
+  function startCreateClient() {
+    setClientModal({ open: true, client: null })
+  }
+
+  function startEditClient(client) {
+    setClientModal({ open: true, client })
+  }
+
+  function startCreateSupplier() {
+    setSupplierModal({ open: true, supplier: null })
+  }
+
+  function startEditSupplier(supplier) {
+    setSupplierModal({ open: true, supplier })
+  }
+
+  async function handleContactSaved(message) {
+    setClientModal({ open: false, client: null })
+    setSupplierModal({ open: false, supplier: null })
+    await loadPeople()
+    setSuccessMessage(message)
+  }
+
+  async function handleDeleteContact() {
+    if (!contactToDelete) return
+    setContactDeleteError('')
+    setContactDeleting(true)
+    try {
+      const base = contactToDelete.kind === 'cliente' ? '/admin/clients' : '/admin/suppliers'
+      await api.delete(`${base}/${contactToDelete.raw.id}`)
+      const kind = contactToDelete.kind
+      setContactToDelete(null)
+      await loadPeople()
+      setSuccessMessage(
+        kind === 'cliente' ? 'Cliente excluído com sucesso!' : 'Fornecedor excluído com sucesso!'
+      )
+    } catch (err) {
+      setContactDeleteError(err.message)
+    } finally {
+      setContactDeleting(false)
+    }
+  }
+
   const tabs = [
     { key: 'todos', label: 'Todos', tone: 'neutral' },
     { key: 'cliente', label: KINDS.cliente.label, tone: KINDS.cliente.tone },
@@ -456,9 +515,8 @@ export function PessoasPage() {
               <span className="flex-1">Nome</span>
               <span className="w-28 flex-none">Tipo</span>
               <span className="w-20 flex-none">Status</span>
-              <span className="hidden md:block w-56 flex-none">
-                {canAccessMoney ? 'Remuneração · contato' : 'Contato'}
-              </span>
+              {canAccessMoney && <span className="hidden lg:block w-40 flex-none">Remuneração</span>}
+              <span className="hidden md:block w-44 flex-none">Contato</span>
               <span className="w-8 flex-none" aria-hidden="true" />
             </div>
             <ul className="divide-y divide-border-subtle">
@@ -502,20 +560,28 @@ export function PessoasPage() {
               (selected.kind === 'colaborador' && isAdmin)
             : false
         }
+        canDelete={
+          selected
+            ? (selected.kind === 'cliente' && canDeleteClients) ||
+              (selected.kind === 'fornecedor' && canDeleteSuppliers) ||
+              (selected.kind === 'colaborador' && isAdmin)
+            : false
+        }
         onEdit={(p) => {
-          if (p.kind === 'colaborador') {
-            setSelected(null)
-            startEditColaborador(p.raw)
-            return
-          }
           setSelected(null)
-          if (p.kind === 'cliente') navigate('/clients')
-          else if (p.kind === 'fornecedor') navigate('/suppliers')
+          if (p.kind === 'colaborador') startEditColaborador(p.raw)
+          else if (p.kind === 'cliente') startEditClient(p.raw)
+          else if (p.kind === 'fornecedor') startEditSupplier(p.raw)
         }}
         onDelete={(p) => {
           setSelected(null)
-          setDeleteError('')
-          setUserToDelete(p.raw)
+          if (p.kind === 'colaborador') {
+            setDeleteError('')
+            setUserToDelete(p.raw)
+          } else if (p.kind === 'cliente' || p.kind === 'fornecedor') {
+            setContactDeleteError('')
+            setContactToDelete({ kind: p.kind, raw: p.raw })
+          }
         }}
         onUploadAvatar={(p) => triggerUpload(p.rawId)}
         uploading={selected ? uploadingId === selected.rawId : false}
@@ -526,8 +592,8 @@ export function PessoasPage() {
         onClose={() => setShowNewChooser(false)}
         onPick={(kind) => {
           setShowNewChooser(false)
-          if (kind === 'cliente') navigate('/clients')
-          else if (kind === 'fornecedor') navigate('/suppliers')
+          if (kind === 'cliente') startCreateClient()
+          else if (kind === 'fornecedor') startCreateSupplier()
           else if (kind === 'colaborador') startCreateColaborador()
         }}
         canManageClients={canManageClients}
@@ -703,6 +769,77 @@ export function PessoasPage() {
         )}
       </Modal>
 
+      {/* Formulário de criar/editar cliente (portado da página "Clientes"). */}
+      <ClientFormModal
+        open={clientModal.open}
+        client={clientModal.client}
+        isAdmin={isAdmin}
+        onClose={() => setClientModal({ open: false, client: null })}
+        onSaved={handleContactSaved}
+      />
+
+      {/* Formulário de criar/editar fornecedor (portado da página "Fornecedores"). */}
+      <SupplierFormModal
+        open={supplierModal.open}
+        supplier={supplierModal.supplier}
+        isAdmin={isAdmin}
+        onClose={() => setSupplierModal({ open: false, supplier: null })}
+        onSaved={handleContactSaved}
+      />
+
+      {/* Confirmação de exclusão de cliente/fornecedor. */}
+      <Modal
+        open={Boolean(contactToDelete)}
+        onClose={() => {
+          setContactToDelete(null)
+          setContactDeleteError('')
+        }}
+        size="lg"
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setContactToDelete(null)
+                setContactDeleteError('')
+              }}
+              disabled={contactDeleting}
+            >
+              Cancelar
+            </Button>
+            <Button variant="danger" onClick={handleDeleteContact} disabled={contactDeleting}>
+              {contactDeleting ? 'Excluindo...' : 'Sim, excluir'}
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col items-center text-center mb-5">
+          <div className="bg-rose-500/15 rounded-full p-4 mb-4">
+            <AlertTriangle className="text-rose-500" size={36} />
+          </div>
+          <h3 className="font-display text-2xl text-text-primary mb-2">
+            {contactToDelete?.kind === 'cliente' ? 'Excluir cliente?' : 'Excluir fornecedor?'}
+          </h3>
+          <p className="text-text-secondary">
+            Você está prestes a excluir{' '}
+            <strong className="text-text-primary">{contactToDelete?.raw?.name}</strong>
+          </p>
+        </div>
+        <div className="bg-rose-500/10 border border-rose-500/20 rounded-lg p-4 text-sm">
+          <p className="font-medium text-text-primary mb-1">Esta ação remove o cadastro.</p>
+          <p className="text-text-secondary">
+            {contactToDelete?.kind === 'cliente'
+              ? 'Confira se este cliente não será mais necessário antes de continuar.'
+              : 'Confira se este fornecedor não será mais necessário antes de continuar.'}
+          </p>
+        </div>
+        {contactDeleteError && (
+          <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mt-3">
+            {contactDeleteError}
+          </div>
+        )}
+      </Modal>
+
       {/* Modal de sucesso (criar/editar/excluir). */}
       <Modal
         open={Boolean(successMessage)}
@@ -756,12 +893,20 @@ function PersonRow({ person, onOpen, onRestore, restoring, canRestore, canAccess
         )}
       </div>
 
-      <div className="hidden md:flex items-center gap-2 w-56 flex-none">
-        {isColaborador && canAccessMoney ? (
-          <span className="text-[13px] text-text-primary tabular-nums truncate">
-            {compensationLabel(raw)}
-          </span>
-        ) : person.phone ? (
+      {canAccessMoney && (
+        <div className="hidden lg:block w-40 flex-none">
+          {isColaborador ? (
+            <span className="text-[13px] text-text-primary tabular-nums truncate">
+              {compensationLabel(raw)}
+            </span>
+          ) : (
+            <span className="text-[13px] text-text-secondary/60">—</span>
+          )}
+        </div>
+      )}
+
+      <div className="hidden md:flex items-center gap-2 w-44 flex-none">
+        {person.phone ? (
           <span className="text-[13px] text-text-secondary truncate">{person.phone}</span>
         ) : person.email ? (
           <span className="text-[13px] text-text-secondary truncate">{person.email}</span>
@@ -818,6 +963,7 @@ function PersonDetailModal({
   restoring,
   canRestore,
   canEdit,
+  canDelete,
   onEdit,
   isAdmin,
   canAccessMoney,
@@ -943,7 +1089,7 @@ function PersonDetailModal({
             <Mail size={15} /> E-mail
           </a>
         )}
-        {canManageColaborador && (
+        {canDelete && (
           <button
             onClick={() => onDelete(person)}
             className="inline-flex items-center gap-1.5 text-sm text-rose-500 hover:text-rose-400 px-3 py-2 rounded-lg hover:bg-rose-500/10 transition-colors"

@@ -612,8 +612,8 @@ export function ProjectBoardPage() {
         footer={
           <>
             <Button variant="ghost" onClick={() => setShowNoClient(false)}>Fechar</Button>
-            <Link to="/admin/clients" onClick={() => setShowNoClient(false)}>
-              <Button>Ir para Clientes</Button>
+            <Link to="/pessoas" onClick={() => setShowNoClient(false)}>
+              <Button>Ir para Pessoas</Button>
             </Link>
           </>
         }

@@ -21,8 +21,6 @@ import { AdminLivePage } from './pages/admin/AdminLivePage'
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage'
 import { AdminDeletedUsersPage } from './pages/admin/AdminDeletedUsersPage'
 import { AdminDeletedProjectsPage } from './pages/admin/AdminDeletedProjectsPage'
-import { AdminClientsPage } from './pages/admin/AdminClientsPage'
-import { AdminSuppliersPage } from './pages/admin/AdminSuppliersPage'
 import { AdminTimeEntriesPage } from './pages/admin/AdminTimeEntriesPage'
 import { AdminReportsPage } from './pages/admin/AdminReportsPage'
 import { AdminApprovalsPage } from './pages/admin/AdminApprovalsPage'
@@ -63,8 +61,6 @@ export default function App() {
       <Route path="/expenses" element={<ProtectedRoute disallowAdministrativeIntern><Layout><ExpensesPage /></Layout></ProtectedRoute>} />
       <Route path="/vacations" element={<ProtectedRoute><Layout><VacationsPage /></Layout></ProtectedRoute>} />
       <Route path="/vacation-calendar" element={<ProtectedRoute><Layout><VacationCalendarPage /></Layout></ProtectedRoute>} />
-      <Route path="/clients" element={<ProtectedRoute><Layout><AdminClientsPage /></Layout></ProtectedRoute>} />
-      <Route path="/suppliers" element={<ProtectedRoute><Layout><AdminSuppliersPage /></Layout></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Layout><ProfilePage /></Layout></ProtectedRoute>} />
 
       {/* Nova navegação VOID — rotas em português apontando para as páginas atuais.
@@ -81,8 +77,6 @@ export default function App() {
       <Route path="/admin/live" element={<ProtectedRoute approverOnly><Layout><AdminLivePage /></Layout></ProtectedRoute>} />
       <Route path="/admin/deleted-users" element={<ProtectedRoute adminOnly><Layout><AdminDeletedUsersPage /></Layout></ProtectedRoute>} />
       <Route path="/admin/deleted-projects" element={<ProtectedRoute adminOnly><Layout><AdminDeletedProjectsPage /></Layout></ProtectedRoute>} />
-      <Route path="/admin/clients" element={<ProtectedRoute approverOnly><Layout><AdminClientsPage /></Layout></ProtectedRoute>} />
-      <Route path="/admin/suppliers" element={<ProtectedRoute approverOnly><Layout><AdminSuppliersPage /></Layout></ProtectedRoute>} />
       <Route path="/admin/time-entries" element={<ProtectedRoute adminOnly><Layout><AdminTimeEntriesPage /></Layout></ProtectedRoute>} />
       <Route path="/admin/reports" element={<ProtectedRoute adminOnly><Layout><AdminReportsPage /></Layout></ProtectedRoute>} />
       <Route path="/admin/manage-expenses" element={<ProtectedRoute adminOnly><Layout><AdminManageExpensesPage /></Layout></ProtectedRoute>} />

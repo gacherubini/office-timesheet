@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { Paperclip, UploadCloud } from 'lucide-react'
-import { api } from '../../lib/api'
-import { useAuth } from '../../contexts/AuthContext'
-import { useDropzone } from '../../hooks/useDropzone'
-import { AttachmentChip } from '../projectBoard/AttachmentChip'
+import { api } from '../lib/api'
+import { useAuth } from '../contexts/AuthContext'
+import { useDropzone } from '../hooks/useDropzone'
+import { AttachmentChip } from '../pages/projectBoard/AttachmentChip'
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? '/api'
 
