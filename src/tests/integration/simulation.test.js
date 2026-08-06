@@ -4,6 +4,13 @@ import { asUser } from '../helpers/api.js'
 import { makeUser } from '../helpers/factories.js'
 import { request } from '../helpers/api.js'
 
+const DEFAULT_CONFIG = {
+  target_amount: 0,
+  include_weekends: false,
+  weekend_default_minutes: 240,
+  overrides: {},
+}
+
 describe('/me/simulation — simulador de performance', () => {
   let employee
   beforeEach(async () => {
@@ -11,26 +18,31 @@ describe('/me/simulation — simulador de performance', () => {
     employee = await makeUser({ role: 'employee', hourly_rate: 100 })
   })
 
-  it('sem registro retorna planned vazio', async () => {
+  it('sem registro retorna a config padrão', async () => {
     const res = await asUser(employee).get('/me/simulation?month=2026-08')
     expect(res.status).toBe(200)
-    expect(res.body).toEqual({ month: '2026-08', planned: {} })
+    expect(res.body).toEqual({ month: '2026-08', config: DEFAULT_CONFIG })
   })
 
-  it('PUT persiste e GET seguinte devolve o mesmo mapa (upsert)', async () => {
-    const planned = { '2026-08-10': 480, '2026-08-11': 300 }
-    const put = await asUser(employee).put('/me/simulation').send({ month: '2026-08', planned })
+  it('PUT persiste e GET seguinte devolve a mesma config (upsert)', async () => {
+    const config = {
+      target_amount: 5000,
+      include_weekends: true,
+      weekend_default_minutes: 240,
+      overrides: { '2026-08-15': 300 },
+    }
+    const put = await asUser(employee).put('/me/simulation').send({ month: '2026-08', config })
     expect(put.status).toBe(200)
-    expect(put.body.planned).toEqual(planned)
+    expect(put.body.config).toEqual(config)
 
     const get = await asUser(employee).get('/me/simulation?month=2026-08')
-    expect(get.body.planned).toEqual(planned)
+    expect(get.body.config).toEqual(config)
 
-    // Upsert: segundo PUT substitui o mapa inteiro.
-    const planned2 = { '2026-08-12': 240 }
-    await asUser(employee).put('/me/simulation').send({ month: '2026-08', planned: planned2 })
+    // Upsert: segundo PUT substitui a config inteira.
+    const config2 = { target_amount: 8000, include_weekends: false, weekend_default_minutes: 0, overrides: {} }
+    await asUser(employee).put('/me/simulation').send({ month: '2026-08', config: config2 })
     const get2 = await asUser(employee).get('/me/simulation?month=2026-08')
-    expect(get2.body.planned).toEqual(planned2)
+    expect(get2.body.config).toEqual(config2)
   })
 
   it('GET com month malformado → 400', async () => {
@@ -38,17 +50,31 @@ describe('/me/simulation — simulador de performance', () => {
     expect(res.status).toBe(400)
   })
 
-  it('PUT com data fora do mês → 400', async () => {
+  it('PUT com month malformado → 400', async () => {
     const res = await asUser(employee)
       .put('/me/simulation')
-      .send({ month: '2026-08', planned: { '2026-09-01': 480 } })
+      .send({ month: '2026-8', config: DEFAULT_CONFIG })
     expect(res.status).toBe(400)
   })
 
-  it('PUT com minutos fora de 0–1440 → 400', async () => {
+  it('PUT com target_amount negativo → 400', async () => {
     const res = await asUser(employee)
       .put('/me/simulation')
-      .send({ month: '2026-08', planned: { '2026-08-10': 2000 } })
+      .send({ month: '2026-08', config: { ...DEFAULT_CONFIG, target_amount: -10 } })
+    expect(res.status).toBe(400)
+  })
+
+  it('PUT com override fora do mês → 400', async () => {
+    const res = await asUser(employee)
+      .put('/me/simulation')
+      .send({ month: '2026-08', config: { ...DEFAULT_CONFIG, overrides: { '2026-09-01': 480 } } })
+    expect(res.status).toBe(400)
+  })
+
+  it('PUT com minutos de override fora de 0–1440 → 400', async () => {
+    const res = await asUser(employee)
+      .put('/me/simulation')
+      .send({ month: '2026-08', config: { ...DEFAULT_CONFIG, overrides: { '2026-08-10': 2000 } } })
     expect(res.status).toBe(400)
   })
 

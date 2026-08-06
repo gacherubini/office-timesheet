@@ -456,8 +456,45 @@ router.get('/me/stats', requireAuth, async (req, res) => {
 const YM_RE = /^\d{4}-\d{2}$/
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
-// Simulador de performance: horas PLANEJADAS por dia, num mapa jsonb por mês.
-// Horas reais nunca entram aqui — vêm sempre vivas de time_entries.
+// Simulador de performance: config por mês (jsonb). O usuário informa a META de
+// ganho e, opcionalmente, horas de fim de semana; o cliente distribui as horas
+// pelos dias úteis que faltam. Horas reais nunca entram aqui — vêm de time_entries.
+//   config = {
+//     target_amount: number>=0,          // meta de ganho do mês (R$)
+//     include_weekends: boolean,          // considerar sáb/dom como hora extra
+//     weekend_default_minutes: int 0..1440, // horas padrão por dia de FDS
+//     overrides: { 'YYYY-MM-DD': minutos } // ajustes manuais por dia (0..1440)
+//   }
+const DEFAULT_SIM_CONFIG = {
+  target_amount: 0,
+  include_weekends: false,
+  weekend_default_minutes: 240,
+  overrides: {},
+}
+
+// Normaliza qualquer jsonb salvo (inclusive o formato antigo de mapa de datas)
+// para o shape de config atual, caindo nos defaults quando faltar/for inválido.
+function normalizeSimConfig(raw) {
+  const c = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}
+  return {
+    target_amount:
+      typeof c.target_amount === 'number' && Number.isFinite(c.target_amount) && c.target_amount >= 0
+        ? c.target_amount
+        : 0,
+    include_weekends: c.include_weekends === true,
+    weekend_default_minutes:
+      Number.isInteger(c.weekend_default_minutes) &&
+      c.weekend_default_minutes >= 0 &&
+      c.weekend_default_minutes <= 1440
+        ? c.weekend_default_minutes
+        : 240,
+    overrides:
+      c.overrides && typeof c.overrides === 'object' && !Array.isArray(c.overrides)
+        ? c.overrides
+        : {},
+  }
+}
+
 router.get('/me/simulation', requireAuth, async (req, res) => {
   const month = String(req.query.month || '')
   if (!YM_RE.test(month)) {
@@ -467,26 +504,56 @@ router.get('/me/simulation', requireAuth, async (req, res) => {
     'SELECT planned FROM performance_simulations WHERE user_id = $1 AND ym = $2',
     [req.profile.id, month]
   )
-  return res.json({ month, planned: rows[0]?.planned || {} })
+  const config = rows[0] ? normalizeSimConfig(rows[0].planned) : { ...DEFAULT_SIM_CONFIG }
+  return res.json({ month, config })
 })
 
 router.put('/me/simulation', requireAuth, async (req, res) => {
-  const { month, planned } = req.body || {}
+  const { month, config } = req.body || {}
   if (!YM_RE.test(String(month || ''))) {
     return res.status(400).json({ error: 'Campo "month" inválido. Use o formato YYYY-MM.' })
   }
-  if (planned === null || typeof planned !== 'object' || Array.isArray(planned)) {
-    return res.status(400).json({ error: 'Campo "planned" deve ser um objeto de datas.' })
+  if (config === null || typeof config !== 'object' || Array.isArray(config)) {
+    return res.status(400).json({ error: 'Campo "config" deve ser um objeto.' })
   }
-  const clean = {}
-  for (const [date, minutes] of Object.entries(planned)) {
+  if (
+    typeof config.target_amount !== 'number' ||
+    !Number.isFinite(config.target_amount) ||
+    config.target_amount < 0
+  ) {
+    return res.status(400).json({ error: 'Campo "target_amount" deve ser um número >= 0.' })
+  }
+  if (typeof config.include_weekends !== 'boolean') {
+    return res.status(400).json({ error: 'Campo "include_weekends" deve ser booleano.' })
+  }
+  if (
+    !Number.isInteger(config.weekend_default_minutes) ||
+    config.weekend_default_minutes < 0 ||
+    config.weekend_default_minutes > 1440
+  ) {
+    return res
+      .status(400)
+      .json({ error: 'Campo "weekend_default_minutes" deve ser um inteiro de 0 a 1440.' })
+  }
+  const overridesIn = config.overrides
+  if (overridesIn === null || typeof overridesIn !== 'object' || Array.isArray(overridesIn)) {
+    return res.status(400).json({ error: 'Campo "overrides" deve ser um objeto de datas.' })
+  }
+  const overrides = {}
+  for (const [date, minutes] of Object.entries(overridesIn)) {
     if (!DATE_RE.test(date) || date.slice(0, 7) !== month) {
       return res.status(400).json({ error: `Data fora do mês ${month}: ${date}.` })
     }
     if (!Number.isInteger(minutes) || minutes < 0 || minutes > 1440) {
       return res.status(400).json({ error: `Minutos inválidos para ${date}: use um inteiro de 0 a 1440.` })
     }
-    clean[date] = minutes
+    overrides[date] = minutes
+  }
+  const clean = {
+    target_amount: config.target_amount,
+    include_weekends: config.include_weekends,
+    weekend_default_minutes: config.weekend_default_minutes,
+    overrides,
   }
   await query(
     `INSERT INTO performance_simulations (user_id, ym, planned)
@@ -494,7 +561,7 @@ router.put('/me/simulation', requireAuth, async (req, res) => {
      ON CONFLICT (user_id, ym) DO UPDATE SET planned = EXCLUDED.planned, updated_at = now()`,
     [req.profile.id, month, JSON.stringify(clean)]
   )
-  return res.json({ month, planned: clean })
+  return res.json({ month, config: clean })
 })
 
 // Histórico de performance dos últimos N meses (horas + valor por mês).
