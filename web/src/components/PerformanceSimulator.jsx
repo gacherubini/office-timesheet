@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarClock, Sparkles } from 'lucide-react'
+import { CalendarClock, Sparkles, Check, Loader2, Plus } from 'lucide-react'
 import { api } from '../lib/api'
 import { fetchHolidays } from '../lib/holidaysClient'
 import { Card } from './ui/Card'
@@ -189,8 +189,19 @@ export function PerformanceSimulator({ stats, cursor }) {
           <CalendarClock size={16} className="text-text-secondary" />
           <h2 className="text-[15px] font-semibold text-text-primary">Simulador de performance</h2>
         </div>
-        <span className="text-xs text-text-secondary tabular-nums">
-          {saveState === 'saving' ? 'Salvando…' : saveState === 'saved' ? 'Salvo' : ''}
+        <span aria-live="polite" className="flex items-center">
+          {saveState === 'saving' && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-alt px-2.5 py-1 text-[11px] font-medium text-text-secondary">
+              <Loader2 size={12} className="animate-spin motion-reduce:animate-none" />
+              Salvando…
+            </span>
+          )}
+          {saveState === 'saved' && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--color-accent-2)]/[0.12] px-2.5 py-1 text-[11px] font-medium text-[color:var(--color-accent-2)]">
+              <Check size={12} strokeWidth={2.5} />
+              Salvo
+            </span>
+          )}
         </span>
       </div>
       <p className="text-[13px] text-text-secondary mb-4">
@@ -267,7 +278,31 @@ export function PerformanceSimulator({ stats, cursor }) {
         </div>
       </div>
 
-      {/* Calendário */}
+      {/* Cabeçalho do calendário + legenda dos estados de cada dia */}
+      <div className="mb-2.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <p className="text-[11px] font-medium uppercase tracking-wider text-text-secondary">
+          Calendário do mês
+        </p>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-text-secondary">
+          <span className="inline-flex items-center gap-1.5">
+            <span aria-hidden className="h-3 w-3 rounded-[4px] border border-border-subtle bg-surface-alt" />
+            Real
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span aria-hidden className="h-3 w-3 rounded-[4px] border border-[color:var(--color-accent)]/30 bg-[color:var(--color-accent)]/[0.12]" />
+            Dia útil (auto)
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span aria-hidden className="h-3 w-3 rounded-[4px] border border-dashed border-[color:var(--color-accent-2)]/50 bg-[color:var(--color-accent-2)]/[0.08]" />
+            Fim de semana
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span aria-hidden className="h-3 w-3 rounded-[4px] border border-[color:var(--color-accent)] ring-1 ring-inset ring-[color:var(--color-accent)]" />
+            Hoje
+          </span>
+        </div>
+      </div>
+
       <div className="grid grid-cols-7 gap-1.5">
         {WEEKDAY_LABELS.map((w, i) => (
           <div
@@ -287,53 +322,78 @@ export function PerformanceSimulator({ stats, cursor }) {
           const weekend = isWeekendDay(day)
           const holiday = holidays.has(date)
 
-          // Determina o valor e o estilo do dia.
+          // Estado visual do dia: passado (real), dia útil (auto), fim de semana ou feriado.
           let content
-          let cellClass = 'border-border-subtle bg-surface'
+          let cellClass = 'border border-border-subtle bg-surface'
           if (past) {
-            cellClass = 'border-border-subtle bg-surface-alt'
+            cellClass = 'border border-border-subtle bg-surface-alt'
             content = (
-              <span className="mt-auto text-sm text-right tabular-nums text-text-secondary">
+              <span className="mt-auto text-right text-sm tabular-nums text-text-secondary">
                 {hoursLabel(realHoursByDate[date] || 0)}
               </span>
             )
           } else if (weekend) {
             const active = config.include_weekends || date in config.overrides
+            const draft = date in overrideDrafts ? overrideDrafts[date] : null
+            const effective = model.weekendHoursFor(date)
+            const shown = draft != null ? draft : effective > 0 ? String(effective) : ''
+            const empty = shown === '' || shown === '0'
             cellClass = active
-              ? 'border-[color:var(--color-accent-2)]/40 bg-[color:var(--color-accent-2)]/[0.08]'
-              : 'border-border-subtle bg-surface-alt/60'
-            const shown = date in overrideDrafts ? overrideDrafts[date] : String(model.weekendHoursFor(date))
+              ? 'border border-[color:var(--color-accent-2)]/50 bg-[color:var(--color-accent-2)]/[0.08]'
+              : 'border border-dashed border-[color:var(--color-accent-2)]/40 bg-surface hover:border-[color:var(--color-accent-2)]/60 hover:bg-[color:var(--color-accent-2)]/[0.05]'
             content = (
-              <input
-                inputMode="decimal"
-                value={shown}
-                onChange={(e) => setWeekendOverride(date, e.target.value)}
-                aria-label={`Horas extras em ${date}`}
-                className={`mt-auto w-full bg-transparent text-right text-sm tabular-nums outline-none ${
-                  active ? 'text-[color:var(--color-accent-2)] font-medium' : 'text-text-secondary/60'
-                }`}
-              />
+              <div className="relative mt-auto flex items-end">
+                {empty && !active && (
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 flex items-center justify-end gap-0.5 text-[color:var(--color-accent-2)]/60"
+                  >
+                    <Plus size={12} strokeWidth={2.5} />
+                    <span className="text-[11px]">extra</span>
+                  </span>
+                )}
+                <input
+                  inputMode="decimal"
+                  value={shown}
+                  onChange={(e) => setWeekendOverride(date, e.target.value)}
+                  aria-label={`Horas extras em ${date}`}
+                  className="relative w-full bg-transparent text-right text-sm font-medium tabular-nums text-[color:var(--color-accent-2)] outline-none"
+                />
+              </div>
             )
           } else if (holiday) {
+            cellClass = 'border border-border-subtle bg-surface-alt/50'
             content = (
               <span className="mt-auto text-right text-[11px] text-text-secondary/70">feriado</span>
             )
           } else {
+            cellClass = 'border border-[color:var(--color-accent)]/30 bg-[color:var(--color-accent)]/[0.06]'
             content = (
-              <span className="mt-auto text-sm text-right tabular-nums text-accent font-medium">
-                {noTarget ? '—' : hoursLabel(model.perWeekday)}
-              </span>
+              <div className="mt-auto flex items-end justify-between gap-1">
+                <span className="text-[9px] uppercase tracking-wide leading-none text-[color:var(--color-accent)]/60">
+                  auto
+                </span>
+                <span className="text-sm font-medium leading-none tabular-nums text-accent">
+                  {noTarget ? '—' : hoursLabel(model.perWeekday)}
+                </span>
+              </div>
             )
           }
 
           return (
             <div
               key={date}
-              className={`rounded-lg border p-1.5 min-h-[56px] flex flex-col transition-colors ${cellClass} ${
+              className={`rounded-lg p-1.5 min-h-[58px] flex flex-col transition-colors ${cellClass} ${
                 isToday ? 'ring-1 ring-[color:var(--color-accent)] border-[color:var(--color-accent)]' : ''
               }`}
             >
-              <span className="text-[11px] text-text-secondary tabular-nums leading-none">{day}</span>
+              <span
+                className={`text-[11px] tabular-nums leading-none ${
+                  isToday ? 'font-semibold text-accent' : 'text-text-secondary'
+                }`}
+              >
+                {day}
+              </span>
               {content}
             </div>
           )
