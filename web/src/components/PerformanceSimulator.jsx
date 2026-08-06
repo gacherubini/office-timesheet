@@ -9,9 +9,11 @@ const WEEKDAYS = ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom']
 function ymd(year, month, day) {
   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }
+// "Hoje" no fuso do domínio (America/Sao_Paulo), não no do navegador — a
+// fronteira dia travado/editável tem que casar com o resto da página, que
+// opera em SP. 'en-CA' formata como YYYY-MM-DD.
 function todayYmd() {
-  const n = new Date()
-  return ymd(n.getFullYear(), n.getMonth() + 1, n.getDate())
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
 }
 function hoursLabel(h) {
   const totalMin = Math.round((h || 0) * 60)
