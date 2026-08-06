@@ -1,5 +1,15 @@
 :8080
 root * /srv
 encode gzip zstd
+
+# Assets com hash no nome nunca mudam de conteúdo → cache longo e imutável.
+@assets path /assets/*
+header @assets Cache-Control "public, max-age=31536000, immutable"
+
+# index.html e todas as rotas do SPA precisam revalidar sempre, senão o
+# navegador serve um index.html antigo que aponta para bundles já removidos.
+@html not path /assets/*
+header @html Cache-Control "no-cache"
+
 try_files {path} /index.html
 file_server
