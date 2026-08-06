@@ -130,7 +130,7 @@ export function AdminSuppliersPage() {
       />
 
       {pageError && (
-        <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mb-4">
+        <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">
           {pageError}
         </div>
       )}
@@ -185,7 +185,7 @@ export function AdminSuppliersPage() {
                         {supplier.name}
                         {supplier.admin_only && (
                           <span
-                            className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 px-2 py-0.5 text-[11px] font-medium"
+                            className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 text-amber-700 px-2 py-0.5 text-[11px] font-medium"
                             title="Visível apenas para administradores"
                           >
                             <Lock size={11} /> Só admin
@@ -251,7 +251,7 @@ export function AdminSuppliersPage() {
         title={editingSupplier ? 'Editar Fornecedor' : 'Novo Fornecedor'}
       >
         {error && (
-          <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mb-4">
+          <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">
             {error}
           </div>
         )}
@@ -357,7 +357,7 @@ export function AdminSuppliersPage() {
           </p>
         </div>
         {deleteError && (
-          <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mt-3">
+          <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mt-3">
             {deleteError}
           </div>
         )}

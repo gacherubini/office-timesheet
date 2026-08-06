@@ -94,10 +94,10 @@ function vacationIncludesDate(vacation, key) {
 // Estilo (chip) por tipo de item na agenda. Cores seguem a Legenda do mockup.
 const LAYER_STYLE = {
   presence: 'bg-[color:var(--color-accent)]/15 text-accent',
-  vacation: 'bg-violet-500/15 text-violet-700 dark:text-violet-300',
-  holiday: 'bg-rose-500/15 text-rose-600 dark:text-rose-300',
-  office: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
-  google: 'bg-sky-500/15 text-sky-700 dark:text-sky-300',
+  vacation: 'bg-violet-500/15 text-violet-700',
+  holiday: 'bg-rose-500/15 text-rose-600',
+  office: 'bg-emerald-500/15 text-emerald-700',
+  google: 'bg-sky-500/15 text-sky-700',
 }
 
 const ICON_BY_KIND = {
@@ -318,7 +318,7 @@ export function AgendaPage() {
       />
 
       {error && (
-        <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mb-4">{error}</div>
+        <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">{error}</div>
       )}
 
       <div className="grid grid-cols-1 xl:grid-cols-[280px_1fr] gap-5 items-start">
@@ -328,7 +328,7 @@ export function AgendaPage() {
           {connected && (
             <Card padded={false} className="overflow-hidden">
               <div className="px-5 py-4 flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-lg bg-emerald-500/15 text-emerald-600 flex items-center justify-center">
                   <CalendarClock size={16} />
                 </div>
                 <div className="min-w-0">
@@ -512,7 +512,7 @@ export function AgendaPage() {
         >
           <div className="space-y-3 text-sm">
             {selectedEvent.source === 'office' && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 px-2.5 py-1 text-xs font-medium">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 text-emerald-700 px-2.5 py-1 text-xs font-medium">
                 <Building2 size={12} /> Agenda do escritório
               </span>
             )}
@@ -693,7 +693,7 @@ function PresenceModal({ open, initial, onClose, onSaved }) {
     >
       <div className="space-y-4">
         {error && (
-          <div className="rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 p-3 text-xs">{error}</div>
+          <div className="rounded-lg bg-rose-500/10 text-rose-600 p-3 text-xs">{error}</div>
         )}
 
         <DateField label="Data" value={date} onChange={(e) => setDate(e.target.value)} />

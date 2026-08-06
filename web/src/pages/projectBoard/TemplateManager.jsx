@@ -133,7 +133,7 @@ export function TemplateManager({ templates, onBack, onChanged }) {
       />
 
       {error && !editing && (
-        <div className="mb-4 bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3">{error}</div>
+        <div className="mb-4 bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3">{error}</div>
       )}
 
       {templates.length === 0 ? (
@@ -182,7 +182,7 @@ export function TemplateManager({ templates, onBack, onChanged }) {
         {editing && (
           <div className="space-y-3">
             {error && (
-              <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3">{error}</div>
+              <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3">{error}</div>
             )}
             <Input
               label="Nome do template"

@@ -66,14 +66,14 @@ export function CalendarConnect({ onChange, hideWhenConnected = false }) {
       </div>
 
       <div className="p-5 space-y-4">
-        {error && <div className="rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm p-3">{error}</div>}
-        {success && <div className="rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-sm p-3">{success}</div>}
+        {error && <div className="rounded-lg bg-rose-500/10 text-rose-600 text-sm p-3">{error}</div>}
+        {success && <div className="rounded-lg bg-emerald-500/10 text-emerald-600 text-sm p-3">{success}</div>}
 
         {loading ? (
           <p className="text-sm text-text-secondary">Carregando...</p>
         ) : connected ? (
           <div className="flex items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
+            <span className="inline-flex items-center gap-2 text-sm text-emerald-600">
               <Check size={16} /> Agenda conectada.
             </span>
             <button

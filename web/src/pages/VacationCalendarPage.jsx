@@ -90,12 +90,12 @@ function vacationIncludesDate(vacation, key) {
 
 function colorForUser(userId) {
   const palette = [
-    'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
-    'bg-sky-500/15 text-sky-700 dark:text-sky-300',
-    'bg-amber-500/15 text-amber-700 dark:text-amber-300',
-    'bg-rose-500/15 text-rose-700 dark:text-rose-300',
-    'bg-violet-500/15 text-violet-700 dark:text-violet-300',
-    'bg-teal-500/15 text-teal-700 dark:text-teal-300',
+    'bg-emerald-500/15 text-emerald-700',
+    'bg-sky-500/15 text-sky-700',
+    'bg-amber-500/15 text-amber-700',
+    'bg-rose-500/15 text-rose-700',
+    'bg-violet-500/15 text-violet-700',
+    'bg-teal-500/15 text-teal-700',
   ]
   const seed = String(userId || '').split('').reduce((sum, char) => sum + char.charCodeAt(0), 0)
   return palette[seed % palette.length]
@@ -230,7 +230,7 @@ export function VacationCalendarPage() {
       />
 
       {error && (
-        <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mb-4">
+        <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">
           {error}
         </div>
       )}
@@ -323,7 +323,7 @@ export function VacationCalendarPage() {
                       <>
                         {holidaysByDay[day.key] && (
                           <div
-                            className="flex items-center gap-1 truncate rounded px-2 py-1 text-[11px] font-medium bg-rose-500/15 text-rose-600 dark:text-rose-300"
+                            className="flex items-center gap-1 truncate rounded px-2 py-1 text-[11px] font-medium bg-rose-500/15 text-rose-600"
                             title={holidaysByDay[day.key]}
                           >
                             <Flag size={10} className="flex-shrink-0" />
@@ -335,7 +335,7 @@ export function VacationCalendarPage() {
                             key={ev.id}
                             type="button"
                             onClick={() => setSelectedEvent(ev)}
-                            className="flex w-full items-center gap-1 truncate rounded px-2 py-1 text-left text-[11px] font-medium bg-violet-500/15 text-violet-700 dark:text-violet-300 hover:bg-violet-500/25 transition-colors"
+                            className="flex w-full items-center gap-1 truncate rounded px-2 py-1 text-left text-[11px] font-medium bg-violet-500/15 text-violet-700 hover:bg-violet-500/25 transition-colors"
                             title={`Escritório · ${ev.title}${ev.location ? ' · ' + ev.location : ''}`}
                           >
                             <Building2 size={10} className="flex-shrink-0" />
@@ -346,7 +346,7 @@ export function VacationCalendarPage() {
                           </button>
                         ))}
                         {(officeByDay[day.key] || []).length > 4 && (
-                          <p className="text-[11px] text-violet-600 dark:text-violet-300 px-1">
+                          <p className="text-[11px] text-violet-600 px-1">
                             +{officeByDay[day.key].length - 4} do escritório
                           </p>
                         )}
@@ -355,7 +355,7 @@ export function VacationCalendarPage() {
                             key={ev.id}
                             type="button"
                             onClick={() => setSelectedEvent(ev)}
-                            className="flex w-full items-center gap-1 truncate rounded px-2 py-1 text-left text-[11px] font-medium bg-sky-500/15 text-sky-700 dark:text-sky-300 hover:bg-sky-500/25 transition-colors"
+                            className="flex w-full items-center gap-1 truncate rounded px-2 py-1 text-left text-[11px] font-medium bg-sky-500/15 text-sky-700 hover:bg-sky-500/25 transition-colors"
                             title={`${ev.title}${ev.location ? ' · ' + ev.location : ''}`}
                           >
                             <Video size={10} className="flex-shrink-0" />
@@ -366,7 +366,7 @@ export function VacationCalendarPage() {
                           </button>
                         ))}
                         {(googleByDay[day.key] || []).length > 4 && (
-                          <p className="text-[11px] text-sky-600 dark:text-sky-300 px-1">
+                          <p className="text-[11px] text-sky-600 px-1">
                             +{googleByDay[day.key].length - 4} eventos
                           </p>
                         )}
@@ -375,7 +375,7 @@ export function VacationCalendarPage() {
                             key={task.id}
                             type="button"
                             onClick={() => setSelectedTask(task)}
-                            className="flex w-full items-center gap-1 truncate rounded px-2 py-1 text-left text-[11px] font-medium bg-amber-500/15 text-amber-700 dark:text-amber-300 hover:bg-amber-500/25 transition-colors"
+                            className="flex w-full items-center gap-1 truncate rounded px-2 py-1 text-left text-[11px] font-medium bg-amber-500/15 text-amber-700 hover:bg-amber-500/25 transition-colors"
                             title={`Tarefa: ${task.title}${task.project_name ? ' · ' + task.project_name : ''}`}
                           >
                             <ListTodo size={10} className="flex-shrink-0" />
@@ -530,7 +530,7 @@ export function VacationCalendarPage() {
         >
           <div className="space-y-3 text-sm">
             {selectedEvent.source === 'office' && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-500/15 text-violet-700 dark:text-violet-300 px-2.5 py-1 text-xs font-medium">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-500/15 text-violet-700 px-2.5 py-1 text-xs font-medium">
                 <Building2 size={12} /> Agenda do escritório
               </span>
             )}
@@ -574,7 +574,7 @@ export function VacationCalendarPage() {
           }
         >
           <div className="space-y-3 text-sm">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 px-2.5 py-1 text-xs font-medium">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 text-amber-700 px-2.5 py-1 text-xs font-medium">
               <ListTodo size={12} /> Tarefa
             </span>
             {selectedTask.project_name && (

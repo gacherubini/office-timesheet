@@ -412,7 +412,7 @@ export function PessoasPage() {
       />
 
       {pageError && (
-        <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mb-4">
+        <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">
           {pageError}
         </div>
       )}
@@ -533,7 +533,7 @@ export function PessoasPage() {
         title={editingUser ? 'Editar Colaborador' : 'Novo Colaborador'}
       >
         {formError && (
-          <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mb-4">
+          <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">
             {formError}
           </div>
         )}
@@ -685,7 +685,7 @@ export function PessoasPage() {
           </p>
         </div>
         {deleteError && (
-          <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mt-3">
+          <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mt-3">
             {deleteError}
           </div>
         )}

@@ -335,7 +335,7 @@ export function AdminDashboardPage() {
       <PageHeader title="Início" subtitle="Visão geral da operação" />
 
       {error && (
-        <div className="bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm rounded-lg p-3 mb-6">
+        <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-6">
           {error}
         </div>
       )}

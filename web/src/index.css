@@ -35,33 +35,6 @@
   color-scheme: light;
 }
 
-.dark {
-  /* ── Terracota · dark (marrom escuro) ──────────────────── */
-  --color-bg: #221A11;
-  --color-surface: #2C2217;
-  --color-surface-alt: #382B1D;
-  --color-text: #EDE6DC;
-  --color-text-sec: rgba(237, 230, 220, 0.60);
-  --color-border: rgba(255, 255, 255, 0.09);
-  --color-accent: #E0803F;
-  --color-accent-2: #7C978C;
-  --color-accent-3: #A98F6E;
-  --color-sidebar: #171009;
-  --color-field-bg: #2A2015;
-  --color-field-text: #EDE6DC;
-  --color-field-placeholder: #B7A891;
-  --color-field-border: rgba(255, 255, 255, 0.16);
-  --color-field-focus: #E0803F;
-  --color-field-focus-ring: rgba(224, 128, 63, 0.25);
-  --color-field-muted-bg: #322619;
-  --color-field-muted-text: #EDE6DC;
-  --color-field-muted-border: rgba(255, 255, 255, 0.14);
-  --shadow-card: none;
-  --grafismo-a: rgba(224, 128, 63, 0.16);
-  --grafismo-b: rgba(255, 255, 255, 0.06);
-  color-scheme: dark;
-}
-
 html,
 body {
   background-color: var(--color-bg);
@@ -135,11 +108,6 @@ button:focus-visible,
   .form-control::-webkit-calendar-picker-indicator {
     cursor: pointer;
     opacity: 0.75;
-  }
-
-  .dark .form-control::-webkit-calendar-picker-indicator {
-    filter: invert(1);
-    opacity: 0.85;
   }
 
   .form-control-muted {

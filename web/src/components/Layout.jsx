@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { useTheme } from '../contexts/ThemeContext'
 import {
   Home,
   ListChecks,
@@ -13,8 +12,6 @@ import {
   Gift,
   Receipt,
   LogOut,
-  Sun,
-  Moon,
   ChevronDown,
   Pin,
   PinOff,
@@ -89,7 +86,6 @@ function NavSubRow({ item }) {
 
 export function Layout({ children }) {
   const { profile, isAdmin, isAdministrativeIntern, logout } = useAuth()
-  const { isDark, toggleTheme } = useTheme()
   const location = useLocation()
   const navigate = useNavigate()
   const [openSections, setOpenSections] = useState({})
@@ -244,17 +240,6 @@ export function Layout({ children }) {
               isSidebarExpanded ? 'gap-3' : 'justify-center gap-2'
             }`}
           >
-            <button
-              onClick={toggleTheme}
-              className="flex items-center gap-2 text-white/60 hover:text-white text-[13px] transition-colors"
-              aria-label={isDark ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
-              title={isDark ? 'Tema claro' : 'Tema escuro'}
-            >
-              {isDark ? <Sun size={16} /> : <Moon size={16} />}
-              <span className={isSidebarExpanded ? 'inline' : 'hidden'}>
-                {isDark ? 'Claro' : 'Escuro'}
-              </span>
-            </button>
             <button
               onClick={handleLogout}
               className={`flex items-center gap-2 text-white/60 hover:text-white text-[13px] transition-colors ${

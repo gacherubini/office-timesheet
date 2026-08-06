@@ -453,6 +453,50 @@ router.get('/me/stats', requireAuth, async (req, res) => {
   }
 })
 
+const YM_RE = /^\d{4}-\d{2}$/
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
+// Simulador de performance: horas PLANEJADAS por dia, num mapa jsonb por mês.
+// Horas reais nunca entram aqui — vêm sempre vivas de time_entries.
+router.get('/me/simulation', requireAuth, async (req, res) => {
+  const month = String(req.query.month || '')
+  if (!YM_RE.test(month)) {
+    return res.status(400).json({ error: 'Parâmetro "month" inválido. Use o formato YYYY-MM.' })
+  }
+  const { rows } = await query(
+    'SELECT planned FROM performance_simulations WHERE user_id = $1 AND ym = $2',
+    [req.profile.id, month]
+  )
+  return res.json({ month, planned: rows[0]?.planned || {} })
+})
+
+router.put('/me/simulation', requireAuth, async (req, res) => {
+  const { month, planned } = req.body || {}
+  if (!YM_RE.test(String(month || ''))) {
+    return res.status(400).json({ error: 'Campo "month" inválido. Use o formato YYYY-MM.' })
+  }
+  if (planned === null || typeof planned !== 'object' || Array.isArray(planned)) {
+    return res.status(400).json({ error: 'Campo "planned" deve ser um objeto de datas.' })
+  }
+  const clean = {}
+  for (const [date, minutes] of Object.entries(planned)) {
+    if (!DATE_RE.test(date) || date.slice(0, 7) !== month) {
+      return res.status(400).json({ error: `Data fora do mês ${month}: ${date}.` })
+    }
+    if (!Number.isInteger(minutes) || minutes < 0 || minutes > 1440) {
+      return res.status(400).json({ error: `Minutos inválidos para ${date}: use um inteiro de 0 a 1440.` })
+    }
+    clean[date] = minutes
+  }
+  await query(
+    `INSERT INTO performance_simulations (user_id, ym, planned)
+     VALUES ($1, $2, $3::jsonb)
+     ON CONFLICT (user_id, ym) DO UPDATE SET planned = EXCLUDED.planned, updated_at = now()`,
+    [req.profile.id, month, JSON.stringify(clean)]
+  )
+  return res.json({ month, planned: clean })
+})
+
 // Histórico de performance dos últimos N meses (horas + valor por mês).
 // Alimenta a faixa "Histórico — últimos meses" da página Performance.
 // Mesma guarda financeira do /me/stats.
