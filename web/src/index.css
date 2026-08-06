@@ -9,27 +9,28 @@
   --font-serif: 'Instrument Serif', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
   --font-mono: ui-monospace, 'Cascadia Code', 'Consolas', 'SFMono-Regular', monospace;
 
-  /* ── Terracota · light (papel quente) ──────────────────── */
-  --color-bg: #EDE6DC;
+  /* ── Verde (brand Studio Vivian) · light ──────────────────── */
+  --color-bg: #ECECEC;
   --color-surface: #FFFFFF;
-  --color-surface-alt: #E6DFD3;
+  --color-surface-alt: #E3E8E5;
   --color-text: #2C2216;
-  --color-text-sec: #7A6A55;
-  --color-border: #E1D7C8;
-  --color-accent: #CB6D31;
-  --color-accent-2: #4C665E;
+  --color-text-sec: #5F6E66;
+  --color-border: #DEE3DF;
+  --color-accent: #4C665E;
+  --color-accent-2: #CB6D31;
   --color-accent-3: #615142;
-  --color-sidebar: #2C2216;
+  --color-sidebar: #2E3D38;
   --color-field-bg: #FFFFFF;
   --color-field-text: #2C2216;
-  --color-field-placeholder: #A2937E;
-  --color-field-border: #DFD4C4;
-  --color-field-focus: #CB6D31;
-  --color-field-focus-ring: rgba(203, 109, 49, 0.18);
-  --color-field-muted-bg: #E6DFD3;
-  --color-field-muted-text: #4A3D2E;
-  --color-field-muted-border: #DFD4C4;
-  --shadow-card: 0 1px 2px rgba(44, 34, 22, 0.05), 0 10px 24px -14px rgba(44, 34, 22, 0.18);
+  --color-field-placeholder: #9AA39D;
+  --color-field-border: #D8DED9;
+  --color-field-focus: #4C665E;
+  --color-field-focus-ring: rgba(76, 102, 94, 0.20);
+  --color-field-muted-bg: #E3E8E5;
+  --color-field-muted-text: #3E4A44;
+  --color-field-muted-border: #D8DED9;
+  --shadow-card: 0 1px 2px rgba(30, 40, 36, 0.05), 0 10px 24px -14px rgba(30, 40, 36, 0.18);
+  /* Grafismo permanece laranja/marrom — no brand book o grafismo é laranja. */
   --grafismo-a: rgba(203, 109, 49, 0.32);
   --grafismo-b: rgba(97, 81, 66, 0.20);
   color-scheme: light;

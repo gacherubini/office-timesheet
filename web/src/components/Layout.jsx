@@ -264,7 +264,7 @@ export function Layout({ children }) {
             className="absolute -top-48 -right-40 h-[560px] w-[560px] rounded-full"
             style={{
               background:
-                'radial-gradient(circle, color-mix(in srgb, var(--color-accent) 15%, transparent), transparent 70%)',
+                'radial-gradient(circle, color-mix(in srgb, var(--color-accent-2) 15%, transparent), transparent 70%)',
               filter: 'blur(30px)',
             }}
           />
