@@ -22,16 +22,20 @@ import { NotificationBell } from './NotificationBell'
 import { ClockInReminder } from './ClockInReminder'
 import { Logo } from './Logo'
 
-// Item de menu de nível 1 (plano, estilo mockup VOID). Ativo em laranja/accent.
+// Item de menu de nível 1 (plano, estilo mockup VOID). Realce em pill escura
+// (o accent verde ficaria com pouco contraste sobre a sidebar verde escura).
 function NavRow({ item, active, expanded, open, onToggle }) {
   const Icon = item.icon
   const hasChildren = Boolean(item.children?.length)
   const base =
     'flex items-center gap-3 transition-colors whitespace-nowrap text-[15px] font-medium'
-  const pad = expanded ? 'px-6 py-2.5' : 'px-4 md:px-0 py-2.5 md:justify-center'
+  // Pill recuada no desktop expandido; barra simples no mobile / colapsado.
+  const pad = expanded
+    ? 'mx-3 px-3 py-2.5 rounded-lg'
+    : 'px-4 py-2.5 md:mx-2 md:px-0 md:py-2.5 md:justify-center md:rounded-lg'
   const state = active
-    ? 'text-accent'
-    : 'text-white/65 hover:text-white'
+    ? 'bg-black/25 text-white'
+    : 'text-white/65 hover:bg-black/15 hover:text-white'
 
   return (
     <div className="contents md:block">
