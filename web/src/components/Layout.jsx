@@ -13,6 +13,7 @@ import {
   Receipt,
   LogOut,
   ChevronDown,
+  ChevronRight,
   Pin,
   PinOff,
 } from 'lucide-react'
@@ -215,15 +216,17 @@ export function Layout({ children }) {
         </nav>
 
         <div
-          className={`hidden md:block pt-4 mt-2 border-t border-white/10 ${
-            isSidebarExpanded ? 'px-6' : 'px-3'
+          className={`hidden md:block pt-3 mt-2 border-t border-white/10 ${
+            isSidebarExpanded ? 'px-3' : 'px-2'
           }`}
         >
           <Link
             to="/profile"
             title={!isSidebarExpanded ? profile?.name || 'Usuário' : undefined}
-            className={`flex items-center group ${
-              isSidebarExpanded ? 'gap-3' : 'justify-center'
+            className={`group flex items-center rounded-xl transition-colors ${
+              isSidebarExpanded
+                ? 'gap-3 px-3 py-2.5 bg-white/[0.04] hover:bg-white/[0.08]'
+                : 'justify-center p-2 hover:bg-white/[0.08]'
             }`}
           >
             <Avatar name={profile?.name} url={profile?.avatar_url} size={36} />
@@ -231,26 +234,26 @@ export function Layout({ children }) {
               <p className="text-white text-sm font-medium truncate">
                 {profile?.name || 'Usuário'}
               </p>
-              <p className="text-white/60 text-[11px] truncate">{profile?.email}</p>
+              <p className="text-white/55 text-[11px] truncate mt-0.5">{profile?.email}</p>
             </div>
+            {isSidebarExpanded && (
+              <ChevronRight
+                size={16}
+                className="flex-none text-white/25 transition-colors group-hover:text-accent"
+              />
+            )}
           </Link>
 
-          <div
-            className={`flex items-center mt-3 ${
-              isSidebarExpanded ? 'gap-3' : 'justify-center gap-2'
+          <button
+            onClick={handleLogout}
+            title="Sair"
+            className={`mt-1 flex w-full items-center rounded-lg text-[13px] font-medium text-white/55 transition-colors hover:bg-white/[0.06] hover:text-white ${
+              isSidebarExpanded ? 'gap-2.5 px-3 py-2.5' : 'justify-center p-2.5'
             }`}
           >
-            <button
-              onClick={handleLogout}
-              className={`flex items-center gap-2 text-white/60 hover:text-white text-[13px] transition-colors ${
-                isSidebarExpanded ? 'ml-auto' : ''
-              }`}
-              title="Sair"
-            >
-              <LogOut size={16} />
-              <span className={isSidebarExpanded ? 'inline' : 'hidden'}>Sair</span>
-            </button>
-          </div>
+            <LogOut size={16} className="flex-none" />
+            <span className={isSidebarExpanded ? 'inline' : 'hidden'}>Sair</span>
+          </button>
         </div>
       </aside>
 
