@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Plus, Trash2, AlertTriangle, CheckCircle2, LayoutTemplate } from 'lucide-react'
+import { Plus, Trash2, AlertTriangle, CheckCircle2, Search } from 'lucide-react'
 import { api } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 import { PageHeader } from '../components/ui/PageHeader'
@@ -414,38 +414,57 @@ export function ProjectBoardPage() {
           <PageHeader
             title="Gerenciamento de Projetos"
             subtitle="Escolha um projeto para ver suas tarefas"
-            actions={
-              canManageProjects && (
-                <>
-                  {isAdmin && (
-                    <Link
-                      to="/admin/deleted-projects"
-                      className="inline-flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors"
-                    >
-                      <Trash2 size={14} />
-                      Excluídos
-                    </Link>
-                  )}
-                  <Button variant="secondary" onClick={() => setView('templates')}>
-                    <LayoutTemplate size={16} />
-                    Templates
-                  </Button>
-                  <Button onClick={startCreateProject}>
-                    <Plus size={16} />
-                    Novo Projeto
-                  </Button>
-                </>
-              )
-            }
           />
-          <div className="mb-5">
-            <Input
-              label="Buscar projeto"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Nome ou cliente..."
-              className="w-72"
-            />
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <div className="relative min-w-[240px] max-w-xs flex-1">
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-secondary" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar projeto ou cliente..."
+                className="form-control h-8 w-full border pl-8 pr-3 text-[12px] outline-none transition-colors"
+              />
+            </div>
+
+            {canManageProjects && (
+              <>
+                <div className="flex h-8 border border-border-subtle">
+                  <button
+                    type="button"
+                    onClick={() => setView('catalog')}
+                    className={`px-3 text-[11px] transition-colors ${
+                      view === 'catalog' ? 'bg-ink text-white' : 'text-text-secondary hover:text-text-primary'
+                    }`}
+                  >
+                    Catálogo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setView('templates')}
+                    className={`border-l border-border-subtle px-3 text-[11px] transition-colors ${
+                      view === 'templates' ? 'bg-ink text-white' : 'text-text-secondary hover:text-text-primary'
+                    }`}
+                  >
+                    Templates
+                  </button>
+                </div>
+
+                {isAdmin && (
+                  <Link
+                    to="/admin/deleted-projects"
+                    className="inline-flex items-center gap-1.5 text-[11px] text-text-secondary transition-colors hover:text-text-primary"
+                  >
+                    <Trash2 size={13} />
+                    Excluídos
+                  </Link>
+                )}
+
+                <Button className="ml-auto h-8" onClick={startCreateProject}>
+                  <Plus size={15} />
+                  Novo projeto
+                </Button>
+              </>
+            )}
           </div>
           {loading ? (
             <div className="py-16 text-center text-text-secondary text-sm">Carregando...</div>
@@ -541,7 +560,7 @@ export function ProjectBoardPage() {
         title={editingProject ? 'Editar Projeto' : 'Novo Projeto'}
       >
         {formError && (
-          <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-4">
+          <div className="state-danger-soft text-sm p-3 mb-4">
             {formError}
           </div>
         )}
@@ -645,8 +664,8 @@ export function ProjectBoardPage() {
         }
       >
         <div className="flex flex-col items-center text-center mb-5">
-          <div className="bg-rose-500/15 p-4 mb-4">
-            <AlertTriangle className="text-rose-500" size={36} />
+          <div className="state-danger-soft p-4 mb-4">
+            <AlertTriangle className="state-danger" size={36} />
           </div>
           <h3 className="font-display text-2xl text-text-primary mb-2">Excluir projeto?</h3>
           <p className="text-text-secondary">
@@ -654,7 +673,7 @@ export function ProjectBoardPage() {
             <strong className="text-text-primary">{projectToDelete?.name}</strong>
           </p>
         </div>
-        <div className="bg-sky-500/10 border border-sky-500/20 p-4 text-sm">
+        <div className="bg-surface-alt border border-border-subtle p-4 text-sm">
           <p className="font-medium text-text-primary mb-1">Os apontamentos serão preservados.</p>
           <p className="text-text-secondary">
             Você pode restaurar este projeto a qualquer momento na página de{' '}
@@ -662,7 +681,7 @@ export function ProjectBoardPage() {
           </p>
         </div>
         {deleteError && (
-          <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mt-3">
+          <div className="state-danger-soft text-sm p-3 mt-3">
             {deleteError}
           </div>
         )}
@@ -676,8 +695,8 @@ export function ProjectBoardPage() {
         footer={<Button onClick={() => setSuccessMessage('')}>OK</Button>}
       >
         <div className="flex flex-col items-center text-center py-2">
-          <div className="bg-emerald-500/15 p-4 mb-4">
-            <CheckCircle2 className="text-emerald-500" size={36} />
+          <div className="state-success-soft p-4 mb-4">
+            <CheckCircle2 className="state-success" size={36} />
           </div>
           <p className="text-text-primary font-medium">{successMessage}</p>
         </div>

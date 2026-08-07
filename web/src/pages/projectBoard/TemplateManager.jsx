@@ -133,7 +133,7 @@ export function TemplateManager({ templates, onBack, onChanged }) {
       />
 
       {error && !editing && (
-        <div className="mb-4 bg-rose-500/10 text-rose-600 text-sm p-3">{error}</div>
+        <div className="mb-4 state-danger-soft text-sm p-3">{error}</div>
       )}
 
       {templates.length === 0 ? (
@@ -162,7 +162,7 @@ export function TemplateManager({ templates, onBack, onChanged }) {
                 <button
                   type="button"
                   onClick={() => setToDelete(t)}
-                  className="inline-flex items-center gap-1 text-[11px] text-rose-500 transition-colors hover:text-rose-400"
+                  className="inline-flex items-center gap-1 text-[11px] state-danger transition-colors hover:opacity-75"
                 >
                   <Trash2 size={12} /> Excluir
                 </button>
@@ -182,7 +182,7 @@ export function TemplateManager({ templates, onBack, onChanged }) {
         {editing && (
           <div className="space-y-3">
             {error && (
-              <div className="bg-rose-500/10 text-rose-600 text-sm p-3">{error}</div>
+              <div className="state-danger-soft text-sm p-3">{error}</div>
             )}
             <Input
               label="Nome do template"
@@ -267,7 +267,7 @@ export function TemplateManager({ templates, onBack, onChanged }) {
                         <button
                           type="button"
                           onClick={() => removeItem(idx)}
-                          className="text-text-secondary hover:text-rose-500 pt-1"
+                          className="text-text-secondary hover:text-[color:var(--state-danger)] pt-1"
                           title="Remover task"
                         >
                           <X size={15} />
@@ -302,8 +302,8 @@ export function TemplateManager({ templates, onBack, onChanged }) {
         }
       >
         <div className="flex flex-col items-center text-center py-2">
-          <div className="bg-rose-500/15 p-4 mb-4">
-            <AlertTriangle className="text-rose-500" size={32} />
+          <div className="state-danger-soft p-4 mb-4">
+            <AlertTriangle className="state-danger" size={32} />
           </div>
           <p className="text-text-primary">
             Excluir o template <span className="font-medium">{toDelete?.name}</span>? Projetos já criados a partir dele não são afetados.
@@ -319,8 +319,8 @@ export function TemplateManager({ templates, onBack, onChanged }) {
         footer={<Button onClick={() => setSuccess('')}>OK</Button>}
       >
         <div className="flex flex-col items-center text-center py-2">
-          <div className="bg-emerald-500/15 p-4 mb-4">
-            <CheckCircle2 className="text-emerald-500" size={32} />
+          <div className="state-success-soft p-4 mb-4">
+            <CheckCircle2 className="state-success" size={32} />
           </div>
           <p className="text-text-primary font-medium">{success}</p>
         </div>
