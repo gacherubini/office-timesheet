@@ -6,6 +6,8 @@ export default {
     extend: {
       colors: {
         ink: 'var(--color-ink)',
+        'state-danger': 'var(--state-danger)',
+        'state-success': 'var(--state-success)',
         'green-dk': 'var(--color-green-dk)',
         green: 'var(--color-green)',
         brown: 'var(--color-brown)',

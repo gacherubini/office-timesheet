@@ -26,6 +26,13 @@
   --color-border: rgba(15, 15, 15, 0.10);
   --color-hover: rgba(15, 15, 15, 0.04);
 
+  /* ── Cor de estado ────────────────────────────────────────────
+     O livro governa identidade, não semântica de estado. Dois hex
+     fora da paleta, afinados para o registro sóbrio da p.36.
+     "Atenção" não ganha cor nova: usa o laranja da marca.        */
+  --state-danger: #9E4034;
+  --state-success: #3E7355;
+
   /* Alias de compatibilidade: as páginas fora de escopo ainda usam accent. */
   --color-accent: var(--color-green);
   --color-accent-2: var(--color-orange);
@@ -98,6 +105,24 @@ button:focus-visible,
 }
 
 @layer components {
+  /* Sinal de estado. As variantes -soft trazem fundo e texto juntos, para
+     substituir os pares tipo `bg-rose-500/15 text-rose-500` de uma vez. */
+  .state-danger { color: var(--state-danger); }
+  .state-danger-soft {
+    background-color: color-mix(in srgb, var(--state-danger) 12%, transparent);
+    color: var(--state-danger);
+  }
+  .state-success { color: var(--state-success); }
+  .state-success-soft {
+    background-color: color-mix(in srgb, var(--state-success) 12%, transparent);
+    color: var(--state-success);
+  }
+  .state-attention { color: var(--color-orange); }
+  .state-attention-soft {
+    background-color: color-mix(in srgb, var(--color-orange) 14%, transparent);
+    color: var(--color-orange);
+  }
+
   .form-control {
     background-color: var(--color-field-bg);
     border-color: var(--color-field-border);
