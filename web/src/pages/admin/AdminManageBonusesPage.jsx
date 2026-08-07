@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { CheckCircle2, Gift, Trash2 } from 'lucide-react'
+import { CheckCircle2, Plus, Trash2 } from 'lucide-react'
 import { api } from '../../lib/api'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { Input, Select } from '../../components/ui/Input'
 import { DateField } from '../../components/ui/DateField'
+import { DateRange } from '../../components/ui/DateRange'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
 import { Avatar } from '../../components/Avatar'
@@ -68,12 +69,7 @@ export function AdminManageBonusesPage() {
   useEffect(() => {
     loadBonuses()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  function handleFilter(e) {
-    e.preventDefault()
-    loadBonuses()
-  }
+  }, [filters.user_id, filters.start_date, filters.end_date])
 
   function openCreate() {
     setCreateForm(EMPTY_BONUS_FORM)
@@ -131,125 +127,102 @@ export function AdminManageBonusesPage() {
       <PageHeader
         title="Gerenciar Bônus"
         subtitle="Conceder e excluir bônus de colaboradores"
-        actions={
-          <Button onClick={openCreate}>
-            <Gift size={16} />
-            Conceder Bônus
-          </Button>
-        }
       />
 
-      <Card className="mb-4">
-        <form onSubmit={handleFilter} className="flex flex-col xl:flex-row xl:items-end gap-3">
-          <Select
-            className="xl:w-64"
-            label="Colaborador"
-            value={filters.user_id}
-            onChange={(e) => setFilters({ ...filters, user_id: e.target.value })}
-          >
-            <option value="">Toda a equipe</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name}
-              </option>
-            ))}
-          </Select>
+      <div className="mb-3 flex flex-wrap items-end gap-2">
+        <Select
+          className="w-56"
+          label="Colaborador"
+          value={filters.user_id}
+          onChange={(e) => setFilters((prev) => ({ ...prev, user_id: e.target.value }))}
+        >
+          <option value="">Toda a equipe</option>
+          {users.map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.name}
+            </option>
+          ))}
+        </Select>
 
-          <DateField
-            label="De"
-            value={filters.start_date}
-            onChange={(e) => setFilters({ ...filters, start_date: e.target.value })}
-          />
-          <div className="hidden xl:block pb-2 text-text-secondary">→</div>
-          <DateField
-            label="Até"
-            value={filters.end_date}
-            onChange={(e) => setFilters({ ...filters, end_date: e.target.value })}
-          />
+        <DateRange
+          from={filters.start_date}
+          to={filters.end_date}
+          onFromChange={(value) => setFilters((prev) => ({ ...prev, start_date: value }))}
+          onToChange={(value) => setFilters((prev) => ({ ...prev, end_date: value }))}
+        />
 
-          <Button type="submit">Filtrar</Button>
-        </form>
-      </Card>
+        <Button className="ml-auto h-8" onClick={openCreate}>
+          <Plus size={15} /> Novo bônus
+        </Button>
+      </div>
 
       {error && (
-        <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-4">
+        <div className="state-danger-soft text-sm p-3 mb-4">
           {error}
         </div>
       )}
 
-      <Card padded={false} className="overflow-x-auto">
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="border-b border-border-subtle bg-surface-alt">
-              <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">Data</th>
-              <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">Colaborador</th>
-              <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">Bônus</th>
-              <th className="text-right px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">Valor</th>
-              <th className="text-right px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={5} className="px-3 py-6 text-center text-text-secondary">
-                  Carregando...
-                </td>
-              </tr>
-            ) : bonuses.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-3 py-6 text-center text-text-secondary">
-                  Nenhum bônus encontrado.
-                </td>
-              </tr>
-            ) : (
-              bonuses.map((bonus) => (
-                <tr
-                  key={bonus.id}
-                  className="border-b border-border-subtle last:border-b-0 hover:bg-surface-alt transition-colors"
-                >
-                  <td className="px-3 py-3 whitespace-nowrap text-text-primary">
-                    {formatDate(bonus.bonus_date)}
-                  </td>
-                  <td className="px-3 py-3 min-w-40">
-                    <div className="flex items-center gap-2">
-                      <Avatar name={bonus.profile?.name} url={bonus.profile?.avatar_url} size={28} />
-                      <div className="min-w-0">
-                        <p className="font-medium text-text-primary truncate">
-                          {bonus.profile?.name || '-'}
-                        </p>
-                        {bonus.profile?.position && (
-                          <p className="text-[11px] text-text-secondary truncate">
-                            {bonus.profile.position}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-3 py-3 min-w-56">
-                    <p className="font-medium text-text-primary">{bonus.title}</p>
-                    {bonus.description && (
-                      <p className="text-[11px] text-text-secondary mt-0.5 line-clamp-2">
-                        {bonus.description}
+      <Card padded={false}>
+        <div className="hidden sm:flex items-center gap-3 border-b border-border-subtle bg-bg px-4 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
+          <span className="w-20 flex-none">Data</span>
+          <span className="w-48 flex-none">Colaborador</span>
+          <span className="flex-1">Bônus</span>
+          <span className="w-28 flex-none text-right">Valor</span>
+          <span className="w-12 flex-none text-right">Ações</span>
+        </div>
+        <div className="divide-y divide-border-subtle">
+          {loading ? (
+            <p className="px-4 py-12 text-center text-sm text-text-secondary">Carregando...</p>
+          ) : bonuses.length === 0 ? (
+            <p className="px-4 py-12 text-center text-sm text-text-secondary">
+              Nenhum bônus encontrado.
+            </p>
+          ) : (
+            bonuses.map((bonus) => (
+              <div
+                key={bonus.id}
+                className="flex flex-col gap-1 px-4 py-2.5 transition-colors hover:bg-[color:var(--color-hover)] sm:flex-row sm:items-center sm:gap-3"
+              >
+                <span className="text-[12.5px] text-text-primary sm:w-20 sm:flex-none">
+                  {formatDate(bonus.bonus_date)}
+                </span>
+                <div className="flex items-center gap-2 sm:w-48 sm:flex-none">
+                  <Avatar name={bonus.profile?.name} url={bonus.profile?.avatar_url} size={28} />
+                  <div className="min-w-0">
+                    <p className="truncate text-[12.5px] font-medium text-text-primary">
+                      {bonus.profile?.name || '-'}
+                    </p>
+                    {bonus.profile?.position && (
+                      <p className="truncate text-[11px] text-text-secondary">
+                        {bonus.profile.position}
                       </p>
                     )}
-                  </td>
-                  <td className="px-3 py-3 text-right whitespace-nowrap font-medium tabular-nums text-accent">
-                    {formatCurrency(bonus.amount)}
-                  </td>
-                  <td className="px-3 py-3 text-right whitespace-nowrap">
-                    <button
-                      onClick={() => setBonusToDelete(bonus)}
-                      className="text-text-secondary hover:text-rose-500 transition-colors"
-                      title="Excluir"
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+                  </div>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[12.5px] font-medium text-text-primary">{bonus.title}</p>
+                  {bonus.description && (
+                    <p className="mt-0.5 text-[11px] text-text-secondary line-clamp-2">
+                      {bonus.description}
+                    </p>
+                  )}
+                </div>
+                <span className="text-[12.5px] font-medium tabular-nums text-accent sm:w-28 sm:flex-none sm:text-right">
+                  {formatCurrency(bonus.amount)}
+                </span>
+                <span className="sm:w-12 sm:flex-none sm:text-right">
+                  <button
+                    onClick={() => setBonusToDelete(bonus)}
+                    className="text-text-secondary hover:text-state-danger transition-colors"
+                    title="Excluir"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </span>
+              </div>
+            ))
+          )}
+        </div>
       </Card>
 
       <Modal
@@ -258,7 +231,7 @@ export function AdminManageBonusesPage() {
         title="Conceder Bônus"
       >
         {createError && (
-          <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-4">
+          <div className="state-danger-soft text-sm p-3 mb-4">
             {createError}
           </div>
         )}
@@ -354,8 +327,8 @@ export function AdminManageBonusesPage() {
         footer={<Button onClick={() => setSuccessMessage('')}>OK</Button>}
       >
         <div className="flex flex-col items-center text-center py-2">
-          <div className="bg-emerald-500/15 p-4 mb-4">
-            <CheckCircle2 className="text-emerald-500" size={36} />
+          <div className="state-success-soft p-4 mb-4">
+            <CheckCircle2 className="state-success" size={36} />
           </div>
           <p className="text-text-primary font-medium">{successMessage}</p>
         </div>
