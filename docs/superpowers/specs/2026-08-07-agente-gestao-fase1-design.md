@@ -86,6 +86,12 @@ O agente roda **como o admin logado**: todas as tools executam sob o RBAC dele
 (`permissions.js`). O modelo não tem credencial própria — ele só chama funções que checam
 permissão.
 
+**Núcleo agnóstico de canal (pré-requisito para a Fase 3).** O laço do agente
+(`lib/agent/loop.js`) e as tools são um **serviço reutilizável**, sem acoplamento à camada
+HTTP/site. Na Fase 1 o único adaptador é o site; na Fase 3, o WhatsApp via **Evolution API**
+chama exatamente esse mesmo serviço. Por isso, já na Fase 1, a lógica de agente fica separada
+do `routes/agent.js` — o objetivo "WhatsApp ser a mesma coisa que o site" depende disso.
+
 ---
 
 ## 4. Cliente de LLM (agnóstico de modelo)
@@ -278,5 +284,7 @@ propor e aprovar).
   **fila de aprovação** — automação nunca escreve sem humano no meio); Google Calendar
   (OAuth próprio); relatórios em PDF (Tigris); alertas proativos; provisão de bônus;
   leitura de briefings em PDF; memória de preferências; exportações.
-- **Fase 3:** WhatsApp (áudio→transcrição via Whisper/Gemini; foto de nota→despesa via
-  visão/OCR); mesmo cérebro, novo canal; decisão API oficial vs. não-oficial.
+- **Fase 3:** WhatsApp via **Evolution API** (self-hosted, não-oficial): recebe mensagem por
+  webhook, identifica o admin pelo número e chama o **mesmo núcleo** deste design; resposta
+  volta pelo endpoint de envio da Evolution. Inclui áudio→transcrição (Whisper/Gemini) e foto
+  de nota→despesa (visão/OCR). Confirmação de escrita vira resposta/botão no WhatsApp.

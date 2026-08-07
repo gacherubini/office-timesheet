@@ -33,6 +33,7 @@ respondendo em português.
 | **Usuários** | Só admin/gestão | Casos de maior valor (faturamento, equipe) e controle de acesso mais simples |
 | **Escopo** | Read **+** write | Além de responder, age: apontar, encerrar timer, criar task |
 | **Canal inicial** | Site primeiro | Já há JWT e SSE; valida o "cérebro" sem custo/risco de WhatsApp |
+| **WhatsApp (Fase 3)** | **Evolution API** (self-hosted, não-oficial), reusando o mesmo núcleo | Grátis e sob nosso controle; WhatsApp vira só um adaptador do agente do site |
 | **Abordagem de dados** | Híbrido: tools curadas + SQL de leitura restrito | Segurança das tools + flexibilidade do SQL para perguntas ad-hoc |
 | **Modelo** | Agnóstico via OpenRouter, padrão **DeepSeek V4 Flash** | O mais barato; trocável por Kimi/Gemini em 1 linha; decisão final por A/B |
 | **Privacidade** | Sem restrição (prioriza custo) | Usuário optou pelo mais barato mesmo com hospedagem na China |
@@ -69,13 +70,27 @@ O cérebro do bot. Onde mora o risco e o valor. Detalhe técnico no arquivo de d
 
 ### Fase 3 — Canal WhatsApp
 
-- Mesmo cérebro, novo canal.
-- **Áudio**: o WhatsApp **não** entrega transcrição pronta ao bot — a API dá o arquivo de
-  áudio e nós transcrevemos (Whisper da OpenAI ou Gemini nativo). Português funciona bem.
+- **Mesmo cérebro, novo canal.** O núcleo do agente é agnóstico de canal (ver §10): o
+  WhatsApp é um **adaptador fino** sobre o mesmo agente do site. "Ser a mesma coisa que o
+  site" = mesmo núcleo, canais diferentes; nenhuma lógica de agente é duplicada.
+- **Gateway: Evolution API** (self-hosted, open-source). Roda em container, conecta a um
+  número de WhatsApp via QR code (protocolo multi-device). Isso resolve a decisão que estava
+  pendente — optamos pelo caminho **não-oficial** (grátis, self-hosted, sob nosso controle)
+  em vez da API oficial da Meta.
+- **Fluxo:** mensagem recebida no WhatsApp → Evolution dispara um **webhook** para a nossa
+  API → a API identifica o admin pelo número → chama o **mesmo núcleo do agente** → a resposta
+  volta pelo endpoint de envio da Evolution. O WhatsApp "chama o modelo diretamente" pelo
+  mesmo caminho que o site.
+- **Confirmação de escrita:** sem botão como no site, vira resposta (ex.: "responda *SIM*
+  para confirmar") ou botões interativos, se suportado. O princípio de confirmação
+  obrigatória se mantém idêntico ao do site.
+- **Áudio**: o WhatsApp **não** entrega transcrição pronta ao bot — a Evolution dá o arquivo
+  de áudio e nós transcrevemos (Whisper da OpenAI ou Gemini nativo). Português funciona bem.
 - **Foto de nota fiscal → despesa**: modelo de visão lê a imagem, extrai campos, propõe a
   despesa (com confirmação).
-- Decisão pendente: **API oficial da Meta** (estável, legal, exige verificação de negócio)
-  vs. **biblioteca não-oficial** (grátis, mas viola termos e risco de banimento).
+- **Trade-off (ver §12):** a Evolution é não-oficial → contra os termos do WhatsApp, com
+  risco de banimento do número. Aceitável para uso interno/admin; mitigar com um **número
+  dedicado**, nunca o principal do estúdio.
 
 ---
 
@@ -203,6 +218,9 @@ coerente com a política de privacidade atual (identificação por `user_id`).
 
 ## 10. Arquitetura técnica (resumo)
 
+- **Núcleo agnóstico de canal:** o agente é um **serviço reutilizável**, não acoplado ao
+  site. O site (Fase 1) e o WhatsApp via **Evolution API** (Fase 3) são apenas adaptadores
+  que chamam o mesmo núcleo — mesmas tools, mesma segurança, mesmo fluxo de confirmação.
 - **Frontend (React/Vite):** widget de chat com streaming + UI de confirmação.
 - **API Express (`src/`):** módulo do agente — `routes/agent.js`, `lib/agent/loop.js`,
   `lib/agent/client.js` (cliente OpenAI-compatible), `lib/agent/tools/` (read/sql/write),
@@ -217,10 +235,13 @@ coerente com a política de privacidade atual (identificação por `user_id`).
 ## 11. Custo (não-técnico)
 
 - **LLM:** ~R$ 30–100/mês na Fase 1 (admin-only, baixo volume, contexto cacheado).
-- **WhatsApp (Fase 3):** de ~R$ 0 (bot inbound, conversas de serviço) a ~R$ 100/mês.
-- **Hospedagem:** incremental ~zero (roda na API/Fly existente).
+- **WhatsApp (Fase 3):** ~R$ 0 de mensagens (Evolution é self-hosted, sem tarifa da Meta);
+  custo só do container onde a Evolution roda (baixo).
+- **Hospedagem:** incremental ~zero na Fase 1 (roda na API/Fly existente); na Fase 3, soma o
+  container da Evolution.
 - **Total realista (produto maduro, time pequeno):** faixa de R$ 100–400/mês. O maior
-  "custo" não é dinheiro, é a decisão do canal WhatsApp (oficial vs. não-oficial).
+  "custo" da Fase 3 não é dinheiro, é operar a Evolution de forma estável e o risco de
+  banimento do número.
 
 ---
 
@@ -228,8 +249,9 @@ coerente com a política de privacidade atual (identificação por `user_id`).
 
 - **LGPD:** dados financeiros/pessoais vão para API de terceiros. Usuário optou por custo
   (DeepSeek/Kimi na China). Registrar essa decisão; Gemini/Vertex é a saída se mudar.
-- **Canal WhatsApp:** biblioteca não-oficial viola termos e pode levar a banimento — ok para
-  protótipo interno, arriscado para produção.
+- **Canal WhatsApp:** a **Evolution API** é não-oficial (protocolo web/Baileys) — viola os
+  termos do WhatsApp e pode levar a banimento do número. Aceitável para uso interno/admin;
+  mitigar com um **número dedicado** (nunca o principal do estúdio) e monitorar a conexão.
 - **Alucinação:** mitigada pela camada 1 (modelo nunca é fonte da verdade) + tools.
 - **Ação indevida:** mitigada pela confirmação obrigatória + RBAC na execução.
 - **Custo descontrolado:** mitigado pelos guardas (teto de tokens/iterações/timeout).
