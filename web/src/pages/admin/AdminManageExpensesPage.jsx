@@ -118,7 +118,7 @@ export function AdminManageExpensesPage() {
       </Card>
 
       {error && (
-        <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">
+        <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-4">
           {error}
         </div>
       )}
@@ -127,13 +127,13 @@ export function AdminManageExpensesPage() {
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-border-subtle bg-surface-alt">
-              <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">Data</th>
-              <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">Colaborador</th>
-              <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">Despesa</th>
-              <th className="text-right px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">Valor</th>
-              <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">Status</th>
-              <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">Comprovante</th>
-              <th className="text-right px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">Ações</th>
+              <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">Data</th>
+              <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">Colaborador</th>
+              <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">Despesa</th>
+              <th className="text-right px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">Valor</th>
+              <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">Status</th>
+              <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">Comprovante</th>
+              <th className="text-right px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -244,7 +244,7 @@ export function AdminManageExpensesPage() {
           Tem certeza que deseja excluir esta despesa? Esta ação não pode ser desfeita.
         </p>
         {expenseToDelete && (
-          <div className="mt-3 rounded-lg border border-border-subtle bg-surface-alt px-3 py-2 text-sm">
+          <div className="mt-3 border border-border-subtle bg-surface-alt px-3 py-2 text-sm">
             <p className="font-medium text-text-primary">{expenseToDelete.title}</p>
             <p className="text-xs text-text-secondary">
               {expenseToDelete.profile?.name || 'Colaborador'} · {formatDate(expenseToDelete.expense_date)} · {formatCurrency(expenseToDelete.amount)}
@@ -260,7 +260,7 @@ export function AdminManageExpensesPage() {
         footer={<Button onClick={() => setSuccessMessage('')}>OK</Button>}
       >
         <div className="flex flex-col items-center text-center py-2">
-          <div className="bg-emerald-500/15 rounded-full p-4 mb-4">
+          <div className="bg-emerald-500/15 p-4 mb-4">
             <CheckCircle2 className="text-emerald-500" size={36} />
           </div>
           <p className="text-text-primary font-medium">{successMessage}</p>

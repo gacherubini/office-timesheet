@@ -29,14 +29,14 @@ export function StatusChip({ value, onChange, disabled }) {
         type="button"
         disabled={disabled}
         onClick={() => setOpen((o) => !o)}
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_STYLES[value]} disabled:cursor-not-allowed disabled:opacity-60`}
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[value]} disabled:cursor-not-allowed disabled:opacity-60`}
       >
         {current.label}
         <ChevronDown size={12} />
       </button>
 
       {open && (
-        <div className="absolute z-30 left-0 top-full mt-1 w-44 bg-surface border border-border-subtle rounded-lg shadow-xl overflow-hidden">
+        <div className="absolute z-30 left-0 top-full mt-1 w-44 bg-surface border border-border-subtle shadow-xl overflow-hidden">
           {COLUMNS.map((c) => (
             <button
               key={c.key}
@@ -44,7 +44,7 @@ export function StatusChip({ value, onChange, disabled }) {
               onClick={() => pick(c.key)}
               className="w-full flex items-center justify-between px-3 py-2 text-xs text-text-primary hover:bg-surface-alt"
             >
-              <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full ${STATUS_STYLES[c.key]}`}>
+              <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 ${STATUS_STYLES[c.key]}`}>
                 {c.label}
               </span>
               {c.key === value && <Check size={12} className="text-text-secondary" />}

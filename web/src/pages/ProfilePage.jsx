@@ -173,7 +173,7 @@ export function ProfilePage() {
     <div className="max-w-3xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary">Meu Perfil</h1>
+          <h1 className="text-2xl font-medium text-text-primary">Meu Perfil</h1>
           <p className="text-sm text-text-secondary mt-1">Gerencie suas informações pessoais.</p>
         </div>
       </div>
@@ -197,7 +197,7 @@ export function ProfilePage() {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full text-white flex items-center justify-center hover:opacity-90 disabled:opacity-50 transition-opacity"
+              className="absolute -bottom-1 -right-1 w-8 h-8 text-white flex items-center justify-center hover:opacity-90 disabled:opacity-50 transition-opacity"
               style={{ background: 'var(--color-accent)' }}
               title="Alterar foto"
             >
@@ -213,17 +213,17 @@ export function ProfilePage() {
           </div>
 
           <div className="min-w-0">
-            <p className="font-semibold text-text-primary truncate">{form.name}</p>
+            <p className="font-medium text-text-primary truncate">{form.name}</p>
             <p className="text-sm text-text-secondary truncate">{form.email}</p>
-            <span className="inline-flex mt-2 text-xs font-medium px-2 py-0.5 rounded bg-surface-alt text-text-secondary">
+            <span className="inline-flex mt-2 text-xs font-medium px-2 py-0.5 bg-surface-alt text-text-secondary">
               {roleLabel(form.role)}
             </span>
           </div>
         </div>
 
         <div className="p-5 space-y-4">
-          {error && <div className="rounded-lg bg-rose-500/10 text-rose-600 text-sm p-3">{error}</div>}
-          {success && <div className="rounded-lg bg-emerald-500/10 text-emerald-600 text-sm p-3">{success}</div>}
+          {error && <div className="bg-rose-500/10 text-rose-600 text-sm p-3">{error}</div>}
+          {success && <div className="bg-emerald-500/10 text-emerald-600 text-sm p-3">{success}</div>}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -231,7 +231,7 @@ export function ProfilePage() {
               <input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="w-full form-control rounded-lg border px-3 py-2 text-sm outline-none transition-colors"
+                className="w-full form-control border px-3 py-2 text-sm outline-none transition-colors"
                 required
               />
             </div>
@@ -240,7 +240,7 @@ export function ProfilePage() {
               <label className="block text-sm font-medium text-text-secondary mb-1">E-mail</label>
               <input
                 value={form.email}
-                className="w-full form-control-muted rounded-lg border px-3 py-2 text-sm"
+                className="w-full form-control-muted border px-3 py-2 text-sm"
                 disabled
               />
             </div>
@@ -252,7 +252,7 @@ export function ProfilePage() {
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 placeholder="(11) 99999-9999"
-                className="w-full form-control rounded-lg border px-3 py-2 text-sm outline-none transition-colors"
+                className="w-full form-control border px-3 py-2 text-sm outline-none transition-colors"
               />
             </div>
 
@@ -271,7 +271,7 @@ export function ProfilePage() {
               <label className="block text-sm font-medium text-text-secondary mb-1">Cargo</label>
               <input
                 value={form.position || 'Não informado'}
-                className="w-full form-control-muted rounded-lg border px-3 py-2 text-sm"
+                className="w-full form-control-muted border px-3 py-2 text-sm"
                 disabled
               />
             </div>
@@ -280,7 +280,7 @@ export function ProfilePage() {
               <label className="block text-sm font-medium text-text-secondary mb-1">Perfil</label>
               <input
                 value={roleLabel(form.role)}
-                className="w-full form-control-muted rounded-lg border px-3 py-2 text-sm"
+                className="w-full form-control-muted border px-3 py-2 text-sm"
                 disabled
               />
             </div>
@@ -289,7 +289,7 @@ export function ProfilePage() {
               <label className="block text-sm font-medium text-text-secondary mb-1">Horas trabalhadas (mês)</label>
               <input
                 value={stats ? formatHours(stats.total_minutes) : '—'}
-                className="w-full form-control-muted rounded-lg border px-3 py-2 text-sm"
+                className="w-full form-control-muted border px-3 py-2 text-sm"
                 disabled
               />
             </div>
@@ -298,7 +298,7 @@ export function ProfilePage() {
               <label className="block text-sm font-medium text-text-secondary mb-1">Valor por hora</label>
               <input
                 value={stats ? `${formatCurrency(stats.hourly_rate)}/h` : '—'}
-                className="w-full form-control-muted rounded-lg border px-3 py-2 text-sm"
+                className="w-full form-control-muted border px-3 py-2 text-sm"
                 disabled
               />
             </div>
@@ -309,7 +309,7 @@ export function ProfilePage() {
           <button
             type="submit"
             disabled={saving || uploading}
-            className="inline-flex items-center gap-2 text-white px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
+            className="inline-flex items-center gap-2 text-white px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
             style={{ background: 'var(--color-accent)' }}
           >
             <Save size={16} />
@@ -320,11 +320,11 @@ export function ProfilePage() {
 
       <form onSubmit={handlePasswordSubmit} className="bg-surface border border-border-subtle overflow-hidden mt-5">
         <div className="p-5 border-b border-border-subtle flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-[color:var(--color-accent)]/15 text-accent flex items-center justify-center">
+          <div className="w-10 h-10 bg-[color:var(--color-accent)]/15 text-accent flex items-center justify-center">
             <KeyRound size={18} />
           </div>
           <div>
-            <h2 className="font-semibold text-text-primary">Alterar senha</h2>
+            <h2 className="font-medium text-text-primary">Alterar senha</h2>
             <p className="text-sm text-text-secondary">
               Informe sua senha atual para definir uma nova.
             </p>
@@ -333,12 +333,12 @@ export function ProfilePage() {
 
         <div className="p-5 space-y-4">
           {passwordError && (
-            <div className="rounded-lg bg-rose-500/10 text-rose-600 text-sm p-3">
+            <div className="bg-rose-500/10 text-rose-600 text-sm p-3">
               {passwordError}
             </div>
           )}
           {passwordSuccess && (
-            <div className="rounded-lg bg-emerald-500/10 text-emerald-600 text-sm p-3">
+            <div className="bg-emerald-500/10 text-emerald-600 text-sm p-3">
               {passwordSuccess}
             </div>
           )}
@@ -352,7 +352,7 @@ export function ProfilePage() {
                 type="password"
                 value={passwordForm.current_password}
                 onChange={(e) => setPasswordForm({ ...passwordForm, current_password: e.target.value })}
-                className="w-full form-control rounded-lg border px-3 py-2 text-sm outline-none transition-colors"
+                className="w-full form-control border px-3 py-2 text-sm outline-none transition-colors"
                 required
               />
             </div>
@@ -366,7 +366,7 @@ export function ProfilePage() {
                 minLength={6}
                 value={passwordForm.new_password}
                 onChange={(e) => setPasswordForm({ ...passwordForm, new_password: e.target.value })}
-                className="w-full form-control rounded-lg border px-3 py-2 text-sm outline-none transition-colors"
+                className="w-full form-control border px-3 py-2 text-sm outline-none transition-colors"
                 required
               />
             </div>
@@ -380,7 +380,7 @@ export function ProfilePage() {
                 minLength={6}
                 value={passwordForm.confirm_password}
                 onChange={(e) => setPasswordForm({ ...passwordForm, confirm_password: e.target.value })}
-                className="w-full form-control rounded-lg border px-3 py-2 text-sm outline-none transition-colors"
+                className="w-full form-control border px-3 py-2 text-sm outline-none transition-colors"
                 required
               />
             </div>
@@ -391,7 +391,7 @@ export function ProfilePage() {
           <button
             type="submit"
             disabled={passwordSaving}
-            className="inline-flex items-center gap-2 text-white px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
+            className="inline-flex items-center gap-2 text-white px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
             style={{ background: 'var(--color-accent)' }}
           >
             <KeyRound size={16} />
@@ -419,7 +419,7 @@ export function ProfilePage() {
             src={form.avatar_url}
             alt={form.name || 'Foto de perfil'}
             onClick={(e) => e.stopPropagation()}
-            className="max-h-[85vh] max-w-[85vw] rounded-2xl object-contain shadow-2xl"
+            className="max-h-[85vh] max-w-[85vw] object-contain shadow-2xl"
           />
         </div>
       )}

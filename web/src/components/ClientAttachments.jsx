@@ -96,7 +96,7 @@ export function ClientAttachments({ clientId }) {
       <div
         {...dropProps}
         onClick={() => items.length === 0 && !uploading && inputRef.current?.click()}
-        className={`relative rounded-lg border border-dashed p-3 transition-colors ${
+        className={`relative border border-dashed p-3 transition-colors ${
           dragOver ? 'border-accent bg-accent/10' : 'border-border-subtle'
         } ${items.length === 0 ? 'cursor-pointer' : ''}`}
       >
@@ -112,7 +112,7 @@ export function ClientAttachments({ clientId }) {
           </div>
         )}
         {dragOver && (
-          <div className="absolute inset-0 rounded-lg border-2 border-dashed border-accent bg-accent/10 flex items-center justify-center pointer-events-none">
+          <div className="absolute inset-0 border-2 border-dashed border-accent bg-accent/10 flex items-center justify-center pointer-events-none">
             <span className="text-xs font-medium text-accent">Solte para anexar ao cliente</span>
           </div>
         )}

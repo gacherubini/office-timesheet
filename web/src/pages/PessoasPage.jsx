@@ -85,7 +85,7 @@ function TabChip({ active, label, count, tone, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
+      className={`inline-flex items-center gap-2 border px-4 py-1.5 text-sm font-medium transition-colors ${
         active
           ? 'border-transparent bg-[color:var(--color-accent)] text-white'
           : 'border-border-subtle text-text-secondary hover:text-text-primary hover:bg-surface-alt'
@@ -93,7 +93,7 @@ function TabChip({ active, label, count, tone, onClick }) {
     >
       {label}
       <span
-        className={`inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] tabular-nums ${
+        className={`inline-flex min-w-5 items-center justify-center px-1.5 text-[11px] tabular-nums ${
           active ? 'bg-white/25 text-white' : 'bg-surface-alt text-text-secondary'
         }`}
       >
@@ -471,7 +471,7 @@ export function PessoasPage() {
       />
 
       {pageError && (
-        <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">
+        <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-4">
           {pageError}
         </div>
       )}
@@ -497,7 +497,7 @@ export function PessoasPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar por nome, e-mail ou telefone..."
-          className="form-control w-full rounded-lg border pl-9 pr-3 py-2 text-sm outline-none transition-colors"
+          className="form-control w-full border pl-9 pr-3 py-2 text-sm outline-none transition-colors"
         />
       </div>
 
@@ -511,7 +511,7 @@ export function PessoasPage() {
         ) : (
           <>
             {/* Cabeçalho de colunas — diz o que é cada valor da linha. */}
-            <div className="hidden sm:flex items-center gap-3 px-4 py-2.5 border-b border-border-subtle bg-surface-alt text-[11px] font-semibold uppercase tracking-wider text-text-secondary">
+            <div className="hidden sm:flex items-center gap-3 px-4 py-2.5 border-b border-border-subtle bg-surface-alt text-[11px] font-medium uppercase tracking-wider text-text-secondary">
               <span className="flex-1">Nome</span>
               <span className="w-28 flex-none">Tipo</span>
               <span className="w-20 flex-none">Status</span>
@@ -611,7 +611,7 @@ export function PessoasPage() {
         title={editingUser ? 'Editar Colaborador' : 'Novo Colaborador'}
       >
         {formError && (
-          <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">
+          <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-4">
             {formError}
           </div>
         )}
@@ -701,7 +701,7 @@ export function PessoasPage() {
                 type="checkbox"
                 checked={form.is_active}
                 onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
-                className="rounded border-border-subtle"
+                className="border-border-subtle"
               />
               Ativo
             </label>
@@ -746,7 +746,7 @@ export function PessoasPage() {
         }
       >
         <div className="flex flex-col items-center text-center mb-5">
-          <div className="bg-rose-500/15 rounded-full p-4 mb-4">
+          <div className="bg-rose-500/15 p-4 mb-4">
             <AlertTriangle className="text-rose-500" size={36} />
           </div>
           <h3 className="font-display text-2xl text-text-primary mb-2">Excluir colaborador?</h3>
@@ -755,7 +755,7 @@ export function PessoasPage() {
             <strong className="text-text-primary">{userToDelete?.name}</strong>
           </p>
         </div>
-        <div className="bg-sky-500/10 border border-sky-500/20 rounded-lg p-4 text-sm">
+        <div className="bg-sky-500/10 border border-sky-500/20 p-4 text-sm">
           <p className="font-medium text-text-primary mb-1">Os apontamentos serão preservados.</p>
           <p className="text-text-secondary">
             Você pode restaurar este colaborador a qualquer momento na aba{' '}
@@ -763,7 +763,7 @@ export function PessoasPage() {
           </p>
         </div>
         {deleteError && (
-          <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mt-3">
+          <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mt-3">
             {deleteError}
           </div>
         )}
@@ -814,7 +814,7 @@ export function PessoasPage() {
         }
       >
         <div className="flex flex-col items-center text-center mb-5">
-          <div className="bg-rose-500/15 rounded-full p-4 mb-4">
+          <div className="bg-rose-500/15 p-4 mb-4">
             <AlertTriangle className="text-rose-500" size={36} />
           </div>
           <h3 className="font-display text-2xl text-text-primary mb-2">
@@ -825,7 +825,7 @@ export function PessoasPage() {
             <strong className="text-text-primary">{contactToDelete?.raw?.name}</strong>
           </p>
         </div>
-        <div className="bg-rose-500/10 border border-rose-500/20 rounded-lg p-4 text-sm">
+        <div className="bg-rose-500/10 border border-rose-500/20 p-4 text-sm">
           <p className="font-medium text-text-primary mb-1">Esta ação remove o cadastro.</p>
           <p className="text-text-secondary">
             {contactToDelete?.kind === 'cliente'
@@ -834,7 +834,7 @@ export function PessoasPage() {
           </p>
         </div>
         {contactDeleteError && (
-          <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mt-3">
+          <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mt-3">
             {contactDeleteError}
           </div>
         )}
@@ -848,7 +848,7 @@ export function PessoasPage() {
         footer={<Button onClick={() => setSuccessMessage('')}>OK</Button>}
       >
         <div className="flex flex-col items-center text-center py-2">
-          <div className="bg-emerald-500/15 rounded-full p-4 mb-4">
+          <div className="bg-emerald-500/15 p-4 mb-4">
             <CheckCircle2 className="text-emerald-500" size={36} />
           </div>
           <p className="text-text-primary font-medium">{successMessage}</p>
@@ -920,7 +920,7 @@ function PersonRow({ person, onOpen, onRestore, restoring, canRestore, canAccess
             rel="noreferrer"
             onClick={(e) => e.stopPropagation()}
             title="Abrir WhatsApp"
-            className="text-emerald-500 hover:text-emerald-400 p-1 rounded hover:bg-emerald-500/10 transition-colors flex-none"
+            className="text-emerald-500 hover:text-emerald-400 p-1 hover:bg-emerald-500/10 transition-colors flex-none"
           >
             <MessageCircle size={16} />
           </a>
@@ -1012,7 +1012,7 @@ function PersonDetailModal({
           {canEdit && (
             <button
               onClick={() => onEdit(person)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border-subtle px-3 py-1.5 text-sm text-text-secondary hover:text-text-primary hover:bg-surface-alt transition-colors"
+              className="inline-flex items-center gap-1.5 border border-border-subtle px-3 py-1.5 text-sm text-text-secondary hover:text-text-primary hover:bg-surface-alt transition-colors"
             >
               <Pencil size={14} /> Editar
             </button>
@@ -1023,7 +1023,7 @@ function PersonDetailModal({
         </div>
       </div>
 
-      <div className="rounded-lg border border-border-subtle px-4">
+      <div className="border border-border-subtle px-4">
         {person.kind === 'cliente' && (
           <>
             <DetailRow label="E-mail">{raw.email}</DetailRow>
@@ -1066,7 +1066,7 @@ function PersonDetailModal({
         )}
       </div>
 
-      <div className="mt-4 rounded-lg bg-surface-alt p-3 text-[13px] text-text-secondary">
+      <div className="mt-4 bg-surface-alt p-3 text-[13px] text-text-secondary">
         Histórico CRM, documentos e projetos vinculados chegam na próxima etapa.
       </div>
 
@@ -1076,7 +1076,7 @@ function PersonDetailModal({
             href={wa}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1.5 text-sm text-emerald-500 hover:text-emerald-400 px-3 py-2 rounded-lg hover:bg-emerald-500/10 transition-colors"
+            className="inline-flex items-center gap-1.5 text-sm text-emerald-500 hover:text-emerald-400 px-3 py-2 hover:bg-emerald-500/10 transition-colors"
           >
             <MessageCircle size={15} /> WhatsApp
           </a>
@@ -1084,7 +1084,7 @@ function PersonDetailModal({
         {person.email && (
           <a
             href={`mailto:${person.email}`}
-            className="inline-flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary px-3 py-2 rounded-lg hover:bg-surface-alt transition-colors"
+            className="inline-flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary px-3 py-2 hover:bg-surface-alt transition-colors"
           >
             <Mail size={15} /> E-mail
           </a>
@@ -1092,7 +1092,7 @@ function PersonDetailModal({
         {canDelete && (
           <button
             onClick={() => onDelete(person)}
-            className="inline-flex items-center gap-1.5 text-sm text-rose-500 hover:text-rose-400 px-3 py-2 rounded-lg hover:bg-rose-500/10 transition-colors"
+            className="inline-flex items-center gap-1.5 text-sm text-rose-500 hover:text-rose-400 px-3 py-2 hover:bg-rose-500/10 transition-colors"
           >
             <Trash2 size={15} /> Excluir
           </button>
@@ -1134,9 +1134,9 @@ function NewPersonChooser({
               key={opt.kind}
               disabled={!opt.allowed}
               onClick={() => onPick(opt.kind)}
-              className="w-full flex items-center gap-3 rounded-lg border border-border-subtle p-3 text-left hover:bg-surface-alt disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="w-full flex items-center gap-3 border border-border-subtle p-3 text-left hover:bg-surface-alt disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
-              <span className="w-10 h-10 rounded-lg bg-[color:var(--color-accent)]/15 text-accent flex items-center justify-center flex-none">
+              <span className="w-10 h-10 bg-[color:var(--color-accent)]/15 text-accent flex items-center justify-center flex-none">
                 <Icon size={18} />
               </span>
               <span className="min-w-0">

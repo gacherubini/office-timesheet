@@ -37,10 +37,10 @@ export function AgendaCard() {
   }, [])
 
   return (
-    <Card padded={false} className="overflow-hidden rounded-2xl">
+    <Card padded={false} className="overflow-hidden">
       <div className="px-4 py-3.5 border-b border-border-subtle flex items-center justify-between">
-        <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary inline-flex items-center gap-2">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[color:var(--color-accent)]/12 text-[color:var(--color-accent)]">
+        <h2 className="text-[11px] font-medium uppercase tracking-wider text-text-secondary inline-flex items-center gap-2">
+          <span className="flex h-7 w-7 items-center justify-center bg-[color:var(--color-accent)]/12 text-[color:var(--color-accent)]">
             <CalendarClock size={14} />
           </span>
           Minha Agenda
@@ -67,7 +67,7 @@ export function AgendaCard() {
             return (
               <div key={it.id} className="flex items-center gap-3 px-4 py-3">
                 <span
-                  className="flex h-8 w-8 items-center justify-center rounded-lg flex-shrink-0"
+                  className="flex h-8 w-8 items-center justify-center flex-shrink-0"
                   style={{
                     background: holiday
                       ? 'color-mix(in srgb, #E5484D 14%, transparent)'

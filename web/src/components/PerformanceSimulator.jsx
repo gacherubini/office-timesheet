@@ -187,17 +187,17 @@ export function PerformanceSimulator({ stats, cursor }) {
       <div className="flex items-center justify-between gap-2 mb-1">
         <div className="flex items-center gap-2">
           <CalendarClock size={16} className="text-text-secondary" />
-          <h2 className="text-[15px] font-semibold text-text-primary">Simulador de performance</h2>
+          <h2 className="text-[15px] font-medium text-text-primary">Simulador de performance</h2>
         </div>
         <span aria-live="polite" className="flex items-center">
           {saveState === 'saving' && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-alt px-2.5 py-1 text-[11px] font-medium text-text-secondary">
+            <span className="inline-flex items-center gap-1.5 bg-surface-alt px-2.5 py-1 text-[11px] font-medium text-text-secondary">
               <Loader2 size={12} className="animate-spin motion-reduce:animate-none" />
               Salvando…
             </span>
           )}
           {saveState === 'saved' && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--color-brown)]/[0.12] px-2.5 py-1 text-[11px] font-medium text-[color:var(--color-brown)]">
+            <span className="inline-flex items-center gap-1.5 bg-[color:var(--color-brown)]/[0.12] px-2.5 py-1 text-[11px] font-medium text-[color:var(--color-brown)]">
               <Check size={12} strokeWidth={2.5} />
               Salvo
             </span>
@@ -210,7 +210,7 @@ export function PerformanceSimulator({ stats, cursor }) {
       </p>
 
       {/* Painel-meta: o coração do simulador. */}
-      <div className="rounded-xl border border-[color:var(--color-accent)]/30 bg-[color:var(--color-accent)]/[0.06] p-4 mb-4">
+      <div className="border border-[color:var(--color-accent)]/30 bg-[color:var(--color-accent)]/[0.06] p-4 mb-4">
         <div className="flex flex-wrap items-end gap-x-6 gap-y-4">
           <label className="block">
             <span className="block text-[11px] font-medium uppercase tracking-wider text-text-secondary mb-1">
@@ -240,7 +240,7 @@ export function PerformanceSimulator({ stats, cursor }) {
               <span>Digite a meta para distribuir as horas.</span>
             ) : model.weekdayCount > 0 ? (
               <span>
-                <strong className="font-semibold text-text-primary tabular-nums">{hoursLabel(model.perWeekday)}</strong>{' '}
+                <strong className="font-medium text-text-primary tabular-nums">{hoursLabel(model.perWeekday)}</strong>{' '}
                 por dia útil · {model.weekdayCount} {model.weekdayCount === 1 ? 'dia' : 'dias'} restantes
               </span>
             ) : (
@@ -255,7 +255,7 @@ export function PerformanceSimulator({ stats, cursor }) {
               type="checkbox"
               checked={config.include_weekends}
               onChange={(e) => updateConfig({ include_weekends: e.target.checked })}
-              className="h-4 w-4 rounded border-border-subtle accent-[color:var(--color-brown)]"
+              className="h-4 w-4 border-border-subtle accent-[color:var(--color-brown)]"
             />
             Incluir fins de semana <span className="text-text-secondary">(hora extra)</span>
           </label>
@@ -270,7 +270,7 @@ export function PerformanceSimulator({ stats, cursor }) {
                   updateConfig({ weekend_default_minutes: Math.round(parseHours(e.target.value) * 60) })
                 }}
                 aria-label="Horas padrão por dia de fim de semana"
-                className="w-14 rounded-md border border-border-subtle bg-surface px-2 py-1 text-right text-sm text-text-primary tabular-nums outline-none focus:border-[color:var(--color-brown)]"
+                className="w-14 border border-border-subtle bg-surface px-2 py-1 text-right text-sm text-text-primary tabular-nums outline-none focus:border-[color:var(--color-brown)]"
               />
               h
             </label>
@@ -285,19 +285,19 @@ export function PerformanceSimulator({ stats, cursor }) {
         </p>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-text-secondary">
           <span className="inline-flex items-center gap-1.5">
-            <span aria-hidden className="h-3 w-3 rounded-[4px] border border-border-subtle bg-surface-alt" />
+            <span aria-hidden className="h-3 w-3 border border-border-subtle bg-surface-alt" />
             Real
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span aria-hidden className="h-3 w-3 rounded-[4px] border border-[color:var(--color-accent)]/30 bg-[color:var(--color-accent)]/[0.12]" />
+            <span aria-hidden className="h-3 w-3 border border-[color:var(--color-accent)]/30 bg-[color:var(--color-accent)]/[0.12]" />
             Dia útil (auto)
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span aria-hidden className="h-3 w-3 rounded-[4px] border border-dashed border-[color:var(--color-brown)]/50 bg-[color:var(--color-brown)]/[0.08]" />
+            <span aria-hidden className="h-3 w-3 border border-dashed border-[color:var(--color-brown)]/50 bg-[color:var(--color-brown)]/[0.08]" />
             Fim de semana
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span aria-hidden className="h-3 w-3 rounded-[4px] border border-[color:var(--color-accent)] ring-1 ring-inset ring-[color:var(--color-accent)]" />
+            <span aria-hidden className="h-3 w-3 border border-[color:var(--color-accent)] ring-1 ring-inset ring-[color:var(--color-accent)]" />
             Hoje
           </span>
         </div>
@@ -383,13 +383,13 @@ export function PerformanceSimulator({ stats, cursor }) {
           return (
             <div
               key={date}
-              className={`rounded-lg p-1.5 min-h-[58px] flex flex-col transition-colors ${cellClass} ${
+              className={`p-1.5 min-h-[58px] flex flex-col transition-colors ${cellClass} ${
                 isToday ? 'ring-1 ring-[color:var(--color-accent)] border-[color:var(--color-accent)]' : ''
               }`}
             >
               <span
                 className={`text-[11px] tabular-nums leading-none ${
-                  isToday ? 'font-semibold text-accent' : 'text-text-secondary'
+                  isToday ? 'font-medium text-accent' : 'text-text-secondary'
                 }`}
               >
                 {day}

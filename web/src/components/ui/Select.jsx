@@ -274,7 +274,7 @@ export function Select({
               return (
                 <div key={`${opt.value}-${idx}`}>
                   {opt.group && opt.group !== prevGroup && (
-                    <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
+                    <div className="px-3 pt-2 pb-1 text-[10px] font-medium uppercase tracking-wider text-text-secondary">
                       {opt.group}
                     </div>
                   )}

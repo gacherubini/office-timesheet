@@ -230,7 +230,7 @@ export function VacationCalendarPage() {
       />
 
       {error && (
-        <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">
+        <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-4">
           {error}
         </div>
       )}
@@ -283,7 +283,7 @@ export function VacationCalendarPage() {
             {WEEKDAYS.map((weekday) => (
               <div
                 key={weekday}
-                className="px-2 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-text-secondary"
+                className="px-2 py-3 text-center text-[11px] font-medium uppercase tracking-wider text-text-secondary"
               >
                 {weekday}
               </div>
@@ -304,7 +304,7 @@ export function VacationCalendarPage() {
                 >
                   <div className="mb-2 flex items-center justify-between gap-1">
                     <span
-                      className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${
+                      className={`flex h-7 w-7 items-center justify-center text-xs font-medium ${
                         isToday
                           ? 'bg-[color:var(--color-accent)] text-white'
                           : day.inMonth
@@ -318,12 +318,12 @@ export function VacationCalendarPage() {
 
                   <div className="space-y-1">
                     {loading ? (
-                      <div className="h-5 rounded bg-surface-alt animate-pulse" />
+                      <div className="h-5 bg-surface-alt animate-pulse" />
                     ) : (
                       <>
                         {holidaysByDay[day.key] && (
                           <div
-                            className="flex items-center gap-1 truncate rounded px-2 py-1 text-[11px] font-medium bg-rose-500/15 text-rose-600"
+                            className="flex items-center gap-1 truncate px-2 py-1 text-[11px] font-medium bg-rose-500/15 text-rose-600"
                             title={holidaysByDay[day.key]}
                           >
                             <Flag size={10} className="flex-shrink-0" />
@@ -335,7 +335,7 @@ export function VacationCalendarPage() {
                             key={ev.id}
                             type="button"
                             onClick={() => setSelectedEvent(ev)}
-                            className="flex w-full items-center gap-1 truncate rounded px-2 py-1 text-left text-[11px] font-medium bg-violet-500/15 text-violet-700 hover:bg-violet-500/25 transition-colors"
+                            className="flex w-full items-center gap-1 truncate px-2 py-1 text-left text-[11px] font-medium bg-violet-500/15 text-violet-700 hover:bg-violet-500/25 transition-colors"
                             title={`Escritório · ${ev.title}${ev.location ? ' · ' + ev.location : ''}`}
                           >
                             <Building2 size={10} className="flex-shrink-0" />
@@ -355,7 +355,7 @@ export function VacationCalendarPage() {
                             key={ev.id}
                             type="button"
                             onClick={() => setSelectedEvent(ev)}
-                            className="flex w-full items-center gap-1 truncate rounded px-2 py-1 text-left text-[11px] font-medium bg-sky-500/15 text-sky-700 hover:bg-sky-500/25 transition-colors"
+                            className="flex w-full items-center gap-1 truncate px-2 py-1 text-left text-[11px] font-medium bg-sky-500/15 text-sky-700 hover:bg-sky-500/25 transition-colors"
                             title={`${ev.title}${ev.location ? ' · ' + ev.location : ''}`}
                           >
                             <Video size={10} className="flex-shrink-0" />
@@ -375,7 +375,7 @@ export function VacationCalendarPage() {
                             key={task.id}
                             type="button"
                             onClick={() => setSelectedTask(task)}
-                            className="flex w-full items-center gap-1 truncate rounded px-2 py-1 text-left text-[11px] font-medium bg-amber-500/15 text-amber-700 hover:bg-amber-500/25 transition-colors"
+                            className="flex w-full items-center gap-1 truncate px-2 py-1 text-left text-[11px] font-medium bg-amber-500/15 text-amber-700 hover:bg-amber-500/25 transition-colors"
                             title={`Tarefa: ${task.title}${task.project_name ? ' · ' + task.project_name : ''}`}
                           >
                             <ListTodo size={10} className="flex-shrink-0" />
@@ -385,7 +385,7 @@ export function VacationCalendarPage() {
                         {dayVacations.slice(0, 3).map((vacation) => (
                           <div
                             key={`${day.key}-${vacation.id}`}
-                            className={`truncate rounded px-2 py-1 text-[11px] font-medium ${colorForUser(vacation.user_id)}`}
+                            className={`truncate px-2 py-1 text-[11px] font-medium ${colorForUser(vacation.user_id)}`}
                             title={`${vacation.profile?.name || 'Colaborador'}: ${formatDate(vacation.start_date)} até ${formatDate(vacation.end_date)}`}
                           >
                             {vacation.profile?.name || 'Colaborador'}
@@ -408,7 +408,7 @@ export function VacationCalendarPage() {
         <div className="space-y-5">
           <Card padded={false} className="overflow-hidden">
             <div className="px-5 py-4 border-b border-border-subtle">
-              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary inline-flex items-center gap-1.5">
+              <h2 className="text-[11px] font-medium uppercase tracking-wider text-text-secondary inline-flex items-center gap-1.5">
                 <Flag size={13} className="text-rose-500" /> Próximos feriados
               </h2>
             </div>
@@ -428,7 +428,7 @@ export function VacationCalendarPage() {
 
           <Card padded={false} className="overflow-hidden">
             <div className="px-5 py-4 border-b border-border-subtle">
-              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary inline-flex items-center gap-1.5">
+              <h2 className="text-[11px] font-medium uppercase tracking-wider text-text-secondary inline-flex items-center gap-1.5">
                 <Building2 size={13} className="text-violet-500" /> Agenda do escritório
               </h2>
             </div>
@@ -458,7 +458,7 @@ export function VacationCalendarPage() {
 
           <Card padded={false} className="overflow-hidden">
             <div className="px-5 py-4 border-b border-border-subtle">
-              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary inline-flex items-center gap-1.5">
+              <h2 className="text-[11px] font-medium uppercase tracking-wider text-text-secondary inline-flex items-center gap-1.5">
                 <Video size={13} className="text-sky-500" /> Próximos eventos
               </h2>
             </div>
@@ -490,7 +490,7 @@ export function VacationCalendarPage() {
 
           <Card padded={false} className="overflow-hidden">
             <div className="px-5 py-4 border-b border-border-subtle">
-              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary">
+              <h2 className="text-[11px] font-medium uppercase tracking-wider text-text-secondary">
                 Férias no mês
               </h2>
             </div>
@@ -530,7 +530,7 @@ export function VacationCalendarPage() {
         >
           <div className="space-y-3 text-sm">
             {selectedEvent.source === 'office' && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-500/15 text-violet-700 px-2.5 py-1 text-xs font-medium">
+              <span className="inline-flex items-center gap-1.5 bg-violet-500/15 text-violet-700 px-2.5 py-1 text-xs font-medium">
                 <Building2 size={12} /> Agenda do escritório
               </span>
             )}
@@ -574,7 +574,7 @@ export function VacationCalendarPage() {
           }
         >
           <div className="space-y-3 text-sm">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 text-amber-700 px-2.5 py-1 text-xs font-medium">
+            <span className="inline-flex items-center gap-1.5 bg-amber-500/15 text-amber-700 px-2.5 py-1 text-xs font-medium">
               <ListTodo size={12} /> Tarefa
             </span>
             {selectedTask.project_name && (
@@ -591,12 +591,12 @@ export function VacationCalendarPage() {
             )}
             <div className="flex flex-wrap gap-2">
               {TASK_STATUS_LABEL[selectedTask.status] && (
-                <span className="rounded-full bg-surface-alt px-2.5 py-1 text-xs text-text-secondary">
+                <span className="bg-surface-alt px-2.5 py-1 text-xs text-text-secondary">
                   {TASK_STATUS_LABEL[selectedTask.status]}
                 </span>
               )}
               {TASK_PRIORITY_LABEL[selectedTask.priority] && (
-                <span className="rounded-full bg-surface-alt px-2.5 py-1 text-xs text-text-secondary">
+                <span className="bg-surface-alt px-2.5 py-1 text-xs text-text-secondary">
                   Prioridade: {TASK_PRIORITY_LABEL[selectedTask.priority]}
                 </span>
               )}

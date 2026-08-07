@@ -125,10 +125,10 @@ export function TimerPage() {
 
   return (
     <div className="max-w-md mx-auto">
-      <h1 className="text-2xl font-bold text-text-primary mb-6">Apontamento</h1>
+      <h1 className="text-2xl font-medium text-text-primary mb-6">Apontamento</h1>
 
       {error && (
-        <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">
+        <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-4">
           {error}
         </div>
       )}
@@ -138,7 +138,7 @@ export function TimerPage() {
         {currentEntry && (
           <div className="flex flex-col items-center gap-2 mb-2">
             {currentEntry.project_image && (
-              <img src={currentEntry.project_image} alt="" className="w-12 h-12 rounded-md object-cover" />
+              <img src={currentEntry.project_image} alt="" className="w-12 h-12 object-cover" />
             )}
             <p className="text-sm text-text-secondary">{currentEntry.project_name}</p>
           </div>
@@ -149,12 +149,12 @@ export function TimerPage() {
         </p>
 
         {isPaused && (
-          <span className="inline-block bg-yellow-100 text-yellow-700 text-xs font-medium px-2 py-1 rounded">
+          <span className="inline-block bg-yellow-100 text-yellow-700 text-xs font-medium px-2 py-1">
             Pausado
           </span>
         )}
         {isRunning && (
-          <span className="inline-block bg-green-100 text-green-700 text-xs font-medium px-2 py-1 rounded">
+          <span className="inline-block bg-green-100 text-green-700 text-xs font-medium px-2 py-1">
             Em andamento
           </span>
         )}
@@ -170,16 +170,16 @@ export function TimerPage() {
                 key={p.id}
                 type="button"
                 onClick={() => setSelectedProject(p.id)}
-                className={`flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-lg border transition-colors ${
+                className={`flex items-center gap-3 w-full text-left px-3 py-2.5 border transition-colors ${
                   selectedProject === p.id
                     ? 'border-accent bg-surface-alt ring-1 ring-accent'
                     : 'border-border-subtle bg-surface hover:border-accent'
                 }`}
               >
                 {p.image_url ? (
-                  <img src={p.image_url} alt="" className="w-9 h-9 rounded-md object-cover flex-shrink-0" />
+                  <img src={p.image_url} alt="" className="w-9 h-9 object-cover flex-shrink-0" />
                 ) : (
-                  <div className="w-9 h-9 rounded-md bg-surface-alt flex-shrink-0" />
+                  <div className="w-9 h-9 bg-surface-alt flex-shrink-0" />
                 )}
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-text-primary truncate">{p.name}</p>
@@ -197,7 +197,7 @@ export function TimerPage() {
           <button
             onClick={handleStart}
             disabled={loading}
-            className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
           >
             <Play size={20} />
             Play
@@ -209,7 +209,7 @@ export function TimerPage() {
             <button
               onClick={handlePause}
               disabled={loading}
-              className="flex items-center gap-2 bg-yellow-500 text-white px-6 py-3 rounded-lg font-medium hover:bg-yellow-600 transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 bg-yellow-500 text-white px-6 py-3 font-medium hover:bg-yellow-600 transition-colors disabled:opacity-50"
             >
               <Pause size={20} />
               Pausar
@@ -217,7 +217,7 @@ export function TimerPage() {
             <button
               onClick={handleStop}
               disabled={loading}
-              className="flex items-center gap-2 bg-red-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 bg-red-600 text-white px-6 py-3 font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
             >
               <Square size={20} />
               Encerrar
@@ -230,7 +230,7 @@ export function TimerPage() {
             <button
               onClick={handleResume}
               disabled={loading}
-              className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
             >
               <RotateCcw size={20} />
               Retomar
@@ -238,7 +238,7 @@ export function TimerPage() {
             <button
               onClick={handleStop}
               disabled={loading}
-              className="flex items-center gap-2 bg-red-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 bg-red-600 text-white px-6 py-3 font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
             >
               <Square size={20} />
               Encerrar

@@ -21,12 +21,12 @@ export function TaskCard({
       draggable
       onDragStart={(e) => onDragStart(e, task)}
       onClick={() => onClick(task)}
-      className={`relative bg-surface border border-border-subtle rounded-lg p-3 mb-2 cursor-pointer hover:border-border transition-colors ${
+      className={`relative bg-surface border border-border-subtle p-3 mb-2 cursor-pointer hover:border-border transition-colors ${
         muted ? 'opacity-60 hover:opacity-100' : ''
       }`}
     >
       <div className="flex items-start gap-1.5 mb-1">
-        <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${prio.dot}`} title={`Prioridade ${prio.label}`} />
+        <span className={`w-2 h-2 mt-1.5 flex-shrink-0 ${prio.dot}`} title={`Prioridade ${prio.label}`} />
         <p className={`text-sm font-medium text-text-primary ${muted ? 'line-through decoration-text-secondary/50' : ''}`}>{task.title}</p>
       </div>
       <p className="text-[11px] text-text-secondary truncate mb-2">{task.project_name}</p>
@@ -58,7 +58,7 @@ export function TaskCard({
           {task.due_date && (
             <span
               title={u.label || undefined}
-              className={`flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full ${urgencyClasses(u.level === 'none' ? 'normal' : u.level)}`}
+              className={`flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 ${urgencyClasses(u.level === 'none' ? 'normal' : u.level)}`}
             >
               <Calendar size={11} /> {formatShortDate(task.due_date)}
             </span>
@@ -71,7 +71,7 @@ export function TaskCard({
           type="button"
           onClick={(e) => { e.stopPropagation(); onToggleTimer(task) }}
           disabled={timerBusy}
-          className={`mt-2.5 inline-flex w-full items-center justify-center gap-1.5 h-8 rounded-lg text-[13px] font-semibold disabled:opacity-50 transition-colors ${
+          className={`mt-2.5 inline-flex w-full items-center justify-center gap-1.5 h-8 text-[13px] font-medium disabled:opacity-50 transition-colors ${
             isRunning
               ? 'bg-rose-500/15 text-rose-500 hover:bg-rose-500/25'
               : 'bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/25'

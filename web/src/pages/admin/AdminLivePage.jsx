@@ -137,7 +137,7 @@ export function AdminLivePage() {
         title="Painel Live"
         subtitle="Monitoramento em tempo real da equipe"
         badge={
-          <span className="text-[11px] text-text-secondary bg-surface-alt px-2.5 py-1 rounded-full">
+          <span className="text-[11px] text-text-secondary bg-surface-alt px-2.5 py-1">
             Atualiza em {countdown}s
           </span>
         }
@@ -170,7 +170,7 @@ export function AdminLivePage() {
 
           {online.length > 0 && (
             <div className="mb-5">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-500 mb-2.5">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-emerald-500 mb-2.5">
                 Online
               </p>
               <Card padded={false} className="overflow-hidden">
@@ -183,7 +183,7 @@ export function AdminLivePage() {
 
           {offline.length > 0 && (
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary mb-2.5">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-text-secondary mb-2.5">
                 Offline
               </p>
               <Card padded={false} className="overflow-hidden">

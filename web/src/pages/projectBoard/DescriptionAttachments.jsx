@@ -43,7 +43,7 @@ export function DescriptionAttachments({ taskId, currentUserId, isAdmin, uploadi
         <AttachmentChip key={a.id} att={a} onRemove={canRemove(a) ? () => remove(a) : undefined} />
       ))}
       {uploading && (
-        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-surface-alt text-[11px] text-text-secondary">
+        <span className="inline-flex items-center gap-1 px-2 py-1 bg-surface-alt text-[11px] text-text-secondary">
           <Paperclip size={11} /> Enviando...
         </span>
       )}

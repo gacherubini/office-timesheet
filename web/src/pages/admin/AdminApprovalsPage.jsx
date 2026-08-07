@@ -202,7 +202,7 @@ export function AdminApprovalsPage() {
       <PageHeader title="Aprovações" subtitle="Solicitações, despesas e férias pendentes" />
 
       {error && (
-        <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-6">
+        <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-6">
           {error}
         </div>
       )}
@@ -211,7 +211,7 @@ export function AdminApprovalsPage() {
         <Card padded={false} className="overflow-hidden">
           <div className="px-5 py-4 border-b border-border-subtle flex items-center gap-2">
             <FileText size={15} className="text-text-secondary" />
-            <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary">
+            <h2 className="text-[11px] font-medium uppercase tracking-wider text-text-secondary">
               Solicitações de apontamento
             </h2>
           </div>
@@ -284,7 +284,7 @@ export function AdminApprovalsPage() {
                       type="button"
                       onClick={() => approveRequest(request.id)}
                       disabled={decidingRequestId === request.id}
-                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium text-white hover:opacity-90 disabled:opacity-60 transition-opacity"
+                      className="inline-flex flex-1 items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-white hover:opacity-90 disabled:opacity-60 transition-opacity"
                       style={{ background: 'var(--color-accent)' }}
                     >
                       <Check size={14} />
@@ -294,7 +294,7 @@ export function AdminApprovalsPage() {
                       type="button"
                       onClick={() => rejectRequest(request.id)}
                       disabled={decidingRequestId === request.id}
-                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border-subtle px-3 py-2 text-xs font-medium text-text-primary hover:bg-surface-alt disabled:opacity-60 transition-colors"
+                      className="inline-flex flex-1 items-center justify-center gap-1.5 border border-border-subtle px-3 py-2 text-xs font-medium text-text-primary hover:bg-surface-alt disabled:opacity-60 transition-colors"
                     >
                       <X size={14} />
                       Rejeitar
@@ -309,7 +309,7 @@ export function AdminApprovalsPage() {
         <Card padded={false} className="overflow-hidden">
           <div className="px-5 py-4 border-b border-border-subtle flex items-center gap-2">
             <Receipt size={15} className="text-text-secondary" />
-            <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary">
+            <h2 className="text-[11px] font-medium uppercase tracking-wider text-text-secondary">
               Despesas
             </h2>
           </div>
@@ -334,7 +334,7 @@ export function AdminApprovalsPage() {
                         <p className="text-xs text-text-secondary">{formatDate(expense.expense_date)}</p>
                       </div>
                     </div>
-                    <p className="text-sm font-semibold text-text-primary whitespace-nowrap tabular-nums">
+                    <p className="text-sm font-medium text-text-primary whitespace-nowrap tabular-nums">
                       {formatCurrency(expense.amount)}
                     </p>
                   </div>
@@ -359,7 +359,7 @@ export function AdminApprovalsPage() {
                       type="button"
                       onClick={() => approveExpense(expense.id)}
                       disabled={decidingExpenseId === expense.id}
-                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium text-white hover:opacity-90 disabled:opacity-60 transition-opacity"
+                      className="inline-flex flex-1 items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-white hover:opacity-90 disabled:opacity-60 transition-opacity"
                       style={{ background: 'var(--color-accent)' }}
                     >
                       <Check size={14} />
@@ -369,7 +369,7 @@ export function AdminApprovalsPage() {
                       type="button"
                       onClick={() => rejectExpense(expense.id)}
                       disabled={decidingExpenseId === expense.id}
-                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border-subtle px-3 py-2 text-xs font-medium text-text-primary hover:bg-surface-alt disabled:opacity-60 transition-colors"
+                      className="inline-flex flex-1 items-center justify-center gap-1.5 border border-border-subtle px-3 py-2 text-xs font-medium text-text-primary hover:bg-surface-alt disabled:opacity-60 transition-colors"
                     >
                       <X size={14} />
                       Rejeitar
@@ -384,7 +384,7 @@ export function AdminApprovalsPage() {
         <Card padded={false} className="overflow-hidden">
           <div className="px-5 py-4 border-b border-border-subtle flex items-center gap-2">
             <CalendarOff size={15} className="text-text-secondary" />
-            <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary">
+            <h2 className="text-[11px] font-medium uppercase tracking-wider text-text-secondary">
               Férias
             </h2>
           </div>
@@ -422,7 +422,7 @@ export function AdminApprovalsPage() {
                       type="button"
                       onClick={() => approveVacation(vacation.id)}
                       disabled={decidingVacationId === vacation.id}
-                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium text-white hover:opacity-90 disabled:opacity-60 transition-opacity"
+                      className="inline-flex flex-1 items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-white hover:opacity-90 disabled:opacity-60 transition-opacity"
                       style={{ background: 'var(--color-accent)' }}
                     >
                       <Check size={14} />
@@ -432,7 +432,7 @@ export function AdminApprovalsPage() {
                       type="button"
                       onClick={() => rejectVacation(vacation.id)}
                       disabled={decidingVacationId === vacation.id}
-                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border-subtle px-3 py-2 text-xs font-medium text-text-primary hover:bg-surface-alt disabled:opacity-60 transition-colors"
+                      className="inline-flex flex-1 items-center justify-center gap-1.5 border border-border-subtle px-3 py-2 text-xs font-medium text-text-primary hover:bg-surface-alt disabled:opacity-60 transition-colors"
                     >
                       <X size={14} />
                       Rejeitar
@@ -454,7 +454,7 @@ export function AdminApprovalsPage() {
         }
       >
         <div className="flex flex-col items-center text-center py-2">
-          <div className="bg-emerald-500/15 rounded-full p-4 mb-4">
+          <div className="bg-emerald-500/15 p-4 mb-4">
             <CheckCircle2 className="text-emerald-500" size={36} />
           </div>
           <p className="text-text-primary font-medium">{successMessage}</p>

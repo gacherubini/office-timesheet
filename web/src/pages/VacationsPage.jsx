@@ -156,7 +156,7 @@ export function VacationsPage() {
       />
 
       {error && (
-        <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">
+        <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-4">
           {error}
         </div>
       )}
@@ -183,7 +183,7 @@ export function VacationsPage() {
               />
             </div>
 
-            <div className="flex items-center gap-2 rounded-lg bg-surface-alt px-3 py-2 text-sm text-text-secondary">
+            <div className="flex items-center gap-2 bg-surface-alt px-3 py-2 text-sm text-text-secondary">
               <CalendarOff size={16} />
               <span>{daysHint > 0 ? formatDays(daysHint) : 'Selecione um período válido'}</span>
             </div>
@@ -207,19 +207,19 @@ export function VacationsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border-subtle bg-surface-alt">
-                <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                <th className="text-left px-4 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                   Período
                 </th>
-                <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                <th className="text-left px-4 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                   Dias
                 </th>
-                <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                <th className="text-left px-4 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                   Status
                 </th>
-                <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                <th className="text-left px-4 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                   Motivo
                 </th>
-                <th className="text-right px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                <th className="text-right px-4 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                   Ações
                 </th>
               </tr>
@@ -271,7 +271,7 @@ export function VacationsPage() {
                         type="button"
                         onClick={() => setVacationToDelete(vacation)}
                         disabled={deletingId === vacation.id}
-                        className="inline-flex items-center justify-center gap-1.5 rounded-md border border-border-subtle px-3 py-1.5 text-xs font-medium text-text-primary hover:bg-surface-alt disabled:opacity-60 transition-colors"
+                        className="inline-flex items-center justify-center gap-1.5 border border-border-subtle px-3 py-1.5 text-xs font-medium text-text-primary hover:bg-surface-alt disabled:opacity-60 transition-colors"
                       >
                         <Trash2 size={13} />
                         Apagar
@@ -301,7 +301,7 @@ export function VacationsPage() {
         }
       >
         <div className="flex flex-col items-center text-center mb-5">
-          <div className="bg-rose-500/15 rounded-full p-4 mb-4">
+          <div className="bg-rose-500/15 p-4 mb-4">
             <AlertTriangle className="text-rose-500" size={36} />
           </div>
           <h3 className="font-display text-2xl text-text-primary mb-2">
@@ -314,7 +314,7 @@ export function VacationsPage() {
             </strong>
           </p>
         </div>
-        <div className="bg-rose-500/10 border border-rose-500/20 rounded-lg p-4 text-sm">
+        <div className="bg-rose-500/10 border border-rose-500/20 p-4 text-sm">
           <p className="font-medium text-text-primary mb-1">
             Esta ação remove a solicitação.
           </p>
@@ -323,7 +323,7 @@ export function VacationsPage() {
           </p>
         </div>
         {deleteError && (
-          <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mt-3">
+          <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mt-3">
             {deleteError}
           </div>
         )}
@@ -338,7 +338,7 @@ export function VacationsPage() {
         }
       >
         <div className="flex flex-col items-center text-center py-2">
-          <div className="bg-emerald-500/15 rounded-full p-4 mb-4">
+          <div className="bg-emerald-500/15 p-4 mb-4">
             <CheckCircle2 className="text-emerald-500" size={36} />
           </div>
           <p className="text-text-primary font-medium">{success}</p>

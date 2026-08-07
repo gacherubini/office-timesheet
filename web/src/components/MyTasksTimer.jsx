@@ -39,17 +39,17 @@ export function MyTasksTimer() {
   }, [])
 
   return (
-    <Card padded={false} className="overflow-hidden rounded-2xl">
+    <Card padded={false} className="overflow-hidden">
       <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-border-subtle">
         <div className="flex items-center gap-2.5 min-w-0">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[color:var(--color-accent)]/12 text-[color:var(--color-accent)]">
+          <span className="flex h-7 w-7 items-center justify-center bg-[color:var(--color-accent)]/12 text-[color:var(--color-accent)]">
             <Timer size={15} />
           </span>
-          <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary truncate">
+          <h2 className="text-[11px] font-medium uppercase tracking-wider text-text-secondary truncate">
             Minhas tarefas
           </h2>
           {tasks.length > 0 && (
-            <span className="text-[10px] font-semibold tabular-nums text-text-secondary bg-surface-alt rounded-full px-1.5 py-0.5">
+            <span className="text-[10px] font-medium tabular-nums text-text-secondary bg-surface-alt px-1.5 py-0.5">
               {tasks.length}
             </span>
           )}
@@ -63,7 +63,7 @@ export function MyTasksTimer() {
       </div>
 
       {error && (
-        <div className="mx-5 mt-3 bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3">
+        <div className="mx-5 mt-3 bg-rose-500/10 text-rose-600 text-sm p-3">
           {error}
         </div>
       )}
@@ -106,7 +106,7 @@ export function MyTasksTimer() {
                 <div className="text-right shrink-0">
                   <p
                     className={`text-sm tabular-nums ${
-                      isRunning ? 'text-[color:var(--color-accent)] font-semibold' : 'text-text-primary'
+                      isRunning ? 'text-[color:var(--color-accent)] font-medium' : 'text-text-primary'
                     }`}
                   >
                     {formatTotal(t.my_minutes)}

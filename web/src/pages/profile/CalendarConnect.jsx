@@ -56,18 +56,18 @@ export function CalendarConnect({ onChange, hideWhenConnected = false }) {
   return (
     <div className="bg-surface border border-border-subtle overflow-hidden">
       <div className="p-5 border-b border-border-subtle flex items-center gap-3">
-        <div className="w-10 h-10 rounded-lg bg-[color:var(--color-accent)]/15 text-accent flex items-center justify-center">
+        <div className="w-10 h-10 bg-[color:var(--color-accent)]/15 text-accent flex items-center justify-center">
           <CalendarClock size={18} />
         </div>
         <div>
-          <h2 className="font-semibold text-text-primary">Minha agenda Google</h2>
+          <h2 className="font-medium text-text-primary">Minha agenda Google</h2>
           <p className="text-sm text-text-secondary">Veja seus eventos do Google dentro do sistema.</p>
         </div>
       </div>
 
       <div className="p-5 space-y-4">
-        {error && <div className="rounded-lg bg-rose-500/10 text-rose-600 text-sm p-3">{error}</div>}
-        {success && <div className="rounded-lg bg-emerald-500/10 text-emerald-600 text-sm p-3">{success}</div>}
+        {error && <div className="bg-rose-500/10 text-rose-600 text-sm p-3">{error}</div>}
+        {success && <div className="bg-emerald-500/10 text-emerald-600 text-sm p-3">{success}</div>}
 
         {loading ? (
           <p className="text-sm text-text-secondary">Carregando...</p>
@@ -93,13 +93,13 @@ export function CalendarConnect({ onChange, hideWhenConnected = false }) {
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://calendar.google.com/calendar/ical/.../basic.ics"
-                className="flex-1 min-w-0 form-control rounded-lg border px-3 py-2 text-sm outline-none transition-colors"
+                className="flex-1 min-w-0 form-control border px-3 py-2 text-sm outline-none transition-colors"
                 required
               />
               <button
                 type="submit"
                 disabled={busy || !url.trim()}
-                className="inline-flex items-center justify-center gap-1.5 text-white px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity whitespace-nowrap"
+                className="inline-flex items-center justify-center gap-1.5 text-white px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity whitespace-nowrap"
                 style={{ background: 'var(--color-accent)' }}
               >
                 <Link2 size={15} /> {busy ? 'Conectando...' : 'Conectar'}

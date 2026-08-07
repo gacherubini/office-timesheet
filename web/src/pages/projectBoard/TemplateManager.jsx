@@ -133,11 +133,11 @@ export function TemplateManager({ templates, onBack, onChanged }) {
       />
 
       {error && !editing && (
-        <div className="mb-4 bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3">{error}</div>
+        <div className="mb-4 bg-rose-500/10 text-rose-600 text-sm p-3">{error}</div>
       )}
 
       {templates.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border-subtle py-16 text-center text-sm text-text-secondary">
+        <div className="border border-dashed border-border-subtle py-16 text-center text-sm text-text-secondary">
           Nenhum template ainda. Crie um para gerar tarefas automaticamente em novos projetos.
         </div>
       ) : (
@@ -146,7 +146,7 @@ export function TemplateManager({ templates, onBack, onChanged }) {
             <Card key={t.id} className="flex flex-col gap-2">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <h3 className="truncate text-sm font-semibold text-text-primary">{t.name}</h3>
+                  <h3 className="truncate text-sm font-medium text-text-primary">{t.name}</h3>
                   <p className="text-xs text-text-secondary">{t.item_count} task(s)</p>
                 </div>
               </div>
@@ -182,7 +182,7 @@ export function TemplateManager({ templates, onBack, onChanged }) {
         {editing && (
           <div className="space-y-3">
             {error && (
-              <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3">{error}</div>
+              <div className="bg-rose-500/10 text-rose-600 text-sm p-3">{error}</div>
             )}
             <Input
               label="Nome do template"
@@ -216,7 +216,7 @@ export function TemplateManager({ templates, onBack, onChanged }) {
               ) : (
                 <div className="space-y-2">
                   {editing.items.map((item, idx) => (
-                    <div key={idx} className="rounded-lg border border-border-subtle p-2.5">
+                    <div key={idx} className="border border-border-subtle p-2.5">
                       <div className="flex items-start gap-2">
                         <div className="flex flex-col pt-1">
                           <button
@@ -244,7 +244,7 @@ export function TemplateManager({ templates, onBack, onChanged }) {
                               value={item.title}
                               onChange={(e) => updateItem(idx, { title: e.target.value })}
                               placeholder="Título da task"
-                              className="flex-1 form-control rounded-lg border px-3 py-2 text-sm outline-none transition-colors"
+                              className="flex-1 form-control border px-3 py-2 text-sm outline-none transition-colors"
                             />
                             <Select
                               value={item.priority}
@@ -261,7 +261,7 @@ export function TemplateManager({ templates, onBack, onChanged }) {
                             onChange={(e) => updateItem(idx, { description: e.target.value })}
                             placeholder="Descrição (opcional)"
                             rows={2}
-                            className="w-full form-control rounded-lg border px-3 py-2 text-sm outline-none transition-colors resize-y"
+                            className="w-full form-control border px-3 py-2 text-sm outline-none transition-colors resize-y"
                           />
                         </div>
                         <button
@@ -302,11 +302,11 @@ export function TemplateManager({ templates, onBack, onChanged }) {
         }
       >
         <div className="flex flex-col items-center text-center py-2">
-          <div className="bg-rose-500/15 rounded-full p-4 mb-4">
+          <div className="bg-rose-500/15 p-4 mb-4">
             <AlertTriangle className="text-rose-500" size={32} />
           </div>
           <p className="text-text-primary">
-            Excluir o template <span className="font-semibold">{toDelete?.name}</span>? Projetos já criados a partir dele não são afetados.
+            Excluir o template <span className="font-medium">{toDelete?.name}</span>? Projetos já criados a partir dele não são afetados.
           </p>
         </div>
       </Modal>
@@ -319,7 +319,7 @@ export function TemplateManager({ templates, onBack, onChanged }) {
         footer={<Button onClick={() => setSuccess('')}>OK</Button>}
       >
         <div className="flex flex-col items-center text-center py-2">
-          <div className="bg-emerald-500/15 rounded-full p-4 mb-4">
+          <div className="bg-emerald-500/15 p-4 mb-4">
             <CheckCircle2 className="text-emerald-500" size={32} />
           </div>
           <p className="text-text-primary font-medium">{success}</p>

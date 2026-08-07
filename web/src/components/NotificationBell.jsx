@@ -75,7 +75,7 @@ export function NotificationBell() {
         <Bell size={18} className="relative transition-transform group-hover:rotate-[8deg]" strokeWidth={1.75} />
         {hasUnread && (
           <span
-            className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full text-white text-[10px] font-medium flex items-center justify-center ring-1 ring-green-dk tabular-nums"
+            className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 text-white text-[10px] font-medium flex items-center justify-center ring-1 ring-green-dk tabular-nums"
             style={{ background: 'var(--color-orange)' }}
           >
             {unread > 9 ? '9+' : unread}
@@ -115,7 +115,7 @@ export function NotificationBell() {
             {items.length === 0 ? (
               <div className="px-6 py-10 text-center">
                 <div
-                  className="mx-auto h-10 w-10 rounded-full flex items-center justify-center mb-3"
+                  className="mx-auto h-10 w-10 flex items-center justify-center mb-3"
                   style={{ background: 'var(--color-surface-alt)' }}
                 >
                   <Bell size={16} className="text-text-secondary" strokeWidth={1.5} />

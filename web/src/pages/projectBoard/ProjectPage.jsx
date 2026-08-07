@@ -137,10 +137,10 @@ export function ProjectPage({
           )}
         </div>
         <div className="flex items-center gap-2 flex-wrap md:pr-12">
-          <span className="inline-flex items-center rounded-full bg-surface-alt px-2.5 py-1 text-[11px] font-medium text-text-secondary" title="Etapa — em breve">
+          <span className="inline-flex items-center bg-surface-alt px-2.5 py-1 text-[11px] font-medium text-text-secondary" title="Etapa — em breve">
             Etapa · em breve
           </span>
-          <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+          <span className={`inline-flex items-center px-2.5 py-1 text-[11px] font-medium ${
             completed ? 'bg-emerald-500/15 text-emerald-600' : 'bg-accent/15 text-accent'
           }`}>
             {completed ? 'Concluído' : 'Em andamento'}
@@ -149,7 +149,7 @@ export function ProjectPage({
       </div>
 
       {feedback && (
-        <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">
+        <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-4">
           {feedback}
         </div>
       )}
@@ -161,7 +161,7 @@ export function ProjectPage({
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <FileText size={16} className="text-text-secondary" />
-                <h2 className="text-[15px] font-semibold text-text-primary">Briefing</h2>
+                <h2 className="text-[15px] font-medium text-text-primary">Briefing</h2>
               </div>
               {canManage && !editingBriefing && (
                 <button
@@ -180,7 +180,7 @@ export function ProjectPage({
                   onChange={(e) => setBriefingDraft(e.target.value)}
                   rows={6}
                   placeholder="Escopo, objetivos, observações do projeto…"
-                  className="w-full form-control border rounded-lg px-3 py-2 text-sm outline-none transition-colors resize-y"
+                  className="w-full form-control border px-3 py-2 text-sm outline-none transition-colors resize-y"
                 />
                 <div className="flex items-center gap-2 mt-2">
                   <Button onClick={saveBriefing} disabled={briefingBusy}>
@@ -205,7 +205,7 @@ export function ProjectPage({
           {/* Tarefas do projeto — board de 4 colunas */}
           <Card padded={false} className="p-4">
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
-              <h2 className="text-[15px] font-semibold text-text-primary sm:pt-1">
+              <h2 className="text-[15px] font-medium text-text-primary sm:pt-1">
                 Tarefas do projeto · {taskCount}
               </h2>
               <div className="flex items-end gap-2 flex-wrap">
@@ -255,7 +255,7 @@ export function ProjectPage({
           <Card>
             <div className="flex items-center gap-2 mb-3">
               <User size={16} className="text-text-secondary" />
-              <h2 className="text-[15px] font-semibold text-text-primary">Cliente / endereço</h2>
+              <h2 className="text-[15px] font-medium text-text-primary">Cliente / endereço</h2>
             </div>
             <p className="text-sm font-medium text-text-primary">{project?.client || '—'}</p>
             {project?.client_phone && (
@@ -273,7 +273,7 @@ export function ProjectPage({
           {/* Documentos */}
           <Card>
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-[15px] font-semibold text-text-primary">Documentos</h2>
+              <h2 className="text-[15px] font-medium text-text-primary">Documentos</h2>
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
@@ -321,7 +321,7 @@ export function ProjectPage({
           <Card>
             <div className="flex items-center gap-2 mb-2">
               <Clock3 size={16} className="text-text-secondary" />
-              <h2 className="text-[15px] font-semibold text-text-primary">Horas</h2>
+              <h2 className="text-[15px] font-medium text-text-primary">Horas</h2>
             </div>
             <p className="font-display text-2xl text-text-primary tabular-nums">{formatMinutes(hours.month_minutes)}</p>
             <p className="text-xs text-text-secondary mt-0.5">minhas · este mês</p>

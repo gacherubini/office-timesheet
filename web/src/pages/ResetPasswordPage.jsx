@@ -70,7 +70,7 @@ export function ResetPasswordPage() {
               <p className="text-sm text-text-primary">Senha redefinida com sucesso!</p>
               <button
                 onClick={() => navigate('/login')}
-                className="w-full text-white rounded-lg py-2 text-sm font-medium hover:opacity-90 transition-opacity"
+                className="w-full text-white py-2 text-sm font-medium hover:opacity-90 transition-opacity"
                 style={{ background: 'var(--color-accent)' }}
               >
                 Ir para o login
@@ -81,12 +81,12 @@ export function ResetPasswordPage() {
           {!invalidLink && !done && (
             <>
               <div>
-                <h2 className="text-base font-semibold text-text-primary">Nova senha</h2>
+                <h2 className="text-base font-medium text-text-primary">Nova senha</h2>
                 <p className="text-sm text-text-secondary mt-1">Escolha uma nova senha para sua conta.</p>
               </div>
 
               {error && (
-                <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3">{error}</div>
+                <div className="bg-rose-500/10 text-rose-600 text-sm p-3">{error}</div>
               )}
 
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -101,7 +101,7 @@ export function ResetPasswordPage() {
                     minLength={6}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full form-control rounded-lg border px-3 py-2 text-sm outline-none transition-colors"
+                    className="w-full form-control border px-3 py-2 text-sm outline-none transition-colors"
                     placeholder="Mínimo 6 caracteres"
                   />
                 </div>
@@ -117,7 +117,7 @@ export function ResetPasswordPage() {
                     minLength={6}
                     value={confirm}
                     onChange={(e) => setConfirm(e.target.value)}
-                    className="w-full form-control rounded-lg border px-3 py-2 text-sm outline-none transition-colors"
+                    className="w-full form-control border px-3 py-2 text-sm outline-none transition-colors"
                     placeholder="Repita a senha"
                   />
                 </div>
@@ -125,7 +125,7 @@ export function ResetPasswordPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full text-white rounded-lg py-2 text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full text-white py-2 text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ background: 'var(--color-accent)' }}
                 >
                   {loading ? 'Salvando...' : 'Redefinir senha'}

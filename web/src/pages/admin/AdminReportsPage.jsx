@@ -57,7 +57,7 @@ function SummaryCard({ label, value, detail, tone = 'default' }) {
 
   return (
     <Card>
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary">
+      <p className="text-[11px] font-medium uppercase tracking-wider text-text-secondary">
         {label}
       </p>
       <p className={`font-display text-2xl mt-2 tabular-nums ${toneClass}`}>{value}</p>
@@ -77,9 +77,9 @@ function EmptyRow({ colSpan, children = 'Nenhum dado encontrado para o período.
 }
 
 const headerClass =
-  'text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary'
+  'text-left px-4 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary'
 const rightHeaderClass =
-  'text-right px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary'
+  'text-right px-4 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary'
 const rowClass =
   'border-b border-border-subtle last:border-b-0 hover:bg-surface-alt transition-colors'
 
@@ -136,7 +136,7 @@ export function AdminReportsPage() {
       </Card>
 
       {error && (
-        <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">
+        <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-4">
           {error}
         </div>
       )}
@@ -179,7 +179,7 @@ export function AdminReportsPage() {
               {financialData.alerts.map((alert, index) => (
                 <div
                   key={`${alert.message}-${index}`}
-                  className="bg-amber-500/10 text-amber-700 text-sm rounded-lg p-3"
+                  className="bg-amber-500/10 text-amber-700 text-sm p-3"
                 >
                   {alert.message}
                 </div>
@@ -233,7 +233,7 @@ export function AdminReportsPage() {
                           <td className="px-4 py-3 text-right text-text-secondary tabular-nums">
                             {user.total_hours}h
                           </td>
-                          <td className="px-4 py-3 text-right font-semibold text-text-primary tabular-nums">
+                          <td className="px-4 py-3 text-right font-medium text-text-primary tabular-nums">
                             {formatCurrency(user.total_payable)}
                           </td>
                         </tr>
@@ -270,7 +270,7 @@ export function AdminReportsPage() {
                           <td className="px-4 py-3 text-right text-text-secondary tabular-nums">
                             {project.total_hours}h
                           </td>
-                          <td className="px-4 py-3 text-right font-semibold text-text-primary tabular-nums">
+                          <td className="px-4 py-3 text-right font-medium text-text-primary tabular-nums">
                             {formatCurrency(project.total_cost)}
                           </td>
                         </tr>
@@ -323,7 +323,7 @@ export function AdminReportsPage() {
                         <td className="px-4 py-3 text-right text-emerald-600 tabular-nums">
                           {formatCurrency(user.bonuses)}
                         </td>
-                        <td className="px-4 py-3 text-right font-bold text-text-primary tabular-nums">
+                        <td className="px-4 py-3 text-right font-medium text-text-primary tabular-nums">
                           {formatCurrency(user.total_payable)}
                         </td>
                       </tr>
@@ -367,7 +367,7 @@ export function AdminReportsPage() {
                         <td className="px-4 py-3 text-right text-text-primary tabular-nums">
                           {project.total_hours}h
                         </td>
-                        <td className="px-4 py-3 text-right font-semibold text-text-primary tabular-nums">
+                        <td className="px-4 py-3 text-right font-medium text-text-primary tabular-nums">
                           {formatCurrency(project.total_cost)}
                         </td>
                         <td className="px-4 py-3 text-right text-text-secondary tabular-nums">
@@ -427,7 +427,7 @@ export function AdminReportsPage() {
                         <td className="px-4 py-3 text-right text-text-secondary tabular-nums">
                           {day.entries_count}
                         </td>
-                        <td className="px-4 py-3 text-right font-semibold text-text-primary tabular-nums">
+                        <td className="px-4 py-3 text-right font-medium text-text-primary tabular-nums">
                           {formatDuration(day.total_minutes)}
                         </td>
                         <td className="px-4 py-3 text-right text-text-primary tabular-nums">

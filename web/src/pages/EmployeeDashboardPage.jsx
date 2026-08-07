@@ -24,14 +24,14 @@ function formatHM(minutes) {
 
 function SectionCard({ icon: Icon, title, count, action, children }) {
   return (
-    <Card padded={false} className="overflow-hidden rounded-2xl">
+    <Card padded={false} className="overflow-hidden">
       <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-border-subtle">
         <div className="flex items-center gap-2.5 min-w-0">
           <h2 className="text-[9px] uppercase tracking-[.2em] text-text-secondary truncate">
             {title}
           </h2>
           {count != null && (
-            <span className="text-[10px] font-medium tabular-nums text-text-secondary bg-surface-alt rounded-full px-1.5 py-0.5">
+            <span className="text-[10px] font-medium tabular-nums text-text-secondary bg-surface-alt px-1.5 py-0.5">
               {count}
             </span>
           )}
@@ -116,9 +116,9 @@ export function EmployeeDashboardPage() {
                   return (
                     <div key={proj.project_id} className="flex items-center gap-3.5 px-5 py-3.5 hover:bg-surface-alt/60 transition-colors">
                       {proj.project_image ? (
-                        <img src={proj.project_image} alt="" className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
+                        <img src={proj.project_image} alt="" className="w-10 h-10 object-cover flex-shrink-0" />
                       ) : (
-                        <div className="w-10 h-10 rounded-xl bg-surface-alt flex-shrink-0" />
+                        <div className="w-10 h-10 bg-surface-alt flex-shrink-0" />
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="flex items-center gap-2 text-sm font-medium text-text-primary truncate">
@@ -172,9 +172,9 @@ export function EmployeeDashboardPage() {
                       className="flex items-center gap-3.5 px-5 py-3.5 hover:bg-surface-alt transition-colors group"
                     >
                       {p.image_url ? (
-                        <img src={p.image_url} alt="" className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
+                        <img src={p.image_url} alt="" className="w-10 h-10 object-cover flex-shrink-0" />
                       ) : (
-                        <div className="w-10 h-10 rounded-xl bg-surface-alt flex-shrink-0" />
+                        <div className="w-10 h-10 bg-surface-alt flex-shrink-0" />
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="flex items-center gap-2 text-sm font-medium text-text-primary truncate">

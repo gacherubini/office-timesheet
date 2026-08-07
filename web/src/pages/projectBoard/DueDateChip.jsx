@@ -58,7 +58,7 @@ export function DueDateChip({ value, status, onChange, disabled }) {
         type="button"
         disabled={disabled}
         onClick={() => setOpen((o) => !o)}
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs ${
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs ${
           value
             ? u.level !== 'none' && u.level !== 'normal'
               ? urgencyClasses(u.level)
@@ -71,7 +71,7 @@ export function DueDateChip({ value, status, onChange, disabled }) {
       </button>
 
       {open && (
-        <div className="absolute z-30 left-0 top-full mt-1 bg-surface border border-border-subtle rounded-lg shadow-xl p-2">
+        <div className="absolute z-30 left-0 top-full mt-1 bg-surface border border-border-subtle shadow-xl p-2">
           <DatePicker
             selected={toDate(value)}
             onChange={(date) => { onChange(toIso(date)); setOpen(false) }}

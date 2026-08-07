@@ -541,7 +541,7 @@ export function ProjectBoardPage() {
         title={editingProject ? 'Editar Projeto' : 'Novo Projeto'}
       >
         {formError && (
-          <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">
+          <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-4">
             {formError}
           </div>
         )}
@@ -645,7 +645,7 @@ export function ProjectBoardPage() {
         }
       >
         <div className="flex flex-col items-center text-center mb-5">
-          <div className="bg-rose-500/15 rounded-full p-4 mb-4">
+          <div className="bg-rose-500/15 p-4 mb-4">
             <AlertTriangle className="text-rose-500" size={36} />
           </div>
           <h3 className="font-display text-2xl text-text-primary mb-2">Excluir projeto?</h3>
@@ -654,7 +654,7 @@ export function ProjectBoardPage() {
             <strong className="text-text-primary">{projectToDelete?.name}</strong>
           </p>
         </div>
-        <div className="bg-sky-500/10 border border-sky-500/20 rounded-lg p-4 text-sm">
+        <div className="bg-sky-500/10 border border-sky-500/20 p-4 text-sm">
           <p className="font-medium text-text-primary mb-1">Os apontamentos serão preservados.</p>
           <p className="text-text-secondary">
             Você pode restaurar este projeto a qualquer momento na página de{' '}
@@ -662,7 +662,7 @@ export function ProjectBoardPage() {
           </p>
         </div>
         {deleteError && (
-          <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mt-3">
+          <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mt-3">
             {deleteError}
           </div>
         )}
@@ -676,7 +676,7 @@ export function ProjectBoardPage() {
         footer={<Button onClick={() => setSuccessMessage('')}>OK</Button>}
       >
         <div className="flex flex-col items-center text-center py-2">
-          <div className="bg-emerald-500/15 rounded-full p-4 mb-4">
+          <div className="bg-emerald-500/15 p-4 mb-4">
             <CheckCircle2 className="text-emerald-500" size={36} />
           </div>
           <p className="text-text-primary font-medium">{successMessage}</p>

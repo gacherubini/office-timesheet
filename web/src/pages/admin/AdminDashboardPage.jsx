@@ -337,7 +337,7 @@ export function AdminDashboardPage() {
       </div>
 
       {error && (
-        <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-6">
+        <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-6">
           {error}
         </div>
       )}
@@ -411,7 +411,7 @@ export function AdminDashboardPage() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-semibold text-text-primary tabular-nums">
+                      <p className="text-sm font-medium text-text-primary tabular-nums">
                         {formatHours(member.total_minutes)}
                       </p>
                       <p className="text-xs text-text-secondary">
@@ -432,13 +432,13 @@ export function AdminDashboardPage() {
                   className="flex items-center justify-between px-5 py-4 hover:bg-surface-alt transition-colors"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-lg bg-surface-alt flex items-center justify-center flex-shrink-0">
+                    <div className="w-9 h-9 bg-surface-alt flex items-center justify-center flex-shrink-0">
                       <FolderOpen size={18} className="text-accent" />
                     </div>
                     <p className="text-sm font-medium text-text-primary truncate">{project.name}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-semibold text-text-primary tabular-nums">
+                    <p className="text-sm font-medium text-text-primary tabular-nums">
                       {formatHours(project.total_minutes)}
                     </p>
                     <p className="text-xs text-text-secondary">
@@ -513,7 +513,7 @@ export function AdminDashboardPage() {
         }
       >
         <div className="flex flex-col items-center text-center py-2">
-          <div className="bg-emerald-500/15 rounded-full p-4 mb-4">
+          <div className="bg-emerald-500/15 p-4 mb-4">
             <CheckCircle2 className="text-emerald-500" size={36} />
           </div>
           <p className="text-text-primary font-medium">{successMessage}</p>

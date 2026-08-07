@@ -236,7 +236,7 @@ export function HistoryPage() {
       />
 
       {error && (
-        <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">
+        <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-4">
           {error}
         </div>
       )}
@@ -244,7 +244,7 @@ export function HistoryPage() {
       {showEarnings && (
         <Card padded={false} className="overflow-hidden mb-5">
           <div className="px-5 py-3.5 border-b border-border-subtle bg-surface-alt flex flex-col gap-3">
-            <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary">
+            <h2 className="text-[11px] font-medium uppercase tracking-wider text-text-secondary">
               Ganhos por projeto
             </h2>
             <div className="flex flex-wrap items-end gap-2">
@@ -281,9 +281,9 @@ export function HistoryPage() {
               {earnings.map((e) => (
                 <div key={e.project_id || 'none'} className="flex items-center gap-3 px-5 py-3">
                   {e.project_image ? (
-                    <img src={e.project_image} alt="" className="w-9 h-9 rounded-lg object-cover flex-shrink-0" />
+                    <img src={e.project_image} alt="" className="w-9 h-9 object-cover flex-shrink-0" />
                   ) : (
-                    <div className="w-9 h-9 rounded-lg bg-surface-alt flex-shrink-0" />
+                    <div className="w-9 h-9 bg-surface-alt flex-shrink-0" />
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-text-primary truncate">
@@ -300,9 +300,9 @@ export function HistoryPage() {
                 </div>
               ))}
               <div className="flex items-center gap-3 px-5 py-3 bg-surface-alt/50">
-                <p className="flex-1 text-sm font-semibold text-text-primary">Total</p>
+                <p className="flex-1 text-[10px] uppercase tracking-[.2em] text-text-secondary">Total</p>
                 <div className="text-right shrink-0">
-                  <p className="text-sm font-semibold text-text-primary tabular-nums">
+                  <p className="text-base font-medium text-text-primary tabular-nums">
                     {formatCurrency(earningsTotal.cost)}
                   </p>
                   <p className="text-xs text-text-secondary tabular-nums">{formatHours(earningsTotal.minutes)}</p>
@@ -313,32 +313,32 @@ export function HistoryPage() {
         </Card>
       )}
 
-      <Card padded={false} className="overflow-x-auto rounded-2xl">
+      <Card padded={false} className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border-subtle bg-surface-alt">
-              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-left px-4 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                 Data
               </th>
-              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-left px-4 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                 Projeto
               </th>
-              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-left px-4 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                 Início
               </th>
-              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-left px-4 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                 Saída
               </th>
-              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-left px-4 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                 Duração
               </th>
-              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-left px-4 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                 Status
               </th>
-              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-left px-4 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                 Solicitação
               </th>
-              <th className="text-right px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-right px-4 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                 Ações
               </th>
             </tr>
@@ -461,7 +461,7 @@ export function HistoryPage() {
           </p>
         )}
         {formError && (
-          <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">
+          <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-4">
             {formError}
           </div>
         )}
@@ -494,7 +494,7 @@ export function HistoryPage() {
                 placeholderText="DD/MM/AAAA HH:MM"
                 required
                 wrapperClassName="block w-full"
-                className="w-full form-control border rounded-lg px-3 py-2 text-sm outline-none transition-colors disabled:opacity-60"
+                className="w-full form-control border px-3 py-2 text-sm outline-none transition-colors disabled:opacity-60"
               />
             </div>
             <div>
@@ -510,7 +510,7 @@ export function HistoryPage() {
                 placeholderText="DD/MM/AAAA HH:MM"
                 required
                 wrapperClassName="block w-full"
-                className="w-full form-control border rounded-lg px-3 py-2 text-sm outline-none transition-colors disabled:opacity-60"
+                className="w-full form-control border px-3 py-2 text-sm outline-none transition-colors disabled:opacity-60"
               />
             </div>
           </div>
@@ -536,7 +536,7 @@ export function HistoryPage() {
         }
       >
         <div className="flex flex-col items-center text-center py-2">
-          <div className="bg-emerald-500/15 rounded-full p-4 mb-4">
+          <div className="bg-emerald-500/15 p-4 mb-4">
             <CheckCircle2 className="text-emerald-500" size={36} />
           </div>
           <p className="text-text-primary font-medium">{success}</p>

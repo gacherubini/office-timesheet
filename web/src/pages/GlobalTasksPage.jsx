@@ -153,13 +153,13 @@ export function GlobalTasksPage() {
       <button
         type="button"
         onClick={() => setOnlyMine((v) => !v)}
-        className={`h-[38px] rounded-lg px-3 text-sm font-medium transition-colors ${
+        className={`h-[38px] px-3 text-sm font-medium transition-colors ${
           onlyMine ? 'bg-accent text-white' : 'border border-border-subtle text-text-secondary hover:text-text-primary'
         }`}
       >
         Só minhas
       </button>
-      <div className="flex h-[38px] items-center rounded-lg border border-border-subtle overflow-hidden">
+      <div className="flex h-[38px] items-center border border-border-subtle overflow-hidden">
         <button
           type="button"
           onClick={() => setView('board')}
@@ -265,11 +265,11 @@ function TaskList({ tasks, onOpen, currentUserId, runningTaskId, timerElapsed, t
         return (
           <div key={col.key}>
             <div className="flex items-center gap-2 mb-2">
-              <span className={`h-1.5 w-1.5 rounded-full ${col.dot}`} />
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary">{col.label}</span>
+              <span className={`h-1.5 w-1.5 ${col.dot}`} />
+              <span className="text-[11px] font-medium uppercase tracking-wider text-text-secondary">{col.label}</span>
               <span className="text-[11px] text-text-secondary tabular-nums">· {rows.length}</span>
             </div>
-            <div className="rounded-xl border border-border-subtle divide-y divide-border-subtle overflow-hidden">
+            <div className="border border-border-subtle divide-y divide-border-subtle overflow-hidden">
               {rows.map((t) => {
                 const u = urgency(t.due_date, t.status)
                 const isRunning = Boolean(t.open_started_at)
@@ -285,7 +285,7 @@ function TaskList({ tasks, onOpen, currentUserId, runningTaskId, timerElapsed, t
                         type="button"
                         onClick={(e) => { e.stopPropagation(); onToggleTimer(t) }}
                         disabled={timerBusyId === t.id}
-                        className={`inline-flex h-6 w-6 items-center justify-center rounded-md flex-none disabled:opacity-50 ${
+                        className={`inline-flex h-6 w-6 items-center justify-center flex-none disabled:opacity-50 ${
                           isRunning ? 'bg-rose-500/15 text-rose-500' : 'bg-emerald-500/15 text-emerald-600'
                         }`}
                       >
@@ -294,7 +294,7 @@ function TaskList({ tasks, onOpen, currentUserId, runningTaskId, timerElapsed, t
                     )}
                     <span className="text-sm text-text-primary truncate flex-1 min-w-0">{t.title}</span>
                     {t.project_name && (
-                      <span className="hidden sm:inline text-[11px] rounded-full bg-surface-alt px-2 py-0.5 text-text-secondary flex-none">
+                      <span className="hidden sm:inline text-[11px] bg-surface-alt px-2 py-0.5 text-text-secondary flex-none">
                         {t.project_name}
                       </span>
                     )}
@@ -305,7 +305,7 @@ function TaskList({ tasks, onOpen, currentUserId, runningTaskId, timerElapsed, t
                       <span className="text-[11px] tabular-nums text-text-secondary flex-none">{formatMinutes(t.total_minutes)}</span>
                     )}
                     {t.due_date && (
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full flex-none ${urgencyClasses(u.level === 'none' ? 'normal' : u.level)}`}>
+                      <span className={`text-[10px] px-1.5 py-0.5 flex-none ${urgencyClasses(u.level === 'none' ? 'normal' : u.level)}`}>
                         {formatShortDate(t.due_date)}
                       </span>
                     )}
@@ -322,7 +322,7 @@ function TaskList({ tasks, onOpen, currentUserId, runningTaskId, timerElapsed, t
         )
       })}
       {tasks.length === 0 && (
-        <div className="rounded-xl border border-dashed border-border-subtle py-16 text-center text-sm text-text-secondary">
+        <div className="border border-dashed border-border-subtle py-16 text-center text-sm text-text-secondary">
           Nenhuma tarefa encontrada com esses filtros.
         </div>
       )}

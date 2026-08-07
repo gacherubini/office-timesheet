@@ -290,11 +290,11 @@ export function AgendaPage() {
         subtitle="Sua semana: agendas Google, escritório, feriados e férias da equipe."
         actions={
           <>
-            <div className="inline-flex rounded-lg border border-border-subtle bg-surface p-0.5">
+            <div className="inline-flex border border-border-subtle bg-surface p-0.5">
               <button
                 type="button"
                 onClick={() => setView('week')}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
                   view === 'week' ? 'bg-surface-alt text-text-primary' : 'text-text-secondary hover:text-text-primary'
                 }`}
               >
@@ -303,7 +303,7 @@ export function AgendaPage() {
               <button
                 type="button"
                 onClick={() => setView('month')}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
                   view === 'month' ? 'bg-surface-alt text-text-primary' : 'text-text-secondary hover:text-text-primary'
                 }`}
               >
@@ -318,7 +318,7 @@ export function AgendaPage() {
       />
 
       {error && (
-        <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">{error}</div>
+        <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-4">{error}</div>
       )}
 
       <div className="grid grid-cols-1 xl:grid-cols-[280px_1fr] gap-5 items-start">
@@ -328,7 +328,7 @@ export function AgendaPage() {
           {connected && (
             <Card padded={false} className="overflow-hidden">
               <div className="px-5 py-4 flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-emerald-500/15 text-emerald-600 flex items-center justify-center">
+                <div className="w-9 h-9 bg-emerald-500/15 text-emerald-600 flex items-center justify-center">
                   <CalendarClock size={16} />
                 </div>
                 <div className="min-w-0">
@@ -341,7 +341,7 @@ export function AgendaPage() {
 
           <Card padded={false} className="overflow-hidden">
             <div className="px-5 py-4 border-b border-border-subtle">
-              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary">
+              <h2 className="text-[11px] font-medium uppercase tracking-wider text-text-secondary">
                 Minhas agendas
               </h2>
             </div>
@@ -371,7 +371,7 @@ export function AgendaPage() {
 
           <Card padded={false} className="overflow-hidden">
             <div className="px-5 py-4 border-b border-border-subtle">
-              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary">Legenda</h2>
+              <h2 className="text-[11px] font-medium uppercase tracking-wider text-text-secondary">Legenda</h2>
             </div>
             <div className="p-4 space-y-2.5 text-sm">
               <LegendItem colorClass="bg-[color:var(--color-accent)]" label="Presença (chego / não vou)" />
@@ -418,11 +418,11 @@ export function AgendaPage() {
                     }`}
                   >
                     <div className="mb-2 flex flex-col items-center gap-0.5">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
+                      <span className="text-[10px] font-medium uppercase tracking-wider text-text-secondary">
                         {WEEKDAYS[day.date.getDay()]}
                       </span>
                       <span
-                        className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${
+                        className={`flex h-7 w-7 items-center justify-center text-xs font-medium ${
                           isToday ? 'bg-[color:var(--color-accent)] text-white' : 'text-text-primary'
                         }`}
                       >
@@ -431,7 +431,7 @@ export function AgendaPage() {
                     </div>
                     <div className="space-y-1">
                       {loading ? (
-                        <div className="h-5 rounded bg-surface-alt animate-pulse" />
+                        <div className="h-5 bg-surface-alt animate-pulse" />
                       ) : items.length === 0 ? (
                         <p className="text-center text-[11px] text-text-secondary/70 pt-2">—</p>
                       ) : (
@@ -448,7 +448,7 @@ export function AgendaPage() {
                 {WEEKDAYS.map((weekday) => (
                   <div
                     key={weekday}
-                    className="px-2 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-text-secondary"
+                    className="px-2 py-3 text-center text-[11px] font-medium uppercase tracking-wider text-text-secondary"
                   >
                     {weekday}
                   </div>
@@ -467,7 +467,7 @@ export function AgendaPage() {
                     >
                       <div className="mb-2 flex items-center justify-between gap-1">
                         <span
-                          className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${
+                          className={`flex h-7 w-7 items-center justify-center text-xs font-medium ${
                             isToday
                               ? 'bg-[color:var(--color-accent)] text-white'
                               : day.inMonth
@@ -480,7 +480,7 @@ export function AgendaPage() {
                       </div>
                       <div className="space-y-1">
                         {loading ? (
-                          <div className="h-5 rounded bg-surface-alt animate-pulse" />
+                          <div className="h-5 bg-surface-alt animate-pulse" />
                         ) : (
                           <>
                             {items.slice(0, 4).map((item) => (
@@ -512,7 +512,7 @@ export function AgendaPage() {
         >
           <div className="space-y-3 text-sm">
             {selectedEvent.source === 'office' && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 text-emerald-700 px-2.5 py-1 text-xs font-medium">
+              <span className="inline-flex items-center gap-1.5 bg-emerald-500/15 text-emerald-700 px-2.5 py-1 text-xs font-medium">
                 <Building2 size={12} /> Agenda do escritório
               </span>
             )}
@@ -550,14 +550,14 @@ export function AgendaPage() {
 
 function LayerToggle({ label, hint, dotClass, checked, onChange }) {
   return (
-    <label className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-surface-alt cursor-pointer transition-colors">
+    <label className="flex items-center gap-2.5 px-2 py-1.5 hover:bg-surface-alt cursor-pointer transition-colors">
       <input
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="h-4 w-4 rounded border-border-subtle accent-[color:var(--color-accent)]"
+        className="h-4 w-4 border-border-subtle accent-[color:var(--color-accent)]"
       />
-      <span className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${dotClass}`} />
+      <span className={`h-2.5 w-2.5 flex-shrink-0 ${dotClass}`} />
       <span className="min-w-0">
         <span className="block text-sm text-text-primary truncate">{label}</span>
         {hint && <span className="block text-[11px] text-text-secondary truncate">{hint}</span>}
@@ -569,10 +569,10 @@ function LayerToggle({ label, hint, dotClass, checked, onChange }) {
 function LegendItem({ colorClass, label, muted }) {
   return (
     <div className="flex items-center gap-2.5">
-      <span className={`h-3 w-3 rounded-sm flex-shrink-0 ${colorClass}`} />
+      <span className={`h-3 w-3 flex-shrink-0 ${colorClass}`} />
       <span className="text-text-primary">{label}</span>
       {muted && (
-        <span className="ml-auto text-[10px] uppercase tracking-wide text-text-secondary bg-surface-alt rounded px-1.5 py-0.5">
+        <span className="ml-auto text-[10px] uppercase tracking-wide text-text-secondary bg-surface-alt px-1.5 py-0.5">
           {muted}
         </span>
       )}
@@ -601,7 +601,7 @@ function EventChip({ item, onOpen }) {
         type="button"
         onClick={() => onOpen(item)}
         title={item.kind === 'presence' ? 'Editar/remover minha presença' : item.title}
-        className={`flex w-full items-center gap-1 truncate rounded px-2 py-1 text-left text-[11px] font-medium transition-opacity hover:opacity-80 ${style}`}
+        className={`flex w-full items-center gap-1 truncate px-2 py-1 text-left text-[11px] font-medium transition-opacity hover:opacity-80 ${style}`}
       >
         {content}
       </button>
@@ -610,7 +610,7 @@ function EventChip({ item, onOpen }) {
   return (
     <div
       title={item.title}
-      className={`flex w-full items-center gap-1 truncate rounded px-2 py-1 text-[11px] font-medium ${style}`}
+      className={`flex w-full items-center gap-1 truncate px-2 py-1 text-[11px] font-medium ${style}`}
     >
       {content}
     </div>
@@ -693,18 +693,18 @@ function PresenceModal({ open, initial, onClose, onSaved }) {
     >
       <div className="space-y-4">
         {error && (
-          <div className="rounded-lg bg-rose-500/10 text-rose-600 p-3 text-xs">{error}</div>
+          <div className="bg-rose-500/10 text-rose-600 p-3 text-xs">{error}</div>
         )}
 
         <DateField label="Data" value={date} onChange={(e) => setDate(e.target.value)} />
 
         <div>
           <label className="block text-xs font-medium text-text-secondary mb-1.5">Vou ao escritório?</label>
-          <div className="inline-flex w-full rounded-lg border border-border-subtle bg-surface p-0.5">
+          <div className="inline-flex w-full border border-border-subtle bg-surface p-0.5">
             <button
               type="button"
               onClick={() => setStatus('coming')}
-              className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+              className={`flex-1 px-3 py-1.5 text-sm font-medium transition-colors ${
                 status === 'coming' ? 'bg-[color:var(--color-accent)] text-white' : 'text-text-secondary hover:text-text-primary'
               }`}
             >
@@ -713,7 +713,7 @@ function PresenceModal({ open, initial, onClose, onSaved }) {
             <button
               type="button"
               onClick={() => setStatus('absent')}
-              className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+              className={`flex-1 px-3 py-1.5 text-sm font-medium transition-colors ${
                 status === 'absent' ? 'bg-[color:var(--color-accent)] text-white' : 'text-text-secondary hover:text-text-primary'
               }`}
             >

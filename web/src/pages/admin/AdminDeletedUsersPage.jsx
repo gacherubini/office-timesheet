@@ -84,7 +84,7 @@ export function AdminDeletedUsersPage() {
       />
 
       {error && (
-        <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">
+        <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-4">
           {error}
         </div>
       )}
@@ -93,22 +93,22 @@ export function AdminDeletedUsersPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border-subtle bg-surface-alt">
-              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-left px-4 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                 Nome
               </th>
-              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-left px-4 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                 E-mail
               </th>
-              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-left px-4 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                 Perfil
               </th>
-              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-left px-4 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                 Remuneração
               </th>
-              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-left px-4 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                 Excluído em
               </th>
-              <th className="text-right px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-right px-4 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                 Ações
               </th>
             </tr>

@@ -69,7 +69,7 @@ export function LoginPage() {
           </h1>
 
           {error && (
-            <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">
+            <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-4">
               {error}
             </div>
           )}
@@ -85,7 +85,7 @@ export function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full form-control rounded-lg border px-3 py-2.5 text-sm outline-none transition-colors"
+                className="w-full form-control border px-3 py-2.5 text-sm outline-none transition-colors"
                 placeholder="seu@email.com"
               />
             </div>
@@ -100,7 +100,7 @@ export function LoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full form-control rounded-lg border px-3 py-2.5 text-sm outline-none transition-colors"
+                className="w-full form-control border px-3 py-2.5 text-sm outline-none transition-colors"
                 placeholder="••••••"
               />
             </div>
@@ -108,7 +108,7 @@ export function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full text-white rounded-lg py-2.5 text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full text-white py-2.5 text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ background: 'var(--color-accent)' }}
             >
               {loading ? 'Entrando...' : 'Entrar'}

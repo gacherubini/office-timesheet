@@ -404,7 +404,7 @@ export function AdminTimeEntriesPage() {
         <div className="mt-4 flex items-center gap-3 pt-4 border-t border-border-subtle">
           <Avatar name={selectedUser?.name || 'Equipe'} url={selectedUser?.avatar_url} size={36} />
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-text-primary truncate">
+            <p className="text-sm font-medium text-text-primary truncate">
               {selectedUser?.name || 'Toda a equipe'}
             </p>
             <p className="text-xs text-text-secondary truncate">
@@ -425,7 +425,7 @@ export function AdminTimeEntriesPage() {
       </div>
 
       {error && (
-        <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">
+        <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-4">
           {error}
         </div>
       )}
@@ -433,29 +433,29 @@ export function AdminTimeEntriesPage() {
       {expenses.length > 0 && (
         <Card padded={false} className="overflow-x-auto mb-4">
           <div className="px-4 py-3 border-b border-border-subtle bg-surface-alt">
-            <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary">
+            <h2 className="text-[11px] font-medium uppercase tracking-wider text-text-secondary">
               Despesas
             </h2>
           </div>
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-border-subtle bg-surface-alt">
-                <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                   Data
                 </th>
-                <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                   Colaborador
                 </th>
-                <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                   Despesa
                 </th>
-                <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                   Valor
                 </th>
-                <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                   Status
                 </th>
-                <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                   Comprovante
                 </th>
               </tr>
@@ -517,26 +517,26 @@ export function AdminTimeEntriesPage() {
       {bonuses.length > 0 && (
         <Card padded={false} className="overflow-x-auto mb-4">
           <div className="px-4 py-3 border-b border-border-subtle bg-surface-alt">
-            <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary">
+            <h2 className="text-[11px] font-medium uppercase tracking-wider text-text-secondary">
               Bônus
             </h2>
           </div>
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-border-subtle bg-surface-alt">
-                <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                   Data
                 </th>
-                <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                   Colaborador
                 </th>
-                <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                   Bônus
                 </th>
-                <th className="text-right px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                <th className="text-right px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                   Valor
                 </th>
-                <th className="text-right px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+                <th className="text-right px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                   Ações
                 </th>
               </tr>
@@ -596,7 +596,7 @@ export function AdminTimeEntriesPage() {
         title={editingEntry ? 'Editar Registro' : 'Adicionar Registro'}
       >
         {error && (
-          <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">
+          <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-4">
             {error}
           </div>
         )}
@@ -642,7 +642,7 @@ export function AdminTimeEntriesPage() {
               placeholderText="DD/MM/AAAA HH:MM"
               required
               wrapperClassName="block w-full"
-              className="w-full form-control border rounded-lg px-3 py-2 text-sm outline-none transition-colors disabled:opacity-60"
+              className="w-full form-control border px-3 py-2 text-sm outline-none transition-colors disabled:opacity-60"
             />
           </div>
           <div>
@@ -658,7 +658,7 @@ export function AdminTimeEntriesPage() {
               placeholderText="DD/MM/AAAA HH:MM"
               required
               wrapperClassName="block w-full"
-              className="w-full form-control border rounded-lg px-3 py-2 text-sm outline-none transition-colors disabled:opacity-60"
+              className="w-full form-control border px-3 py-2 text-sm outline-none transition-colors disabled:opacity-60"
             />
           </div>
           <Button type="submit" className="w-full">
@@ -673,7 +673,7 @@ export function AdminTimeEntriesPage() {
         title={editingBonus ? 'Editar Bônus' : 'Adicionar Bônus'}
       >
         {bonusError && (
-          <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">
+          <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-4">
             {bonusError}
           </div>
         )}
@@ -753,7 +753,7 @@ export function AdminTimeEntriesPage() {
           Este apontamento será excluído <strong>para sempre</strong>. Esta ação não pode ser desfeita.
         </p>
         {entryToDelete && (
-          <div className="mt-3 rounded-lg border border-border-subtle bg-surface-alt px-3 py-2 text-sm">
+          <div className="mt-3 border border-border-subtle bg-surface-alt px-3 py-2 text-sm">
             <p className="font-medium text-text-primary">
               {entryToDelete.profile?.name || 'Colaborador'}
             </p>
@@ -770,7 +770,7 @@ export function AdminTimeEntriesPage() {
         title="Pausas"
         size="lg"
       >
-        <div className="divide-y divide-border-subtle border border-border-subtle rounded-lg overflow-hidden">
+        <div className="divide-y divide-border-subtle border border-border-subtle overflow-hidden">
           {selectedPauses?.map((pause, index) => (
             <div
               key={pause.id || index}
@@ -790,40 +790,40 @@ export function AdminTimeEntriesPage() {
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-border-subtle bg-surface-alt whitespace-nowrap">
-              <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                 Data
               </th>
-              <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                 Colaborador
               </th>
-              <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                 Projeto
               </th>
-              <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                 Início
               </th>
-              <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                 Pausas
               </th>
-              <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                 Saída
               </th>
-              <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                 Total
               </th>
-              <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                 Total/Dia
               </th>
-              <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                 Saldo
               </th>
-              <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                 Editado
               </th>
-              <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                 Status
               </th>
-              <th className="text-right px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-right px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
                 Ações
               </th>
             </tr>
@@ -985,7 +985,7 @@ export function AdminTimeEntriesPage() {
           Este bônus será excluído <strong>para sempre</strong>. Esta ação não pode ser desfeita.
         </p>
         {bonusToDelete && (
-          <div className="mt-3 rounded-lg border border-border-subtle bg-surface-alt px-3 py-2 text-sm">
+          <div className="mt-3 border border-border-subtle bg-surface-alt px-3 py-2 text-sm">
             <p className="font-medium text-text-primary">{bonusToDelete.title}</p>
             <p className="text-xs text-text-secondary">
               {bonusToDelete.profile?.name || 'Colaborador'} · {formatDate(bonusToDelete.bonus_date)} · {formatCurrency(bonusToDelete.amount)}
@@ -1001,7 +1001,7 @@ export function AdminTimeEntriesPage() {
         footer={<Button onClick={() => setSuccessMessage('')}>OK</Button>}
       >
         <div className="flex flex-col items-center text-center py-2">
-          <div className="bg-emerald-500/15 rounded-full p-4 mb-4">
+          <div className="bg-emerald-500/15 p-4 mb-4">
             <CheckCircle2 className="text-emerald-500" size={36} />
           </div>
           <p className="text-text-primary font-medium">{successMessage}</p>

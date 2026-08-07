@@ -27,7 +27,7 @@ export function Avatar({ name, url, size = 36, className = '' }) {
   return (
     <div
       style={{ ...style, fontSize }}
-      className={`rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 ${avatarColor(name || '')} ${className}`}
+      className={`rounded-full flex items-center justify-center text-white font-medium flex-shrink-0 ${avatarColor(name || '')} ${className}`}
     >
       {(name || 'U').charAt(0).toUpperCase()}
     </div>

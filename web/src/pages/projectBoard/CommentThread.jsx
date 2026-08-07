@@ -102,7 +102,7 @@ export function CommentThread({ taskId, users, currentUserId, isAdmin, onChanged
   return (
     <div>
       {error && (
-        <div className="mb-3 px-3 py-2 rounded-lg bg-rose-500/10 text-rose-500 text-xs">{error}</div>
+        <div className="mb-3 px-3 py-2 bg-rose-500/10 text-rose-500 text-xs">{error}</div>
       )}
       <div className="space-y-2 mb-4 max-h-96 overflow-y-auto pr-1">
         {comments.length === 0 && (
@@ -117,14 +117,14 @@ export function CommentThread({ taskId, users, currentUserId, isAdmin, onChanged
           return (
             <div
               key={c.id}
-              className={`form-control flex items-start gap-2.5 rounded-lg border p-3 ${
+              className={`form-control flex items-start gap-2.5 border p-3 ${
                 isMine ? 'ring-1 ring-accent/30' : ''
               }`}
             >
               <Avatar name={c.author_name} url={c.author_avatar_url} size={28} />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-semibold text-text-primary">{c.author_name}</span>
+                  <span className="text-xs font-medium text-text-primary">{c.author_name}</span>
                   <span className="text-[10px] text-text-secondary">· {relativeTime(c.created_at)}</span>
                   {canDelete && (
                     <button onClick={() => setToDelete(c)} className="text-[10px] text-text-secondary hover:text-rose-500 ml-auto">
@@ -171,8 +171,8 @@ export function CommentThread({ taskId, users, currentUserId, isAdmin, onChanged
           Tem certeza que deseja excluir este comentário? Esta ação não pode ser desfeita.
         </p>
         {toDelete && (
-          <div className="mt-3 rounded-lg border border-border-subtle bg-surface-alt px-3 py-2">
-            <p className="text-xs font-semibold text-text-primary">{toDelete.author_name}</p>
+          <div className="mt-3 border border-border-subtle bg-surface-alt px-3 py-2">
+            <p className="text-xs font-medium text-text-primary">{toDelete.author_name}</p>
             <p className="text-sm text-text-primary mt-1 whitespace-pre-wrap break-words line-clamp-3">{toDelete.body}</p>
           </div>
         )}
