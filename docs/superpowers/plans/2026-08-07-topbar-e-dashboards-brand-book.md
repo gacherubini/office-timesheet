@@ -189,18 +189,36 @@ Em `Tabs.jsx`, na variante `underline`, trocar `font-semibold` por `font-medium`
 
 Na variante `pill`, trocar `shadow-card` por `border border-border-subtle` e remover `rounded-lg`/`rounded-md` (usar cantos retos).
 
-- [ ] **Step 4: Verificar**
+- [ ] **Step 4: Limpar a classe morta nas páginas que montam card à mão**
+
+Seis lugares não usam o componente `Card` — repetem as classes na mão. Com `boxShadow.card` removido do Tailwind na Task 1, `shadow-card` vira classe morta. Em cada um, apagar `rounded-xl` e `shadow-card`, mantendo `bg-surface border border-border-subtle`:
+
+- `web/src/pages/ForgotPasswordPage.jsx:35`
+- `web/src/pages/ResetPasswordPage.jsx:58`
+- `web/src/pages/ProfilePage.jsx:181` e `:321`
+- `web/src/pages/TimerPage.jsx:137`
+- `web/src/pages/profile/CalendarConnect.jsx:57`
+
+Confirmar depois que não sobrou nenhuma:
+
+```bash
+cd web && grep -rn "shadow-card" src/
+```
+
+Esperado: nenhum resultado.
+
+- [ ] **Step 5: Verificar**
 
 ```bash
 cd web && npm run build && npm run dev
 ```
 
-Abrir `/admin/dashboard`, `/pessoas` e `/agenda`. Esperado: cards retos com fio de 1px, sem sombra; abas Equipe/Projetos com sublinhado preto.
+Abrir `/admin/dashboard`, `/pessoas`, `/agenda`, `/profile` e `/timer`. Esperado: cards retos com fio de 1px, sem sombra, iguais entre si; abas Equipe/Projetos com sublinhado preto.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add web/src/components/ui/Card.jsx web/src/components/ui/PageHeader.jsx web/src/components/ui/Tabs.jsx
+git add web/src/components/ui/Card.jsx web/src/components/ui/PageHeader.jsx web/src/components/ui/Tabs.jsx web/src/pages/ForgotPasswordPage.jsx web/src/pages/ResetPasswordPage.jsx web/src/pages/ProfilePage.jsx web/src/pages/TimerPage.jsx web/src/pages/profile/CalendarConnect.jsx
 git commit -m "feat(ui): card reto sem sombra e tipografia Light nos primitivos"
 ```
 
@@ -709,7 +727,7 @@ export function Layout({ children }) {
   return (
     <div className="min-h-screen bg-bg text-text-primary">
       <Topbar />
-      <main className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-8">{children}</main>
+      <main className="px-4 py-6 md:px-8 md:py-8">{children}</main>
       <ClockInReminder />
     </div>
   )
@@ -717,6 +735,8 @@ export function Layout({ children }) {
 ```
 
 Some tudo: `NavRow`, `NavSubRow`, `isSidebarPinned`, `isSidebarHovered`, a chave `sidebarPinned` do localStorage, e o bloco de grafismo decorativo das linhas 266-279 — que desenhava a marca atrás de cards opacos e nunca apareceu.
+
+O `<main>` fica **sem** `max-w`: `AdminTimeEntriesPage` e `AdminReportsPage` são tabelas largas que hoje usam a largura toda. As páginas que querem se estreitar já trazem a própria `max-w` (`EmployeeDashboardPage.jsx:98`, `ProfilePage.jsx:166`, `PerformancePage.jsx:206`).
 
 - [ ] **Step 5: Tirar o `NotificationBell` de flutuante**
 
