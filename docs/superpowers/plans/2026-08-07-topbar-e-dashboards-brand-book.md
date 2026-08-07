@@ -17,6 +17,7 @@
 - **Teto de peso 500.** Nenhum `font-semibold`, `font-bold`, `font-extrabold` nos arquivos tocados.
 - Título de página: Funnel Light (300) com uma palavra em Instrument Serif itálico (classe `.font-serif-em`, já existe em `index.css:56`).
 - A linha do grafismo só existe sobre campo de cor sólida. Nunca sobre branco.
+- **Sem raio e sem sombra no que está no fluxo da página.** Overlay (modal, toast, dropdown, popover) mantém a sombra: ali ela comunica camada. `rounded-full` sobrevive em avatar e sinal de status.
 - Toda tarefa termina com `cd web && npm run build` passando.
 
 ---
@@ -189,7 +190,23 @@ Em `Tabs.jsx`, na variante `underline`, trocar `font-semibold` por `font-medium`
 
 Na variante `pill`, trocar `shadow-card` por `border border-border-subtle` e remover `rounded-lg`/`rounded-md` (usar cantos retos).
 
-- [ ] **Step 4: Limpar a classe morta nas páginas que montam card à mão**
+- [ ] **Step 4: Achatar os outros primitivos**
+
+Sem isto, a própria dashboard nova fica com card reto e botão arredondado dentro — o modal de sucesso do admin (`AdminDashboardPage.jsx:719-733`) usa `<Button>`. Remover o raio de cada um:
+
+- `web/src/components/ui/Button.jsx:27` — tirar `rounded-lg` do `baseClass`
+- `web/src/components/ui/Input.jsx:4` — tirar `rounded-lg`
+- `web/src/components/ui/Select.jsx:15` — tirar `rounded-lg`
+- `web/src/components/ui/Select.jsx:257` — tirar só `rounded-xl`, **manter `shadow-xl`**
+- `web/src/components/ui/Modal.jsx:27` — tirar só `rounded-xl`, **manter `shadow-2xl`**
+- `web/src/components/ui/Modal.jsx:46` — tirar `rounded-b-xl` (e o ternário que o produz)
+- `web/src/components/ui/Badge.jsx:13` — tirar `rounded`
+
+`Avatar` e `StatusDot` continuam redondos: são retrato e sinal, não moldura.
+
+**A sombra só sai do que está no fluxo da página.** O que flutua acima do conteúdo — `Modal`, `Toast`, o dropdown do `Select`, `ActivityPopover`, `AssigneePicker`, `MentionInput`, `TaskDetailModal`, `ClockInReminder` e o painel do `NotificationBell` — mantém a elevação, porque ali a sombra comunica camada, não enfeite. Um painel branco sobre conteúdo branco separado só por um fio de 1px lê como defeito.
+
+- [ ] **Step 5: Limpar a classe morta nas páginas que montam card à mão**
 
 Seis lugares não usam o componente `Card` — repetem as classes na mão. Com `boxShadow.card` removido do Tailwind na Task 1, `shadow-card` vira classe morta. Em cada um, apagar `rounded-xl` e `shadow-card`, mantendo `bg-surface border border-border-subtle`:
 
@@ -207,19 +224,19 @@ cd web && grep -rn "shadow-card" src/
 
 Esperado: nenhum resultado.
 
-- [ ] **Step 5: Verificar**
+- [ ] **Step 6: Verificar**
 
 ```bash
 cd web && npm run build && npm run dev
 ```
 
-Abrir `/admin/dashboard`, `/pessoas`, `/agenda`, `/profile` e `/timer`. Esperado: cards retos com fio de 1px, sem sombra, iguais entre si; abas Equipe/Projetos com sublinhado preto.
+Abrir `/admin/dashboard`, `/pessoas`, `/agenda`, `/profile` e `/timer`. Esperado: cards retos com fio de 1px, sem sombra, iguais entre si; botões, campos, selects e modais igualmente retos; abas com sublinhado preto. Abrir um modal (aprovar algo em `/admin/dashboard`) e confirmar que a caixa e o botão dentro dela são retos.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add web/src/components/ui/Card.jsx web/src/components/ui/PageHeader.jsx web/src/components/ui/Tabs.jsx web/src/pages/ForgotPasswordPage.jsx web/src/pages/ResetPasswordPage.jsx web/src/pages/ProfilePage.jsx web/src/pages/TimerPage.jsx web/src/pages/profile/CalendarConnect.jsx
-git commit -m "feat(ui): card reto sem sombra e tipografia Light nos primitivos"
+git add web/src/components/ui/ web/src/pages/ForgotPasswordPage.jsx web/src/pages/ResetPasswordPage.jsx web/src/pages/ProfilePage.jsx web/src/pages/TimerPage.jsx web/src/pages/profile/CalendarConnect.jsx
+git commit -m "feat(ui): primitivos retos sem sombra e tipografia Light"
 ```
 
 ---
@@ -1116,14 +1133,112 @@ git commit -m "feat(dashboard): home do colaborador na linguagem do brand book"
 
 ---
 
+### Task 8: Varredura de peso tipográfico
+
+O livro define Light, Regular e Medium (04.1). O código tem **163 ocorrências de peso acima disso em 41 arquivos**. Sem esta varredura, as duas dashboards ficam com teto 500 e as outras dezoito continuam pesadas — a mesma seção parece mais gorda em `/pessoas` do que em `/admin/dashboard`.
+
+**Files:**
+- Modify: os 41 arquivos que casam com `font-(semibold|bold|extrabold)` em `web/src/`
+
+- [ ] **Step 1: Fotografar o estado atual**
+
+```bash
+cd web/src && grep -roE 'font-(semibold|bold|extrabold)' . | wc -l
+```
+
+Esperado: 163. Se o número tiver mudado, as tarefas anteriores já reduziram parte — siga assim mesmo.
+
+- [ ] **Step 2: Trocar tudo por `font-medium`**
+
+```bash
+cd web/src && grep -rlE 'font-(semibold|bold|extrabold)' . | xargs sed -i -E 's/font-(semibold|bold|extrabold)/font-medium/g'
+```
+
+- [ ] **Step 3: Confirmar que zerou**
+
+```bash
+cd web/src && grep -rnE 'font-(semibold|bold|extrabold)' . | wc -l
+```
+
+Esperado: 0.
+
+- [ ] **Step 4: Conferir hierarquia onde o negrito estava segurando peso**
+
+```bash
+cd web && npm run build && npm run dev
+```
+
+Percorrer `/pessoas`, `/projetos`, `/agenda`, `/admin/time-entries`, `/admin/reports` e `/performance`. Em cada tela, procurar onde o negrito era o **único** separador entre título e corpo — cabeçalho de coluna, total de rodapé, nome sobre cargo. Onde a hierarquia tiver achatado, recuperá-la por **tamanho ou caixa alta espaçada**, nunca voltando o peso:
+
+```jsx
+// antes: <span className="text-sm font-semibold">Total</span>
+// depois: <span className="text-[10px] uppercase tracking-[.2em] text-text-secondary">Total</span>
+```
+
+Ajustar só onde ficou realmente ilegível. Não é uma passada de redesenho — é conserto pontual.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add web/src
+git commit -m "refactor(theme): teto de peso em Medium, conforme brand book 04.1"
+```
+
+---
+
+### Task 9: Simulador de performance sem laranja
+
+O `PerformanceSimulator` usa o laranja como cor funcional inteira — chip, checkbox, campo, borda tracejada, legenda, texto e total. São 10 pontos, e é o oposto do que o livro reserva ao laranja. O marrom é cor principal, então aguenta esse peso, e ainda faz `/performance` conversar com o bloco herói das dashboards.
+
+**Files:**
+- Modify: `web/src/components/PerformanceSimulator.jsx:200, 258, 273, 296, 311, 342, 343, 349, 360, 420`
+- Modify: `web/src/index.css` (remover o alias morto)
+
+- [ ] **Step 1: Trocar o token nas dez ocorrências**
+
+```bash
+cd web/src && sed -i 's/--color-accent-2/--color-brown/g' components/PerformanceSimulator.jsx
+```
+
+A semântica não muda: marrom continua querendo dizer "isto é projeção, não realizado". O que muda é que a cor agora é uma das duas principais da marca, em vez da que o livro manda usar com conta-gotas.
+
+- [ ] **Step 2: Aposentar o alias**
+
+Depois da Task 4 (que apaga o grafismo decorativo do `Layout`) e deste passo, `--color-accent-2` não tem mais consumidor. Confirmar e remover de `web/src/index.css`:
+
+```bash
+cd web/src && grep -rn "accent-2" . | grep -v "index.css"
+```
+
+Esperado: nenhum resultado. Então apagar a linha `--color-accent-2: var(--color-orange);` do `:root` e a entrada `'accent-2'` do `web/tailwind.config.js`.
+
+- [ ] **Step 3: Verificar**
+
+```bash
+cd web && npm run build && npm run dev
+```
+
+Abrir `/performance` e mexer no simulador: a legenda, as células editáveis, o checkbox de fim de semana e o total projetado ficam marrons; nada laranja sobra na página. Comparar lado a lado com `/admin/dashboard` — as duas telas agora usam o mesmo marrom.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add web/src/components/PerformanceSimulator.jsx web/src/index.css web/tailwind.config.js
+git commit -m "refactor(performance): simulador em marrom, liberando o laranja para detalhe"
+```
+
+---
+
 ## Verificação final
 
 1. `cd web && npm test` — 7 testes passando.
 2. `cd web && npm run build` — sem erro.
 3. `cd src && npm run check && npm test` — a API não foi tocada, mas confirma que nada quebrou no repo.
 4. Rodar o app e percorrer, em cada um dos três papéis: topbar em todas as páginas, menu de Performance só para admin, sino e avatar funcionando, gaveta em 375px.
-5. Varredura de peso: `cd web && grep -rn "font-semibold\|font-bold" src/components/Topbar.jsx src/components/Layout.jsx src/components/NotificationBell.jsx src/components/BrandLine.jsx src/pages/admin/AdminDashboardPage.jsx src/pages/EmployeeDashboardPage.jsx src/components/ui/` — esperado: nenhum resultado.
-6. Varredura de laranja: `cd web && grep -rn "color-orange\|accent-2\|CB6D31" src/` — esperado: só o ponto de "ao vivo", o contador do sino e o contador de pendências.
+5. Varredura de peso: `cd web && grep -rnE "font-(semibold|bold|extrabold)" src/` — esperado: nenhum resultado, no repo inteiro.
+6. Varredura de raio: `cd web && grep -rnE "rounded-(md|lg|xl|2xl)" src/components/ui/` — esperado: nenhum resultado. `rounded-full` sobrevive em `Avatar` e `StatusDot`, que são retrato e sinal.
+7. Varredura de laranja: `cd web && grep -rn "color-orange\|accent-2\|CB6D31" src/` — esperado: só três consumidores, todos "pequeno detalhe": o ponto de "ao vivo", o contador do sino e o contador de pendências.
+8. Varredura de sombra: `cd web && grep -rn "shadow-card" src/` — esperado: nenhum resultado. As demais sombras sobrevivem **só em overlay** (`Modal`, `Toast`, dropdown do `Select`, popovers, `ClockInReminder`, painel do `NotificationBell`); confirmar com `grep -rnoE "shadow-[a-z0-9]+" src/` que nada no fluxo da página tem sombra.
 
 ## Fora deste plano
 
