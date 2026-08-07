@@ -36,7 +36,7 @@ export function AttachmentChip({ att, onRemove }) {
           <button
             type="button"
             onClick={onRemove}
-            className="absolute -top-1.5 -right-1.5 h-5 w-5 bg-rose-500 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow"
+            className="absolute -top-1.5 -right-1.5 h-5 w-5 bg-state-danger text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow"
             aria-label="Remover"
           >
             <X size={11} />
@@ -59,7 +59,7 @@ export function AttachmentChip({ att, onRemove }) {
         <button
           type="button"
           onClick={onRemove}
-          className="text-text-secondary hover:text-rose-500 flex-shrink-0"
+          className="text-text-secondary hover:text-state-danger flex-shrink-0"
           aria-label="Remover"
         >
           <X size={11} />
@@ -89,7 +89,7 @@ export function PendingChip({ file, onRemove }) {
         <button
           type="button"
           onClick={onRemove}
-          className="absolute -top-1.5 -right-1.5 h-5 w-5 bg-rose-500 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow"
+          className="absolute -top-1.5 -right-1.5 h-5 w-5 bg-state-danger text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow"
           aria-label="Remover"
         >
           <X size={11} />
@@ -105,7 +105,7 @@ export function PendingChip({ file, onRemove }) {
       <button
         type="button"
         onClick={onRemove}
-        className="text-text-secondary hover:text-rose-500 flex-shrink-0"
+        className="text-text-secondary hover:text-state-danger flex-shrink-0"
         aria-label="Remover"
       >
         <X size={11} />

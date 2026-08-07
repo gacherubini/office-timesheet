@@ -102,7 +102,7 @@ export function CommentThread({ taskId, users, currentUserId, isAdmin, onChanged
   return (
     <div>
       {error && (
-        <div className="mb-3 px-3 py-2 bg-rose-500/10 text-rose-500 text-xs">{error}</div>
+        <div className="mb-3 px-3 py-2 state-danger-soft text-xs">{error}</div>
       )}
       <div className="space-y-2 mb-4 max-h-96 overflow-y-auto pr-1">
         {comments.length === 0 && (
@@ -127,7 +127,7 @@ export function CommentThread({ taskId, users, currentUserId, isAdmin, onChanged
                   <span className="text-xs font-medium text-text-primary">{c.author_name}</span>
                   <span className="text-[10px] text-text-secondary">· {relativeTime(c.created_at)}</span>
                   {canDelete && (
-                    <button onClick={() => setToDelete(c)} className="text-[10px] text-text-secondary hover:text-rose-500 ml-auto">
+                    <button onClick={() => setToDelete(c)} className="text-[10px] text-text-secondary hover:text-state-danger ml-auto">
                       excluir
                     </button>
                   )}

@@ -180,7 +180,7 @@ export function TaskDetailContent({
     <div className="flex flex-col h-full">
       {/* Erro */}
       {error && (
-        <div className="mx-6 mt-4 px-3 py-2 bg-rose-500/10 text-rose-500 text-xs">{error}</div>
+        <div className="mx-6 mt-4 px-3 py-2 state-danger-soft text-xs">{error}</div>
       )}
 
       {/* Header: contexto */}
@@ -287,7 +287,7 @@ export function TaskDetailContent({
             onClick={toggleTimer}
             disabled={timeBusy}
             className={`inline-flex items-center gap-1.5 text-sm px-4 py-2 font-medium disabled:opacity-60 transition-colors ${
-              timeData?.open_session ? 'bg-rose-500/15 text-rose-500' : 'bg-emerald-500/15 text-emerald-600'
+              timeData?.open_session ? 'state-danger-soft' : 'state-success-soft'
             }`}
           >
             {timeData?.open_session ? <Square size={13} /> : <Play size={13} />}
@@ -318,7 +318,7 @@ export function TaskDetailContent({
                 type="button"
                 onClick={handleReopen}
                 disabled={saving}
-                className="inline-flex items-center gap-1.5 text-xs text-emerald-600 hover:text-emerald-700 disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 text-xs state-success hover:opacity-80 disabled:opacity-60"
               >
                 <RotateCcw size={13} /> Reabrir tarefa
               </button>
@@ -327,7 +327,7 @@ export function TaskDetailContent({
                   type="button"
                   onClick={() => setConfirmingDelete(true)}
                   disabled={saving}
-                  className="inline-flex items-center gap-1.5 text-xs text-rose-500 hover:text-rose-600 disabled:opacity-60"
+                  className="inline-flex items-center gap-1.5 text-xs state-danger hover:opacity-80 disabled:opacity-60"
                 >
                   <Trash2 size={13} /> Excluir definitivamente
                 </button>
@@ -338,7 +338,7 @@ export function TaskDetailContent({
               type="button"
               onClick={() => setConfirmingAbandon(true)}
               disabled={saving}
-              className="inline-flex items-center gap-1.5 text-xs text-text-secondary hover:text-rose-500 disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 text-xs text-text-secondary hover:text-state-danger disabled:opacity-60"
             >
               <Archive size={13} /> Abandonar tarefa
             </button>
@@ -402,8 +402,8 @@ export function TaskDetailContent({
         footer={<Button onClick={() => setSuccessMessage('')}>OK</Button>}
       >
         <div className="flex flex-col items-center text-center py-2">
-          <div className="bg-emerald-500/15 p-4 mb-4">
-            <CheckCircle2 className="text-emerald-500" size={36} />
+          <div className="state-success-soft p-4 mb-4">
+            <CheckCircle2 className="state-success" size={36} />
           </div>
           <p className="text-text-primary font-medium">{successMessage}</p>
         </div>

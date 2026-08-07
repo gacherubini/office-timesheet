@@ -84,7 +84,7 @@ export function DueDateChip({ value, status, onChange, disabled }) {
             <button
               type="button"
               onClick={clear}
-              className="mt-1 w-full inline-flex items-center justify-center gap-1 text-[11px] text-text-secondary hover:text-rose-500"
+              className="mt-1 w-full inline-flex items-center justify-center gap-1 text-[11px] text-text-secondary hover:text-state-danger"
             >
               <X size={11} /> Remover prazo
             </button>

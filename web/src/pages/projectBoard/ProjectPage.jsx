@@ -141,7 +141,7 @@ export function ProjectPage({
             Etapa · em breve
           </span>
           <span className={`inline-flex items-center px-2.5 py-1 text-[11px] font-medium ${
-            completed ? 'bg-emerald-500/15 text-emerald-600' : 'bg-accent/15 text-accent'
+            completed ? 'state-success-soft' : 'bg-accent/15 text-accent'
           }`}>
             {completed ? 'Concluído' : 'Em andamento'}
           </span>
@@ -149,7 +149,7 @@ export function ProjectPage({
       </div>
 
       {feedback && (
-        <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-4">
+        <div className="state-danger-soft text-sm p-3 mb-4">
           {feedback}
         </div>
       )}
@@ -306,7 +306,7 @@ export function ProjectPage({
                         type="button"
                         onClick={() => deleteDoc(doc)}
                         title="Excluir"
-                        className="text-text-secondary/50 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity flex-none"
+                        className="text-text-secondary/50 hover:text-state-danger opacity-0 group-hover:opacity-100 transition-opacity flex-none"
                       >
                         <Trash2 size={13} />
                       </button>

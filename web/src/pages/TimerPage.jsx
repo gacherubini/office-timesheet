@@ -128,7 +128,7 @@ export function TimerPage() {
       <h1 className="text-2xl font-medium text-text-primary mb-6">Apontamento</h1>
 
       {error && (
-        <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-4">
+        <div className="state-danger-soft text-sm p-3 mb-4">
           {error}
         </div>
       )}
@@ -149,12 +149,12 @@ export function TimerPage() {
         </p>
 
         {isPaused && (
-          <span className="inline-block bg-yellow-100 text-yellow-700 text-xs font-medium px-2 py-1">
+          <span className="inline-block state-attention-soft text-xs font-medium px-2 py-1">
             Pausado
           </span>
         )}
         {isRunning && (
-          <span className="inline-block bg-green-100 text-green-700 text-xs font-medium px-2 py-1">
+          <span className="inline-block state-success-soft text-xs font-medium px-2 py-1">
             Em andamento
           </span>
         )}
@@ -197,7 +197,7 @@ export function TimerPage() {
           <button
             onClick={handleStart}
             disabled={loading}
-            className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 bg-state-success text-white px-6 py-3 font-medium hover:opacity-90 transition-colors disabled:opacity-50"
           >
             <Play size={20} />
             Play
@@ -209,7 +209,7 @@ export function TimerPage() {
             <button
               onClick={handlePause}
               disabled={loading}
-              className="flex items-center gap-2 bg-yellow-500 text-white px-6 py-3 font-medium hover:bg-yellow-600 transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 state-attention-soft px-6 py-3 font-medium hover:opacity-80 transition-colors disabled:opacity-50"
             >
               <Pause size={20} />
               Pausar
@@ -217,7 +217,7 @@ export function TimerPage() {
             <button
               onClick={handleStop}
               disabled={loading}
-              className="flex items-center gap-2 bg-red-600 text-white px-6 py-3 font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 bg-state-danger text-white px-6 py-3 font-medium hover:opacity-90 transition-colors disabled:opacity-50"
             >
               <Square size={20} />
               Encerrar
@@ -230,7 +230,7 @@ export function TimerPage() {
             <button
               onClick={handleResume}
               disabled={loading}
-              className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 bg-state-success text-white px-6 py-3 font-medium hover:opacity-90 transition-colors disabled:opacity-50"
             >
               <RotateCcw size={20} />
               Retomar
@@ -238,7 +238,7 @@ export function TimerPage() {
             <button
               onClick={handleStop}
               disabled={loading}
-              className="flex items-center gap-2 bg-red-600 text-white px-6 py-3 font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 bg-state-danger text-white px-6 py-3 font-medium hover:opacity-90 transition-colors disabled:opacity-50"
             >
               <Square size={20} />
               Encerrar

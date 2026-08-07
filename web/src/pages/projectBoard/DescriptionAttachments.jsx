@@ -38,7 +38,7 @@ export function DescriptionAttachments({ taskId, currentUserId, isAdmin, uploadi
 
   return (
     <div className="mt-2 flex flex-wrap items-center gap-1.5">
-      {error && <span className="text-[11px] text-rose-500">{error}</span>}
+      {error && <span className="text-[11px] state-danger">{error}</span>}
       {items.map((a) => (
         <AttachmentChip key={a.id} att={a} onRemove={canRemove(a) ? () => remove(a) : undefined} />
       ))}

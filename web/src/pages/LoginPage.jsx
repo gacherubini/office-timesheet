@@ -69,7 +69,7 @@ export function LoginPage() {
           </h1>
 
           {error && (
-            <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-4">
+            <div className="state-danger-soft text-sm p-3 mb-4">
               {error}
             </div>
           )}
