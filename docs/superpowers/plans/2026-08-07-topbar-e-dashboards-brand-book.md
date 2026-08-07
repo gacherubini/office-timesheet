@@ -1497,15 +1497,15 @@ Toda troca do Step 4 segue esta tabela. Onde a classe antiga tinha fundo com opa
 
 Percorrer a lista do Step 1 aplicando o mapa. Commitar a cada 5 ou 6 arquivos, para o diff ficar revisável. Em cada arquivo, **ler o que a cor está marcando antes de trocar** — `emerald` aparece tanto como "sucesso" quanto como "camada escritório" na Agenda, e são conversões diferentes.
 
-Não converter `projectBoard/helpers.js` nem `TaskCard.jsx` aqui: eles são a Task 13, que tem mapa próprio de progressão.
+Treze arquivos de `projectBoard/` carregam cor fora da paleta. **Seis têm dono depois** e ficam de fora desta tarefa: `helpers.js`, `TaskCard.jsx` e `KanbanBoard.jsx` são da Task 13, que tem mapa próprio de progressão; `StatusChip.jsx`, `ProjectCatalog.jsx` e `TemplateManager.jsx` são da Task 15. **Os outros sete são desta tarefa** e seguem o mapa acima: `AttachmentChip.jsx`, `CommentThread.jsx`, `DescriptionAttachments.jsx`, `DueDateChip.jsx`, `NewTaskModal.jsx`, `ProjectPage.jsx` e `TaskDetailContent.jsx`.
 
 - [ ] **Step 5: Confirmar que zerou**
 
 ```bash
-cd web/src && grep -rnE "(bg|text|border|ring|divide)-(rose|emerald|amber|sky|violet|slate|yellow|red|green|teal|lime|orange)-[0-9]{2,3}" . | grep -v "projectBoard/"
+cd web/src && grep -rnE "(bg|text|border|ring|divide)-(rose|emerald|amber|sky|violet|slate|yellow|red|green|teal|lime|orange)-[0-9]{2,3}" . | grep -vE "projectBoard/(helpers\.js|TaskCard\.jsx|KanbanBoard\.jsx|StatusChip\.jsx|ProjectCatalog\.jsx|TemplateManager\.jsx)"
 ```
 
-Esperado: nenhum resultado. `projectBoard/` fica de fora aqui de propósito — é a Task 13, que tem mapa próprio de progressão. A verificação final cobre os dois.
+Esperado: nenhum resultado. Os seis arquivos excluídos têm dono nas Tasks 13 e 15; a verificação final cobre todos.
 
 - [ ] **Step 6: Verificar onde o estado importa**
 
