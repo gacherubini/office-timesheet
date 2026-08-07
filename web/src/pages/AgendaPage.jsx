@@ -94,10 +94,10 @@ function vacationIncludesDate(vacation, key) {
 // Estilo (chip) por tipo de item na agenda. Cores seguem a Legenda do mockup.
 const LAYER_STYLE = {
   presence: 'bg-[color:var(--color-accent)]/15 text-accent',
-  vacation: 'bg-violet-500/15 text-violet-700',
-  holiday: 'bg-rose-500/15 text-rose-600',
-  office: 'bg-emerald-500/15 text-emerald-700',
-  google: 'bg-sky-500/15 text-sky-700',
+  vacation: 'bg-[color:var(--color-orange)]/15 text-orange',
+  holiday: 'bg-[color:var(--color-orange)]/15 text-orange',
+  office: 'bg-[color:var(--color-brown)]/15 text-brown',
+  google: 'bg-[color:var(--color-green)]/15 text-green',
 }
 
 const ICON_BY_KIND = {
@@ -288,37 +288,30 @@ export function AgendaPage() {
       <PageHeader
         title="Agenda"
         subtitle="Sua semana: agendas Google, escritório, feriados e férias da equipe."
-        actions={
-          <>
-            <div className="inline-flex border border-border-subtle bg-surface p-0.5">
-              <button
-                type="button"
-                onClick={() => setView('week')}
-                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                  view === 'week' ? 'bg-surface-alt text-text-primary' : 'text-text-secondary hover:text-text-primary'
-                }`}
-              >
-                Semana
-              </button>
-              <button
-                type="button"
-                onClick={() => setView('month')}
-                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                  view === 'month' ? 'bg-surface-alt text-text-primary' : 'text-text-secondary hover:text-text-primary'
-                }`}
-              >
-                Mês
-              </button>
-            </div>
-            <Button onClick={() => { setPresenceInitial(null); setPresenceOpen(true) }}>
-              <Plus size={16} /> Marcar presença
-            </Button>
-          </>
-        }
       />
 
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="flex h-8 border border-border-subtle">
+          {[{ v: 'week', l: 'Semana' }, { v: 'month', l: 'Mês' }].map((o, i) => (
+            <button
+              key={o.v}
+              type="button"
+              onClick={() => setView(o.v)}
+              className={`px-3 text-[11px] transition-colors ${i === 0 ? 'border-r border-border-subtle' : ''} ${
+                view === o.v ? 'bg-ink text-white' : 'text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              {o.l}
+            </button>
+          ))}
+        </div>
+        <Button className="ml-auto h-8" onClick={() => { setPresenceInitial(null); setPresenceOpen(true) }}>
+          <Plus size={15} /> Marcar presença
+        </Button>
+      </div>
+
       {error && (
-        <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-4">{error}</div>
+        <div className="state-danger-soft text-sm p-3 mb-4">{error}</div>
       )}
 
       <div className="grid grid-cols-1 xl:grid-cols-[280px_1fr] gap-5 items-start">
@@ -328,7 +321,7 @@ export function AgendaPage() {
           {connected && (
             <Card padded={false} className="overflow-hidden">
               <div className="px-5 py-4 flex items-center gap-3">
-                <div className="w-9 h-9 bg-emerald-500/15 text-emerald-600 flex items-center justify-center">
+                <div className="w-9 h-9 state-success-soft flex items-center justify-center">
                   <CalendarClock size={16} />
                 </div>
                 <div className="min-w-0">
@@ -349,20 +342,20 @@ export function AgendaPage() {
               <LayerToggle
                 label="Pessoal (Google)"
                 hint={connected ? undefined : 'Conecte sua conta Google'}
-                dotClass="bg-sky-500"
+                dotClass="bg-green"
                 checked={layers.personal}
                 onChange={(v) => setLayers((l) => ({ ...l, personal: v }))}
               />
               <LayerToggle
                 label="Escritório (Google)"
-                dotClass="bg-emerald-500"
+                dotClass="bg-brown"
                 checked={layers.office}
                 onChange={(v) => setLayers((l) => ({ ...l, office: v }))}
               />
               <LayerToggle
                 label="Empresa (comum)"
                 hint="Férias e feriados"
-                dotClass="bg-violet-500"
+                dotClass="bg-orange"
                 checked={layers.company}
                 onChange={(v) => setLayers((l) => ({ ...l, company: v }))}
               />
@@ -375,11 +368,11 @@ export function AgendaPage() {
             </div>
             <div className="p-4 space-y-2.5 text-sm">
               <LegendItem colorClass="bg-[color:var(--color-accent)]" label="Presença (chego / não vou)" />
-              <LegendItem colorClass="bg-violet-500" label="Férias" />
-              <LegendItem colorClass="bg-rose-500" label="Feriado / aviso" />
+              <LegendItem colorClass="bg-orange" label="Férias" />
+              <LegendItem colorClass="bg-orange" label="Feriado / aviso" />
               <div className="pt-2 mt-1 border-t border-border-subtle space-y-2.5">
-                <LegendItem colorClass="bg-sky-500" label="Agenda pessoal (Google)" />
-                <LegendItem colorClass="bg-emerald-500" label="Agenda do escritório" />
+                <LegendItem colorClass="bg-green" label="Agenda pessoal (Google)" />
+                <LegendItem colorClass="bg-brown" label="Agenda do escritório" />
               </div>
             </div>
           </Card>
@@ -512,7 +505,7 @@ export function AgendaPage() {
         >
           <div className="space-y-3 text-sm">
             {selectedEvent.source === 'office' && (
-              <span className="inline-flex items-center gap-1.5 bg-emerald-500/15 text-emerald-700 px-2.5 py-1 text-xs font-medium">
+              <span className="inline-flex items-center gap-1.5 bg-[color:var(--color-brown)]/15 text-brown px-2.5 py-1 text-xs font-medium">
                 <Building2 size={12} /> Agenda do escritório
               </span>
             )}
@@ -693,7 +686,7 @@ function PresenceModal({ open, initial, onClose, onSaved }) {
     >
       <div className="space-y-4">
         {error && (
-          <div className="bg-rose-500/10 text-rose-600 p-3 text-xs">{error}</div>
+          <div className="state-danger-soft p-3 text-xs">{error}</div>
         )}
 
         <DateField label="Data" value={date} onChange={(e) => setDate(e.target.value)} />
