@@ -1318,6 +1318,310 @@ git commit -m "feat(auth): assinatura oficial e paleta correta nas telas de entr
 
 ---
 
+### Task 11: Política de cor de estado
+
+O app usa 345 classes de cor do Tailwind fora da paleta, sem token. Isso não é varredura mecânica: os significados diferem e as opacidades variam (`/5`, `/10`, `/15`). Converte-se por significado, não por regex.
+
+**Files:**
+- Modify: `web/src/index.css` (tokens + classes utilitárias)
+- Modify: `web/tailwind.config.js`
+- Modify: os ~40 arquivos que casam com a busca do Step 1
+
+**Interfaces:**
+- Produces: `--state-danger`, `--state-success` e as classes `.state-danger`, `.state-danger-soft`, `.state-success`, `.state-success-soft`, usadas pelas Tasks 12 a 14.
+
+- [ ] **Step 1: Levantar o terreno**
+
+```bash
+cd web/src && grep -rlE "(bg|text|border|ring|divide)-(rose|emerald|amber|sky|violet|slate|yellow|red|green|teal|lime|orange)-[0-9]{2,3}" . | while read f; do printf "%4s %s\n" "$(grep -coE "(bg|text|border|ring|divide)-(rose|emerald|amber|sky|violet|slate|yellow|red|green|teal|lime|orange)-[0-9]{2,3}" "$f")" "$f"; done | sort -rn
+```
+
+Guarde a lista: ela é a checklist do Step 4. Os maiores são `VacationCalendarPage` (20), `PessoasPage` (17), `AgendaPage` (15), `projectBoard/helpers.js` (9) e `TimerPage` (8).
+
+- [ ] **Step 2: Criar os tokens e as classes**
+
+Em `web/src/index.css`, no `:root`, depois das cores da marca:
+
+```css
+  /* ── Cor de estado. O livro governa identidade, não semântica. ──
+     Dois hex fora da paleta, afinados para o registro sóbrio da p.36.
+     "Atenção" não ganha cor nova: usa o laranja da marca.            */
+  --state-danger: #9E4034;
+  --state-success: #3E7355;
+```
+
+E no `@layer components`:
+
+```css
+  .state-danger { color: var(--state-danger); }
+  .state-danger-soft { background-color: color-mix(in srgb, var(--state-danger) 12%, transparent); color: var(--state-danger); }
+  .state-success { color: var(--state-success); }
+  .state-success-soft { background-color: color-mix(in srgb, var(--state-success) 12%, transparent); color: var(--state-success); }
+  .state-attention { color: var(--color-orange); }
+  .state-attention-soft { background-color: color-mix(in srgb, var(--color-orange) 14%, transparent); color: var(--color-orange); }
+```
+
+Em `web/tailwind.config.js`, acrescentar às `colors`: `'state-danger': 'var(--state-danger)'` e `'state-success': 'var(--state-success)'`.
+
+- [ ] **Step 3: Fixar o mapa de conversão**
+
+Toda troca do Step 4 segue esta tabela. Onde a classe antiga tinha fundo com opacidade (`bg-rose-500/15 text-rose-500`), usa-se a classe `-soft`, que já traz fundo e texto:
+
+| Hoje | Vira | Significado |
+|---|---|---|
+| `bg-rose-*/N text-rose-*` | `state-danger-soft` | erro, destrutivo, parar |
+| `text-rose-*` | `state-danger` | idem |
+| `bg-emerald-*/N text-emerald-*` | `state-success-soft` | sucesso, em curso, online |
+| `text-emerald-*` | `state-success` | idem |
+| `bg-amber-*/N text-amber-*` | `state-attention-soft` | aviso, pausado |
+| `bg-sky-*` (camada pessoal) | `bg-green` | categoria |
+| `bg-emerald-*` (camada escritório) | `bg-brown` | categoria |
+| `bg-violet-*` (camada empresa) | `bg-orange` | categoria |
+| `*-slate-*` | `rgba(15,15,15,α)` via `text-text-secondary` / `border-border-subtle` | neutro |
+
+- [ ] **Step 4: Converter, do maior para o menor**
+
+Percorrer a lista do Step 1 aplicando o mapa. Commitar a cada 5 ou 6 arquivos, para o diff ficar revisável. Em cada arquivo, **ler o que a cor está marcando antes de trocar** — `emerald` aparece tanto como "sucesso" quanto como "camada escritório" na Agenda, e são conversões diferentes.
+
+Não converter `projectBoard/helpers.js` nem `TaskCard.jsx` aqui: eles são a Task 13, que tem mapa próprio de progressão.
+
+- [ ] **Step 5: Confirmar que zerou**
+
+```bash
+cd web/src && grep -rnE "(bg|text|border|ring|divide)-(rose|emerald|amber|sky|violet|slate|yellow|red|green|teal|lime|orange)-[0-9]{2,3}" . | grep -v "projectBoard/"
+```
+
+Esperado: nenhum resultado. `projectBoard/` fica de fora aqui de propósito — é a Task 13, que tem mapa próprio de progressão. A verificação final cobre os dois.
+
+- [ ] **Step 6: Verificar onde o estado importa**
+
+```bash
+cd web && npm run build && npm run dev
+```
+
+Provocar um erro real (salvar apontamento com hora final antes da inicial) e confirmar que a faixa continua saltando aos olhos. Abrir `/vacation-calendar`, `/timer` e `/agenda` — as três telas mais coloridas do app.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add web/src web/tailwind.config.js
+git commit -m "feat(theme): cor de estado em dois tokens, no lugar de 345 classes soltas"
+```
+
+---
+
+### Task 12: Faixa de controle e superfície de dados em Pessoas
+
+**Files:**
+- Modify: `web/src/pages/PessoasPage.jsx:82-110` (o `TabChip`), `:478-539`
+
+- [ ] **Step 1: Trocar o `TabChip` por filtro da faixa**
+
+O `TabChip` usa `tone` por categoria, que a Task 11 já esvaziou. Vira um filtro neutro com contador embutido:
+
+```jsx
+function TabChip({ active, label, count, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex h-8 items-center gap-2 border px-3 text-[12px] transition-colors ${
+        active
+          ? 'border-ink bg-ink text-white'
+          : 'border-border-subtle bg-surface text-text-secondary hover:text-text-primary'
+      }`}
+    >
+      {label}
+      <span className="text-[10.5px] tabular-nums opacity-65">{count}</span>
+    </button>
+  )
+}
+```
+
+O parâmetro `tone` sai da assinatura e das chamadas em `:453-458`.
+
+- [ ] **Step 2: Juntar busca, filtros e ação numa faixa só**
+
+Hoje são três blocos empilhados: chips (`:478-490`), busca (`:492-502`) e o botão em `actions` do `PageHeader`. Viram uma linha:
+
+```jsx
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[240px] max-w-xs flex-1">
+          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-secondary" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por nome, e-mail ou telefone..."
+            className="form-control h-8 w-full border pl-8 pr-3 text-[12px] outline-none transition-colors"
+          />
+        </div>
+        {tabs.map((t) => (
+          <TabChip key={t.key} active={tab === t.key} label={t.label} count={counts[t.key] || 0} onClick={() => setTab(t.key)} />
+        ))}
+        <Button className="ml-auto h-8" onClick={() => setShowNewChooser(true)}>
+          <Plus size={15} /> Nova pessoa
+        </Button>
+      </div>
+```
+
+E o `actions` sai do `PageHeader` (`:465-470`).
+
+- [ ] **Step 3: Cabeçalho de coluna de verdade**
+
+Em `:514-521`, trocar `bg-surface-alt text-[11px] font-semibold uppercase tracking-wider` por `bg-bg text-[8.5px] uppercase tracking-[.2em]`. O resto da linha fica.
+
+- [ ] **Step 4: Verificar**
+
+```bash
+cd web && npm run build && npm run dev
+```
+
+Abrir `/pessoas`. Esperado: uma faixa só, alinhada; contadores continuam certos ao trocar de aba; busca filtra; a tabela tem cabeçalho legível. Em 900px de largura a faixa quebra em duas linhas sem sobrepor nada.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add web/src/pages/PessoasPage.jsx
+git commit -m "feat(pessoas): faixa de controle única e cabeçalho de coluna"
+```
+
+---
+
+### Task 13: Cores do quadro de tarefas
+
+**O Kanban não muda de forma.** Grade de quatro colunas, cartão arrastável, arraste, prioridade, responsável, cronômetro no cartão e a faixa recolhível de Abandonados ficam exatamente como estão. O mesmo vale para a visão de Lista. Trocam-se apenas as cores, e status e prioridade deixam de ser categorias soltas para virar progressão.
+
+**Files:**
+- Modify: `web/src/pages/projectBoard/helpers.js:2-7, 31-36, 38-42`
+- Modify: `web/src/pages/projectBoard/TaskCard.jsx:52, 74-78`
+- Modify: `web/src/pages/projectBoard/KanbanBoard.jsx:84`
+- Modify: `web/src/pages/GlobalTasksPage.jsx:155-180`
+
+- [ ] **Step 1: Status como progressão**
+
+Em `helpers.js:2-7`. As classes viram utilitárias do tema; `dot` ganha contorno no primeiro estágio, porque "A fazer" é ausência de progresso:
+
+```js
+export const COLUMNS = [
+  { key: 'todo', label: 'A fazer', dot: 'border border-[rgba(15,15,15,.35)]', bar: 'bg-[rgba(15,15,15,.18)]' },
+  { key: 'in_progress', label: 'Fazendo', dot: 'bg-orange', bar: 'bg-orange' },
+  { key: 'in_review', label: 'Em revisão', dot: 'bg-brown', bar: 'bg-brown' },
+  { key: 'done', label: 'Concluído', dot: 'bg-state-success', bar: 'bg-state-success' },
+]
+```
+
+- [ ] **Step 2: Prioridade como progressão**
+
+Em `helpers.js:38-42`:
+
+```js
+export const PRIORITIES = [
+  { key: 'low', label: 'Baixa', dot: 'border border-[rgba(15,15,15,.3)]', chip: 'bg-surface-alt text-text-secondary' },
+  { key: 'medium', label: 'Média', dot: 'bg-orange', chip: 'state-attention-soft' },
+  { key: 'high', label: 'Alta', dot: 'bg-state-danger', chip: 'state-danger-soft' },
+]
+```
+
+- [ ] **Step 3: Urgência do prazo**
+
+Em `helpers.js:31-36`:
+
+```js
+export function urgencyClasses(level) {
+  if (level === 'overdue') return 'state-danger-soft'
+  if (level === 'tight') return 'state-attention-soft'
+  if (level === 'normal') return 'bg-surface-alt text-text-secondary'
+  return 'hidden'
+}
+```
+
+- [ ] **Step 4: Cronômetro do cartão**
+
+Em `TaskCard.jsx:52`, `text-emerald-500` vira `state-success`. Em `:74-78`, o botão:
+
+```jsx
+          className={`mt-2.5 inline-flex w-full items-center justify-center gap-1.5 h-8 text-[13px] font-medium disabled:opacity-50 transition-colors ${
+            isRunning ? 'state-danger-soft' : 'state-success-soft'
+          }`}
+```
+
+O `rounded-lg` sai junto (varredura de raio) e o `font-semibold` vira `font-medium` (varredura de peso). Em `KanbanBoard.jsx:84`, o realce de soltar em "Abandonados" troca `border-rose-400/50 ring-2 ring-rose-400/15 bg-rose-500/5` por `border-state-danger ring-2 ring-[color:var(--state-danger)]/15 bg-[color:var(--state-danger)]/5`.
+
+- [ ] **Step 5: Faixa de controle da página**
+
+Em `GlobalTasksPage.jsx:155-180`, os controles viram a mesma faixa de Pessoas: busca à esquerda, selects, "Só minhas", segmentado Lista/Board, ação à direita. O bloco de busca de `:190-197` sobe para dentro da faixa e o `actions` sai do `PageHeader`. O segmentado usa o mesmo tratamento do Step 1 da Task 12: ativo em `bg-ink text-white`, inativo em `text-text-secondary`.
+
+A visão de Lista (`TaskList`, `:245-331`) mantém a estrutura de grupos por status. Só as cores mudam, herdadas de `COLUMNS`.
+
+- [ ] **Step 6: Verificar o arraste**
+
+```bash
+cd web && npm run build && npm run dev
+```
+
+Abrir `/tarefas`. Arrastar um cartão entre as quatro colunas e para "Abandonados" — o realce de destino aparece e o status persiste ao recarregar. Iniciar e parar o cronômetro num cartão. Alternar Lista/Board. **Nenhum comportamento pode ter mudado**; se algo de arraste quebrou, foi engano de edição, não da spec.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add web/src/pages/projectBoard/helpers.js web/src/pages/projectBoard/TaskCard.jsx web/src/pages/projectBoard/KanbanBoard.jsx web/src/pages/GlobalTasksPage.jsx
+git commit -m "feat(tarefas): status e prioridade como progressão, quadro intacto"
+```
+
+---
+
+### Task 14: Agenda
+
+**Files:**
+- Modify: `web/src/pages/AgendaPage.jsx:287-316, 337-370`
+
+- [ ] **Step 1: Camadas na paleta da marca**
+
+São três categorias e a marca tem três tons distinguíveis. Em `:337-360`, os `dotClass`: `bg-sky-500` (Pessoal) vira `bg-green`, `bg-emerald-500` (Escritório) vira `bg-brown`, `bg-violet-500` (Empresa) vira `bg-orange`. Conferir os mesmos três valores onde os eventos são pintados na grade e na legenda — buscar por `sky-`, `violet-` e `emerald-` no arquivo inteiro antes de dar por encerrado.
+
+- [ ] **Step 2: Faixa de controle**
+
+O par de pílulas Semana/Mês (`:290-311`) vira o segmentado reto das outras telas, e desce do `actions` do `PageHeader` para uma faixa própria, com o botão de ação à direita:
+
+```jsx
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="flex h-8 border border-border-subtle">
+          {[{ v: 'week', l: 'Semana' }, { v: 'month', l: 'Mês' }].map((o, i) => (
+            <button
+              key={o.v}
+              type="button"
+              onClick={() => setView(o.v)}
+              className={`px-3 text-[11px] transition-colors ${i === 0 ? 'border-r border-border-subtle' : ''} ${
+                view === o.v ? 'bg-ink text-white' : 'text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              {o.l}
+            </button>
+          ))}
+        </div>
+        <Button className="ml-auto h-8" onClick={() => { setPresenceInitial(null); setPresenceOpen(true) }}>
+          <Plus size={15} /> Marcar presença
+        </Button>
+      </div>
+```
+
+- [ ] **Step 3: Verificar**
+
+```bash
+cd web && npm run build && npm run dev
+```
+
+Abrir `/agenda` nas visões Semana e Mês. Esperado: as três camadas em verde, marrom e laranja, distinguíveis entre si na grade cheia; ligar e desligar cada camada some e volta com os eventos certos; nada azul ou violeta sobrou.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add web/src/pages/AgendaPage.jsx
+git commit -m "feat(agenda): camadas na paleta da marca e faixa de controle"
+```
+
+---
+
 ## Verificação final
 
 1. `cd web && npm test` — 7 testes passando.
@@ -1326,8 +1630,9 @@ git commit -m "feat(auth): assinatura oficial e paleta correta nas telas de entr
 4. Rodar o app e percorrer, em cada um dos três papéis: topbar em todas as páginas, menu de Performance só para admin, sino e avatar funcionando, gaveta em 375px.
 5. Varredura de peso: `cd web && grep -rnE "font-(semibold|bold|extrabold)" src/` — esperado: nenhum resultado, no repo inteiro.
 6. Varredura de raio: `cd web && grep -rnE "rounded-(md|lg|xl|2xl)" src/components/ui/` — esperado: nenhum resultado. `rounded-full` sobrevive em `Avatar` e `StatusDot`, que são retrato e sinal.
-7. Varredura de laranja: `cd web && grep -rn "color-orange\|accent-2\|CB6D31" src/` — esperado: só três consumidores, todos "pequeno detalhe": o ponto de "ao vivo", o contador do sino e o contador de pendências.
-8. Varredura de sombra: `cd web && grep -rn "shadow-card" src/` — esperado: nenhum resultado. As demais sombras sobrevivem **só em overlay** (`Modal`, `Toast`, dropdown do `Select`, popovers, `ClockInReminder`, painel do `NotificationBell`); confirmar com `grep -rnoE "shadow-[a-z0-9]+" src/` que nada no fluxo da página tem sombra.
+7. Varredura de cor fora da paleta: `cd web && grep -rnE "(bg|text|border|ring|divide)-(rose|emerald|amber|sky|violet|slate|yellow|red|green|teal|lime|orange)-[0-9]{2,3}" src/` — esperado: nenhum resultado, agora incluindo `projectBoard/`.
+8. O laranja continua sendo detalhe: além do ponto de "ao vivo", dos dois contadores e do simulador, ele marca "Fazendo", prioridade Média, prazo apertado e a camada Empresa da Agenda — todos pontos e chips pequenos, nunca superfície.
+9. Varredura de sombra: `cd web && grep -rn "shadow-card" src/` — esperado: nenhum resultado. As demais sombras sobrevivem **só em overlay** (`Modal`, `Toast`, dropdown do `Select`, popovers, `ClockInReminder`, painel do `NotificationBell`); confirmar com `grep -rnoE "shadow-[a-z0-9]+" src/` que nada no fluxo da página tem sombra.
 
 ## Fora deste plano
 

@@ -148,6 +148,52 @@ localStorage, e os componentes `NavRow` e `NavSubRow`.
 - `MyTasksTimer`, "Projetos", `AgendaCard` e `BirthdayCalendar` mantidos, com a
   tipografia e os pesos novos.
 
+## Cor de estado
+
+O brand book governa identidade, não semântica de estado. O app usa hoje **345
+classes de cor do Tailwind fora da paleta** — rose (164), emerald (93), amber
+(31), sky e violet (36) — sem token nenhum. Some com varredura só o que não
+carrega significado; vermelho quer dizer erro antes de qualquer leitura.
+
+A política adotada estende a paleta com **dois tokens funcionais**, afinados para
+o registro sóbrio que a página 36 pede:
+
+```
+--state-danger:  #9E4034   /* erro, ação destrutiva, parar cronômetro */
+--state-success: #3E7355   /* sucesso, cronômetro em curso, online */
+```
+
+"Atenção" não ganha cor nova: reaproveita `--color-orange`, que já marca o ponto
+de "ao vivo" e o contador de pendências.
+
+**Categoria não usa os tokens funcionais — usa a marca.** As três camadas da
+Agenda viram verde, marrom e laranja. Os quatro status de tarefa e as três
+prioridades são **sequências**, não categorias, e viram progressão:
+
+| Status | Cor | Prioridade | Cor |
+|---|---|---|---|
+| A fazer | contorno `rgba(15,15,15,.35)` | Baixa | contorno |
+| Fazendo | `--color-orange` | Média | `--color-orange` |
+| Em revisão | `--color-brown` | Alta | `--state-danger` |
+| Concluído | `--state-success` | | |
+
+## Padrão das telas de lista
+
+Pessoas, Tarefas e Agenda inventam hoje três controles diferentes para a mesma
+ideia. Passam a compartilhar:
+
+- **Faixa de controle** — uma linha sob o título, sempre na mesma ordem: busca,
+  filtros, alternador de visão, ação primária à direita. Substitui o `TabChip`
+  com `tone` de Pessoas, o par de ícones em caixa de Tarefas e o par de pílulas
+  da Agenda.
+- **Superfície de dados** — branca com fio de 1px, cabeçalho de coluna em caixa
+  alta espaçada sobre `#ECECEC`.
+
+**O Kanban não muda de forma.** Grade de quatro colunas, cartão arrastável,
+prioridade, responsável, cronômetro no cartão e faixa recolhível de Abandonados
+ficam exatamente como estão. Trocam-se apenas as cores. O mesmo vale para a visão
+de Lista da mesma página.
+
 ## Fora de escopo
 
 - As demais páginas herdam a topbar e os tokens, mas mantêm pesos 600/700 e a
