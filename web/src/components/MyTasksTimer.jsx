@@ -12,8 +12,8 @@ function formatTotal(minutes) {
 }
 
 const PRIORITY = {
-  high: { label: 'Alta', cls: 'text-rose-500' },
-  medium: { label: 'Média', cls: 'text-amber-600' },
+  high: { label: 'Alta', cls: 'state-danger' },
+  medium: { label: 'Média', cls: 'state-attention' },
   low: { label: 'Baixa', cls: 'text-text-secondary' },
 }
 
@@ -63,7 +63,7 @@ export function MyTasksTimer() {
       </div>
 
       {error && (
-        <div className="mx-5 mt-3 bg-rose-500/10 text-rose-600 text-sm p-3">
+        <div className="mx-5 mt-3 state-danger-soft text-sm p-3">
           {error}
         </div>
       )}

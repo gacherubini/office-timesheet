@@ -11,7 +11,7 @@ export function Input({ label, error, className = '', as = 'input', children, ..
       <Tag className={baseClass} {...props}>
         {children}
       </Tag>
-      {error && <p className="text-xs text-rose-500 mt-1">{error}</p>}
+      {error && <p className="text-xs state-danger mt-1">{error}</p>}
     </div>
   )
 }

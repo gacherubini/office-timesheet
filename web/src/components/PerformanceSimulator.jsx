@@ -426,7 +426,7 @@ export function PerformanceSimulator({ stats, cursor }) {
         </div>
         <div>
           <p className="text-xs text-text-secondary">Ganho projetado</p>
-          <p className="font-display text-xl tabular-nums text-emerald-600">
+          <p className="font-display text-xl tabular-nums state-success">
             {noRate ? '—' : formatCurrency(model.projected)}
           </p>
           {!noRate && !noTarget && (

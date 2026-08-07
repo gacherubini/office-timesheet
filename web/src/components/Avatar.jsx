@@ -1,6 +1,7 @@
+// Paleta de identidade do brand book (não é cor de estado): distribui o hash
+// do nome entre os tons de marca disponíveis.
 const AVATAR_COLORS = [
-  'bg-orange-600', 'bg-amber-700', 'bg-yellow-800', 'bg-lime-800',
-  'bg-emerald-800', 'bg-teal-800', 'bg-stone-600', 'bg-red-800',
+  'bg-ink', 'bg-green-dk', 'bg-green', 'bg-brown', 'bg-brown-dk', 'bg-orange',
 ]
 
 export function avatarColor(name = '') {

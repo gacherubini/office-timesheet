@@ -92,7 +92,7 @@ export function ClientAttachments({ clientId }) {
         className="hidden"
         onChange={(e) => handleFiles(Array.from(e.target.files || []))}
       />
-      {error && <p className="text-[11px] text-rose-500 mb-2">{error}</p>}
+      {error && <p className="text-[11px] state-danger mb-2">{error}</p>}
       <div
         {...dropProps}
         onClick={() => items.length === 0 && !uploading && inputRef.current?.click()}

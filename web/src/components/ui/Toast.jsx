@@ -17,7 +17,7 @@ export function Toast({ message, onClose, duration = 4000, variant = 'error' }) 
 
   const tone =
     variant === 'error'
-      ? 'bg-rose-500/15 text-rose-400 border-rose-500/30'
+      ? 'state-danger-soft border-state-danger'
       : 'bg-surface text-text-primary border-border-subtle'
 
   return (

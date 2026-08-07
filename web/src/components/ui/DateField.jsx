@@ -68,7 +68,7 @@ export function DateField({
         wrapperClassName="block w-full"
         className="w-full form-control border px-3 py-2 text-sm outline-none transition-colors disabled:opacity-60"
       />
-      {error && <p className="text-xs text-rose-500 mt-1">{error}</p>}
+      {error && <p className="text-xs state-danger mt-1">{error}</p>}
     </div>
   )
 }

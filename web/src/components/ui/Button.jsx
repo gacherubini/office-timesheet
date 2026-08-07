@@ -6,7 +6,7 @@ const VARIANTS = {
   ghost:
     'bg-transparent text-text-secondary hover:text-text-primary hover:bg-surface-alt disabled:opacity-50 transition-colors',
   danger:
-    'bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-50 transition-colors',
+    'text-white hover:opacity-90 disabled:opacity-50 transition-opacity',
 }
 
 const SIZES = {
@@ -24,12 +24,18 @@ export function Button({
   ...props
 }) {
   const isPrimary = variant === 'primary'
+  const isDanger = variant === 'danger'
   const baseClass = 'inline-flex items-center justify-center gap-2 font-medium'
+  const bgStyle = isPrimary
+    ? 'var(--color-accent)'
+    : isDanger
+    ? 'var(--state-danger)'
+    : undefined
   return (
     <button
       type={type}
       className={`${baseClass} ${SIZES[size]} ${VARIANTS[variant]} ${className}`}
-      style={isPrimary ? { background: 'var(--color-accent)' } : undefined}
+      style={bgStyle ? { background: bgStyle } : undefined}
       {...props}
     >
       {children}

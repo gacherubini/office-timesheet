@@ -156,7 +156,7 @@ export function BirthdayCalendar() {
                       target="_blank"
                       rel="noreferrer"
                       title={`WhatsApp ${p.phone}`}
-                      className="text-emerald-500 hover:text-emerald-400 p-1 hover:bg-emerald-500/10 transition-colors"
+                      className="state-success hover:bg-surface-alt hover:opacity-80 p-1 transition-colors"
                     >
                       <MessageCircle size={14} />
                     </a>

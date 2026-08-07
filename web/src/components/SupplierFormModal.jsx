@@ -67,7 +67,7 @@ export function SupplierFormModal({ open, supplier, isAdmin, onClose, onSaved })
       title={editing ? 'Editar Fornecedor' : 'Novo Fornecedor'}
     >
       {error && (
-        <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-4">{error}</div>
+        <div className="state-danger-soft text-sm p-3 mb-4">{error}</div>
       )}
       <form onSubmit={handleSubmit} className="space-y-3">
         <Input
