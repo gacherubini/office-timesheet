@@ -1231,6 +1231,93 @@ git commit -m "refactor(performance): simulador em marrom, liberando o laranja p
 
 ---
 
+### Task 10: Telas de autenticação
+
+`/login`, `/forgot-password` e `/reset-password` ficam **fora do `Layout`** (`App.jsx:50-52`), então nenhuma tarefa anterior as alcança. São as únicas telas que 100% dos usuários veem, e hoje usam o `Logo.jsx` improvisado — o SVG aproximado que o `Layout` também usava e que some na Task 4.
+
+O `LoginPage` já acerta mais coisa que o resto do app: o painel esquerdo é `#2E3D38` da paleta, tem a linha diagonal sobre campo sólido, e o título já mistura Funnel com Instrument Serif itálico, que é exatamente a hierarquia 04.3. O que está errado são as cores improvisadas em volta.
+
+**Files:**
+- Modify: `web/src/pages/LoginPage.jsx:4, 35, 38-45, 49, 55, 60, 69`
+- Modify: `web/src/pages/ForgotPasswordPage.jsx:4, 31`
+- Modify: `web/src/pages/ResetPasswordPage.jsx:4, 54`
+- Modify: `web/src/pages/TimerPage.jsx:147`
+- Modify: `web/src/index.css:10`
+- Delete: `web/src/components/Logo.jsx`
+
+- [ ] **Step 1: Trocar o logo improvisado pela assinatura oficial**
+
+Nos quatro pontos (`LoginPage:49` e `:69`, `ForgotPasswordPage:31`, `ResetPasswordPage:54`), trocar o import e o uso. Sobre o painel verde usa-se a versão invertida; sobre branco, a preta:
+
+```jsx
+import assinatura from '../assets/studio-vivian-hor.png'
+
+// sobre o painel verde (LoginPage:49) — substitui o <Logo> e o <span> ao lado:
+<img src={assinatura} alt="Studio Vivian" className="h-4 w-auto invert" />
+
+// sobre fundo branco (LoginPage:69, ForgotPasswordPage:31, ResetPasswordPage:54):
+<img src={assinatura} alt="Studio Vivian" className="h-4 w-auto" />
+```
+
+Onde havia `<span>Gestão VOID</span>` ao lado do logo, manter o texto em `font-light`, separado por um fio de 1px, igual à topbar.
+
+- [ ] **Step 2: Corrigir os hex fora da paleta**
+
+- `LoginPage:35` — `color: '#ECE7DF'` vira `color: '#FFFFFF'`. O `#ECE7DF` é um creme que não existe na paleta.
+- `LoginPage:55` — `color: '#E4A063'` vira `var(--color-orange)`. Era um laranja clarinho inventado.
+- `LoginPage:60` — `rgba(236,231,223,0.6)` vira `rgba(255,255,255,0.6)`.
+- `LoginPage:44` — `stroke="rgba(236,231,223,0.12)"` vira `rgba(255,255,255,0.22)`.
+
+O fundo `#2E3D38` (`LoginPage:35`) está certo e fica.
+
+- [ ] **Step 3: Uma linha só, e fora o brilho**
+
+O livro fala em "uma linha contínua" (05.1). Hoje são duas linhas mais um brilho radial laranja. Apagar o `<div>` do gradiente radial (`LoginPage:38-41`) e a segunda `<line>` (`LoginPage:44`), deixando só a primeira, agora com o token:
+
+```jsx
+        <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+          <svg className="absolute inset-0 h-full w-full" preserveAspectRatio="none">
+            <line x1="-5%" y1="82%" x2="105%" y2="16%" stroke="rgba(255,255,255,0.28)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          </svg>
+        </div>
+```
+
+- [ ] **Step 4: Aposentar a fonte mono**
+
+A marca tem duas fontes: Funnel Sans e Instrument Serif (04.1 e 04.2). Não há mono.
+
+- `LoginPage:60` — tirar `font-mono`, deixando o `tracking-[0.14em]` que já dá o ar de etiqueta.
+- `TimerPage:147` — o cronômetro em `text-5xl font-mono font-bold` vira `text-5xl font-light tabular-nums`. A Funnel tem figuras tabulares e a classe `.tabular-nums` já existe (`index.css:63`), então os dígitos continuam sem dançar.
+- `index.css:10` — apagar a linha `--font-mono`, e a entrada `mono` de `fontFamily` no `tailwind.config.js`.
+
+- [ ] **Step 5: Apagar o `Logo.jsx`**
+
+Depois da Task 4 e dos passos acima, ninguém mais o importa. Confirmar e apagar:
+
+```bash
+cd web/src && grep -rn "components/Logo\|<Logo" . ; rm components/Logo.jsx
+```
+
+O `grep` deve não retornar nada antes do `rm`.
+
+- [ ] **Step 6: Verificar**
+
+```bash
+cd web && npm run build && npm run dev
+```
+
+Abrir `/login` numa janela larga e numa de 375px, mais `/forgot-password` e `/reset-password`. Esperado: assinatura oficial nas quatro aparições; painel esquerdo verde com **uma** linha e sem borrão laranja; "vazio fértil" no laranja da paleta; nada em fonte mono. Conferir também `/timer`: o cronômetro continua alinhado enquanto corre.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add web/src/pages/LoginPage.jsx web/src/pages/ForgotPasswordPage.jsx web/src/pages/ResetPasswordPage.jsx web/src/pages/TimerPage.jsx web/src/index.css web/tailwind.config.js
+git rm web/src/components/Logo.jsx
+git commit -m "feat(auth): assinatura oficial e paleta correta nas telas de entrada"
+```
+
+---
+
 ## Verificação final
 
 1. `cd web && npm test` — 7 testes passando.
