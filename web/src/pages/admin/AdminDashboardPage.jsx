@@ -1,18 +1,16 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../../lib/api'
-import { CalendarOff, Check, CheckCircle2, Clock, FolderOpen, Receipt, Users, X, Radio, ChevronRight, ListTodo } from 'lucide-react'
+import { CalendarOff, Check, CheckCircle2, FolderOpen, Receipt, X, Radio, ChevronRight, ListTodo } from 'lucide-react'
 import { BirthdayCalendar } from '../../components/BirthdayCalendar'
 import { Avatar } from '../../components/Avatar'
-import { PageHeader } from '../../components/ui/PageHeader'
+import { BrandLine } from '../../components/BrandLine'
 import { LiveDot } from '../../components/LiveDot'
 import { Card } from '../../components/ui/Card'
 import { Tabs } from '../../components/ui/Tabs'
 import { Modal } from '../../components/ui/Modal'
 import { Button } from '../../components/ui/Button'
-
-const FULL_RANGE_START = '2000-01-01'
-const FULL_RANGE_END = '2099-12-31'
+import { getPeriodRange } from '../../lib/periods'
 
 function formatCurrency(value) {
   return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -145,8 +143,8 @@ function LiveNowCard({ live }) {
 }
 
 export function AdminDashboardPage() {
-  const startDate = FULL_RANGE_START
-  const endDate = FULL_RANGE_END
+  const [period, setPeriod] = useState('month')
+  const { start_date: startDate, end_date: endDate } = getPeriodRange(period)
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -332,7 +330,31 @@ export function AdminDashboardPage() {
 
   return (
     <div>
-      <PageHeader title="Início" subtitle="Visão geral da operação" />
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <h1 className="font-display text-3xl font-light leading-tight">
+          Visão geral da <span className="font-serif-em">operação</span>
+        </h1>
+        <div className="flex gap-4">
+          {[
+            { value: 'week', label: 'Semana' },
+            { value: 'month', label: 'Mês' },
+            { value: 'quarter', label: 'Trimestre' },
+          ].map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setPeriod(option.value)}
+              className={`pb-0.5 text-[10px] uppercase tracking-[.18em] transition-colors ${
+                period === option.value
+                  ? 'border-b border-ink text-text-primary'
+                  : 'border-b border-transparent text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {error && (
         <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-6">
@@ -340,37 +362,29 @@ export function AdminDashboardPage() {
         </div>
       )}
 
-      <Card padded={false} className="rounded-2xl overflow-hidden mb-7">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-border-subtle">
-          <div className="bg-surface px-5 py-4">
-            <div className="flex items-center gap-1.5 text-text-secondary">
-              <Clock size={13} />
-              <span className="text-[10px] font-semibold uppercase tracking-wider">Horas da equipe</span>
-            </div>
-            <p className="font-display text-[30px] tabular-nums text-text-primary mt-1.5 leading-none">
-              {loading ? '—' : formatHM(kpis?.total_minutes ?? 0)}
-            </p>
-          </div>
-          <div className="bg-surface px-5 py-4">
-            <div className="flex items-center gap-1.5 text-text-secondary">
-              <Users size={13} />
-              <span className="text-[10px] font-semibold uppercase tracking-wider">Usuários ativos</span>
-            </div>
-            <p className="font-display text-2xl tabular-nums text-text-primary mt-1.5 leading-none">
+      <div className="relative mb-4 flex flex-wrap items-end justify-between gap-8 overflow-hidden bg-brown px-6 py-6 text-white">
+        <BrandLine x1={6} y1={112} x2={94} y2={-12} opacity={0.34} />
+        <div className="relative z-10">
+          <p className="text-[9px] uppercase tracking-[.2em] text-white/60">Horas da equipe</p>
+          <p className="mt-2 font-display text-5xl font-light leading-none tabular-nums">
+            {loading ? '—' : formatHM(kpis?.total_minutes ?? 0)}
+          </p>
+        </div>
+        <div className="relative z-10 flex gap-9 pb-1">
+          <div>
+            <p className="text-[9px] uppercase tracking-[.2em] text-white/60">Usuários ativos</p>
+            <p className="mt-2 font-display text-2xl font-light leading-none tabular-nums">
               {loading ? '—' : `${kpis?.active_users ?? 0} de ${kpis?.total_users ?? 0}`}
             </p>
           </div>
-          <div className="bg-surface px-5 py-4">
-            <div className="flex items-center gap-1.5 text-text-secondary">
-              <FolderOpen size={13} />
-              <span className="text-[10px] font-semibold uppercase tracking-wider">Projetos ativos</span>
-            </div>
-            <p className="font-display text-2xl tabular-nums text-text-primary mt-1.5 leading-none">
+          <div>
+            <p className="text-[9px] uppercase tracking-[.2em] text-white/60">Projetos ativos</p>
+            <p className="mt-2 font-display text-2xl font-light leading-none tabular-nums">
               {loading ? '—' : `${kpis?.active_projects ?? 0} de ${kpis?.total_projects ?? 0}`}
             </p>
           </div>
         </div>
-      </Card>
+      </div>
 
       <div className="flex flex-col lg:flex-row gap-5">
         <div className="flex-1 min-w-0 space-y-5">
