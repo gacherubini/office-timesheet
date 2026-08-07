@@ -8,12 +8,16 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { Card } from '../components/ui/Card'
 import { Modal } from '../components/ui/Modal'
 import { Input, Select } from '../components/ui/Input'
-import { DateField } from '../components/ui/DateField'
+import { DateRange } from '../components/ui/DateRange'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { CheckCircle2 } from 'lucide-react'
 
 registerLocale('pt-BR', ptBR)
+
+// Compacta o DateRange (.form-control) para caber na faixa de controle h-8,
+// sem alterar o componente compartilhado.
+const FIELD_H8 = '[&_.form-control]:h-8 [&_.form-control]:py-0 [&_.form-control]:text-[12px]'
 
 function formatDate(iso) {
   if (!iso) return '-'
@@ -235,39 +239,37 @@ export function HistoryPage() {
         subtitle="Apontamentos e solicitações de alteração"
       />
 
+      {showEarnings && (
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <div className={FIELD_H8}>
+            <DateRange
+              from={range.from}
+              to={range.to}
+              onFromChange={(v) => setRange((r) => ({ ...r, from: v }))}
+              onToChange={(v) => setRange((r) => ({ ...r, to: v }))}
+              fromLabel=""
+              toLabel=""
+            />
+          </div>
+          {(range.from || range.to) && (
+            <Button type="button" variant="ghost" size="sm" className="h-8" onClick={() => setRange({ from: '', to: '' })}>
+              Limpar
+            </Button>
+          )}
+        </div>
+      )}
+
       {error && (
-        <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-4">
+        <div className="state-danger-soft text-sm p-3 mb-4">
           {error}
         </div>
       )}
 
       {showEarnings && (
         <Card padded={false} className="overflow-hidden mb-5">
-          <div className="px-5 py-3.5 border-b border-border-subtle bg-surface-alt flex flex-col gap-3">
-            <h2 className="text-[11px] font-medium uppercase tracking-wider text-text-secondary">
-              Ganhos por projeto
-            </h2>
-            <div className="flex flex-wrap items-end gap-2">
-              <DateField
-                label="De"
-                value={range.from}
-                onChange={(e) => setRange((r) => ({ ...r, from: e.target.value }))}
-                max={range.to || undefined}
-                className="w-36"
-              />
-              <DateField
-                label="Até"
-                value={range.to}
-                onChange={(e) => setRange((r) => ({ ...r, to: e.target.value }))}
-                min={range.from || undefined}
-                className="w-36"
-              />
-              {(range.from || range.to) && (
-                <Button variant="ghost" size="sm" onClick={() => setRange({ from: '', to: '' })}>
-                  Limpar
-                </Button>
-              )}
-            </div>
+          <div className="flex items-center gap-3 border-b border-border-subtle bg-bg px-5 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
+            <span className="flex-1">Ganhos por projeto</span>
+            <span className="w-28 flex-none text-right">Valor</span>
           </div>
 
           {earningsLoading ? (
@@ -279,7 +281,10 @@ export function HistoryPage() {
           ) : (
             <div className="divide-y divide-border-subtle">
               {earnings.map((e) => (
-                <div key={e.project_id || 'none'} className="flex items-center gap-3 px-5 py-3">
+                <div
+                  key={e.project_id || 'none'}
+                  className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-[color:var(--color-hover)]"
+                >
                   {e.project_image ? (
                     <img src={e.project_image} alt="" className="w-9 h-9 object-cover flex-shrink-0" />
                   ) : (
@@ -316,29 +321,29 @@ export function HistoryPage() {
       <Card padded={false} className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-border-subtle bg-surface-alt">
-              <th className="text-left px-4 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
+            <tr className="border-b border-border-subtle bg-bg">
+              <th className="text-left px-4 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                 Data
               </th>
-              <th className="text-left px-4 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-left px-4 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                 Projeto
               </th>
-              <th className="text-left px-4 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-right px-4 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                 Início
               </th>
-              <th className="text-left px-4 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-right px-4 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                 Saída
               </th>
-              <th className="text-left px-4 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-right px-4 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                 Duração
               </th>
-              <th className="text-left px-4 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-left px-4 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                 Status
               </th>
-              <th className="text-left px-4 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-left px-4 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                 Solicitação
               </th>
-              <th className="text-right px-4 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-right px-4 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                 Ações
               </th>
             </tr>
@@ -365,7 +370,7 @@ export function HistoryPage() {
                 return (
                   <tr
                     key={entry.id}
-                    className="border-b border-border-subtle last:border-b-0 even:bg-surface-alt/40 hover:bg-surface-alt transition-colors"
+                    className="border-b border-border-subtle last:border-b-0 even:bg-surface-alt/40 hover:bg-[color:var(--color-hover)] transition-colors"
                   >
                     <td className="px-4 py-3 whitespace-nowrap text-text-primary">
                       {formatDate(entry.started_at)}
@@ -373,13 +378,13 @@ export function HistoryPage() {
                     <td className="px-4 py-3 min-w-40 text-text-primary">
                       {entry.projects?.name || '-'}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap tabular-nums text-text-primary">
+                    <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums text-text-primary">
                       {formatTime(entry.started_at)}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap tabular-nums text-text-primary">
+                    <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums text-text-primary">
                       {formatTime(entry.ended_at)}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap tabular-nums text-text-primary">
+                    <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums text-text-primary">
                       {formatDuration(entry.duration_minutes)}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
@@ -461,7 +466,7 @@ export function HistoryPage() {
           </p>
         )}
         {formError && (
-          <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-4">
+          <div className="state-danger-soft text-sm p-3 mb-4">
             {formError}
           </div>
         )}
@@ -536,8 +541,8 @@ export function HistoryPage() {
         }
       >
         <div className="flex flex-col items-center text-center py-2">
-          <div className="bg-emerald-500/15 p-4 mb-4">
-            <CheckCircle2 className="text-emerald-500" size={36} />
+          <div className="state-success-soft p-4 mb-4">
+            <CheckCircle2 className="state-success" size={36} />
           </div>
           <p className="text-text-primary font-medium">{success}</p>
         </div>

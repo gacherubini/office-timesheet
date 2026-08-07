@@ -23,6 +23,10 @@ function formatDuration(minutes) {
   return `${h}h ${String(m).padStart(2, '0')}m`
 }
 
+// Compacta o DateRange (.form-control) para caber na faixa de controle h-8,
+// sem alterar o componente compartilhado.
+const FIELD_H8 = '[&_.form-control]:h-8 [&_.form-control]:py-0 [&_.form-control]:text-[12px]'
+
 function formatDateTime(value) {
   if (!value) return '-'
   return new Date(value).toLocaleString('pt-BR', {
@@ -50,9 +54,9 @@ function statusTone(status) {
 function SummaryCard({ label, value, detail, tone = 'default' }) {
   const toneClass =
     tone === 'success'
-      ? 'text-emerald-600'
+      ? 'state-success'
       : tone === 'warning'
-        ? 'text-amber-600'
+        ? 'state-attention'
         : 'text-text-primary'
 
   return (
@@ -76,12 +80,11 @@ function EmptyRow({ colSpan, children = 'Nenhum dado encontrado para o período.
   )
 }
 
-const headerClass =
-  'text-left px-4 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary'
+const headerClass = 'text-left px-4 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary'
 const rightHeaderClass =
-  'text-right px-4 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary'
+  'text-right px-4 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary'
 const rowClass =
-  'border-b border-border-subtle last:border-b-0 hover:bg-surface-alt transition-colors'
+  'border-b border-border-subtle last:border-b-0 hover:bg-[color:var(--color-hover)] transition-colors'
 
 export function AdminReportsPage() {
   const [tab, setTab] = useState('overview')
@@ -121,22 +124,42 @@ export function AdminReportsPage() {
         subtitle="Custos, pagamentos, despesas, bônus e distribuição por projeto"
       />
 
-      <Card className="mb-4">
-        <div className="flex flex-wrap gap-3 items-end">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className={FIELD_H8}>
           <DateRange
             from={startDate}
             to={endDate}
             onFromChange={setStartDate}
             onToChange={setEndDate}
+            fromLabel=""
+            toLabel=""
           />
-          <Button onClick={loadFinancialReport} disabled={loading}>
-            {loading ? 'Carregando...' : 'Gerar Relatório'}
-          </Button>
         </div>
-      </Card>
+
+        {financialData && (
+          <Tabs
+            variant="pill"
+            value={tab}
+            onChange={setTab}
+            items={[
+              { value: 'overview', label: 'Resumo' },
+              { value: 'users', label: 'Colaboradores' },
+              { value: 'projects', label: 'Projetos' },
+              { value: 'daily-hours', label: 'Horas por Dia' },
+              { value: 'entries', label: 'Apontamentos' },
+              { value: 'expenses', label: 'Despesas' },
+              { value: 'bonuses', label: 'Bônus' },
+            ]}
+          />
+        )}
+
+        <Button className="ml-auto h-8" onClick={loadFinancialReport} disabled={loading}>
+          {loading ? 'Carregando...' : 'Gerar Relatório'}
+        </Button>
+      </div>
 
       {error && (
-        <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-4">
+        <div className="state-danger-soft text-sm p-3 mb-4">
           {error}
         </div>
       )}
@@ -179,30 +202,13 @@ export function AdminReportsPage() {
               {financialData.alerts.map((alert, index) => (
                 <div
                   key={`${alert.message}-${index}`}
-                  className="bg-amber-500/10 text-amber-700 text-sm p-3"
+                  className="state-attention-soft text-sm p-3"
                 >
                   {alert.message}
                 </div>
               ))}
             </div>
           )}
-
-          <div className="mb-4 overflow-x-auto">
-            <Tabs
-              variant="pill"
-              value={tab}
-              onChange={setTab}
-              items={[
-                { value: 'overview', label: 'Resumo' },
-                { value: 'users', label: 'Colaboradores' },
-                { value: 'projects', label: 'Projetos' },
-                { value: 'daily-hours', label: 'Horas por Dia' },
-                { value: 'entries', label: 'Apontamentos' },
-                { value: 'expenses', label: 'Despesas' },
-                { value: 'bonuses', label: 'Bônus' },
-              ]}
-            />
-          </div>
 
           {tab === 'overview' && (
             <div className="grid lg:grid-cols-2 gap-4">
@@ -214,7 +220,7 @@ export function AdminReportsPage() {
                 </div>
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-border-subtle bg-surface-alt">
+                    <tr className="border-b border-border-subtle bg-bg">
                       <th className={headerClass}>Colaborador</th>
                       <th className={rightHeaderClass}>Horas</th>
                       <th className={rightHeaderClass}>Total</th>
@@ -251,7 +257,7 @@ export function AdminReportsPage() {
                 </div>
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-border-subtle bg-surface-alt">
+                    <tr className="border-b border-border-subtle bg-bg">
                       <th className={headerClass}>Projeto</th>
                       <th className={rightHeaderClass}>Horas</th>
                       <th className={rightHeaderClass}>Custo</th>
@@ -286,7 +292,7 @@ export function AdminReportsPage() {
             <Card padded={false} className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border-subtle bg-surface-alt">
+                  <tr className="border-b border-border-subtle bg-bg">
                     <th className={headerClass}>Colaborador</th>
                     <th className={rightHeaderClass}>Horas</th>
                     <th className={rightHeaderClass}>Custo horas</th>
@@ -317,10 +323,10 @@ export function AdminReportsPage() {
                         <td className="px-4 py-3 text-right text-text-primary tabular-nums">
                           {formatCurrency(user.approved_expenses)}
                         </td>
-                        <td className="px-4 py-3 text-right text-amber-600 tabular-nums">
+                        <td className="px-4 py-3 text-right state-attention tabular-nums">
                           {formatCurrency(user.pending_expenses)}
                         </td>
-                        <td className="px-4 py-3 text-right text-emerald-600 tabular-nums">
+                        <td className="px-4 py-3 text-right state-success tabular-nums">
                           {formatCurrency(user.bonuses)}
                         </td>
                         <td className="px-4 py-3 text-right font-medium text-text-primary tabular-nums">
@@ -338,7 +344,7 @@ export function AdminReportsPage() {
             <Card padded={false} className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border-subtle bg-surface-alt">
+                  <tr className="border-b border-border-subtle bg-bg">
                     <th className={headerClass}>Projeto</th>
                     <th className={headerClass}>Status</th>
                     <th className={rightHeaderClass}>Horas</th>
@@ -388,7 +394,7 @@ export function AdminReportsPage() {
             <Card padded={false} className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border-subtle bg-surface-alt">
+                  <tr className="border-b border-border-subtle bg-bg">
                     <th className={headerClass}>Data</th>
                     <th className={headerClass}>Colaborador</th>
                     <th className={headerClass}>Projetos</th>
@@ -445,7 +451,7 @@ export function AdminReportsPage() {
             <Card padded={false} className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border-subtle bg-surface-alt">
+                  <tr className="border-b border-border-subtle bg-bg">
                     <th className={headerClass}>Data</th>
                     <th className={headerClass}>Colaborador</th>
                     <th className={headerClass}>Projeto</th>
@@ -487,7 +493,7 @@ export function AdminReportsPage() {
             <Card padded={false} className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border-subtle bg-surface-alt">
+                  <tr className="border-b border-border-subtle bg-bg">
                     <th className={headerClass}>Data</th>
                     <th className={headerClass}>Colaborador</th>
                     <th className={headerClass}>Despesa</th>
@@ -531,7 +537,7 @@ export function AdminReportsPage() {
             <Card padded={false} className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border-subtle bg-surface-alt">
+                  <tr className="border-b border-border-subtle bg-bg">
                     <th className={headerClass}>Data</th>
                     <th className={headerClass}>Colaborador</th>
                     <th className={headerClass}>Bônus</th>
@@ -554,7 +560,7 @@ export function AdminReportsPage() {
                           <p className="font-medium text-text-primary">{bonus.title}</p>
                           <p className="text-xs text-text-secondary">{bonus.description || '-'}</p>
                         </td>
-                        <td className="px-4 py-3 text-right font-medium text-emerald-600 tabular-nums">
+                        <td className="px-4 py-3 text-right font-medium state-success tabular-nums">
                           {formatCurrency(bonus.amount)}
                         </td>
                       </tr>

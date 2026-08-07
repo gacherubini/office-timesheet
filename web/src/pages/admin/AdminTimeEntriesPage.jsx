@@ -11,10 +11,15 @@ import { Card } from '../../components/ui/Card'
 import { Modal } from '../../components/ui/Modal'
 import { Input, Select } from '../../components/ui/Input'
 import { DateField } from '../../components/ui/DateField'
+import { DateRange } from '../../components/ui/DateRange'
 import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
 
 registerLocale('pt-BR', ptBR)
+
+// Compacta Select/DateRange (.form-control) para caber na faixa de controle h-8,
+// sem alterar os componentes compartilhados.
+const FIELD_H8 = '[&_.form-control]:h-8 [&_.form-control]:py-0 [&_.form-control]:text-[12px]'
 
 function getMonthRange() {
   const now = new Date()
@@ -337,82 +342,81 @@ export function AdminTimeEntriesPage() {
       <PageHeader
         title="Histórico da Equipe"
         subtitle={`${profile?.name || 'Administrador'} · Administrador`}
-        actions={
-          <>
-            <Button variant="secondary" onClick={openBonusCreate}>
-              <Gift size={16} />
-              Adicionar Bônus
-            </Button>
-            <Button
-              onClick={() => {
-                resetForm()
-                setShowForm(true)
-              }}
-            >
-              <Plus size={16} />
-              Adicionar Registro
-            </Button>
-          </>
-        }
       />
 
-      <Card className="mb-4">
-        <form onSubmit={handleFilter} className="flex flex-col xl:flex-row xl:items-end gap-3">
-          <Select
-            className="xl:w-64"
-            label="Histórico"
-            value={filters.user_id}
-            onChange={(e) => setFilters({ ...filters, user_id: e.target.value })}
-          >
-            <option value="">Toda a equipe</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name}
-              </option>
-            ))}
-          </Select>
+      <form onSubmit={handleFilter} className="mb-3 flex flex-wrap items-center gap-2">
+        <Select
+          className={`${FIELD_H8} w-48`}
+          value={filters.user_id}
+          onChange={(e) => setFilters({ ...filters, user_id: e.target.value })}
+        >
+          <option value="">Toda a equipe</option>
+          {users.map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.name}
+            </option>
+          ))}
+        </Select>
 
-          <Select
-            className="xl:w-56"
-            label="Projeto"
-            value={filters.project_id}
-            onChange={(e) => setFilters({ ...filters, project_id: e.target.value })}
-          >
-            <option value="">Todos os projetos</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </Select>
+        <Select
+          className={`${FIELD_H8} w-44`}
+          value={filters.project_id}
+          onChange={(e) => setFilters({ ...filters, project_id: e.target.value })}
+        >
+          <option value="">Todos os projetos</option>
+          {projects.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </Select>
 
-          <DateField
-            label="De"
-            value={filters.start_date}
-            onChange={(e) => setFilters({ ...filters, start_date: e.target.value })}
+        <div className={FIELD_H8}>
+          <DateRange
+            from={filters.start_date}
+            to={filters.end_date}
+            onFromChange={(v) => setFilters({ ...filters, start_date: v })}
+            onToChange={(v) => setFilters({ ...filters, end_date: v })}
+            fromLabel=""
+            toLabel=""
           />
-          <div className="hidden xl:block pb-2 text-text-secondary">→</div>
-          <DateField
-            label="Até"
-            value={filters.end_date}
-            onChange={(e) => setFilters({ ...filters, end_date: e.target.value })}
-          />
-
-          <Button type="submit">Filtrar</Button>
-        </form>
-
-        <div className="mt-4 flex items-center gap-3 pt-4 border-t border-border-subtle">
-          <Avatar name={selectedUser?.name || 'Equipe'} url={selectedUser?.avatar_url} size={36} />
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-text-primary truncate">
-              {selectedUser?.name || 'Toda a equipe'}
-            </p>
-            <p className="text-xs text-text-secondary truncate">
-              {selectedUser?.position || 'Histórico consolidado'}
-            </p>
-          </div>
         </div>
-      </Card>
+
+        <Button type="submit" size="sm" className="h-8">
+          Filtrar
+        </Button>
+
+        <div className="ml-auto flex gap-2">
+          <Button type="button" variant="secondary" size="sm" className="h-8" onClick={openBonusCreate}>
+            <Gift size={14} />
+            Adicionar Bônus
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            className="h-8"
+            onClick={() => {
+              resetForm()
+              setShowForm(true)
+            }}
+          >
+            <Plus size={14} />
+            Adicionar Registro
+          </Button>
+        </div>
+      </form>
+
+      <div className="mb-4 flex items-center gap-3">
+        <Avatar name={selectedUser?.name || 'Equipe'} url={selectedUser?.avatar_url} size={32} />
+        <div className="min-w-0">
+          <p className="text-[13px] text-text-primary truncate">
+            {selectedUser?.name || 'Toda a equipe'}
+          </p>
+          <p className="text-[11px] text-text-secondary truncate">
+            {selectedUser?.position || 'Histórico consolidado'}
+          </p>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-7 gap-3 mb-4">
         <SummaryCard label="Salário Base / Horas" value={formatCurrency(totalCost)} />
@@ -425,7 +429,7 @@ export function AdminTimeEntriesPage() {
       </div>
 
       {error && (
-        <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-4">
+        <div className="state-danger-soft text-sm p-3 mb-4">
           {error}
         </div>
       )}
@@ -439,23 +443,23 @@ export function AdminTimeEntriesPage() {
           </div>
           <table className="w-full text-xs">
             <thead>
-              <tr className="border-b border-border-subtle bg-surface-alt">
-                <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
+              <tr className="border-b border-border-subtle bg-bg">
+                <th className="text-left px-3 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                   Data
                 </th>
-                <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
+                <th className="text-left px-3 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                   Colaborador
                 </th>
-                <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
+                <th className="text-left px-3 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                   Despesa
                 </th>
-                <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
+                <th className="text-right px-3 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                   Valor
                 </th>
-                <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
+                <th className="text-left px-3 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                   Status
                 </th>
-                <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
+                <th className="text-left px-3 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                   Comprovante
                 </th>
               </tr>
@@ -464,7 +468,7 @@ export function AdminTimeEntriesPage() {
               {expenses.map((expense) => (
                 <tr
                   key={expense.id}
-                  className="border-b border-border-subtle last:border-b-0 even:bg-surface-alt/40 hover:bg-surface-alt transition-colors"
+                  className="border-b border-border-subtle last:border-b-0 even:bg-surface-alt/40 hover:bg-[color:var(--color-hover)] transition-colors"
                 >
                   <td className="px-3 py-3 whitespace-nowrap text-text-primary">
                     {formatDate(expense.expense_date)}
@@ -485,7 +489,7 @@ export function AdminTimeEntriesPage() {
                       </p>
                     )}
                   </td>
-                  <td className="px-3 py-3 whitespace-nowrap font-medium text-text-primary tabular-nums">
+                  <td className="px-3 py-3 text-right whitespace-nowrap font-medium text-text-primary tabular-nums">
                     {formatCurrency(expense.amount)}
                   </td>
                   <td className="px-3 py-3 whitespace-nowrap">
@@ -523,20 +527,20 @@ export function AdminTimeEntriesPage() {
           </div>
           <table className="w-full text-xs">
             <thead>
-              <tr className="border-b border-border-subtle bg-surface-alt">
-                <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
+              <tr className="border-b border-border-subtle bg-bg">
+                <th className="text-left px-3 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                   Data
                 </th>
-                <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
+                <th className="text-left px-3 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                   Colaborador
                 </th>
-                <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
+                <th className="text-left px-3 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                   Bônus
                 </th>
-                <th className="text-right px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
+                <th className="text-right px-3 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                   Valor
                 </th>
-                <th className="text-right px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
+                <th className="text-right px-3 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                   Ações
                 </th>
               </tr>
@@ -545,7 +549,7 @@ export function AdminTimeEntriesPage() {
               {bonuses.map((bonus) => (
                 <tr
                   key={bonus.id}
-                  className="border-b border-border-subtle last:border-b-0 even:bg-surface-alt/40 hover:bg-surface-alt transition-colors"
+                  className="border-b border-border-subtle last:border-b-0 even:bg-surface-alt/40 hover:bg-[color:var(--color-hover)] transition-colors"
                 >
                   <td className="px-3 py-3 whitespace-nowrap text-text-primary">
                     {formatDate(bonus.bonus_date)}
@@ -577,7 +581,7 @@ export function AdminTimeEntriesPage() {
                     </button>
                     <button
                       onClick={() => setBonusToDelete(bonus)}
-                      className="text-text-secondary hover:text-rose-500 transition-colors"
+                      className="text-text-secondary hover:text-[color:var(--state-danger)] transition-colors"
                       title="Excluir"
                     >
                       <Trash2 size={15} />
@@ -596,7 +600,7 @@ export function AdminTimeEntriesPage() {
         title={editingEntry ? 'Editar Registro' : 'Adicionar Registro'}
       >
         {error && (
-          <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-4">
+          <div className="state-danger-soft text-sm p-3 mb-4">
             {error}
           </div>
         )}
@@ -673,7 +677,7 @@ export function AdminTimeEntriesPage() {
         title={editingBonus ? 'Editar Bônus' : 'Adicionar Bônus'}
       >
         {bonusError && (
-          <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-4">
+          <div className="state-danger-soft text-sm p-3 mb-4">
             {bonusError}
           </div>
         )}
@@ -789,41 +793,41 @@ export function AdminTimeEntriesPage() {
       <Card padded={false} className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
-            <tr className="border-b border-border-subtle bg-surface-alt whitespace-nowrap">
-              <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
+            <tr className="border-b border-border-subtle bg-bg whitespace-nowrap">
+              <th className="text-left px-3 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                 Data
               </th>
-              <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-left px-3 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                 Colaborador
               </th>
-              <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-left px-3 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                 Projeto
               </th>
-              <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-right px-3 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                 Início
               </th>
-              <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-left px-3 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                 Pausas
               </th>
-              <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-right px-3 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                 Saída
               </th>
-              <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-right px-3 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                 Total
               </th>
-              <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-right px-3 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                 Total/Dia
               </th>
-              <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-right px-3 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                 Saldo
               </th>
-              <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-left px-3 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                 Editado
               </th>
-              <th className="text-left px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-left px-3 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                 Status
               </th>
-              <th className="text-right px-3 py-3 font-medium text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-right px-3 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                 Ações
               </th>
             </tr>
@@ -845,7 +849,7 @@ export function AdminTimeEntriesPage() {
               tableEntries.map((entry) => (
                 <tr
                   key={entry.id}
-                  className="border-b border-border-subtle last:border-b-0 even:bg-surface-alt/40 hover:bg-surface-alt transition-colors align-top"
+                  className="border-b border-border-subtle last:border-b-0 even:bg-surface-alt/40 hover:bg-[color:var(--color-hover)] transition-colors align-top"
                 >
                   <td className="px-3 py-3 whitespace-nowrap text-text-primary">
                     {formatDate(entry.started_at)}
@@ -861,7 +865,7 @@ export function AdminTimeEntriesPage() {
                   <td className="px-3 py-3 min-w-48 text-text-primary">
                     {entry.project?.name || '-'}
                   </td>
-                  <td className="px-3 py-3 whitespace-nowrap tabular-nums text-text-primary">
+                  <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums text-text-primary">
                     {formatTime(entry.started_at)}
                   </td>
                   <td className="px-3 py-3 whitespace-nowrap">
@@ -877,7 +881,7 @@ export function AdminTimeEntriesPage() {
                       <span className="text-text-secondary">—</span>
                     )}
                   </td>
-                  <td className="px-3 py-3 whitespace-nowrap tabular-nums text-text-primary">
+                  <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums text-text-primary">
                     {formatTime(entry.ended_at)}
                     {entry.ended_at && !isSameLocalDate(entry.started_at, entry.ended_at) && (
                       <span className="ml-1 text-[10px] text-text-secondary">
@@ -885,15 +889,15 @@ export function AdminTimeEntriesPage() {
                       </span>
                     )}
                   </td>
-                  <td className="px-3 py-3 whitespace-nowrap font-medium tabular-nums text-text-primary">
+                  <td className="px-3 py-3 text-right whitespace-nowrap font-medium tabular-nums text-text-primary">
                     {formatDuration(entry.duration_minutes)}
                   </td>
-                  <td className="px-3 py-3 whitespace-nowrap tabular-nums text-text-secondary">
+                  <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums text-text-secondary">
                     {entry.dailyTotalMinutes === null
                       ? ''
                       : formatDuration(entry.dailyTotalMinutes)}
                   </td>
-                  <td className="px-3 py-3 whitespace-nowrap font-medium tabular-nums text-text-primary">
+                  <td className="px-3 py-3 text-right whitespace-nowrap font-medium tabular-nums text-text-primary">
                     {formatCurrency(entry.cost_snapshot)}
                   </td>
                   <td className="px-3 py-3 whitespace-nowrap text-text-secondary">
@@ -924,7 +928,7 @@ export function AdminTimeEntriesPage() {
                     </button>
                     <button
                       onClick={() => setEntryToDelete(entry)}
-                      className="text-text-secondary hover:text-rose-500 transition-colors"
+                      className="text-text-secondary hover:text-[color:var(--state-danger)] transition-colors"
                       title="Excluir"
                     >
                       <Trash2 size={15} />
@@ -1001,8 +1005,8 @@ export function AdminTimeEntriesPage() {
         footer={<Button onClick={() => setSuccessMessage('')}>OK</Button>}
       >
         <div className="flex flex-col items-center text-center py-2">
-          <div className="bg-emerald-500/15 p-4 mb-4">
-            <CheckCircle2 className="text-emerald-500" size={36} />
+          <div className="state-success-soft p-4 mb-4">
+            <CheckCircle2 className="state-success" size={36} />
           </div>
           <p className="text-text-primary font-medium">{successMessage}</p>
         </div>
