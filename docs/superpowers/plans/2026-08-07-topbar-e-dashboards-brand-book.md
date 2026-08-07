@@ -169,11 +169,13 @@ Em `PageHeader.jsx`, trocar a linha do `h1` por:
           <h1 className="font-display text-3xl font-light text-text-primary leading-tight">{title}</h1>
 ```
 
-E a do `subtitle` — o serif itálico deixa de ser estilo de legenda e passa a ser ênfase dentro do título:
+O `subtitle` **mantém** o Instrument Serif itálico. Só as duas dashboards ganham o título misto da hierarquia 04.3; nas outras 17 páginas o subtítulo serifado é o único lugar onde a fonte secundária da marca aparece, e tirá-lo deixaria essas páginas com menos marca do que têm hoje. Ajustar apenas a cor, que herda o token novo:
 
 ```jsx
-        {subtitle && <p className="text-[13px] leading-snug text-text-secondary mt-1.5">{subtitle}</p>}
+        {subtitle && <p className="font-serif-em text-[15px] leading-snug text-text-secondary mt-1">{subtitle}</p>}
 ```
+
+Trocar `font-serif italic` pela classe `.font-serif-em` de `index.css:56`, que já é exatamente isso e evita a dupla declaração.
 
 - [ ] **Step 3: Aba ativa sem semibold**
 
