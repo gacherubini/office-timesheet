@@ -7,7 +7,6 @@
   --font-sans: 'Funnel Sans Variable', 'Funnel Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-display: var(--font-sans);
   --font-serif: 'Instrument Serif', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
-  --font-mono: ui-monospace, 'Cascadia Code', 'Consolas', 'SFMono-Regular', monospace;
 
   /* ── Paleta oficial · brand book p.37 ─────────────────────── */
   --color-ink: #0F0F0F;

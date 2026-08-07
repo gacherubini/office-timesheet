@@ -144,7 +144,7 @@ export function TimerPage() {
           </div>
         )}
 
-        <p className="text-5xl font-mono font-bold tabular-nums text-text-primary mb-2">
+        <p className="text-5xl font-light tabular-nums text-text-primary mb-2">
           {formatTime(elapsed)}
         </p>
 

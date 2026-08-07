@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { api } from '../lib/api'
-import { Logo } from '../components/Logo'
+import assinatura from '../assets/studio-vivian-hor.png'
 
 export function ResetPasswordPage() {
   const navigate = useNavigate()
@@ -51,8 +51,8 @@ export function ResetPasswordPage() {
     <div className="min-h-screen flex items-center justify-center bg-bg text-text-primary px-4">
       <div className="w-full max-w-sm">
         <div className="flex items-center justify-center gap-2 mb-8">
-          <Logo size={32} />
-          <h1 className="text-2xl font-bold text-text-primary">Gestão VOID</h1>
+          <img src={assinatura} alt="Studio Vivian" className="h-4 w-auto" />
+          <h1 className="text-2xl font-medium text-text-primary">Gestão VOID</h1>
         </div>
 
         <div className="bg-surface border border-border-subtle p-6 space-y-4">
