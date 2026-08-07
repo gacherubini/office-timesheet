@@ -64,29 +64,19 @@ export function NotificationBell() {
   const hasUnread = unread > 0
 
   return (
-    <div ref={wrapRef} className="fixed top-5 right-6 z-30 hidden md:block">
+    <div ref={wrapRef} className="relative hidden md:block">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         title="Notificações"
         aria-label="Notificações"
-        className="relative h-11 w-11 inline-flex items-center justify-center rounded-full bg-surface border border-border-subtle text-text-secondary hover:text-text-primary transition-all duration-200 hover:-translate-y-0.5 group"
-        style={{
-          boxShadow: '0 6px 20px -8px rgba(60, 50, 30, 0.18), 0 1px 2px rgba(60, 50, 30, 0.06)',
-        }}
+        className="relative inline-flex h-8 w-8 items-center justify-center text-white/70 transition-colors hover:text-white"
       >
-        {hasUnread && (
-          <span
-            className="absolute inset-0 rounded-full animate-ping opacity-40"
-            style={{ boxShadow: '0 0 0 2px var(--color-accent)' }}
-            aria-hidden="true"
-          />
-        )}
         <Bell size={18} className="relative transition-transform group-hover:rotate-[8deg]" strokeWidth={1.75} />
         {hasUnread && (
           <span
-            className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-bg tabular-nums"
-            style={{ background: 'var(--color-accent)' }}
+            className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full text-white text-[10px] font-medium flex items-center justify-center ring-1 ring-green-dk tabular-nums"
+            style={{ background: 'var(--color-orange)' }}
           >
             {unread > 9 ? '9+' : unread}
           </span>
@@ -95,7 +85,7 @@ export function NotificationBell() {
 
       {open && (
         <div
-          className="absolute right-0 top-full mt-3 w-[360px] max-h-[70vh] bg-surface border border-border-subtle rounded-2xl overflow-hidden flex flex-col origin-top-right"
+          className="absolute right-0 top-full mt-3 w-[360px] max-h-[70vh] bg-surface border border-border-subtle overflow-hidden flex flex-col origin-top-right"
           style={{
             boxShadow: '0 24px 48px -12px rgba(20, 14, 4, 0.28), 0 8px 16px -8px rgba(20, 14, 4, 0.12)',
             animation: 'bell-pop 180ms cubic-bezier(0.16, 1, 0.3, 1)',
@@ -107,7 +97,7 @@ export function NotificationBell() {
                 className="h-1.5 w-1.5 rounded-full"
                 style={{ background: hasUnread ? 'var(--color-accent)' : 'var(--color-text-sec)' }}
               />
-              <span className="text-sm font-semibold text-text-primary tracking-tight">Notificações</span>
+              <span className="text-sm font-medium text-text-primary tracking-tight">Notificações</span>
               {hasUnread && (
                 <span className="text-[11px] text-text-secondary">· {unread} nova{unread > 1 ? 's' : ''}</span>
               )}
