@@ -222,12 +222,12 @@ export function ProfilePage() {
         </div>
 
         <div className="p-5 space-y-4">
-          {error && <div className="bg-rose-500/10 text-rose-600 text-sm p-3">{error}</div>}
-          {success && <div className="bg-emerald-500/10 text-emerald-600 text-sm p-3">{success}</div>}
+          {error && <div className="state-danger-soft text-sm p-3">{error}</div>}
+          {success && <div className="state-success-soft text-sm p-3">{success}</div>}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-text-secondary mb-1">Nome</label>
+              <label className="block text-[11px] text-text-secondary mb-1">Nome</label>
               <input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -237,7 +237,7 @@ export function ProfilePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-text-secondary mb-1">E-mail</label>
+              <label className="block text-[11px] text-text-secondary mb-1">E-mail</label>
               <input
                 value={form.email}
                 className="w-full form-control-muted border px-3 py-2 text-sm"
@@ -246,7 +246,7 @@ export function ProfilePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-text-secondary mb-1">Telefone</label>
+              <label className="block text-[11px] text-text-secondary mb-1">Telefone</label>
               <input
                 type="tel"
                 value={form.phone}
@@ -257,7 +257,7 @@ export function ProfilePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-text-secondary mb-1">Data de nascimento</label>
+              <label className="block text-[11px] text-text-secondary mb-1">Data de nascimento</label>
               <DateField
                 value={form.birth_date}
                 onChange={(e) => setForm({ ...form, birth_date: e.target.value })}
@@ -268,7 +268,7 @@ export function ProfilePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-text-secondary mb-1">Cargo</label>
+              <label className="block text-[11px] text-text-secondary mb-1">Cargo</label>
               <input
                 value={form.position || 'Não informado'}
                 className="w-full form-control-muted border px-3 py-2 text-sm"
@@ -277,7 +277,7 @@ export function ProfilePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-text-secondary mb-1">Perfil</label>
+              <label className="block text-[11px] text-text-secondary mb-1">Perfil</label>
               <input
                 value={roleLabel(form.role)}
                 className="w-full form-control-muted border px-3 py-2 text-sm"
@@ -286,7 +286,7 @@ export function ProfilePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-text-secondary mb-1">Horas trabalhadas (mês)</label>
+              <label className="block text-[11px] text-text-secondary mb-1">Horas trabalhadas (mês)</label>
               <input
                 value={stats ? formatHours(stats.total_minutes) : '—'}
                 className="w-full form-control-muted border px-3 py-2 text-sm"
@@ -295,7 +295,7 @@ export function ProfilePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-text-secondary mb-1">Valor por hora</label>
+              <label className="block text-[11px] text-text-secondary mb-1">Valor por hora</label>
               <input
                 value={stats ? `${formatCurrency(stats.hourly_rate)}/h` : '—'}
                 className="w-full form-control-muted border px-3 py-2 text-sm"
@@ -333,19 +333,19 @@ export function ProfilePage() {
 
         <div className="p-5 space-y-4">
           {passwordError && (
-            <div className="bg-rose-500/10 text-rose-600 text-sm p-3">
+            <div className="state-danger-soft text-sm p-3">
               {passwordError}
             </div>
           )}
           {passwordSuccess && (
-            <div className="bg-emerald-500/10 text-emerald-600 text-sm p-3">
+            <div className="state-success-soft text-sm p-3">
               {passwordSuccess}
             </div>
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-text-secondary mb-1">
+              <label className="block text-[11px] text-text-secondary mb-1">
                 Senha atual
               </label>
               <input
@@ -358,7 +358,7 @@ export function ProfilePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-text-secondary mb-1">
+              <label className="block text-[11px] text-text-secondary mb-1">
                 Nova senha
               </label>
               <input
@@ -372,7 +372,7 @@ export function ProfilePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-text-secondary mb-1">
+              <label className="block text-[11px] text-text-secondary mb-1">
                 Confirmar senha
               </label>
               <input

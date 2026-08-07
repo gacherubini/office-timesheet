@@ -66,21 +66,21 @@ export function CalendarConnect({ onChange, hideWhenConnected = false }) {
       </div>
 
       <div className="p-5 space-y-4">
-        {error && <div className="bg-rose-500/10 text-rose-600 text-sm p-3">{error}</div>}
-        {success && <div className="bg-emerald-500/10 text-emerald-600 text-sm p-3">{success}</div>}
+        {error && <div className="state-danger-soft text-sm p-3">{error}</div>}
+        {success && <div className="state-success-soft text-sm p-3">{success}</div>}
 
         {loading ? (
           <p className="text-sm text-text-secondary">Carregando...</p>
         ) : connected ? (
           <div className="flex items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-2 text-sm text-emerald-600">
+            <span className="inline-flex items-center gap-2 text-sm state-success">
               <Check size={16} /> Agenda conectada.
             </span>
             <button
               type="button"
               onClick={handleDisconnect}
               disabled={busy}
-              className="inline-flex items-center gap-1.5 text-sm text-text-secondary hover:text-rose-500 disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-1.5 text-sm text-text-secondary hover:text-[color:var(--state-danger)] disabled:opacity-50 transition-colors"
             >
               <Unlink size={15} /> {busy ? 'Desconectando...' : 'Desconectar'}
             </button>
