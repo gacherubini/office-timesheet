@@ -81,7 +81,9 @@ export function KanbanBoard({ tasks, onOpenTask, onMove, currentUserId, timerEla
         onDrop={(e) => handleDrop(e, ABANDONED_STATUS)}
         className={`border transition-all ${
           isAbandonedOver
-            ? 'border-rose-400/50 ring-2 ring-rose-400/15 bg-rose-500/5'
+            ? // Tailwind (v3) não aplica modificador de opacidade a cor arbitrária
+              // baseada em var() — o color-mix() precisa ir inteiro no valor.
+              'border-state-danger ring-2 ring-[color:color-mix(in_srgb,var(--state-danger)_15%,transparent)] bg-[color-mix(in_srgb,var(--state-danger)_5%,transparent)]'
             : 'border-border-subtle bg-surface-alt/20'
         }`}
       >
@@ -100,7 +102,7 @@ export function KanbanBoard({ tasks, onOpenTask, onMove, currentUserId, timerEla
             {abandoned.length}
           </span>
           {isAbandonedOver && (
-            <span className="ml-auto text-[11px] text-rose-400">Solte para abandonar</span>
+            <span className="ml-auto text-[11px] state-danger">Solte para abandonar</span>
           )}
         </button>
 

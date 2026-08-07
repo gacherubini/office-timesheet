@@ -49,7 +49,7 @@ export function TaskCard({
             <span className="flex items-center gap-0.5 text-[11px]"><Paperclip size={12} />{task.attachment_count}</span>
           )}
           {isRunning ? (
-            <span className="text-[11px] tabular-nums text-emerald-500 font-medium">{formatClock(timerElapsed)}</span>
+            <span className="text-[11px] tabular-nums state-success font-medium">{formatClock(timerElapsed)}</span>
           ) : (
             task.total_minutes > 0 && (
               <span className="text-[11px] tabular-nums">{formatMinutes(task.total_minutes)}</span>
@@ -72,9 +72,7 @@ export function TaskCard({
           onClick={(e) => { e.stopPropagation(); onToggleTimer(task) }}
           disabled={timerBusy}
           className={`mt-2.5 inline-flex w-full items-center justify-center gap-1.5 h-8 text-[13px] font-medium disabled:opacity-50 transition-colors ${
-            isRunning
-              ? 'bg-rose-500/15 text-rose-500 hover:bg-rose-500/25'
-              : 'bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/25'
+            isRunning ? 'state-danger-soft' : 'state-success-soft'
           }`}
         >
           {isRunning ? (
