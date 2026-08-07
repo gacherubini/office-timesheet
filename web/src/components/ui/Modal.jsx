@@ -24,7 +24,7 @@ export function Modal({ open, onClose, title, children, footer, size = 'md', clo
       }}
     >
       <div
-        className={`bg-surface rounded-xl shadow-2xl w-full ${sizeClass} border border-border-subtle ${
+        className={`bg-surface shadow-2xl w-full ${sizeClass} border border-border-subtle ${
           overflowVisible ? '' : 'overflow-hidden'
         }`}
         onClick={(e) => e.stopPropagation()}
@@ -42,9 +42,7 @@ export function Modal({ open, onClose, title, children, footer, size = 'md', clo
         )}
         <div className="px-6 py-5">{children}</div>
         {footer && (
-          <div className={`px-6 py-4 bg-surface-alt border-t border-border-subtle flex items-center justify-end gap-3 ${
-            overflowVisible ? 'rounded-b-xl' : ''
-          }`}>
+          <div className="px-6 py-4 bg-surface-alt border-t border-border-subtle flex items-center justify-end gap-3">
             {footer}
           </div>
         )}

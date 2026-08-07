@@ -22,7 +22,7 @@ export function Toast({ message, onClose, duration = 4000, variant = 'error' }) 
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-[bell-pop_0.18s_ease-out]">
-      <div className={`flex items-center gap-2.5 rounded-lg border px-4 py-2.5 shadow-xl backdrop-blur-sm ${tone}`}>
+      <div className={`flex items-center gap-2.5 border px-4 py-2.5 shadow-xl backdrop-blur-sm ${tone}`}>
         <AlertCircle size={15} className="flex-shrink-0" />
         <span className="text-sm">{message}</span>
         <button

@@ -55,7 +55,7 @@ export function ResetPasswordPage() {
           <h1 className="text-2xl font-bold text-text-primary">Gestão VOID</h1>
         </div>
 
-        <div className="bg-surface rounded-xl shadow-card border border-border-subtle p-6 space-y-4">
+        <div className="bg-surface border border-border-subtle p-6 space-y-4">
           {invalidLink && (
             <div className="text-center space-y-3">
               <p className="text-sm text-rose-600">Link inválido ou expirado.</p>

@@ -12,7 +12,7 @@ import { createPortal } from 'react-dom'
 import { Check, ChevronDown } from 'lucide-react'
 
 const TRIGGER_CLASS =
-  'w-full form-control border rounded-lg px-3 py-2 text-sm outline-none transition-colors ' +
+  'w-full form-control border px-3 py-2 text-sm outline-none transition-colors ' +
   'disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-between gap-2 text-left'
 
 // Extrai o texto de um filho React (string, número, array ou <option>{...}</option>).
@@ -254,7 +254,7 @@ export function Select({
           <div
             ref={panelRef}
             role="listbox"
-            className="fixed z-[70] rounded-xl border border-border-subtle bg-surface shadow-xl overflow-auto py-1"
+            className="fixed z-[70] border border-border-subtle bg-surface shadow-xl overflow-auto py-1"
             style={{
               left: coords.left,
               width: coords.width,

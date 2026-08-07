@@ -134,7 +134,7 @@ export function TimerPage() {
       )}
 
       {/* Timer display */}
-      <div className="bg-surface rounded-xl shadow-card border border-border-subtle p-8 text-center mb-6">
+      <div className="bg-surface border border-border-subtle p-8 text-center mb-6">
         {currentEntry && (
           <div className="flex flex-col items-center gap-2 mb-2">
             {currentEntry.project_image && (

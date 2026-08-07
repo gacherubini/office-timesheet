@@ -1,7 +1,7 @@
 export function Input({ label, error, className = '', as = 'input', children, ...props }) {
   const Tag = as
   const baseClass =
-    'w-full form-control border rounded-lg px-3 py-2 text-sm outline-none transition-colors disabled:opacity-60'
+    'w-full form-control border px-3 py-2 text-sm outline-none transition-colors disabled:opacity-60'
 
   return (
     <div className={className}>

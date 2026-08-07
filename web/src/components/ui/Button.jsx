@@ -24,7 +24,7 @@ export function Button({
   ...props
 }) {
   const isPrimary = variant === 'primary'
-  const baseClass = 'inline-flex items-center justify-center gap-2 rounded-lg font-medium'
+  const baseClass = 'inline-flex items-center justify-center gap-2 font-medium'
   return (
     <button
       type={type}

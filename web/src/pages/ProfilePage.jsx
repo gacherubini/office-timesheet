@@ -178,7 +178,7 @@ export function ProfilePage() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-surface rounded-xl border border-border-subtle shadow-card overflow-hidden">
+      <form onSubmit={handleSubmit} className="bg-surface border border-border-subtle overflow-hidden">
         <div className="p-5 border-b border-border-subtle flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <div className="relative">
             {form.avatar_url ? (
@@ -318,7 +318,7 @@ export function ProfilePage() {
         </div>
       </form>
 
-      <form onSubmit={handlePasswordSubmit} className="bg-surface rounded-xl border border-border-subtle shadow-card overflow-hidden mt-5">
+      <form onSubmit={handlePasswordSubmit} className="bg-surface border border-border-subtle overflow-hidden mt-5">
         <div className="p-5 border-b border-border-subtle flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-[color:var(--color-accent)]/15 text-accent flex items-center justify-center">
             <KeyRound size={18} />
