@@ -320,7 +320,10 @@ export function ProfilePage() {
 
       <form onSubmit={handlePasswordSubmit} className="bg-surface border border-border-subtle overflow-hidden mt-5">
         <div className="p-5 border-b border-border-subtle flex items-center gap-3">
-          <div className="w-10 h-10 bg-[color:var(--color-accent)]/15 text-accent flex items-center justify-center">
+          <div
+            className="w-10 h-10 text-accent flex items-center justify-center"
+            style={{ background: 'color-mix(in srgb, var(--color-accent) 15%, transparent)' }}
+          >
             <KeyRound size={18} />
           </div>
           <div>

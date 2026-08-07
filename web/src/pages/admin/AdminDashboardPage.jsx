@@ -337,7 +337,7 @@ export function AdminDashboardPage() {
       </div>
 
       {error && (
-        <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-6">
+        <div className="state-danger-soft text-sm p-3 mb-6">
           {error}
         </div>
       )}
@@ -513,8 +513,8 @@ export function AdminDashboardPage() {
         }
       >
         <div className="flex flex-col items-center text-center py-2">
-          <div className="bg-emerald-500/15 p-4 mb-4">
-            <CheckCircle2 className="text-emerald-500" size={36} />
+          <div className="state-success-soft p-4 mb-4">
+            <CheckCircle2 className="state-success" size={36} />
           </div>
           <p className="text-text-primary font-medium">{successMessage}</p>
         </div>

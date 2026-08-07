@@ -197,7 +197,10 @@ export function PerformanceSimulator({ stats, cursor }) {
             </span>
           )}
           {saveState === 'saved' && (
-            <span className="inline-flex items-center gap-1.5 bg-[color:var(--color-brown)]/[0.12] px-2.5 py-1 text-[11px] font-medium text-[color:var(--color-brown)]">
+            <span
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium text-[color:var(--color-brown)]"
+              style={{ background: 'color-mix(in srgb, var(--color-brown) 12%, transparent)' }}
+            >
               <Check size={12} strokeWidth={2.5} />
               Salvo
             </span>
@@ -210,7 +213,13 @@ export function PerformanceSimulator({ stats, cursor }) {
       </p>
 
       {/* Painel-meta: o coração do simulador. */}
-      <div className="border border-[color:var(--color-accent)]/30 bg-[color:var(--color-accent)]/[0.06] p-4 mb-4">
+      <div
+        className="border p-4 mb-4"
+        style={{
+          borderColor: 'color-mix(in srgb, var(--color-accent) 30%, transparent)',
+          background: 'color-mix(in srgb, var(--color-accent) 6%, transparent)',
+        }}
+      >
         <div className="flex flex-wrap items-end gap-x-6 gap-y-4">
           <label className="block">
             <span className="block text-[11px] font-medium uppercase tracking-wider text-text-secondary mb-1">
@@ -249,7 +258,10 @@ export function PerformanceSimulator({ stats, cursor }) {
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-[color:var(--color-accent)]/15 pt-3">
+        <div
+          className="mt-4 flex flex-wrap items-center gap-4 border-t pt-3"
+          style={{ borderColor: 'color-mix(in srgb, var(--color-accent) 15%, transparent)' }}
+        >
           <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-text-primary">
             <input
               type="checkbox"
@@ -289,11 +301,25 @@ export function PerformanceSimulator({ stats, cursor }) {
             Real
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span aria-hidden className="h-3 w-3 border border-[color:var(--color-accent)]/30 bg-[color:var(--color-accent)]/[0.12]" />
+            <span
+              aria-hidden
+              className="h-3 w-3 border"
+              style={{
+                borderColor: 'color-mix(in srgb, var(--color-accent) 30%, transparent)',
+                background: 'color-mix(in srgb, var(--color-accent) 12%, transparent)',
+              }}
+            />
             Dia útil (auto)
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span aria-hidden className="h-3 w-3 border border-dashed border-[color:var(--color-brown)]/50 bg-[color:var(--color-brown)]/[0.08]" />
+            <span
+              aria-hidden
+              className="h-3 w-3 border border-dashed"
+              style={{
+                borderColor: 'color-mix(in srgb, var(--color-brown) 50%, transparent)',
+                background: 'color-mix(in srgb, var(--color-brown) 8%, transparent)',
+              }}
+            />
             Fim de semana
           </span>
           <span className="inline-flex items-center gap-1.5">
@@ -325,6 +351,7 @@ export function PerformanceSimulator({ stats, cursor }) {
           // Estado visual do dia: passado (real), dia útil (auto), fim de semana ou feriado.
           let content
           let cellClass = 'border border-border-subtle bg-surface'
+          let cellStyle
           if (past) {
             cellClass = 'border border-border-subtle bg-surface-alt'
             content = (
@@ -339,14 +366,21 @@ export function PerformanceSimulator({ stats, cursor }) {
             const shown = draft != null ? draft : effective > 0 ? String(effective) : ''
             const empty = shown === '' || shown === '0'
             cellClass = active
-              ? 'border border-[color:var(--color-brown)]/50 bg-[color:var(--color-brown)]/[0.08]'
-              : 'border border-dashed border-[color:var(--color-brown)]/40 bg-surface hover:border-[color:var(--color-brown)]/60 hover:bg-[color:var(--color-brown)]/[0.05]'
+              ? 'border'
+              : 'border border-dashed perf-cell-weekend-inactive bg-surface'
+            cellStyle = active
+              ? {
+                  borderColor: 'color-mix(in srgb, var(--color-brown) 50%, transparent)',
+                  background: 'color-mix(in srgb, var(--color-brown) 8%, transparent)',
+                }
+              : undefined
             content = (
               <div className="relative mt-auto flex items-end">
                 {empty && !active && (
                   <span
                     aria-hidden
-                    className="pointer-events-none absolute inset-0 flex items-center justify-end gap-0.5 text-[color:var(--color-brown)]/60"
+                    className="pointer-events-none absolute inset-0 flex items-center justify-end gap-0.5"
+                    style={{ color: 'color-mix(in srgb, var(--color-brown) 60%, transparent)' }}
                   >
                     <Plus size={12} strokeWidth={2.5} />
                     <span className="text-[11px]">extra</span>
@@ -367,10 +401,17 @@ export function PerformanceSimulator({ stats, cursor }) {
               <span className="mt-auto text-right text-[11px] text-text-secondary/70">feriado</span>
             )
           } else {
-            cellClass = 'border border-[color:var(--color-accent)]/30 bg-[color:var(--color-accent)]/[0.06]'
+            cellClass = 'border'
+            cellStyle = {
+              borderColor: 'color-mix(in srgb, var(--color-accent) 30%, transparent)',
+              background: 'color-mix(in srgb, var(--color-accent) 6%, transparent)',
+            }
             content = (
               <div className="mt-auto flex items-end justify-between gap-1">
-                <span className="text-[9px] uppercase tracking-wide leading-none text-[color:var(--color-accent)]/60">
+                <span
+                  className="text-[9px] uppercase tracking-wide leading-none"
+                  style={{ color: 'color-mix(in srgb, var(--color-accent) 60%, transparent)' }}
+                >
                   auto
                 </span>
                 <span className="text-sm font-medium leading-none tabular-nums text-accent">
@@ -386,6 +427,7 @@ export function PerformanceSimulator({ stats, cursor }) {
               className={`p-1.5 min-h-[58px] flex flex-col transition-colors ${cellClass} ${
                 isToday ? 'ring-1 ring-[color:var(--color-accent)] border-[color:var(--color-accent)]' : ''
               }`}
+              style={cellStyle}
             >
               <span
                 className={`text-[11px] tabular-nums leading-none ${

@@ -184,9 +184,12 @@ function CollapsiblePanelCard({ icon: Icon, title, summary, onOpen }) {
     <button
       type="button"
       onClick={onOpen}
-      className="group flex items-center gap-3 border border-border-subtle bg-surface p-4 text-left hover:border-[color:var(--color-accent)]/40 hover:bg-surface-alt transition-colors w-full"
+      className="group flex items-center gap-3 border border-border-subtle bg-surface p-4 text-left hover-border-accent-40 hover:bg-surface-alt transition-colors w-full"
     >
-      <span className="w-9 h-9 bg-[color:var(--color-accent)]/15 text-accent flex items-center justify-center flex-none">
+      <span
+        className="w-9 h-9 text-accent flex items-center justify-center flex-none"
+        style={{ background: 'color-mix(in srgb, var(--color-accent) 15%, transparent)' }}
+      >
         <Icon size={18} />
       </span>
       <span className="min-w-0">
@@ -221,9 +224,12 @@ function AdminPerformanceHub() {
             <Link
               key={tool.to}
               to={tool.to}
-              className="group flex items-start gap-4 border border-border-subtle bg-surface p-5 hover:border-[color:var(--color-accent)]/40 hover:bg-surface-alt transition-colors"
+              className="group flex items-start gap-4 border border-border-subtle bg-surface p-5 hover-border-accent-40 hover:bg-surface-alt transition-colors"
             >
-              <span className="w-11 h-11 bg-[color:var(--color-accent)]/15 text-accent flex items-center justify-center flex-none">
+              <span
+                className="w-11 h-11 text-accent flex items-center justify-center flex-none"
+                style={{ background: 'color-mix(in srgb, var(--color-accent) 15%, transparent)' }}
+              >
                 <Icon size={20} />
               </span>
               <span className="min-w-0">

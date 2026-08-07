@@ -35,7 +35,6 @@
 
   /* Alias de compatibilidade: as páginas fora de escopo ainda usam accent. */
   --color-accent: var(--color-green);
-  --color-accent-2: var(--color-orange);
   --color-accent-3: var(--color-brown);
 
   --color-field-bg: #FFFFFF;
@@ -153,6 +152,23 @@ button:focus-visible,
   .form-control-muted:disabled {
     cursor: not-allowed;
     -webkit-text-fill-color: var(--color-field-muted-text);
+  }
+
+  /* Simulador de performance: célula de fim de semana inativa. Depende de
+     :hover, que estilo inline não alcança (o inline sempre vence a pseudo-
+     classe), então o color-mix mora aqui em vez de no componente. */
+  .perf-cell-weekend-inactive {
+    border-color: color-mix(in srgb, var(--color-brown) 40%, transparent);
+  }
+  .perf-cell-weekend-inactive:hover {
+    border-color: color-mix(in srgb, var(--color-brown) 60%, transparent);
+    background-color: color-mix(in srgb, var(--color-brown) 5%, transparent);
+  }
+
+  /* PerformancePage: cartão/atalho que realça a borda em hover. Mesma razão
+     acima — precisa ser regra CSS, não estilo inline, por causa do :hover. */
+  .hover-border-accent-40:hover {
+    border-color: color-mix(in srgb, var(--color-accent) 40%, transparent);
   }
 }
 

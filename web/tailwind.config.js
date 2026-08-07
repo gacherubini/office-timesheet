@@ -20,7 +20,6 @@ export default {
         'text-secondary': 'var(--color-text-sec)',
         'border-subtle': 'var(--color-border)',
         accent: 'var(--color-accent)',
-        'accent-2': 'var(--color-accent-2)',
         'accent-3': 'var(--color-accent-3)',
       },
       fontFamily: {

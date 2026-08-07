@@ -42,7 +42,10 @@ export function MyTasksTimer() {
     <Card padded={false} className="overflow-hidden">
       <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-border-subtle">
         <div className="flex items-center gap-2.5 min-w-0">
-          <span className="flex h-7 w-7 items-center justify-center bg-[color:var(--color-accent)]/12 text-[color:var(--color-accent)]">
+          <span
+            className="flex h-7 w-7 items-center justify-center text-[color:var(--color-accent)]"
+            style={{ background: 'color-mix(in srgb, var(--color-accent) 12%, transparent)' }}
+          >
             <Timer size={15} />
           </span>
           <h2 className="text-[11px] font-medium uppercase tracking-wider text-text-secondary truncate">

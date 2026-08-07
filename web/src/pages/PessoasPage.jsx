@@ -1118,7 +1118,10 @@ function NewPersonChooser({
               onClick={() => onPick(opt.kind)}
               className="w-full flex items-center gap-3 border border-border-subtle p-3 text-left hover:bg-surface-alt disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
-              <span className="w-10 h-10 bg-[color:var(--color-accent)]/15 text-accent flex items-center justify-center flex-none">
+              <span
+                className="w-10 h-10 text-accent flex items-center justify-center flex-none"
+                style={{ background: 'color-mix(in srgb, var(--color-accent) 15%, transparent)' }}
+              >
                 <Icon size={18} />
               </span>
               <span className="min-w-0">

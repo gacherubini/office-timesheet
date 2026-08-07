@@ -110,10 +110,16 @@ export function BirthdayCalendar() {
                     : today
                       ? 'text-white font-medium'
                       : hasBirthday
-                        ? 'text-accent font-medium ring-1 ring-accent/40 cursor-help bg-[color:var(--color-accent)]/10'
+                        ? 'text-accent font-medium ring-1 ring-accent/40 cursor-help'
                         : 'text-text-primary hover:bg-surface-alt'
                 }`}
-                style={today ? { background: 'var(--color-accent)' } : undefined}
+                style={
+                  today
+                    ? { background: 'var(--color-accent)' }
+                    : hasBirthday
+                      ? { background: 'color-mix(in srgb, var(--color-accent) 10%, transparent)' }
+                      : undefined
+                }
               >
                 {d || ''}
                 {hasBirthday && !today && (
