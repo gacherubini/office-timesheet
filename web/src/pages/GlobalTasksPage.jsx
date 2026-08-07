@@ -143,11 +143,11 @@ export function GlobalTasksPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar por título ou projeto..."
-          className="form-control h-[38px] w-full border pl-8 pr-3 text-[12px] outline-none transition-colors"
+          className="form-control h-8 w-full border pl-8 pr-3 text-[12px] outline-none transition-colors"
         />
       </div>
 
-      <Select value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)} className="w-44">
+      <Select value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)} className="w-44" size="sm">
         <option value="">Todos os projetos</option>
         {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
       </Select>
@@ -155,6 +155,7 @@ export function GlobalTasksPage() {
         value={assigneeFilter}
         onChange={(e) => setAssigneeFilter(e.target.value)}
         className="w-44"
+        size="sm"
         disabled={onlyMine}
       >
         <option value="">Todos os responsáveis</option>
@@ -164,14 +165,14 @@ export function GlobalTasksPage() {
       <button
         type="button"
         onClick={() => setOnlyMine((v) => !v)}
-        className={`h-[38px] px-3 text-[12px] font-medium transition-colors ${
+        className={`h-8 px-3 text-[12px] font-medium transition-colors ${
           onlyMine ? 'bg-accent text-white' : 'border border-border-subtle text-text-secondary hover:text-text-primary'
         }`}
       >
         Só minhas
       </button>
 
-      <div className="flex h-[38px] border border-border-subtle">
+      <div className="flex h-8 border border-border-subtle">
         <button
           type="button"
           onClick={() => setView('board')}
@@ -194,7 +195,7 @@ export function GlobalTasksPage() {
         </button>
       </div>
 
-      <Button className="ml-auto h-[38px]" onClick={() => setCreating(true)}>
+      <Button size="sm" className="ml-auto h-8" onClick={() => setCreating(true)}>
         <Plus size={16} /> Nova
       </Button>
     </div>

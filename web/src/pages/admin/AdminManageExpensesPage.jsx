@@ -90,6 +90,7 @@ export function AdminManageExpensesPage() {
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Select
           className="w-48"
+          size="sm"
           value={filters.status}
           onChange={(e) => setFilters({ ...filters, status: e.target.value })}
         >
@@ -101,6 +102,7 @@ export function AdminManageExpensesPage() {
 
         <Select
           className="w-56"
+          size="sm"
           value={filters.user_id}
           onChange={(e) => setFilters({ ...filters, user_id: e.target.value })}
         >

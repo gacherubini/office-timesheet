@@ -23,10 +23,6 @@ function formatDuration(minutes) {
   return `${h}h ${String(m).padStart(2, '0')}m`
 }
 
-// Compacta o DateRange (.form-control) para caber na faixa de controle h-8,
-// sem alterar o componente compartilhado.
-const FIELD_H8 = '[&_.form-control]:h-8 [&_.form-control]:py-0 [&_.form-control]:text-[12px]'
-
 function formatDateTime(value) {
   if (!value) return '-'
   return new Date(value).toLocaleString('pt-BR', {
@@ -125,16 +121,15 @@ export function AdminReportsPage() {
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className={FIELD_H8}>
-          <DateRange
-            from={startDate}
-            to={endDate}
-            onFromChange={setStartDate}
-            onToChange={setEndDate}
-            fromLabel=""
-            toLabel=""
-          />
-        </div>
+        <DateRange
+          size="sm"
+          from={startDate}
+          to={endDate}
+          onFromChange={setStartDate}
+          onToChange={setEndDate}
+          fromLabel=""
+          toLabel=""
+        />
 
         {financialData && (
           <Tabs

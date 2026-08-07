@@ -4,6 +4,17 @@ import 'react-datepicker/dist/react-datepicker.css'
 
 registerLocale('pt-BR', ptBR)
 
+const BASE_CLASS =
+  'w-full form-control border outline-none transition-colors disabled:opacity-60'
+
+// Mesma convenção de tamanho do Select.jsx: padrão inalterado ('md'); 'sm'
+// entrega h-8 (a faixa de controle padrão do sistema) com padding e texto
+// proporcionais. DateRange repassa este prop, sem redefinir a regra.
+const SIZES = {
+  sm: 'h-8 px-3 py-0 text-[12px]',
+  md: 'px-3 py-2 text-sm',
+}
+
 function toDate(value) {
   if (!value) return null
   if (value instanceof Date) return value
@@ -36,6 +47,7 @@ export function DateField({
   showYearDropdown = false,
   showMonthDropdown = false,
   yearDropdownItemNumber = 100,
+  size = 'md',
 }) {
   const handleChange = (date) => {
     if (!onChange) return
@@ -66,7 +78,7 @@ export function DateField({
         yearDropdownItemNumber={yearDropdownItemNumber}
         dropdownMode={showYearDropdown || showMonthDropdown ? 'select' : undefined}
         wrapperClassName="block w-full"
-        className="w-full form-control border px-3 py-2 text-sm outline-none transition-colors disabled:opacity-60"
+        className={`${BASE_CLASS} ${SIZES[size] || SIZES.md}`}
       />
       {error && <p className="text-xs state-danger mt-1">{error}</p>}
     </div>

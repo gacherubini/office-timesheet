@@ -15,10 +15,6 @@ import { CheckCircle2 } from 'lucide-react'
 
 registerLocale('pt-BR', ptBR)
 
-// Compacta o DateRange (.form-control) para caber na faixa de controle h-8,
-// sem alterar o componente compartilhado.
-const FIELD_H8 = '[&_.form-control]:h-8 [&_.form-control]:py-0 [&_.form-control]:text-[12px]'
-
 function formatDate(iso) {
   if (!iso) return '-'
   return new Date(iso).toLocaleDateString('pt-BR', {
@@ -241,16 +237,15 @@ export function HistoryPage() {
 
       {showEarnings && (
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          <div className={FIELD_H8}>
-            <DateRange
-              from={range.from}
-              to={range.to}
-              onFromChange={(v) => setRange((r) => ({ ...r, from: v }))}
-              onToChange={(v) => setRange((r) => ({ ...r, to: v }))}
-              fromLabel=""
-              toLabel=""
-            />
-          </div>
+          <DateRange
+            size="sm"
+            from={range.from}
+            to={range.to}
+            onFromChange={(v) => setRange((r) => ({ ...r, from: v }))}
+            onToChange={(v) => setRange((r) => ({ ...r, to: v }))}
+            fromLabel=""
+            toLabel=""
+          />
           {(range.from || range.to) && (
             <Button type="button" variant="ghost" size="sm" className="h-8" onClick={() => setRange({ from: '', to: '' })}>
               Limpar

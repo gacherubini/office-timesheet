@@ -17,10 +17,6 @@ import { Badge } from '../../components/ui/Badge'
 
 registerLocale('pt-BR', ptBR)
 
-// Compacta Select/DateRange (.form-control) para caber na faixa de controle h-8,
-// sem alterar os componentes compartilhados.
-const FIELD_H8 = '[&_.form-control]:h-8 [&_.form-control]:py-0 [&_.form-control]:text-[12px]'
-
 function getMonthRange() {
   const now = new Date()
   const start = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -346,7 +342,8 @@ export function AdminTimeEntriesPage() {
 
       <form onSubmit={handleFilter} className="mb-3 flex flex-wrap items-center gap-2">
         <Select
-          className={`${FIELD_H8} w-48`}
+          className="w-48"
+          size="sm"
           value={filters.user_id}
           onChange={(e) => setFilters({ ...filters, user_id: e.target.value })}
         >
@@ -359,7 +356,8 @@ export function AdminTimeEntriesPage() {
         </Select>
 
         <Select
-          className={`${FIELD_H8} w-44`}
+          className="w-44"
+          size="sm"
           value={filters.project_id}
           onChange={(e) => setFilters({ ...filters, project_id: e.target.value })}
         >
@@ -371,16 +369,15 @@ export function AdminTimeEntriesPage() {
           ))}
         </Select>
 
-        <div className={FIELD_H8}>
-          <DateRange
-            from={filters.start_date}
-            to={filters.end_date}
-            onFromChange={(v) => setFilters({ ...filters, start_date: v })}
-            onToChange={(v) => setFilters({ ...filters, end_date: v })}
-            fromLabel=""
-            toLabel=""
-          />
-        </div>
+        <DateRange
+          size="sm"
+          from={filters.start_date}
+          to={filters.end_date}
+          onFromChange={(v) => setFilters({ ...filters, start_date: v })}
+          onToChange={(v) => setFilters({ ...filters, end_date: v })}
+          fromLabel=""
+          toLabel=""
+        />
 
         <Button type="submit" size="sm" className="h-8">
           Filtrar
