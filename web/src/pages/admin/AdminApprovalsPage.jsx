@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
-import { CalendarOff, Check, CheckCircle2, FileText, Receipt, X } from 'lucide-react'
+import { CalendarOff, CheckCircle2, FileText, Receipt } from 'lucide-react'
 import { api } from '../../lib/api'
-import { Avatar } from '../../components/Avatar'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { Modal } from '../../components/ui/Modal'
@@ -202,18 +201,21 @@ export function AdminApprovalsPage() {
       <PageHeader title="Aprovações" subtitle="Solicitações, despesas e férias pendentes" />
 
       {error && (
-        <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-6">
+        <div className="state-danger-soft text-sm p-3 mb-6">
           {error}
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5">
         <Card padded={false} className="overflow-hidden">
-          <div className="px-5 py-4 border-b border-border-subtle flex items-center gap-2">
-            <FileText size={15} className="text-text-secondary" />
-            <h2 className="text-[11px] font-medium uppercase tracking-wider text-text-secondary">
+          <div className="flex items-center justify-between gap-2 border-b border-border-subtle px-5 py-3.5">
+            <h2 className="flex items-center gap-2 text-[9px] uppercase tracking-[.2em] text-text-secondary">
+              <FileText size={13} />
               Solicitações de apontamento
             </h2>
+            {requests.length > 0 && (
+              <span className="text-[11px] font-medium tabular-nums text-orange">{requests.length}</span>
+            )}
           </div>
 
           <div className="divide-y divide-border-subtle">
@@ -225,16 +227,11 @@ export function AdminApprovalsPage() {
               </div>
             ) : (
               requests.map((request) => (
-                <div key={request.id} className="p-4 space-y-3">
-                  <div className="flex items-center gap-3">
-                    <Avatar name={request.profile?.name} url={request.profile?.avatar_url} size={36} />
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-text-primary truncate">
-                        {request.profile?.name || 'Colaborador'}
-                      </p>
-                      <p className="text-xs text-text-secondary">{formatDateTime(request.created_at)}</p>
-                    </div>
-                  </div>
+                <div key={request.id} className="px-5 py-3.5">
+                  <p className="text-[9px] uppercase tracking-[.2em] text-brown">
+                    {request.profile?.name || 'Colaborador'}
+                  </p>
+                  <p className="mt-1 text-[11px] text-text-secondary">{formatDateTime(request.created_at)}</p>
 
                   {(() => {
                     const currentProject = request.time_entry?.project?.name || '-'
@@ -245,7 +242,7 @@ export function AdminApprovalsPage() {
                     const sameDate = currentDate === requestedDate
 
                     return (
-                      <div className="text-xs text-text-secondary space-y-1">
+                      <div className="mt-1.5 text-[12px] text-text-secondary space-y-1">
                         {sameProject && sameDate ? (
                           <>
                             <p className="text-text-primary font-medium">
@@ -279,24 +276,21 @@ export function AdminApprovalsPage() {
                     )
                   })()}
 
-                  <div className="flex gap-2">
+                  <div className="mt-2.5 flex gap-2">
                     <button
                       type="button"
                       onClick={() => approveRequest(request.id)}
                       disabled={decidingRequestId === request.id}
-                      className="inline-flex flex-1 items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-white hover:opacity-90 disabled:opacity-60 transition-opacity"
-                      style={{ background: 'var(--color-accent)' }}
+                      className="bg-green-dk px-3 py-1.5 text-[11px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60"
                     >
-                      <Check size={14} />
                       Aprovar
                     </button>
                     <button
                       type="button"
                       onClick={() => rejectRequest(request.id)}
                       disabled={decidingRequestId === request.id}
-                      className="inline-flex flex-1 items-center justify-center gap-1.5 border border-border-subtle px-3 py-2 text-xs font-medium text-text-primary hover:bg-surface-alt disabled:opacity-60 transition-colors"
+                      className="border border-border-subtle px-3 py-1.5 text-[11px] font-medium text-text-primary transition-colors hover:bg-surface-alt disabled:opacity-60"
                     >
-                      <X size={14} />
                       Rejeitar
                     </button>
                   </div>
@@ -307,11 +301,14 @@ export function AdminApprovalsPage() {
         </Card>
 
         <Card padded={false} className="overflow-hidden">
-          <div className="px-5 py-4 border-b border-border-subtle flex items-center gap-2">
-            <Receipt size={15} className="text-text-secondary" />
-            <h2 className="text-[11px] font-medium uppercase tracking-wider text-text-secondary">
+          <div className="flex items-center justify-between gap-2 border-b border-border-subtle px-5 py-3.5">
+            <h2 className="flex items-center gap-2 text-[9px] uppercase tracking-[.2em] text-text-secondary">
+              <Receipt size={13} />
               Despesas
             </h2>
+            {expenses.length > 0 && (
+              <span className="text-[11px] font-medium tabular-nums text-orange">{expenses.length}</span>
+            )}
           </div>
 
           <div className="divide-y divide-border-subtle">
@@ -323,23 +320,18 @@ export function AdminApprovalsPage() {
               </div>
             ) : (
               expenses.map((expense) => (
-                <div key={expense.id} className="p-4 space-y-3">
+                <div key={expense.id} className="px-5 py-3.5">
                   <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Avatar name={expense.profile?.name} url={expense.profile?.avatar_url} size={36} />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-text-primary truncate">
-                          {expense.profile?.name || 'Colaborador'}
-                        </p>
-                        <p className="text-xs text-text-secondary">{formatDate(expense.expense_date)}</p>
-                      </div>
-                    </div>
-                    <p className="text-sm font-medium text-text-primary whitespace-nowrap tabular-nums">
+                    <p className="text-[9px] uppercase tracking-[.2em] text-brown">
+                      {expense.profile?.name || 'Colaborador'}
+                    </p>
+                    <p className="text-[12px] font-medium text-text-primary whitespace-nowrap tabular-nums">
                       {formatCurrency(expense.amount)}
                     </p>
                   </div>
+                  <p className="mt-1 text-[11px] text-text-secondary">{formatDate(expense.expense_date)}</p>
 
-                  <div className="text-xs text-text-secondary space-y-1">
+                  <div className="mt-1.5 text-[12px] text-text-secondary space-y-1">
                     <p className="font-medium text-text-primary">{expense.title}</p>
                     {expense.description && <p className="line-clamp-3">{expense.description}</p>}
                     {expense.receipt_url && (
@@ -354,24 +346,21 @@ export function AdminApprovalsPage() {
                     )}
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="mt-2.5 flex gap-2">
                     <button
                       type="button"
                       onClick={() => approveExpense(expense.id)}
                       disabled={decidingExpenseId === expense.id}
-                      className="inline-flex flex-1 items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-white hover:opacity-90 disabled:opacity-60 transition-opacity"
-                      style={{ background: 'var(--color-accent)' }}
+                      className="bg-green-dk px-3 py-1.5 text-[11px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60"
                     >
-                      <Check size={14} />
                       Aprovar
                     </button>
                     <button
                       type="button"
                       onClick={() => rejectExpense(expense.id)}
                       disabled={decidingExpenseId === expense.id}
-                      className="inline-flex flex-1 items-center justify-center gap-1.5 border border-border-subtle px-3 py-2 text-xs font-medium text-text-primary hover:bg-surface-alt disabled:opacity-60 transition-colors"
+                      className="border border-border-subtle px-3 py-1.5 text-[11px] font-medium text-text-primary transition-colors hover:bg-surface-alt disabled:opacity-60"
                     >
-                      <X size={14} />
                       Rejeitar
                     </button>
                   </div>
@@ -382,11 +371,14 @@ export function AdminApprovalsPage() {
         </Card>
 
         <Card padded={false} className="overflow-hidden">
-          <div className="px-5 py-4 border-b border-border-subtle flex items-center gap-2">
-            <CalendarOff size={15} className="text-text-secondary" />
-            <h2 className="text-[11px] font-medium uppercase tracking-wider text-text-secondary">
+          <div className="flex items-center justify-between gap-2 border-b border-border-subtle px-5 py-3.5">
+            <h2 className="flex items-center gap-2 text-[9px] uppercase tracking-[.2em] text-text-secondary">
+              <CalendarOff size={13} />
               Férias
             </h2>
+            {vacations.length > 0 && (
+              <span className="text-[11px] font-medium tabular-nums text-orange">{vacations.length}</span>
+            )}
           </div>
 
           <div className="divide-y divide-border-subtle">
@@ -398,18 +390,13 @@ export function AdminApprovalsPage() {
               </div>
             ) : (
               vacations.map((vacation) => (
-                <div key={vacation.id} className="p-4 space-y-3">
-                  <div className="flex items-center gap-3">
-                    <Avatar name={vacation.profile?.name} url={vacation.profile?.avatar_url} size={36} />
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-text-primary truncate">
-                        {vacation.profile?.name || 'Colaborador'}
-                      </p>
-                      <p className="text-xs text-text-secondary">{formatDateTime(vacation.created_at)}</p>
-                    </div>
-                  </div>
+                <div key={vacation.id} className="px-5 py-3.5">
+                  <p className="text-[9px] uppercase tracking-[.2em] text-brown">
+                    {vacation.profile?.name || 'Colaborador'}
+                  </p>
+                  <p className="mt-1 text-[11px] text-text-secondary">{formatDateTime(vacation.created_at)}</p>
 
-                  <div className="text-xs text-text-secondary space-y-1">
+                  <div className="mt-1.5 text-[12px] text-text-secondary space-y-1">
                     <p className="font-medium text-text-primary">
                       {formatDate(vacation.start_date)} → {formatDate(vacation.end_date)}
                     </p>
@@ -417,24 +404,21 @@ export function AdminApprovalsPage() {
                     {vacation.reason && <p className="line-clamp-3">{vacation.reason}</p>}
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="mt-2.5 flex gap-2">
                     <button
                       type="button"
                       onClick={() => approveVacation(vacation.id)}
                       disabled={decidingVacationId === vacation.id}
-                      className="inline-flex flex-1 items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-white hover:opacity-90 disabled:opacity-60 transition-opacity"
-                      style={{ background: 'var(--color-accent)' }}
+                      className="bg-green-dk px-3 py-1.5 text-[11px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60"
                     >
-                      <Check size={14} />
                       Aprovar
                     </button>
                     <button
                       type="button"
                       onClick={() => rejectVacation(vacation.id)}
                       disabled={decidingVacationId === vacation.id}
-                      className="inline-flex flex-1 items-center justify-center gap-1.5 border border-border-subtle px-3 py-2 text-xs font-medium text-text-primary hover:bg-surface-alt disabled:opacity-60 transition-colors"
+                      className="border border-border-subtle px-3 py-1.5 text-[11px] font-medium text-text-primary transition-colors hover:bg-surface-alt disabled:opacity-60"
                     >
-                      <X size={14} />
                       Rejeitar
                     </button>
                   </div>
@@ -454,8 +438,8 @@ export function AdminApprovalsPage() {
         }
       >
         <div className="flex flex-col items-center text-center py-2">
-          <div className="bg-emerald-500/15 p-4 mb-4">
-            <CheckCircle2 className="text-emerald-500" size={36} />
+          <div className="state-success-soft p-4 mb-4">
+            <CheckCircle2 className="state-success" size={36} />
           </div>
           <p className="text-text-primary font-medium">{successMessage}</p>
         </div>

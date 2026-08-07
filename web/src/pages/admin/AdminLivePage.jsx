@@ -8,9 +8,9 @@ import { Avatar } from '../../components/Avatar'
 const REFRESH_INTERVAL_S = 15
 
 const STATUS_META = {
-  running: { label: 'Em andamento', color: '#16A34A' },
-  paused: { label: 'Pausado', color: '#E8B004' },
-  offline: { label: 'Offline', color: '#94A0AE' },
+  running: { label: 'Em andamento', color: 'var(--state-success)', textClass: 'state-success' },
+  paused: { label: 'Pausado', color: 'var(--color-orange)', textClass: 'state-attention' },
+  offline: { label: 'Offline', color: 'var(--color-text-sec)', textClass: 'text-text-secondary' },
 }
 
 function formatTime(iso) {
@@ -120,7 +120,7 @@ export function AdminLivePage() {
             {user.status !== 'offline' && (
               <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-text-secondary">
                 {user.started_at && <span>Entrou às {formatTime(user.started_at)}</span>}
-                <span className="text-border">·</span>
+                <span className="text-text-secondary">·</span>
                 <span>{breakLabel(user)}</span>
               </div>
             )}
@@ -158,7 +158,7 @@ export function AdminLivePage() {
               <p className="text-[11px] uppercase tracking-wider font-medium text-text-secondary mb-2">
                 Online
               </p>
-              <p className="font-display text-2xl text-emerald-500">{online.length}</p>
+              <p className="font-display text-2xl state-success">{online.length}</p>
             </Card>
             <Card>
               <p className="text-[11px] uppercase tracking-wider font-medium text-text-secondary mb-2">
@@ -170,7 +170,7 @@ export function AdminLivePage() {
 
           {online.length > 0 && (
             <div className="mb-5">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-emerald-500 mb-2.5">
+              <p className="text-[11px] font-medium uppercase tracking-wider state-success mb-2.5">
                 Online
               </p>
               <Card padded={false} className="overflow-hidden">
