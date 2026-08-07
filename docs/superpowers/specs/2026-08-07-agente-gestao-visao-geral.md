@@ -49,9 +49,14 @@ respondendo em português.
 
 O cérebro do bot. Onde mora o risco e o valor. Detalhe técnico no arquivo de design.
 
-- Agente agnóstico de modelo dentro da API Express.
+- Agente agnóstico de modelo **e de canal** dentro da API Express.
 - Tools de leitura curadas + SQL de leitura restrito.
 - Tools de escrita **com confirmação**.
+- **System prompt / regras de comportamento** (nunca inventar, confirmar escrita, pedir
+  esclarecimento quando ambíguo, admitir quando não sabe).
+- **Localização** (fuso do estúdio, R$, datas BR) — pra não errar "hoje/essa semana".
+- **Histórico da conversa** — *decisão em aberto*, a conversar junto (opções no design).
+- **Conjunto de avaliação (eval set)** para medir alucinação e escolher o modelo por A/B.
 - Segurança em camadas + auditoria + guardas de execução.
 - Widget de chat no React com streaming.
 
@@ -261,6 +266,7 @@ coerente com a política de privacidade atual (identificação por `user_id`).
 ## 13. O que falta validar / próximos passos
 
 - [ ] Validar este documento mestre (é o objetivo desta rodada).
+- [ ] **Decidir a opção de histórico de conversa** (§11 do design — A/B/C).
 - [ ] Aprovar o design técnico da Fase 1 (`...-fase1-design.md`).
 - [ ] Gerar o **plano de implementação da Fase 1** (skill writing-plans).
 - [ ] Fases 2 e 3 ganham spec + plano próprios quando chegarmos nelas (evitar planejar
