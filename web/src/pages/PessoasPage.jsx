@@ -79,26 +79,20 @@ const KINDS = {
   excluido: { label: 'Excluídos', singular: 'Excluído', tone: 'danger', icon: Trash2 },
 }
 
-// Chip de aba (legenda) com contador.
-function TabChip({ active, label, count, tone, onClick }) {
+// Chip de filtro (legenda) com contador.
+function TabChip({ active, label, count, onClick }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-2 border px-4 py-1.5 text-sm font-medium transition-colors ${
+      className={`flex h-8 items-center gap-2 border px-3 text-[12px] transition-colors ${
         active
-          ? 'border-transparent bg-[color:var(--color-accent)] text-white'
-          : 'border-border-subtle text-text-secondary hover:text-text-primary hover:bg-surface-alt'
+          ? 'border-ink bg-ink text-white'
+          : 'border-border-subtle bg-surface text-text-secondary hover:text-text-primary'
       }`}
     >
       {label}
-      <span
-        className={`inline-flex min-w-5 items-center justify-center px-1.5 text-[11px] tabular-nums ${
-          active ? 'bg-white/25 text-white' : 'bg-surface-alt text-text-secondary'
-        }`}
-      >
-        {count}
-      </span>
+      <span className="text-[10.5px] tabular-nums opacity-65">{count}</span>
     </button>
   )
 }
@@ -450,11 +444,11 @@ export function PessoasPage() {
   }
 
   const tabs = [
-    { key: 'todos', label: 'Todos', tone: 'neutral' },
-    { key: 'cliente', label: KINDS.cliente.label, tone: KINDS.cliente.tone },
-    { key: 'colaborador', label: KINDS.colaborador.label, tone: KINDS.colaborador.tone },
-    { key: 'fornecedor', label: KINDS.fornecedor.label, tone: KINDS.fornecedor.tone },
-    ...(isAdmin ? [{ key: 'excluido', label: KINDS.excluido.label, tone: KINDS.excluido.tone }] : []),
+    { key: 'todos', label: 'Todos' },
+    { key: 'cliente', label: KINDS.cliente.label },
+    { key: 'colaborador', label: KINDS.colaborador.label },
+    { key: 'fornecedor', label: KINDS.fornecedor.label },
+    ...(isAdmin ? [{ key: 'excluido', label: KINDS.excluido.label }] : []),
   ]
 
   return (
@@ -462,43 +456,31 @@ export function PessoasPage() {
       <PageHeader
         title="Pessoas"
         subtitle="Clientes, colaboradores e fornecedores num só lugar"
-        actions={
-          <Button onClick={() => setShowNewChooser(true)}>
-            <Plus size={16} />
-            Nova pessoa
-          </Button>
-        }
       />
 
       {pageError && (
-        <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-4">
+        <div className="state-danger-soft text-sm p-3 mb-4">
           {pageError}
         </div>
       )}
 
-      {/* Legendas (abas) do mockup */}
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        {tabs.map((t) => (
-          <TabChip
-            key={t.key}
-            active={tab === t.key}
-            label={t.label}
-            count={counts[t.key] || 0}
-            tone={t.tone}
-            onClick={() => setTab(t.key)}
+      {/* Faixa de controle: busca → filtros → ação primária */}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[240px] max-w-xs flex-1">
+          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-secondary" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por nome, e-mail ou telefone..."
+            className="form-control h-8 w-full border pl-8 pr-3 text-[12px] outline-none transition-colors"
           />
+        </div>
+        {tabs.map((t) => (
+          <TabChip key={t.key} active={tab === t.key} label={t.label} count={counts[t.key] || 0} onClick={() => setTab(t.key)} />
         ))}
-      </div>
-
-      {/* Busca */}
-      <div className="relative mb-4 max-w-md">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" />
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar por nome, e-mail ou telefone..."
-          className="form-control w-full border pl-9 pr-3 py-2 text-sm outline-none transition-colors"
-        />
+        <Button className="ml-auto h-8" onClick={() => setShowNewChooser(true)}>
+          <Plus size={15} /> Nova pessoa
+        </Button>
       </div>
 
       <Card padded={false}>
@@ -511,7 +493,7 @@ export function PessoasPage() {
         ) : (
           <>
             {/* Cabeçalho de colunas — diz o que é cada valor da linha. */}
-            <div className="hidden sm:flex items-center gap-3 px-4 py-2.5 border-b border-border-subtle bg-surface-alt text-[11px] font-medium uppercase tracking-wider text-text-secondary">
+            <div className="hidden sm:flex items-center gap-3 px-4 py-2.5 border-b border-border-subtle bg-bg text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
               <span className="flex-1">Nome</span>
               <span className="w-28 flex-none">Tipo</span>
               <span className="w-20 flex-none">Status</span>
@@ -611,7 +593,7 @@ export function PessoasPage() {
         title={editingUser ? 'Editar Colaborador' : 'Novo Colaborador'}
       >
         {formError && (
-          <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mb-4">
+          <div className="state-danger-soft text-sm p-3 mb-4">
             {formError}
           </div>
         )}
@@ -746,8 +728,8 @@ export function PessoasPage() {
         }
       >
         <div className="flex flex-col items-center text-center mb-5">
-          <div className="bg-rose-500/15 p-4 mb-4">
-            <AlertTriangle className="text-rose-500" size={36} />
+          <div className="state-danger-soft p-4 mb-4">
+            <AlertTriangle className="state-danger" size={36} />
           </div>
           <h3 className="font-display text-2xl text-text-primary mb-2">Excluir colaborador?</h3>
           <p className="text-text-secondary">
@@ -755,7 +737,7 @@ export function PessoasPage() {
             <strong className="text-text-primary">{userToDelete?.name}</strong>
           </p>
         </div>
-        <div className="bg-sky-500/10 border border-sky-500/20 p-4 text-sm">
+        <div className="state-success-soft border border-border-subtle p-4 text-sm">
           <p className="font-medium text-text-primary mb-1">Os apontamentos serão preservados.</p>
           <p className="text-text-secondary">
             Você pode restaurar este colaborador a qualquer momento na aba{' '}
@@ -763,7 +745,7 @@ export function PessoasPage() {
           </p>
         </div>
         {deleteError && (
-          <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mt-3">
+          <div className="state-danger-soft text-sm p-3 mt-3">
             {deleteError}
           </div>
         )}
@@ -814,8 +796,8 @@ export function PessoasPage() {
         }
       >
         <div className="flex flex-col items-center text-center mb-5">
-          <div className="bg-rose-500/15 p-4 mb-4">
-            <AlertTriangle className="text-rose-500" size={36} />
+          <div className="state-danger-soft p-4 mb-4">
+            <AlertTriangle className="state-danger" size={36} />
           </div>
           <h3 className="font-display text-2xl text-text-primary mb-2">
             {contactToDelete?.kind === 'cliente' ? 'Excluir cliente?' : 'Excluir fornecedor?'}
@@ -825,7 +807,7 @@ export function PessoasPage() {
             <strong className="text-text-primary">{contactToDelete?.raw?.name}</strong>
           </p>
         </div>
-        <div className="bg-rose-500/10 border border-rose-500/20 p-4 text-sm">
+        <div className="state-danger-soft border border-border-subtle p-4 text-sm">
           <p className="font-medium text-text-primary mb-1">Esta ação remove o cadastro.</p>
           <p className="text-text-secondary">
             {contactToDelete?.kind === 'cliente'
@@ -834,7 +816,7 @@ export function PessoasPage() {
           </p>
         </div>
         {contactDeleteError && (
-          <div className="bg-rose-500/10 text-rose-600 text-sm p-3 mt-3">
+          <div className="state-danger-soft text-sm p-3 mt-3">
             {contactDeleteError}
           </div>
         )}
@@ -848,8 +830,8 @@ export function PessoasPage() {
         footer={<Button onClick={() => setSuccessMessage('')}>OK</Button>}
       >
         <div className="flex flex-col items-center text-center py-2">
-          <div className="bg-emerald-500/15 p-4 mb-4">
-            <CheckCircle2 className="text-emerald-500" size={36} />
+          <div className="state-success-soft p-4 mb-4">
+            <CheckCircle2 className="state-success" size={36} />
           </div>
           <p className="text-text-primary font-medium">{successMessage}</p>
         </div>
@@ -872,7 +854,7 @@ function PersonRow({ person, onOpen, onRestore, restoring, canRestore, canAccess
           <p className="font-medium text-text-primary truncate flex items-center gap-2">
             {person.name}
             {person.adminOnly && (
-              <span title="Visível só para admins" className="text-amber-500">
+              <span title="Visível só para admins" className="state-attention">
                 <Lock size={12} />
               </span>
             )}
@@ -920,7 +902,7 @@ function PersonRow({ person, onOpen, onRestore, restoring, canRestore, canAccess
             rel="noreferrer"
             onClick={(e) => e.stopPropagation()}
             title="Abrir WhatsApp"
-            className="text-emerald-500 hover:text-emerald-400 p-1 hover:bg-emerald-500/10 transition-colors flex-none"
+            className="state-success hover:bg-surface-alt hover:opacity-80 p-1 transition-colors flex-none"
           >
             <MessageCircle size={16} />
           </a>
@@ -931,7 +913,7 @@ function PersonRow({ person, onOpen, onRestore, restoring, canRestore, canAccess
         <button
           onClick={onRestore}
           disabled={restoring}
-          className="inline-flex items-center gap-1.5 text-sm text-emerald-500 hover:text-emerald-400 disabled:opacity-50 transition-colors flex-none"
+          className="inline-flex items-center gap-1.5 text-sm state-success hover:opacity-80 disabled:opacity-50 transition-colors flex-none"
         >
           <RotateCcw size={14} />
           {restoring ? 'Restaurando...' : 'Restaurar'}
@@ -1076,7 +1058,7 @@ function PersonDetailModal({
             href={wa}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1.5 text-sm text-emerald-500 hover:text-emerald-400 px-3 py-2 hover:bg-emerald-500/10 transition-colors"
+            className="inline-flex items-center gap-1.5 text-sm state-success hover:bg-surface-alt hover:opacity-80 px-3 py-2 transition-colors"
           >
             <MessageCircle size={15} /> WhatsApp
           </a>
@@ -1092,7 +1074,7 @@ function PersonDetailModal({
         {canDelete && (
           <button
             onClick={() => onDelete(person)}
-            className="inline-flex items-center gap-1.5 text-sm text-rose-500 hover:text-rose-400 px-3 py-2 hover:bg-rose-500/10 transition-colors"
+            className="inline-flex items-center gap-1.5 text-sm state-danger hover:bg-surface-alt hover:opacity-80 px-3 py-2 transition-colors"
           >
             <Trash2 size={15} /> Excluir
           </button>
