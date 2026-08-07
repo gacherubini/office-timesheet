@@ -209,7 +209,7 @@ export function TimerPage() {
             <button
               onClick={handlePause}
               disabled={loading}
-              className="flex items-center gap-2 state-attention-soft px-6 py-3 font-medium hover:opacity-80 transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 bg-brown text-white px-6 py-3 font-medium hover:opacity-90 transition-colors disabled:opacity-50"
             >
               <Pause size={20} />
               Pausar

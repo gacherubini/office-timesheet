@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { CalendarOff, CheckCircle2, FileText, Receipt } from 'lucide-react'
 import { api } from '../../lib/api'
+import { Avatar } from '../../components/Avatar'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { Modal } from '../../components/ui/Modal'
@@ -228,10 +229,15 @@ export function AdminApprovalsPage() {
             ) : (
               requests.map((request) => (
                 <div key={request.id} className="px-5 py-3.5">
-                  <p className="text-[9px] uppercase tracking-[.2em] text-brown">
-                    {request.profile?.name || 'Colaborador'}
-                  </p>
-                  <p className="mt-1 text-[11px] text-text-secondary">{formatDateTime(request.created_at)}</p>
+                  <div className="flex items-center gap-3">
+                    <Avatar name={request.profile?.name} url={request.profile?.avatar_url} size={32} />
+                    <div className="min-w-0">
+                      <p className="text-[9px] uppercase tracking-[.2em] text-brown truncate">
+                        {request.profile?.name || 'Colaborador'}
+                      </p>
+                      <p className="mt-1 text-[11px] text-text-secondary">{formatDateTime(request.created_at)}</p>
+                    </div>
+                  </div>
 
                   {(() => {
                     const currentProject = request.time_entry?.project?.name || '-'
@@ -321,15 +327,20 @@ export function AdminApprovalsPage() {
             ) : (
               expenses.map((expense) => (
                 <div key={expense.id} className="px-5 py-3.5">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-[9px] uppercase tracking-[.2em] text-brown">
-                      {expense.profile?.name || 'Colaborador'}
-                    </p>
-                    <p className="text-[12px] font-medium text-text-primary whitespace-nowrap tabular-nums">
-                      {formatCurrency(expense.amount)}
-                    </p>
+                  <div className="flex items-center gap-3">
+                    <Avatar name={expense.profile?.name} url={expense.profile?.avatar_url} size={32} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-[9px] uppercase tracking-[.2em] text-brown truncate">
+                          {expense.profile?.name || 'Colaborador'}
+                        </p>
+                        <p className="text-[12px] font-medium text-text-primary whitespace-nowrap tabular-nums">
+                          {formatCurrency(expense.amount)}
+                        </p>
+                      </div>
+                      <p className="mt-1 text-[11px] text-text-secondary">{formatDate(expense.expense_date)}</p>
+                    </div>
                   </div>
-                  <p className="mt-1 text-[11px] text-text-secondary">{formatDate(expense.expense_date)}</p>
 
                   <div className="mt-1.5 text-[12px] text-text-secondary space-y-1">
                     <p className="font-medium text-text-primary">{expense.title}</p>
@@ -391,10 +402,15 @@ export function AdminApprovalsPage() {
             ) : (
               vacations.map((vacation) => (
                 <div key={vacation.id} className="px-5 py-3.5">
-                  <p className="text-[9px] uppercase tracking-[.2em] text-brown">
-                    {vacation.profile?.name || 'Colaborador'}
-                  </p>
-                  <p className="mt-1 text-[11px] text-text-secondary">{formatDateTime(vacation.created_at)}</p>
+                  <div className="flex items-center gap-3">
+                    <Avatar name={vacation.profile?.name} url={vacation.profile?.avatar_url} size={32} />
+                    <div className="min-w-0">
+                      <p className="text-[9px] uppercase tracking-[.2em] text-brown truncate">
+                        {vacation.profile?.name || 'Colaborador'}
+                      </p>
+                      <p className="mt-1 text-[11px] text-text-secondary">{formatDateTime(vacation.created_at)}</p>
+                    </div>
+                  </div>
 
                   <div className="mt-1.5 text-[12px] text-text-secondary space-y-1">
                     <p className="font-medium text-text-primary">

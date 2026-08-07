@@ -91,17 +91,22 @@ function vacationIncludesDate(vacation, key) {
   return vacation.start_date <= key && vacation.end_date >= key
 }
 
-// Estilo (chip) por tipo de item na agenda. Cores seguem a Legenda do mockup.
-const LAYER_STYLE = {
-  presence: 'bg-[color:var(--color-accent)]/15 text-accent',
-  vacation: 'bg-[color:var(--color-orange)]/15 text-orange',
-  holiday: 'bg-[color:var(--color-orange)]/15 text-orange',
-  office: 'bg-[color:var(--color-brown)]/15 text-brown',
-  google: 'bg-[color:var(--color-green)]/15 text-green',
+// Estilo (chip) por TIPO do item na agenda — a cor codifica o tipo, e só o
+// tipo, igual à tela de Calendário (VacationCalendarPage). Origem (pessoal,
+// escritório, presença) não tem cor própria: some com o ícone, que já a
+// distingue.
+const TYPE_STYLE = {
+  vacation_approved: 'bg-green/15 text-green-dk',
+  vacation_pending: 'bg-orange/15 text-orange',
+  holiday: 'bg-brown/15 text-brown',
+  office: 'bg-ink/5 text-text-primary',
+  google: 'bg-ink/5 text-text-primary',
+  presence: 'bg-ink/5 text-text-primary',
 }
 
 const ICON_BY_KIND = {
-  vacation: Plane,
+  vacation_approved: Plane,
+  vacation_pending: Plane,
   holiday: Flag,
   office: Building2,
   google: Video,
@@ -214,7 +219,7 @@ export function AgendaPage() {
           if (!vacationIncludesDate(vac, day.key)) continue
           push(day.key, {
             id: `vac:${vac.id}:${day.key}`,
-            kind: 'vacation',
+            kind: vac.status === 'pending' ? 'vacation_pending' : 'vacation_approved',
             title: `Férias — ${vac.profile?.name || 'Colaborador'}`,
             allDay: true,
           })
@@ -342,20 +347,17 @@ export function AgendaPage() {
               <LayerToggle
                 label="Pessoal (Google)"
                 hint={connected ? undefined : 'Conecte sua conta Google'}
-                dotClass="bg-green"
                 checked={layers.personal}
                 onChange={(v) => setLayers((l) => ({ ...l, personal: v }))}
               />
               <LayerToggle
                 label="Escritório (Google)"
-                dotClass="bg-brown"
                 checked={layers.office}
                 onChange={(v) => setLayers((l) => ({ ...l, office: v }))}
               />
               <LayerToggle
                 label="Empresa (comum)"
                 hint="Férias e feriados"
-                dotClass="bg-orange"
                 checked={layers.company}
                 onChange={(v) => setLayers((l) => ({ ...l, company: v }))}
               />
@@ -367,12 +369,13 @@ export function AgendaPage() {
               <h2 className="text-[11px] font-medium uppercase tracking-wider text-text-secondary">Legenda</h2>
             </div>
             <div className="p-4 space-y-2.5 text-sm">
-              <LegendItem colorClass="bg-[color:var(--color-accent)]" label="Presença (chego / não vou)" />
-              <LegendItem colorClass="bg-orange" label="Férias" />
-              <LegendItem colorClass="bg-orange" label="Feriado / aviso" />
+              <LegendItem colorClass="bg-green" label="Férias aprovadas" />
+              <LegendItem colorClass="bg-orange" label="Férias pendentes" />
+              <LegendItem colorClass="bg-brown" label="Feriado" />
               <div className="pt-2 mt-1 border-t border-border-subtle space-y-2.5">
-                <LegendItem colorClass="bg-green" label="Agenda pessoal (Google)" />
-                <LegendItem colorClass="bg-brown" label="Agenda do escritório" />
+                <LegendItem Icon={Video} label="Compromisso pessoal (Google)" />
+                <LegendItem Icon={Building2} label="Compromisso do escritório" />
+                <LegendItem Icon={CalendarClock} label="Presença (chego / não vou)" />
               </div>
             </div>
           </Card>
@@ -505,7 +508,7 @@ export function AgendaPage() {
         >
           <div className="space-y-3 text-sm">
             {selectedEvent.source === 'office' && (
-              <span className="inline-flex items-center gap-1.5 bg-[color:var(--color-brown)]/15 text-brown px-2.5 py-1 text-xs font-medium">
+              <span className="inline-flex items-center gap-1.5 bg-surface-alt text-text-secondary px-2.5 py-1 text-xs font-medium">
                 <Building2 size={12} /> Agenda do escritório
               </span>
             )}
@@ -541,7 +544,9 @@ export function AgendaPage() {
   )
 }
 
-function LayerToggle({ label, hint, dotClass, checked, onChange }) {
+// Camada = origem do calendário, não tipo. Filtra a origem; não tem cor
+// própria (a cor é reservada para o tipo, ver TYPE_STYLE/Legenda).
+function LayerToggle({ label, hint, checked, onChange }) {
   return (
     <label className="flex items-center gap-2.5 px-2 py-1.5 hover:bg-surface-alt cursor-pointer transition-colors">
       <input
@@ -550,7 +555,6 @@ function LayerToggle({ label, hint, dotClass, checked, onChange }) {
         onChange={(e) => onChange(e.target.checked)}
         className="h-4 w-4 border-border-subtle accent-[color:var(--color-accent)]"
       />
-      <span className={`h-2.5 w-2.5 flex-shrink-0 ${dotClass}`} />
       <span className="min-w-0">
         <span className="block text-sm text-text-primary truncate">{label}</span>
         {hint && <span className="block text-[11px] text-text-secondary truncate">{hint}</span>}
@@ -559,23 +563,24 @@ function LayerToggle({ label, hint, dotClass, checked, onChange }) {
   )
 }
 
-function LegendItem({ colorClass, label, muted }) {
+// Item de legenda: `colorClass` para tipos com cor própria (férias, feriado);
+// `Icon` para os tipos neutros, distinguidos só pelo ícone (já usado no chip).
+function LegendItem({ colorClass, label, Icon }) {
   return (
     <div className="flex items-center gap-2.5">
-      <span className={`h-3 w-3 flex-shrink-0 ${colorClass}`} />
-      <span className="text-text-primary">{label}</span>
-      {muted && (
-        <span className="ml-auto text-[10px] uppercase tracking-wide text-text-secondary bg-surface-alt px-1.5 py-0.5">
-          {muted}
-        </span>
+      {Icon ? (
+        <Icon size={13} className="flex-shrink-0 text-text-secondary" />
+      ) : (
+        <span className={`h-3 w-3 flex-shrink-0 ${colorClass}`} />
       )}
+      <span className="text-text-primary">{label}</span>
     </div>
   )
 }
 
 function EventChip({ item, onOpen }) {
   const Icon = ICON_BY_KIND[item.kind] || CalendarClock
-  const style = LAYER_STYLE[item.kind] || LAYER_STYLE.google
+  const style = TYPE_STYLE[item.kind] || TYPE_STYLE.google
   const clickable =
     (item.raw && (item.kind === 'google' || item.kind === 'office')) ||
     (item.kind === 'presence' && item.mine)
