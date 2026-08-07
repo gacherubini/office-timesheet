@@ -20,6 +20,120 @@
 - **Sem raio e sem sombra no que está no fluxo da página.** Overlay (modal, toast, dropdown, popover) mantém a sombra: ali ela comunica camada. `rounded-full` sobrevive em avatar e sinal de status.
 - Toda tarefa termina com `cd web && npm run build` passando.
 
+## Padrões de tela
+
+As Tasks 12 a 21 aplicam estes quatro padrões. Eles estão escritos uma vez aqui e valem para toda tarefa que os cite — não os reinvente por página.
+
+### P1 · Faixa de controle
+
+Uma linha sob o título, sempre nesta ordem: **busca → filtros → alternador de visão → ação primária à direita**. Substitui todo controle solto que a página tenha hoje, e o `actions` sai do `PageHeader`.
+
+```jsx
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        {/* busca — só quando a tela tem o que buscar */}
+        <div className="relative min-w-[240px] max-w-xs flex-1">
+          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-secondary" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar..."
+            className="form-control h-8 w-full border pl-8 pr-3 text-[12px] outline-none transition-colors"
+          />
+        </div>
+
+        {/* filtros: Select h-8, DateRange, ou chip de categoria com contador */}
+
+        {/* alternador de visão, quando houver */}
+        <div className="flex h-8 border border-border-subtle">
+          {OPTIONS.map((o, i) => (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => setView(o.value)}
+              className={`px-3 text-[11px] transition-colors ${i > 0 ? 'border-l border-border-subtle' : ''} ${
+                view === o.value ? 'bg-ink text-white' : 'text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+
+        <Button className="ml-auto h-8" onClick={onPrimary}>
+          <Plus size={15} /> {primaryLabel}
+        </Button>
+      </div>
+```
+
+Chip de filtro com contador (categorias):
+
+```jsx
+      <button
+        type="button"
+        onClick={onClick}
+        className={`flex h-8 items-center gap-2 border px-3 text-[12px] transition-colors ${
+          active ? 'border-ink bg-ink text-white' : 'border-border-subtle bg-surface text-text-secondary hover:text-text-primary'
+        }`}
+      >
+        {label}
+        <span className="text-[10.5px] tabular-nums opacity-65">{count}</span>
+      </button>
+```
+
+### P2 · Superfície de dados
+
+Uma superfície branca com fio de 1px. Cabeçalho de coluna em caixa alta espaçada sobre `#ECECEC`. Linhas separadas por fio. Números sempre `tabular-nums` e alinhados à direita.
+
+```jsx
+      <Card padded={false}>
+        <div className="flex items-center gap-3 border-b border-border-subtle bg-bg px-4 py-2 text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
+          <span className="flex-1">Coluna</span>
+          <span className="w-24 flex-none text-right">Valor</span>
+        </div>
+        <div className="divide-y divide-border-subtle">
+          {rows.map((r) => (
+            <div key={r.id} className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-[color:var(--color-hover)]">
+              <span className="flex-1 text-[12.5px]">{r.label}</span>
+              <span className="w-24 flex-none text-right text-[12.5px] tabular-nums">{r.value}</span>
+            </div>
+          ))}
+        </div>
+      </Card>
+```
+
+Estado vazio, dentro da mesma superfície, sem caixa tracejada própria:
+
+```jsx
+          <p className="px-4 py-12 text-center text-sm text-text-secondary">
+            Nenhum apontamento neste período.
+          </p>
+```
+
+### P3 · Fila de decisão
+
+Item com etiqueta de tipo em marrom, o dado no meio e os dois botões embaixo. É o mesmo desenho de "Precisa de você" da Task 6.
+
+```jsx
+                  <div className="px-5 py-3.5">
+                    <p className="text-[9px] uppercase tracking-[.2em] text-brown">{tipo} · {quem}</p>
+                    <p className="mt-1.5 text-[12px] text-text-secondary">{detalhe}</p>
+                    <div className="mt-2.5 flex gap-2">
+                      <button type="button" onClick={onApprove} disabled={busy}
+                        className="bg-green-dk px-3 py-1.5 text-[11px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60">
+                        Aprovar
+                      </button>
+                      <button type="button" onClick={onReject} disabled={busy}
+                        className="border border-border-subtle px-3 py-1.5 text-[11px] font-medium text-text-primary transition-colors hover:bg-surface-alt disabled:opacity-60">
+                        Rejeitar
+                      </button>
+                    </div>
+                  </div>
+```
+
+### P4 · Estrutura existente não muda de forma
+
+Kanban, calendário e grade de semana ficam com a estrutura que têm. Trocam-se cores, pesos, raio e sombra — nunca colunas, arraste, células ou navegação de data. Se uma tarefa parecer pedir reorganização de uma dessas, ela está errada: pare e pergunte.
+
 ---
 
 ### Task 1: Tokens do brand book
@@ -1622,20 +1736,274 @@ git commit -m "feat(agenda): camadas na paleta da marca e faixa de controle"
 
 ---
 
+### Task 15: Projetos
+
+`ProjectBoardPage` é "Projetos" na topbar. Tem catálogo de projetos, gestão de templates e o quadro do projeto. **P4 vale aqui**: o quadro e o catálogo mantêm a forma.
+
+**Files:**
+- Modify: `web/src/pages/ProjectBoardPage.jsx:402-460`
+- Modify: `web/src/pages/projectBoard/ProjectCatalog.jsx:54`
+- Modify: `web/src/pages/projectBoard/TemplateManager.jsx`
+- Modify: `web/src/pages/projectBoard/StatusChip.jsx`
+
+- [ ] **Step 1: Faixa de controle (P1)**
+
+Os controles hoje espalhados entre `actions` do `PageHeader` e o corpo viram a faixa: busca de projeto, filtro de status, alternador Catálogo/Templates, e "Novo projeto" à direita.
+
+- [ ] **Step 2: Cartão do catálogo**
+
+`ProjectCatalog.jsx:54` usa `rounded-lg shadow-lg shadow-black`. Tirar raio e sombra — cartão de catálogo está no fluxo da página, não é overlay. Manter grade, imagem e campos como estão.
+
+- [ ] **Step 3: `StatusChip` na paleta**
+
+O chip de status de projeto usa cores do Tailwind (5 ocorrências). Aplicar o mapa da Task 11: ativo em `state-success-soft`, pausado em `state-attention-soft`, encerrado em `bg-surface-alt text-text-secondary`.
+
+- [ ] **Step 4: Verificar**
+
+```bash
+cd web && npm run build && npm run dev
+```
+
+Abrir `/projetos`. Catálogo carrega, filtro e busca funcionam, abrir um projeto leva ao quadro, templates abrem. Nenhum cartão mudou de tamanho ou posição.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add web/src/pages/ProjectBoardPage.jsx web/src/pages/projectBoard/
+git commit -m "feat(projetos): faixa de controle e catálogo na linguagem nova"
+```
+
+---
+
+### Task 16: Tabelas com período — Apontamentos, Relatórios, Histórico
+
+Três telas da mesma forma: filtro de período mais tabela larga. As maiores do app.
+
+**Files:**
+- Modify: `web/src/pages/admin/AdminTimeEntriesPage.jsx:337+`
+- Modify: `web/src/pages/admin/AdminReportsPage.jsx:119+`
+- Modify: `web/src/pages/HistoryPage.jsx:233+`
+
+- [ ] **Step 1: Faixa de controle (P1) nas três**
+
+`DateRange` e os selects entram na faixa, com os campos em `h-8`. Em `AdminReportsPage` o `<Tabs>` existente vira o alternador de visão da faixa. O `actions` sai do `PageHeader` nas três.
+
+- [ ] **Step 2: Superfície de dados (P2) nas três**
+
+Cabeçalho de coluna em `bg-bg text-[8.5px] uppercase tracking-[.2em]`. Números à direita com `tabular-nums`. Estados vazios dentro da superfície, sem caixa tracejada.
+
+- [ ] **Step 3: Não estreitar**
+
+Estas três usam a largura toda e o `<main>` não tem `max-w` (Task 4). Não introduzir contêiner com largura máxima aqui.
+
+- [ ] **Step 4: Verificar**
+
+```bash
+cd web && npm run build && npm run dev
+```
+
+Abrir as três, trocar o período e conferir que os totais batem com o que batiam antes. Em 1280px nenhuma coluna some nem quebra.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add web/src/pages/admin/AdminTimeEntriesPage.jsx web/src/pages/admin/AdminReportsPage.jsx web/src/pages/HistoryPage.jsx
+git commit -m "feat(tabelas): faixa de controle e superfície de dados nas telas de período"
+```
+
+---
+
+### Task 17: Filas de decisão — Aprovações, Ao vivo, Despesas do admin
+
+**Files:**
+- Modify: `web/src/pages/admin/AdminApprovalsPage.jsx:202+`
+- Modify: `web/src/pages/admin/AdminLivePage.jsx:136+`
+- Modify: `web/src/pages/admin/AdminManageExpensesPage.jsx:85+`
+
+- [ ] **Step 1: `AdminApprovalsPage` recebe P3**
+
+É a mesma tela que a home admin resolveu na Task 6: três filas idênticas de aprovar/rejeitar. Aplicar P3, mantendo as três separadas por seção — aqui, diferente da home, a separação é o assunto da página.
+
+- [ ] **Step 2: `AdminLivePage` recebe P2**
+
+Lista de pessoas com status. O ponto de estado usa `state-success` (rodando), `state-attention` (pausado) e `text-text-secondary` (offline).
+
+- [ ] **Step 3: `AdminManageExpensesPage` recebe P1 e P3**
+
+Faixa de controle com filtro de status, e a lista de despesas em fila de decisão.
+
+- [ ] **Step 4: Verificar**
+
+```bash
+cd web && npm run build && npm run dev
+```
+
+Aprovar e rejeitar um item em cada uma das três. O item some da fila e o contador acompanha.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add web/src/pages/admin/AdminApprovalsPage.jsx web/src/pages/admin/AdminLivePage.jsx web/src/pages/admin/AdminManageExpensesPage.jsx
+git commit -m "feat(admin): filas de decisão no padrão único"
+```
+
+---
+
+### Task 18: Lista com modal e período — Despesas, Férias, Bônus
+
+**Files:**
+- Modify: `web/src/pages/ExpensesPage.jsx:136+`
+- Modify: `web/src/pages/VacationsPage.jsx:153+`
+- Modify: `web/src/pages/admin/AdminManageBonusesPage.jsx:131+`
+
+- [ ] **Step 1: P1 e P2 nas três**
+
+Faixa com `DateRange` e filtro de status; ação primária ("Nova despesa", "Solicitar férias", "Novo bônus") à direita. Lista na superfície de dados.
+
+- [ ] **Step 2: Formulários dentro dos modais**
+
+Os modais já usam `Input`, `Select` e `DateField`, que a Task 2 achatou. Conferir que nenhum campo ficou com raio próprio na mão, e que os rótulos estão em `text-[11px] text-text-secondary`, sem peso acima de 500.
+
+- [ ] **Step 3: Verificar**
+
+```bash
+cd web && npm run build && npm run dev
+```
+
+Criar uma despesa, uma solicitação de férias e um bônus. Os três modais abrem, validam e salvam.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add web/src/pages/ExpensesPage.jsx web/src/pages/VacationsPage.jsx web/src/pages/admin/AdminManageBonusesPage.jsx
+git commit -m "feat(lançamentos): despesas, férias e bônus no padrão de lista"
+```
+
+---
+
+### Task 19: Utilitárias de restauração — Excluídos
+
+**Files:**
+- Modify: `web/src/pages/admin/AdminDeletedUsersPage.jsx:73+`
+- Modify: `web/src/pages/admin/AdminDeletedProjectsPage.jsx:54+`
+
+- [ ] **Step 1: P2 nas duas**
+
+São listas simples com um botão de restaurar por linha. Superfície de dados com cabeçalho, e o botão de restaurar como secundário (`border border-border-subtle`), nunca em `state-danger` — restaurar não é destrutivo.
+
+- [ ] **Step 2: Verificar**
+
+```bash
+cd web && npm run build && npm run dev
+```
+
+Restaurar um usuário e um projeto excluídos. Ambos voltam às listas de origem.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add web/src/pages/admin/AdminDeletedUsersPage.jsx web/src/pages/admin/AdminDeletedProjectsPage.jsx
+git commit -m "feat(admin): telas de excluídos no padrão de lista"
+```
+
+---
+
+### Task 20: Calendário de férias
+
+**P4 vale aqui.** A grade de mês não muda de forma.
+
+**Files:**
+- Modify: `web/src/pages/VacationCalendarPage.jsx:227+`
+
+- [ ] **Step 1: Faixa de controle (P1)**
+
+Navegação de mês e filtros entram na faixa, no mesmo segmentado das outras telas.
+
+- [ ] **Step 2: Cores da grade**
+
+Esta é a tela mais colorida do app (20 ocorrências fora da paleta). Férias aprovadas em `--color-green`, pendentes em `--color-orange`, feriados em `--color-brown` — mesma lógica categórica da Agenda, para as duas telas de calendário conversarem.
+
+- [ ] **Step 3: Verificar**
+
+```bash
+cd web && npm run build && npm run dev
+```
+
+Abrir `/vacation-calendar`, navegar entre meses, conferir que férias e feriados aparecem nos dias certos e que as três categorias se distinguem numa grade cheia.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add web/src/pages/VacationCalendarPage.jsx
+git commit -m "feat(férias): calendário na paleta da marca"
+```
+
+---
+
+### Task 21: Perfil
+
+**Files:**
+- Modify: `web/src/pages/ProfilePage.jsx:166+`
+
+- [ ] **Step 1: Formulários**
+
+Duas seções de formulário (dados e senha), já em `Card`. Rótulos em `text-[11px] text-text-secondary`, campos `Input`/`Select` já achatados pela Task 2. O `max-w-3xl` de `:166` fica — é tela de formulário, largura contida é o certo.
+
+- [ ] **Step 2: `CalendarConnect`**
+
+`pages/profile/CalendarConnect.jsx` já perdeu raio e sombra na Task 2. Conferir que o estado "conectado" usa `state-success` e não `emerald`.
+
+- [ ] **Step 3: Verificar**
+
+```bash
+cd web && npm run build && npm run dev
+```
+
+Abrir `/profile`, salvar uma alteração de dados e trocar a senha. Ambos os formulários respondem e mostram o retorno.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add web/src/pages/ProfilePage.jsx web/src/pages/profile/CalendarConnect.jsx
+git commit -m "feat(perfil): formulários na linguagem nova"
+```
+
+---
+
 ## Verificação final
 
 1. `cd web && npm test` — 7 testes passando.
 2. `cd web && npm run build` — sem erro.
 3. `cd src && npm run check && npm test` — a API não foi tocada, mas confirma que nada quebrou no repo.
-4. Rodar o app e percorrer, em cada um dos três papéis: topbar em todas as páginas, menu de Performance só para admin, sino e avatar funcionando, gaveta em 375px.
+4. Rodar o app e percorrer **as 24 páginas** em cada um dos três papéis, com a tabela de Cobertura na mão. Em cada uma: a faixa de controle está na ordem certa, o cabeçalho de coluna está espaçado, nada tem raio ou sombra fora de overlay, e nenhuma cor foge da paleta. Conferir também topbar presente, menu de Performance só para admin, sino e avatar funcionando, e gaveta em 375px.
 5. Varredura de peso: `cd web && grep -rnE "font-(semibold|bold|extrabold)" src/` — esperado: nenhum resultado, no repo inteiro.
 6. Varredura de raio: `cd web && grep -rnE "rounded-(md|lg|xl|2xl)" src/components/ui/` — esperado: nenhum resultado. `rounded-full` sobrevive em `Avatar` e `StatusDot`, que são retrato e sinal.
 7. Varredura de cor fora da paleta: `cd web && grep -rnE "(bg|text|border|ring|divide)-(rose|emerald|amber|sky|violet|slate|yellow|red|green|teal|lime|orange)-[0-9]{2,3}" src/` — esperado: nenhum resultado, agora incluindo `projectBoard/`.
 8. O laranja continua sendo detalhe: além do ponto de "ao vivo", dos dois contadores e do simulador, ele marca "Fazendo", prioridade Média, prazo apertado e a camada Empresa da Agenda — todos pontos e chips pequenos, nunca superfície.
 9. Varredura de sombra: `cd web && grep -rn "shadow-card" src/` — esperado: nenhum resultado. As demais sombras sobrevivem **só em overlay** (`Modal`, `Toast`, dropdown do `Select`, popovers, `ClockInReminder`, painel do `NotificationBell`); confirmar com `grep -rnoE "shadow-[a-z0-9]+" src/` que nada no fluxo da página tem sombra.
 
+## Cobertura
+
+As 24 páginas do app recebem tarefa própria:
+
+| Tarefa | Páginas |
+|---|---|
+| 5, 6 | AdminDashboard |
+| 7 | EmployeeDashboard |
+| 9 | Performance (simulador) |
+| 10 | Login, ForgotPassword, ResetPassword, Timer |
+| 12 | Pessoas |
+| 13 | GlobalTasks (quadro e lista) |
+| 14 | Agenda |
+| 15 | ProjectBoard (Projetos) |
+| 16 | AdminTimeEntries, AdminReports, History |
+| 17 | AdminApprovals, AdminLive, AdminManageExpenses |
+| 18 | Expenses, Vacations, AdminManageBonuses |
+| 19 | AdminDeletedUsers, AdminDeletedProjects |
+| 20 | VacationCalendar |
+| 21 | Profile |
+
 ## Fora deste plano
 
-- Migrar as outras ~18 páginas para a linguagem nova. Elas herdam topbar, tokens e primitivos, mas mantêm pesos 600/700 no próprio conteúdo.
 - Trocar os PNG da marca por SVG quando a john&hackmann responder, e conferir o arquivo da versão branca.
-- `AdminApprovalsPage` continua com as três filas separadas. Se a fila unificada da home funcionar bem, ela é a próxima candidata.
+- Os ~15 subcomponentes de `projectBoard/` que não aparecem nas Tasks 13 e 15 (modal de detalhe da tarefa, comentários, menções, anexos) herdam tokens, primitivos e a cor de estado da Task 11, mas não recebem retrabalho de layout. Fazem parte de um fluxo dentro de modal, não de tela.
