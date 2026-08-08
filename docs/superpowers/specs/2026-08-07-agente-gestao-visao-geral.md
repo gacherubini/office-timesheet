@@ -47,6 +47,7 @@ respondendo em português.
 | **Onde roda** | Dentro da API Express atual | Reusa DB, `permissions.js`, `jwt.js`, logger/Axiom; zero serviço novo |
 | **Escrita** | Só com confirmação e preview do efeito | "Check antes de fazer" vira parte estrutural, não opcional |
 | **Contexto** | `dominio/` cacheado, **fatiado por papel** *(2026-08-08)* | Menos alucinação, ir direto ao ponto, gastar menos token. Ver §6 |
+| **Histórico** | Sessão server-side **em memória**, efêmera *(2026-08-08)* | Servidor dono do transcript (cliente não forja resultado de tool); funciona igual no WhatsApp; não força a decisão de retenção. Persistir "como o ChatGPT" fica para a Fase 2 |
 
 ### 2.1 Acesso por papel *(2026-08-08)*
 
@@ -115,7 +116,9 @@ O cérebro do bot. Onde mora o risco e o valor. Detalhe técnico no arquivo de d
 - **System prompt / regras de comportamento** (nunca inventar, confirmar escrita, pedir
   esclarecimento quando ambíguo, admitir quando não sabe).
 - **Localização** (fuso do estúdio, R$, datas BR) — pra não errar "hoje/essa semana".
-- **Histórico da conversa** — *decisão em aberto*, a conversar junto (opções no design).
+- **Histórico da conversa** — **decidido em 2026-08-08**: sessão server-side em memória,
+  ~10 trocas, 30 min de inatividade, nada gravado em disco. O núcleo recebe o histórico
+  como parâmetro e continua sem estado (§11 do design).
 - **Conjunto de avaliação (eval set)** para medir alucinação e escolher o modelo por A/B.
 - Segurança em camadas + auditoria + guardas de execução.
 - Widget de chat no React com streaming.
@@ -136,6 +139,9 @@ O cérebro do bot. Onde mora o risco e o valor. Detalhe técnico no arquivo de d
   Tigris.
 - **Alertas proativos**: "apontamento aberto há 12h", "3 projetos no vermelho".
 - Provisão de bônus, leitura de briefings em PDF, memória de preferências, exportações.
+- **Conversas persistidas, "como o ChatGPT"** *(2026-08-08)*: lista de conversas anteriores,
+  retomar, renomear, apagar. Não é só trocar o `Map` da Fase 1 por tabela — é funcionalidade
+  visível, e traz junto retenção, expurgo e exclusão pelo usuário.
 
 ### Fase 3 — Canal WhatsApp
 
@@ -360,10 +366,10 @@ coerente com a política de privacidade atual (identificação por `user_id`).
 - [ ] **Margem na Fase 1.** `projects.sale_value` é campo morto (ver §4). Ou entra uma
       rota/tela para definir o valor de venda do projeto, ou a tool `margem_por_projeto`
       sai da Fase 1. Não dá para entregá-la como está.
-- [ ] **Teto de gasto por usuário.** Precisa de um número; a estimativa do §11 caducou com
-      o acesso por papel.
-- [ ] **Opção de histórico de conversa** (§11 do design — A/B/C). Pendente desde a
-      primeira rodada.
+- [ ] **Teto de gasto por usuário.** Precisa de um número; a estimativa do §11 (Custo)
+      caducou com o acesso por papel.
+- [x] ~~Opção de histórico de conversa~~ — **decidido em 2026-08-08**: memória efêmera
+      (§11 do design).
 
 **Próximos passos**
 

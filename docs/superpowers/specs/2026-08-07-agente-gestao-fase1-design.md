@@ -6,7 +6,9 @@
 
 > **Mudança de 2026-08-08.** O agente deixa de ser admin-only: **todos os papéis o usam**,
 > e cada pessoa alcança por ele exatamente o que já alcançaria pelo site. Seções afetadas:
-> §1, §2, §3, §5, §8, §9, §13, §14, §16, §18, §19 e §20 — cada uma marcada com a data. A
+> §1, §2, §3, §5, §6, §8, §9, §13, §14, §16, §18, §19 e §20 — cada uma marcada com a data.
+> Na mesma data fechou também o **§11 (histórico de conversa)**, que estava em aberto desde
+> a primeira rodada, e o §15 acompanhou. A
 > visão do produto e a matriz de acesso por papel estão no §2.1 do documento irmão
 > `2026-08-07-agente-gestao-visao-geral.md`. Nada foi implementado ainda.
 
@@ -57,7 +59,8 @@ Princípios que guiam o design:
 - **Teste de paridade** *(2026-08-08)*: cada tool espelha um endpoint e é comparada a ele
   nos quatro papéis (§18).
 - **Camadas de segurança** (§9) e **trilha de auditoria** (§12).
-- **Histórico / estado da conversa** — **decisão em aberto**; opções no §11.
+- **Histórico / estado da conversa** — **decidido (2026-08-08)**: sessão server-side em
+  memória, efêmera, com o núcleo recebendo o histórico como parâmetro (§11).
 - **Conjunto de avaliação (eval set)** para medir alucinação/acerto de tool e escolher o
   modelo por A/B (§13).
 - **Guardas de execução** (limite de iterações, timeout, teto de tokens).
@@ -389,24 +392,55 @@ propor e aprovar).
 
 ---
 
-## 11. Histórico / estado da conversa — DECISÃO EM ABERTO
+## 11. Histórico / estado da conversa — DECIDIDO (2026-08-08)
 
 Perguntas de follow-up ("e o mês passado?") precisam de contexto entre turnos. E o núcleo é
 agnóstico de canal: no **WhatsApp não existe cliente** para segurar o histórico, então a
-forma escolhida precisa funcionar igual nos dois canais. **Esta decisão será conversada e
-decidida em conjunto** — as opções:
+forma escolhida precisa funcionar igual nos dois canais.
 
-- **Opção A — histórico só no cliente (site).** Simples, mas **não serve para o WhatsApp** e
-  quebra o objetivo de "mesma coisa que o site". Descartável isolada, mas listada.
-- **Opção B — sessão server-side por usuário (candidata a recomendada).** Uma sessão curta
-  guarda as últimas N mensagens por usuário no backend; funciona idêntico no site e no
-  WhatsApp. Subdecisões a discutir: **quantas mensagens / por quanto tempo** manter, **onde
-  guardar** (Postgres, Redis ou memória), e se **persiste ou expira** por inatividade.
-- **Opção C — híbrido.** O site segura o histórico no cliente, mas o núcleo aceita histórico
-  injetado; o adaptador do WhatsApp mantém a sessão server-side. Mais flexível, mais peças.
+**Decisão: sessão server-side por usuário, em memória e efêmera.** O backend guarda as
+últimas ~10 trocas; o cliente envia só a mensagem nova mais um `conversation_id`. Expira por
+30 min de inatividade e morre no restart. Nada é gravado em disco.
 
-Impacto: a opção escolhida define se entra uma pequena tabela/loja de sessão em §16 e um
-campo de contexto nos endpoints de §15. Fica **pendente até a nossa conversa**.
+**Por quê**, em ordem de peso:
+
+1. **Integridade.** Se o cliente guardasse o transcript, ele controlaria também os
+   *resultados de tool* das rodadas passadas — daria para forjar "a tool retornou margem de
+   R$ 500 mil" e o modelo repetiria aquilo como verdade, quebrando a camada 1 do §9.
+   Permissão não vazaria (o RBAC é checado contra o JWT a cada tool call, nunca contra o
+   histórico), mas a integridade do dado, sim. Com admin-only o atacante seria o próprio
+   admin e o ataque não fazia sentido; com todos os papéis, faz.
+2. **Canal.** Sessão server-side funciona idêntica no site e no WhatsApp — é o que o §3
+   exige do núcleo agnóstico de canal.
+3. **Custo de decisão.** Memória não grava conteúdo de conversa em lugar nenhum, então
+   **não força** a política de retenção/LGPD que o §12 adiou de propósito — e esse conteúdo
+   inclui salário, margem e dado pessoal.
+
+**Custo de código.** Um `Map` por usuário e um TTL. Mesmo padrão de
+`src/lib/notificationsHub.js`, que já mantém estado em memória com o caveat escrito no
+próprio arquivo ("funciona por instância… hoje é instância única"). O `src/fly.toml`
+confirma: `min_machines_running = 1`, `auto_stop_machines = "off"`.
+
+**O que se aceita perder.** A conversa morre em deploy/restart — irritação pequena num
+agente de consulta. Se a API um dia escalar para duas máquinas, a sessão quebra junto com o
+SSE: mesma dívida, mesmo padrão, mesma correção.
+
+**O núcleo continua sem estado.** `loop.js` recebe `history` como **parâmetro**; quem guarda
+é o `session.js`, do lado do adaptador. Isso mantém o laço testável e o eval set
+determinístico, e permite a Fase 3 trocar a loja sem tocar no núcleo.
+
+**Papel carimbado na sessão.** A sessão guarda o papel de quem a abriu e é descartada se o
+papel mudar. Sem isso, um histórico antigo poderia reinjetar dado que a pessoa deixou de
+alcançar (§3.1).
+
+**O TTL curto também é defesa.** Uma injeção de prompt que entre no histórico volta a cada
+rodada até expirar; 30 min limita a janela.
+
+**Futuro — conversas persistidas, "como o ChatGPT" (Fase 2+, §20).** Fica registrado, com um
+aviso: **não é trocar o `Map` por uma tabela.** Vira funcionalidade visível — lista de
+conversas anteriores, retomar, renomear, apagar — e arrasta junto a política de retenção, o
+expurgo e o direito de exclusão pelo usuário. É por isso que espera a fase em que a conversa
+vira configuração de rotina agendada, e não entra agora.
 
 ---
 
@@ -459,8 +493,10 @@ achismo.
 
 ## 15. Endpoints (API)
 
-- `POST /agent/chat` — envia mensagem, recebe resposta em streaming (pode conter texto e/ou
-  proposta de ação). Carrega o contexto de conversa conforme a opção escolhida no §11.
+- `POST /agent/chat` — envia **a mensagem nova mais um `conversation_id`** *(2026-08-08,
+  conforme o §11)* e recebe resposta em streaming (pode conter texto e/ou proposta de ação).
+  O histórico **não** trafega no request: quem o guarda é o servidor. `conversation_id`
+  ausente ou expirado abre sessão nova.
 - `POST /agent/actions/:proposalId/execute` — executa uma proposta aprovada (revalida +
   audita).
 
@@ -473,7 +509,9 @@ achismo.
 - **Sem mudança de schema para o acesso por papel** *(2026-08-08)*: o `scope.js` (§3.1) é
   código, e reusa `users.role` e os helpers de `permissions.js` que já existem.
 - Possível tabela curta para **propostas pendentes** (ou assinatura/expiração sem persistir).
-- **Sessão de conversa:** condicional à decisão do §11 (pode virar tabela/loja de sessão).
+- **Sessão de conversa: nenhuma mudança de dados** *(2026-08-08)*. A decisão do §11 foi
+  memória efêmera — sem tabela, sem migration, sem secret. Passa a existir só quando as
+  conversas persistidas entrarem (§20).
 - Novos secrets no Fly: `AGENT_API_KEY`, `AGENT_MODEL`, `AGENT_PROVIDER_BASE_URL`, etc.
 - Sem mudança nas tabelas de domínio existentes.
 
@@ -508,6 +546,9 @@ achismo.
   (`makeUser({ role })`, `makeTimeEntry`) e casos por papel — o teste de paridade nasce em
   cima dela, não do zero.
 - Fluxo de confirmação: proposta → revalidação → execução; expiração; mudança de estado.
+- **Sessão de conversa** *(2026-08-08, §11)*: expira por inatividade; é descartada quando o
+  papel muda; e **histórico enviado pelo cliente é ignorado** — o servidor usa o dele. Este
+  último é o teste que protege a camada 1 do §9 contra transcript forjado.
 - Comportamento: casos do **eval set** (§13) — não inventar, pedir esclarecimento, admitir
   dado ausente.
 - Auditoria: toda escrita gera registro.
@@ -533,7 +574,8 @@ achismo.
       rota/tela para definir o valor de venda do projeto, ou `margem_por_projeto` — e o
       trecho de faturamento de `resumo_financeiro` — saem da Fase 1.
 - [ ] **Teto de gasto por usuário** (§19). Precisa de um número.
-- [ ] **Opção de histórico de conversa** (§11 — A/B/C). Pendente desde a primeira rodada.
+- [x] ~~Opção de histórico de conversa~~ — **decidido em 2026-08-08**: memória efêmera
+      (§11).
 - [ ] **Confirmar o recorte de `expenses` linha a linha**, mapeado até aqui só pelo guard
       do endpoint, quando a tool correspondente for escrita.
 
@@ -549,6 +591,13 @@ achismo.
   caminho natural, e é barato porque o recorte por papel já existe.
 - **Extrair o `scope.js` para camada compartilhada** com as rotas (a abordagem "A" do §3.1),
   se e quando a duplicação de regra começar a divergir.
+- **Conversas persistidas, "como o ChatGPT"** *(2026-08-08)* — lista de conversas
+  anteriores, retomar, renomear, apagar. **Não é só trocar o `Map` do §11 por uma tabela:**
+  é funcionalidade visível, e arrasta junto a política de retenção do conteúdo, o expurgo e
+  o direito de exclusão pelo usuário. Casa naturalmente com a Fase 2, quando a conversa vira
+  configuração de rotina agendada e passa a valer a pena guardar.
+- **Sessão fora da memória do processo** (Postgres ou sticky), se a API escalar para mais de
+  uma instância — mesma dívida que o `notificationsHub.js` já carrega, e a corrigir junto.
 - **Fase 2:** tarefas agendadas pelo ADM via conversa (agendador + tabela +
   **fila de aprovação** — automação nunca escreve sem humano no meio); Google Calendar
   (OAuth próprio); relatórios em PDF (Tigris); alertas proativos; provisão de bônus;
