@@ -1,9 +1,10 @@
-// Colunas ativas do quadro. `dot`/`bar` dão a cor de cada coluna.
+// Colunas ativas do quadro. `dot`/`bar` dão a cor de cada coluna: status é
+// progressão, não categoria solta — "A fazer" é ausência de progresso.
 export const COLUMNS = [
-  { key: 'todo', label: 'A fazer', dot: 'bg-slate-400', bar: 'bg-slate-400/70' },
-  { key: 'in_progress', label: 'Fazendo', dot: 'bg-amber-500', bar: 'bg-amber-500/80' },
-  { key: 'in_review', label: 'Em revisão', dot: 'bg-sky-500', bar: 'bg-sky-500/80' },
-  { key: 'done', label: 'Concluído', dot: 'bg-emerald-500', bar: 'bg-emerald-500/80' },
+  { key: 'todo', label: 'A fazer', dot: 'border border-[rgba(15,15,15,.35)]', bar: 'bg-[rgba(15,15,15,.18)]' },
+  { key: 'in_progress', label: 'Fazendo', dot: 'bg-orange', bar: 'bg-orange' },
+  { key: 'in_review', label: 'Em revisão', dot: 'bg-brown', bar: 'bg-brown' },
+  { key: 'done', label: 'Concluído', dot: 'bg-state-success', bar: 'bg-state-success' },
 ]
 
 // Status terminal fora do quadro ativo (seção recolhível "Abandonados").
@@ -29,16 +30,17 @@ export function urgency(dueDate, status) {
 }
 
 export function urgencyClasses(level) {
-  if (level === 'overdue') return 'bg-rose-500/15 text-rose-500'
-  if (level === 'tight') return 'bg-amber-500/15 text-amber-500'
+  if (level === 'overdue') return 'state-danger-soft'
+  if (level === 'tight') return 'state-attention-soft'
   if (level === 'normal') return 'bg-surface-alt text-text-secondary'
   return 'hidden'
 }
 
+// Prioridade é progressão, não categoria solta.
 export const PRIORITIES = [
-  { key: 'low', label: 'Baixa', dot: 'bg-slate-400', chip: 'bg-slate-400/15 text-slate-500' },
-  { key: 'medium', label: 'Média', dot: 'bg-amber-500', chip: 'bg-amber-500/15 text-amber-600' },
-  { key: 'high', label: 'Alta', dot: 'bg-rose-500', chip: 'bg-rose-500/15 text-rose-500' },
+  { key: 'low', label: 'Baixa', dot: 'border border-[rgba(15,15,15,.3)]', chip: 'bg-surface-alt text-text-secondary' },
+  { key: 'medium', label: 'Média', dot: 'bg-orange', chip: 'state-attention-soft' },
+  { key: 'high', label: 'Alta', dot: 'bg-state-danger', chip: 'state-danger-soft' },
 ]
 
 export function priorityMeta(priority) {

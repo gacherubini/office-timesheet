@@ -1249,12 +1249,16 @@ git commit -m "feat(dashboard): home do colaborador na linguagem do brand book"
 
 ---
 
-### Task 8: Varredura de peso tipográfico
+### Task 8: Varredura de peso e de raio
 
-O livro define Light, Regular e Medium (04.1). O código tem **163 ocorrências de peso acima disso em 41 arquivos**. Sem esta varredura, as duas dashboards ficam com teto 500 e as outras dezoito continuam pesadas — a mesma seção parece mais gorda em `/pessoas` do que em `/admin/dashboard`.
+Duas varreduras globais na mesma tarefa, porque ambas tocam o repo inteiro e não faz sentido passar duas vezes.
+
+O livro define Light, Regular e Medium (04.1). O código tem **163 ocorrências de peso acima disso em 41 arquivos**. Sem esta varredura, as duas dashboards ficam com teto 500 e as outras dezoito continuam pesadas.
+
+E a restrição global "sem raio no fluxo da página" só foi aplicada aos primitivos na Task 2. Fora de `components/ui/` sobraram **271 ocorrências em 55 arquivos** — 148 `rounded-lg`, 78 `rounded-full`, 23 `rounded-md`, 14 `rounded-xl`, 8 `rounded-2xl`. Boa parte mora em componentes que nenhuma tarefa de tela alcança (`MyTasksTimer`, `AgendaCard`, `BirthdayCalendar`, `ClockInReminder`, os subcomponentes de `projectBoard/`).
 
 **Files:**
-- Modify: os 41 arquivos que casam com `font-(semibold|bold|extrabold)` em `web/src/`
+- Modify: os 41 arquivos que casam com `font-(semibold|bold|extrabold)` e os 55 que casam com `rounded-` em `web/src/`
 
 - [ ] **Step 1: Fotografar o estado atual**
 
@@ -1293,11 +1297,41 @@ Percorrer `/pessoas`, `/projetos`, `/agenda`, `/admin/time-entries`, `/admin/rep
 
 Ajustar só onde ficou realmente ilegível. Não é uma passada de redesenho — é conserto pontual.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Varrer o raio de caixa**
+
+`rounded-md`, `rounded-lg`, `rounded-xl` e `rounded-2xl` são todos canto de caixa e saem sem exceção. É seguro por regex:
 
 ```bash
+cd web/src && grep -rlE "rounded-(md|lg|xl|2xl)" . | xargs sed -i -E 's/ ?rounded-(md|lg|xl|2xl)//g'
+```
+
+Conferir que zerou e que nenhuma classe ficou grudada na vizinha (o `-i -E` acima come o espaço à esquerda; rode o build para pegar erro de sintaxe de className):
+
+```bash
+cd web/src && grep -rnE "rounded-(md|lg|xl|2xl)" .
+```
+
+Esperado: nenhum resultado.
+
+- [ ] **Step 6: Decidir cada `rounded-full`, um a um**
+
+Estes NÃO são varredura cega — 78 ocorrências, e algumas são legítimas. A regra:
+
+- **Fica** onde a forma redonda é o significado: avatar (retrato), ponto de status, ponto "ao vivo", spinner de carregamento.
+- **Sai** onde é só canto de caixa arredondado: chip, badge, contador, pílula de filtro, barra de progresso, botão.
+
+```bash
+cd web/src && grep -rn "rounded-full" .
+```
+
+Percorra a lista e decida cada uma. Na dúvida entre chip e sinal, pergunte: se isso fosse quadrado, perderia sentido? Se não perde, é caixa e sai.
+
+- [ ] **Step 7: Commit**
+
+```bash
+cd web && npm run build && npm test
 git add web/src
-git commit -m "refactor(theme): teto de peso em Medium, conforme brand book 04.1"
+git commit -m "refactor(theme): teto de peso em Medium e fim do raio de caixa"
 ```
 
 ---
@@ -1497,15 +1531,15 @@ Toda troca do Step 4 segue esta tabela. Onde a classe antiga tinha fundo com opa
 
 Percorrer a lista do Step 1 aplicando o mapa. Commitar a cada 5 ou 6 arquivos, para o diff ficar revisável. Em cada arquivo, **ler o que a cor está marcando antes de trocar** — `emerald` aparece tanto como "sucesso" quanto como "camada escritório" na Agenda, e são conversões diferentes.
 
-Não converter `projectBoard/helpers.js` nem `TaskCard.jsx` aqui: eles são a Task 13, que tem mapa próprio de progressão.
+Treze arquivos de `projectBoard/` carregam cor fora da paleta. **Seis têm dono depois** e ficam de fora desta tarefa: `helpers.js`, `TaskCard.jsx` e `KanbanBoard.jsx` são da Task 13, que tem mapa próprio de progressão; `StatusChip.jsx`, `ProjectCatalog.jsx` e `TemplateManager.jsx` são da Task 15. **Os outros sete são desta tarefa** e seguem o mapa acima: `AttachmentChip.jsx`, `CommentThread.jsx`, `DescriptionAttachments.jsx`, `DueDateChip.jsx`, `NewTaskModal.jsx`, `ProjectPage.jsx` e `TaskDetailContent.jsx`.
 
 - [ ] **Step 5: Confirmar que zerou**
 
 ```bash
-cd web/src && grep -rnE "(bg|text|border|ring|divide)-(rose|emerald|amber|sky|violet|slate|yellow|red|green|teal|lime|orange)-[0-9]{2,3}" . | grep -v "projectBoard/"
+cd web/src && grep -rnE "(bg|text|border|ring|divide)-(rose|emerald|amber|sky|violet|slate|yellow|red|green|teal|lime|orange)-[0-9]{2,3}" . | grep -vE "projectBoard/(helpers\.js|TaskCard\.jsx|KanbanBoard\.jsx|StatusChip\.jsx|ProjectCatalog\.jsx|TemplateManager\.jsx)"
 ```
 
-Esperado: nenhum resultado. `projectBoard/` fica de fora aqui de propósito — é a Task 13, que tem mapa próprio de progressão. A verificação final cobre os dois.
+Esperado: nenhum resultado. Os seis arquivos excluídos têm dono nas Tasks 13 e 15; a verificação final cobre todos.
 
 - [ ] **Step 6: Verificar onde o estado importa**
 
@@ -1977,7 +2011,7 @@ git commit -m "feat(perfil): formulários na linguagem nova"
 3. `cd src && npm run check && npm test` — a API não foi tocada, mas confirma que nada quebrou no repo.
 4. Rodar o app e percorrer **as 24 páginas** em cada um dos três papéis, com a tabela de Cobertura na mão. Em cada uma: a faixa de controle está na ordem certa, o cabeçalho de coluna está espaçado, nada tem raio ou sombra fora de overlay, e nenhuma cor foge da paleta. Conferir também topbar presente, menu de Performance só para admin, sino e avatar funcionando, e gaveta em 375px.
 5. Varredura de peso: `cd web && grep -rnE "font-(semibold|bold|extrabold)" src/` — esperado: nenhum resultado, no repo inteiro.
-6. Varredura de raio: `cd web && grep -rnE "rounded-(md|lg|xl|2xl)" src/components/ui/` — esperado: nenhum resultado. `rounded-full` sobrevive em `Avatar` e `StatusDot`, que são retrato e sinal.
+6. Varredura de raio: `cd web && grep -rnE "rounded-(md|lg|xl|2xl)" src/` — esperado: nenhum resultado no repo inteiro. `cd web && grep -rn "rounded-full" src/` deve devolver só retrato e sinal — avatar, ponto de status, ponto "ao vivo", spinner.
 7. Varredura de cor fora da paleta: `cd web && grep -rnE "(bg|text|border|ring|divide)-(rose|emerald|amber|sky|violet|slate|yellow|red|green|teal|lime|orange)-[0-9]{2,3}" src/` — esperado: nenhum resultado, agora incluindo `projectBoard/`.
 8. O laranja continua sendo detalhe: além do ponto de "ao vivo", dos dois contadores e do simulador, ele marca "Fazendo", prioridade Média, prazo apertado e a camada Empresa da Agenda — todos pontos e chips pequenos, nunca superfície.
 9. Varredura de sombra: `cd web && grep -rn "shadow-card" src/` — esperado: nenhum resultado. As demais sombras sobrevivem **só em overlay** (`Modal`, `Toast`, dropdown do `Select`, popovers, `ClockInReminder`, painel do `NotificationBell`); confirmar com `grep -rnoE "shadow-[a-z0-9]+" src/` que nada no fluxo da página tem sombra.

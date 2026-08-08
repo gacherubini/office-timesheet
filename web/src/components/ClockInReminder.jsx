@@ -96,9 +96,9 @@ export function ClockInReminder() {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-md">
-      <div className="w-full max-w-md rounded-2xl border border-border-subtle bg-surface shadow-2xl p-6 text-center">
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-500/15">
-          <AlarmClock className="text-amber-500" size={32} />
+      <div className="w-full max-w-md border border-border-subtle bg-surface shadow-2xl p-6 text-center">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center state-attention-soft">
+          <AlarmClock size={32} />
         </div>
         <h2 className="font-display text-2xl text-text-primary mb-2">Entrou no projeto?</h2>
         <p className="text-sm text-text-secondary mb-6">

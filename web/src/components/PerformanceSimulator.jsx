@@ -187,17 +187,20 @@ export function PerformanceSimulator({ stats, cursor }) {
       <div className="flex items-center justify-between gap-2 mb-1">
         <div className="flex items-center gap-2">
           <CalendarClock size={16} className="text-text-secondary" />
-          <h2 className="text-[15px] font-semibold text-text-primary">Simulador de performance</h2>
+          <h2 className="text-[15px] font-medium text-text-primary">Simulador de performance</h2>
         </div>
         <span aria-live="polite" className="flex items-center">
           {saveState === 'saving' && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-alt px-2.5 py-1 text-[11px] font-medium text-text-secondary">
+            <span className="inline-flex items-center gap-1.5 bg-surface-alt px-2.5 py-1 text-[11px] font-medium text-text-secondary">
               <Loader2 size={12} className="animate-spin motion-reduce:animate-none" />
               Salvando…
             </span>
           )}
           {saveState === 'saved' && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--color-accent-2)]/[0.12] px-2.5 py-1 text-[11px] font-medium text-[color:var(--color-accent-2)]">
+            <span
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium text-[color:var(--color-brown)]"
+              style={{ background: 'color-mix(in srgb, var(--color-brown) 12%, transparent)' }}
+            >
               <Check size={12} strokeWidth={2.5} />
               Salvo
             </span>
@@ -210,7 +213,13 @@ export function PerformanceSimulator({ stats, cursor }) {
       </p>
 
       {/* Painel-meta: o coração do simulador. */}
-      <div className="rounded-xl border border-[color:var(--color-accent)]/30 bg-[color:var(--color-accent)]/[0.06] p-4 mb-4">
+      <div
+        className="border p-4 mb-4"
+        style={{
+          borderColor: 'color-mix(in srgb, var(--color-accent) 30%, transparent)',
+          background: 'color-mix(in srgb, var(--color-accent) 6%, transparent)',
+        }}
+      >
         <div className="flex flex-wrap items-end gap-x-6 gap-y-4">
           <label className="block">
             <span className="block text-[11px] font-medium uppercase tracking-wider text-text-secondary mb-1">
@@ -240,7 +249,7 @@ export function PerformanceSimulator({ stats, cursor }) {
               <span>Digite a meta para distribuir as horas.</span>
             ) : model.weekdayCount > 0 ? (
               <span>
-                <strong className="font-semibold text-text-primary tabular-nums">{hoursLabel(model.perWeekday)}</strong>{' '}
+                <strong className="font-medium text-text-primary tabular-nums">{hoursLabel(model.perWeekday)}</strong>{' '}
                 por dia útil · {model.weekdayCount} {model.weekdayCount === 1 ? 'dia' : 'dias'} restantes
               </span>
             ) : (
@@ -249,13 +258,16 @@ export function PerformanceSimulator({ stats, cursor }) {
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-[color:var(--color-accent)]/15 pt-3">
+        <div
+          className="mt-4 flex flex-wrap items-center gap-4 border-t pt-3"
+          style={{ borderColor: 'color-mix(in srgb, var(--color-accent) 15%, transparent)' }}
+        >
           <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-text-primary">
             <input
               type="checkbox"
               checked={config.include_weekends}
               onChange={(e) => updateConfig({ include_weekends: e.target.checked })}
-              className="h-4 w-4 rounded border-border-subtle accent-[color:var(--color-accent-2)]"
+              className="h-4 w-4 border-border-subtle accent-[color:var(--color-brown)]"
             />
             Incluir fins de semana <span className="text-text-secondary">(hora extra)</span>
           </label>
@@ -270,7 +282,7 @@ export function PerformanceSimulator({ stats, cursor }) {
                   updateConfig({ weekend_default_minutes: Math.round(parseHours(e.target.value) * 60) })
                 }}
                 aria-label="Horas padrão por dia de fim de semana"
-                className="w-14 rounded-md border border-border-subtle bg-surface px-2 py-1 text-right text-sm text-text-primary tabular-nums outline-none focus:border-[color:var(--color-accent-2)]"
+                className="w-14 border border-border-subtle bg-surface px-2 py-1 text-right text-sm text-text-primary tabular-nums outline-none focus:border-[color:var(--color-brown)]"
               />
               h
             </label>
@@ -285,19 +297,33 @@ export function PerformanceSimulator({ stats, cursor }) {
         </p>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-text-secondary">
           <span className="inline-flex items-center gap-1.5">
-            <span aria-hidden className="h-3 w-3 rounded-[4px] border border-border-subtle bg-surface-alt" />
+            <span aria-hidden className="h-3 w-3 border border-border-subtle bg-surface-alt" />
             Real
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span aria-hidden className="h-3 w-3 rounded-[4px] border border-[color:var(--color-accent)]/30 bg-[color:var(--color-accent)]/[0.12]" />
+            <span
+              aria-hidden
+              className="h-3 w-3 border"
+              style={{
+                borderColor: 'color-mix(in srgb, var(--color-accent) 30%, transparent)',
+                background: 'color-mix(in srgb, var(--color-accent) 12%, transparent)',
+              }}
+            />
             Dia útil (auto)
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span aria-hidden className="h-3 w-3 rounded-[4px] border border-dashed border-[color:var(--color-accent-2)]/50 bg-[color:var(--color-accent-2)]/[0.08]" />
+            <span
+              aria-hidden
+              className="h-3 w-3 border border-dashed"
+              style={{
+                borderColor: 'color-mix(in srgb, var(--color-brown) 50%, transparent)',
+                background: 'color-mix(in srgb, var(--color-brown) 8%, transparent)',
+              }}
+            />
             Fim de semana
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span aria-hidden className="h-3 w-3 rounded-[4px] border border-[color:var(--color-accent)] ring-1 ring-inset ring-[color:var(--color-accent)]" />
+            <span aria-hidden className="h-3 w-3 border border-[color:var(--color-accent)] ring-1 ring-inset ring-[color:var(--color-accent)]" />
             Hoje
           </span>
         </div>
@@ -308,7 +334,7 @@ export function PerformanceSimulator({ stats, cursor }) {
           <div
             key={w}
             className={`text-center text-[11px] uppercase tracking-wide py-1 ${
-              i >= 5 ? 'text-[color:var(--color-accent-2)]' : 'text-text-secondary'
+              i >= 5 ? 'text-[color:var(--color-brown)]' : 'text-text-secondary'
             }`}
           >
             {w}
@@ -325,6 +351,7 @@ export function PerformanceSimulator({ stats, cursor }) {
           // Estado visual do dia: passado (real), dia útil (auto), fim de semana ou feriado.
           let content
           let cellClass = 'border border-border-subtle bg-surface'
+          let cellStyle
           if (past) {
             cellClass = 'border border-border-subtle bg-surface-alt'
             content = (
@@ -339,14 +366,21 @@ export function PerformanceSimulator({ stats, cursor }) {
             const shown = draft != null ? draft : effective > 0 ? String(effective) : ''
             const empty = shown === '' || shown === '0'
             cellClass = active
-              ? 'border border-[color:var(--color-accent-2)]/50 bg-[color:var(--color-accent-2)]/[0.08]'
-              : 'border border-dashed border-[color:var(--color-accent-2)]/40 bg-surface hover:border-[color:var(--color-accent-2)]/60 hover:bg-[color:var(--color-accent-2)]/[0.05]'
+              ? 'border'
+              : 'border border-dashed perf-cell-weekend-inactive bg-surface'
+            cellStyle = active
+              ? {
+                  borderColor: 'color-mix(in srgb, var(--color-brown) 50%, transparent)',
+                  background: 'color-mix(in srgb, var(--color-brown) 8%, transparent)',
+                }
+              : undefined
             content = (
               <div className="relative mt-auto flex items-end">
                 {empty && !active && (
                   <span
                     aria-hidden
-                    className="pointer-events-none absolute inset-0 flex items-center justify-end gap-0.5 text-[color:var(--color-accent-2)]/60"
+                    className="pointer-events-none absolute inset-0 flex items-center justify-end gap-0.5"
+                    style={{ color: 'color-mix(in srgb, var(--color-brown) 60%, transparent)' }}
                   >
                     <Plus size={12} strokeWidth={2.5} />
                     <span className="text-[11px]">extra</span>
@@ -357,7 +391,7 @@ export function PerformanceSimulator({ stats, cursor }) {
                   value={shown}
                   onChange={(e) => setWeekendOverride(date, e.target.value)}
                   aria-label={`Horas extras em ${date}`}
-                  className="relative w-full bg-transparent text-right text-sm font-medium tabular-nums text-[color:var(--color-accent-2)] outline-none"
+                  className="relative w-full bg-transparent text-right text-sm font-medium tabular-nums text-[color:var(--color-brown)] outline-none"
                 />
               </div>
             )
@@ -367,10 +401,17 @@ export function PerformanceSimulator({ stats, cursor }) {
               <span className="mt-auto text-right text-[11px] text-text-secondary/70">feriado</span>
             )
           } else {
-            cellClass = 'border border-[color:var(--color-accent)]/30 bg-[color:var(--color-accent)]/[0.06]'
+            cellClass = 'border'
+            cellStyle = {
+              borderColor: 'color-mix(in srgb, var(--color-accent) 30%, transparent)',
+              background: 'color-mix(in srgb, var(--color-accent) 6%, transparent)',
+            }
             content = (
               <div className="mt-auto flex items-end justify-between gap-1">
-                <span className="text-[9px] uppercase tracking-wide leading-none text-[color:var(--color-accent)]/60">
+                <span
+                  className="text-[9px] uppercase tracking-wide leading-none"
+                  style={{ color: 'color-mix(in srgb, var(--color-accent) 60%, transparent)' }}
+                >
                   auto
                 </span>
                 <span className="text-sm font-medium leading-none tabular-nums text-accent">
@@ -383,13 +424,14 @@ export function PerformanceSimulator({ stats, cursor }) {
           return (
             <div
               key={date}
-              className={`rounded-lg p-1.5 min-h-[58px] flex flex-col transition-colors ${cellClass} ${
+              className={`p-1.5 min-h-[58px] flex flex-col transition-colors ${cellClass} ${
                 isToday ? 'ring-1 ring-[color:var(--color-accent)] border-[color:var(--color-accent)]' : ''
               }`}
+              style={cellStyle}
             >
               <span
                 className={`text-[11px] tabular-nums leading-none ${
-                  isToday ? 'font-semibold text-accent' : 'text-text-secondary'
+                  isToday ? 'font-medium text-accent' : 'text-text-secondary'
                 }`}
               >
                 {day}
@@ -417,7 +459,7 @@ export function PerformanceSimulator({ stats, cursor }) {
         </div>
         <div>
           <p className="text-xs text-text-secondary">Extra fim de semana</p>
-          <p className="font-display text-xl tabular-nums text-[color:var(--color-accent-2)]">
+          <p className="font-display text-xl tabular-nums text-[color:var(--color-brown)]">
             {hoursLabel(model.weekendTotal)}
           </p>
           {model.weekendAmount > 0 && (
@@ -426,7 +468,7 @@ export function PerformanceSimulator({ stats, cursor }) {
         </div>
         <div>
           <p className="text-xs text-text-secondary">Ganho projetado</p>
-          <p className="font-display text-xl tabular-nums text-emerald-600">
+          <p className="font-display text-xl tabular-nums state-success">
             {noRate ? '—' : formatCurrency(model.projected)}
           </p>
           {!noRate && !noTarget && (

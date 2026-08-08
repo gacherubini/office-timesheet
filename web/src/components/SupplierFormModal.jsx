@@ -67,7 +67,7 @@ export function SupplierFormModal({ open, supplier, isAdmin, onClose, onSaved })
       title={editing ? 'Editar Fornecedor' : 'Novo Fornecedor'}
     >
       {error && (
-        <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">{error}</div>
+        <div className="state-danger-soft text-sm p-3 mb-4">{error}</div>
       )}
       <form onSubmit={handleSubmit} className="space-y-3">
         <Input
@@ -102,7 +102,7 @@ export function SupplierFormModal({ open, supplier, isAdmin, onClose, onSaved })
           onChange={(e) => setForm({ ...form, notes: e.target.value })}
         />
         {isAdmin && (
-          <label className="flex items-start gap-2.5 rounded-lg border border-border-subtle p-3 cursor-pointer">
+          <label className="flex items-start gap-2.5 border border-border-subtle p-3 cursor-pointer">
             <input
               type="checkbox"
               checked={form.admin_only}

@@ -65,7 +65,7 @@ export function AdminDeletedProjectsPage() {
       />
 
       {error && (
-        <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">
+        <div className="state-danger-soft text-sm p-3 mb-4">
           {error}
         </div>
       )}
@@ -73,20 +73,20 @@ export function AdminDeletedProjectsPage() {
       <Card padded={false} className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-border-subtle bg-surface-alt">
-              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+            <tr className="border-b border-border-subtle bg-bg">
+              <th className="text-left px-4 py-3 font-medium text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                 Nome
               </th>
-              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-left px-4 py-3 font-medium text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                 Cliente
               </th>
-              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-left px-4 py-3 font-medium text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                 Status
               </th>
-              <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-left px-4 py-3 font-medium text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                 Excluído em
               </th>
-              <th className="text-right px-4 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">
+              <th className="text-right px-4 py-3 font-medium text-[8.5px] uppercase tracking-[.2em] text-text-secondary">
                 Ações
               </th>
             </tr>
@@ -108,7 +108,7 @@ export function AdminDeletedProjectsPage() {
               projects.map((project) => (
                 <tr
                   key={project.id}
-                  className="border-b border-border-subtle last:border-b-0 hover:bg-surface-alt transition-colors"
+                  className="border-b border-border-subtle last:border-b-0 transition-colors hover:bg-[color:var(--color-hover)]"
                 >
                   <td className="px-4 py-3 font-medium text-text-primary">{project.name}</td>
                   <td className="px-4 py-3 text-text-secondary">{project.client || '-'}</td>
@@ -122,7 +122,7 @@ export function AdminDeletedProjectsPage() {
                     <button
                       onClick={() => handleRestore(project.id)}
                       disabled={restoringId === project.id}
-                      className="inline-flex items-center gap-1.5 text-sm text-emerald-500 hover:text-emerald-400 disabled:opacity-50 transition-colors"
+                      className="inline-flex items-center gap-1.5 border border-border-subtle px-3 py-1.5 text-[11px] font-medium text-text-primary transition-colors hover:bg-surface-alt disabled:opacity-60"
                     >
                       <RotateCcw size={14} />
                       {restoringId === project.id ? 'Restaurando...' : 'Restaurar'}

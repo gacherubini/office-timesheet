@@ -66,7 +66,7 @@ export function NewTaskModal({ projectId, projects, users, onClose, onCreated })
         </>
       }
     >
-      {error && <p className="text-xs text-rose-500 mb-3">{error}</p>}
+      {error && <p className="text-xs state-danger mb-3">{error}</p>}
       <div className="space-y-4">
         {showProjectPicker && (
           <Select label="Projeto" value={selectedProject} onChange={(e) => setSelectedProject(e.target.value)}>

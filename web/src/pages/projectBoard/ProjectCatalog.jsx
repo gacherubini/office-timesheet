@@ -26,7 +26,7 @@ export function ProjectCatalog({
 
   if (visible.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-border-subtle py-16 text-center">
+      <div className="border border-dashed border-border-subtle py-16 text-center">
         <FolderKanban size={26} className="mx-auto text-text-secondary/50" />
         <p className="mt-3 text-sm text-text-secondary">
           {q ? 'Nenhum projeto encontrado para essa busca.' : 'Nenhum projeto cadastrado ainda.'}
@@ -51,7 +51,7 @@ export function ProjectCatalog({
             tabIndex={0}
             onClick={() => onOpen(p)}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(p) } }}
-            className="group text-left rounded-xl border border-border-subtle bg-surface-alt/30 overflow-hidden transition-all hover:border-accent/50 hover:bg-surface-alt/60 hover:shadow-lg hover:shadow-black/5 cursor-pointer"
+            className="group text-left border border-border-subtle bg-surface-alt/30 overflow-hidden transition-all hover:border-accent/50 hover:bg-surface-alt/60 cursor-pointer"
           >
             <div className="relative h-24 overflow-hidden bg-gradient-to-br from-accent/15 via-accent/5 to-transparent">
               {p.image_url ? (
@@ -66,10 +66,8 @@ export function ProjectCatalog({
                 </div>
               )}
               <span
-                className={`absolute right-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider backdrop-blur-sm ${
-                  completed
-                    ? 'bg-emerald-500/20 text-emerald-600'
-                    : 'bg-accent/20 text-accent'
+                className={`absolute right-2 top-2 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider backdrop-blur-sm ${
+                  completed ? 'state-success-soft' : 'bg-accent/20 text-accent'
                 }`}
               >
                 {completed ? 'Concluído' : 'Ativo'}
@@ -79,7 +77,7 @@ export function ProjectCatalog({
                   type="button"
                   onClick={(e) => { e.stopPropagation(); onPickImage?.(p) }}
                   title="Trocar imagem"
-                  className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-md bg-black/40 px-2 py-1 text-[10px] font-medium text-white opacity-0 backdrop-blur-sm transition-opacity hover:bg-black/55 group-hover:opacity-100"
+                  className="absolute left-2 top-2 inline-flex items-center gap-1 bg-ink/40 px-2 py-1 text-[10px] font-medium text-white opacity-0 backdrop-blur-sm transition-opacity hover:bg-ink/55 group-hover:opacity-100"
                 >
                   <Upload size={11} /> Imagem
                 </button>
@@ -89,7 +87,7 @@ export function ProjectCatalog({
             <div className="p-4">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <h3 className="truncate text-sm font-semibold text-text-primary">{p.name}</h3>
+                  <h3 className="truncate text-sm font-medium text-text-primary">{p.name}</h3>
                   {p.client && <p className="mt-0.5 truncate text-xs text-text-secondary">{p.client}</p>}
                 </div>
                 <ArrowRight
@@ -102,7 +100,7 @@ export function ProjectCatalog({
                 <div className="flex items-center gap-3 text-[11px]">
                   {COLUMNS.map((col) => (
                     <span key={col.key} className="inline-flex items-center gap-1 text-text-secondary">
-                      <span className={`h-1.5 w-1.5 rounded-full ${col.dot}`} />
+                      <span className={`h-1.5 w-1.5 ${col.dot}`} />
                       <span className="tabular-nums">{c[col.key] || 0}</span>
                     </span>
                   ))}
@@ -116,7 +114,7 @@ export function ProjectCatalog({
                 <div className="mt-3 flex items-center gap-2 border-t border-border-subtle/60 pt-3">
                   {isTiming ? (
                     <>
-                      <span className={`flex-1 text-sm font-semibold tabular-nums ${isPaused ? 'text-amber-500' : 'text-emerald-500'}`}>
+                      <span className={`flex-1 text-sm font-medium tabular-nums ${isPaused ? 'state-attention' : 'state-success'}`}>
                         {formatClock(entryElapsed)}
                         <span className="ml-1.5 text-[10px] font-medium uppercase tracking-wider">
                           {isPaused ? 'pausado' : 'em andamento'}
@@ -127,7 +125,7 @@ export function ProjectCatalog({
                         onClick={(e) => { e.stopPropagation(); (isPaused ? onResumeEntry : onPauseEntry)?.() }}
                         disabled={entryBusy}
                         title={isPaused ? 'Retomar' : 'Pausar'}
-                        className="inline-flex items-center justify-center w-9 h-9 rounded-lg shrink-0 bg-amber-500/15 text-amber-600 hover:bg-amber-500/25 disabled:opacity-50 transition-colors"
+                        className="inline-flex items-center justify-center w-9 h-9 shrink-0 state-attention-soft hover:opacity-80 disabled:opacity-50 transition-colors"
                       >
                         {isPaused ? <Play size={16} /> : <Pause size={16} />}
                       </button>
@@ -136,7 +134,7 @@ export function ProjectCatalog({
                         onClick={(e) => { e.stopPropagation(); onStopEntry?.() }}
                         disabled={entryBusy}
                         title="Encerrar"
-                        className="inline-flex items-center justify-center w-9 h-9 rounded-lg shrink-0 bg-rose-500/15 text-rose-500 hover:bg-rose-500/25 disabled:opacity-50 transition-colors"
+                        className="inline-flex items-center justify-center w-9 h-9 shrink-0 state-danger-soft hover:opacity-80 disabled:opacity-50 transition-colors"
                       >
                         <Square size={16} />
                       </button>
@@ -146,7 +144,7 @@ export function ProjectCatalog({
                       type="button"
                       onClick={(e) => { e.stopPropagation(); onStartEntry?.(p) }}
                       disabled={entryBusy}
-                      className="inline-flex items-center justify-center gap-2 w-full h-9 rounded-lg text-white bg-[color:var(--color-accent)] hover:opacity-90 disabled:opacity-50 text-sm font-medium transition-opacity"
+                      className="inline-flex items-center justify-center gap-2 w-full h-9 text-white bg-[color:var(--color-accent)] hover:opacity-90 disabled:opacity-50 text-sm font-medium transition-opacity"
                     >
                       <Play size={16} /> Apontar horas
                     </button>
@@ -169,7 +167,7 @@ export function ProjectCatalog({
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); onDelete?.(p) }}
-                      className="inline-flex items-center gap-1 text-[11px] text-rose-500 transition-colors hover:text-rose-400"
+                      className="inline-flex items-center gap-1 text-[11px] state-danger transition-colors hover:opacity-75"
                     >
                       <Trash2 size={12} /> Excluir
                     </button>

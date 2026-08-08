@@ -87,137 +87,103 @@ export function AdminManageExpensesPage() {
         subtitle="Excluir solicitações de despesa registradas no sistema"
       />
 
-      <Card className="mb-4">
-        <div className="flex flex-col xl:flex-row xl:items-end gap-3">
-          <Select
-            className="xl:w-56"
-            label="Status"
-            value={filters.status}
-            onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-          >
-            <option value="all">Todos</option>
-            <option value="pending">Pendentes</option>
-            <option value="approved">Aprovadas</option>
-            <option value="rejected">Rejeitadas</option>
-          </Select>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <Select
+          className="w-48"
+          size="sm"
+          value={filters.status}
+          onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+        >
+          <option value="all">Status: todos</option>
+          <option value="pending">Pendentes</option>
+          <option value="approved">Aprovadas</option>
+          <option value="rejected">Rejeitadas</option>
+        </Select>
 
-          <Select
-            className="xl:w-64"
-            label="Colaborador"
-            value={filters.user_id}
-            onChange={(e) => setFilters({ ...filters, user_id: e.target.value })}
-          >
-            <option value="">Toda a equipe</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name}
-              </option>
-            ))}
-          </Select>
-        </div>
-      </Card>
+        <Select
+          className="w-56"
+          size="sm"
+          value={filters.user_id}
+          onChange={(e) => setFilters({ ...filters, user_id: e.target.value })}
+        >
+          <option value="">Toda a equipe</option>
+          {users.map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.name}
+            </option>
+          ))}
+        </Select>
+      </div>
 
       {error && (
-        <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">
+        <div className="state-danger-soft text-sm p-3 mb-4">
           {error}
         </div>
       )}
 
-      <Card padded={false} className="overflow-x-auto">
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="border-b border-border-subtle bg-surface-alt">
-              <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">Data</th>
-              <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">Colaborador</th>
-              <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">Despesa</th>
-              <th className="text-right px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">Valor</th>
-              <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">Status</th>
-              <th className="text-left px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">Comprovante</th>
-              <th className="text-right px-3 py-3 font-semibold text-[11px] uppercase tracking-wider text-text-secondary">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={7} className="px-3 py-6 text-center text-text-secondary">
-                  Carregando...
-                </td>
-              </tr>
-            ) : filteredExpenses.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="px-3 py-6 text-center text-text-secondary">
-                  Nenhuma despesa encontrada.
-                </td>
-              </tr>
-            ) : (
-              filteredExpenses.map((expense) => {
-                const meta = STATUS_META[expense.status] || { label: expense.status, tone: 'neutral' }
-                return (
-                  <tr
-                    key={expense.id}
-                    className="border-b border-border-subtle last:border-b-0 hover:bg-surface-alt transition-colors"
-                  >
-                    <td className="px-3 py-3 whitespace-nowrap text-text-primary">
-                      {formatDate(expense.expense_date)}
-                    </td>
-                    <td className="px-3 py-3 min-w-40">
-                      <div className="flex items-center gap-2">
-                        <Avatar name={expense.profile?.name} url={expense.profile?.avatar_url} size={28} />
-                        <div className="min-w-0">
-                          <p className="font-medium text-text-primary truncate">
-                            {expense.profile?.name || '-'}
-                          </p>
-                          {expense.profile?.position && (
-                            <p className="text-[11px] text-text-secondary truncate">
-                              {expense.profile.position}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-3 py-3 min-w-56">
-                      <p className="font-medium text-text-primary">{expense.title}</p>
-                      {expense.description && (
-                        <p className="text-[11px] text-text-secondary mt-0.5 line-clamp-2">
-                          {expense.description}
+      <Card padded={false} className="overflow-hidden">
+        <div className="divide-y divide-border-subtle">
+          {loading ? (
+            <p className="px-4 py-12 text-center text-sm text-text-secondary">Carregando...</p>
+          ) : filteredExpenses.length === 0 ? (
+            <p className="px-4 py-12 text-center text-sm text-text-secondary">Nenhuma despesa encontrada.</p>
+          ) : (
+            filteredExpenses.map((expense) => {
+              const meta = STATUS_META[expense.status] || { label: expense.status, tone: 'neutral' }
+              return (
+                <div key={expense.id} className="flex items-start justify-between gap-4 px-5 py-3.5">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <Avatar name={expense.profile?.name} url={expense.profile?.avatar_url} size={28} />
+                      <div className="min-w-0">
+                        <p className="text-[9px] uppercase tracking-[.2em] text-brown">
+                          {expense.profile?.name || 'Colaborador'}
                         </p>
-                      )}
-                    </td>
-                    <td className="px-3 py-3 text-right whitespace-nowrap font-medium text-text-primary tabular-nums">
-                      {formatCurrency(expense.amount)}
-                    </td>
-                    <td className="px-3 py-3 whitespace-nowrap">
+                        <p className="text-[11px] text-text-secondary">{formatDate(expense.expense_date)}</p>
+                      </div>
+                    </div>
+
+                    <p className="mt-1.5 text-[12.5px] font-medium text-text-primary">{expense.title}</p>
+                    {expense.description && (
+                      <p className="text-[12px] text-text-secondary line-clamp-2">{expense.description}</p>
+                    )}
+
+                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
                       <Badge tone={meta.tone}>{meta.label}</Badge>
-                    </td>
-                    <td className="px-3 py-3 whitespace-nowrap">
                       {expense.receipt_url ? (
                         <a
                           href={expense.receipt_url}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-accent underline hover:opacity-80"
+                          className="text-[11px] text-accent underline hover:opacity-80"
                         >
-                          Abrir
+                          Abrir comprovante
                         </a>
                       ) : (
-                        <span className="text-text-secondary">-</span>
+                        <span className="text-[11px] text-text-secondary">Sem comprovante</span>
                       )}
-                    </td>
-                    <td className="px-3 py-3 text-right whitespace-nowrap">
-                      <button
-                        onClick={() => setExpenseToDelete(expense)}
-                        className="text-text-secondary hover:text-rose-500 transition-colors"
-                        title="Excluir"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })
-            )}
-          </tbody>
-        </table>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-none flex-col items-end gap-2.5">
+                    <span className="text-[12.5px] font-medium text-text-primary tabular-nums">
+                      {formatCurrency(expense.amount)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setExpenseToDelete(expense)}
+                      className="inline-flex items-center gap-1.5 border border-border-subtle px-3 py-1.5 text-[11px] font-medium text-text-primary transition-colors hover:bg-surface-alt"
+                      title="Excluir despesa"
+                    >
+                      <Trash2 size={13} />
+                      Excluir
+                    </button>
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
       </Card>
 
       <Modal
@@ -244,7 +210,7 @@ export function AdminManageExpensesPage() {
           Tem certeza que deseja excluir esta despesa? Esta ação não pode ser desfeita.
         </p>
         {expenseToDelete && (
-          <div className="mt-3 rounded-lg border border-border-subtle bg-surface-alt px-3 py-2 text-sm">
+          <div className="mt-3 border border-border-subtle bg-surface-alt px-3 py-2 text-sm">
             <p className="font-medium text-text-primary">{expenseToDelete.title}</p>
             <p className="text-xs text-text-secondary">
               {expenseToDelete.profile?.name || 'Colaborador'} · {formatDate(expenseToDelete.expense_date)} · {formatCurrency(expenseToDelete.amount)}
@@ -260,8 +226,8 @@ export function AdminManageExpensesPage() {
         footer={<Button onClick={() => setSuccessMessage('')}>OK</Button>}
       >
         <div className="flex flex-col items-center text-center py-2">
-          <div className="bg-emerald-500/15 rounded-full p-4 mb-4">
-            <CheckCircle2 className="text-emerald-500" size={36} />
+          <div className="state-success-soft p-4 mb-4">
+            <CheckCircle2 className="state-success" size={36} />
           </div>
           <p className="text-text-primary font-medium">{successMessage}</p>
         </div>

@@ -24,6 +24,9 @@ jobs:
           - name: Web
             working-directory: web
             command: npm run build
+          - name: Web Tests
+            working-directory: web
+            command: npm test
 
     steps:
       - name: Checkout

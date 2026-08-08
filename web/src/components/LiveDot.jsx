@@ -1,7 +1,8 @@
 // Bolinha discreta que indica apontamento em curso ao lado de um projeto/tarefa.
-// Vermelha pulsando quando rodando; âmbar estática quando pausado.
+// Verde pulsando quando rodando (spec: cronômetro em curso = --state-success);
+// laranja estática quando pausado.
 export function LiveDot({ paused = false, size = 8, className = '' }) {
-  const color = paused ? '#D9A441' : '#E03E3E'
+  const color = paused ? 'var(--color-orange)' : 'var(--state-success)'
   return (
     <span
       title={paused ? 'Apontamento pausado' : 'Apontamento em curso'}

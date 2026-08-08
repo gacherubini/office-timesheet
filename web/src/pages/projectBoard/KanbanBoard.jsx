@@ -41,7 +41,7 @@ export function KanbanBoard({ tasks, onOpenTask, onMove, currentUserId, timerEla
               onDragOver={(e) => { e.preventDefault(); setDragOverCol(col.key) }}
               onDragLeave={() => setDragOverCol(null)}
               onDrop={(e) => handleDrop(e, col.key)}
-              className={`rounded-xl border bg-surface-alt/30 p-3 min-h-[260px] transition-all ${
+              className={`border bg-surface-alt/30 p-3 min-h-[260px] transition-all ${
                 over
                   ? 'border-accent ring-2 ring-accent/20 bg-accent/5'
                   : 'border-border-subtle'
@@ -49,14 +49,14 @@ export function KanbanBoard({ tasks, onOpenTask, onMove, currentUserId, timerEla
             >
               <div className="flex items-center justify-between mb-3 px-0.5">
                 <span className="inline-flex items-center gap-2">
-                  <span className={`w-1.5 h-1.5 rounded-full ${col.dot}`} />
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary">{col.label}</span>
+                  <span className={`w-1.5 h-1.5 ${col.dot}`} />
+                  <span className="text-[11px] font-medium uppercase tracking-wider text-text-secondary">{col.label}</span>
                 </span>
-                <span className="text-[11px] font-medium text-text-secondary tabular-nums bg-surface-alt rounded-full px-2 py-0.5">
+                <span className="text-[11px] font-medium text-text-secondary tabular-nums bg-surface-alt px-2 py-0.5">
                   {colTasks.length}
                 </span>
               </div>
-              <div className={`h-0.5 rounded-full mb-3 ${col.bar} opacity-50`} />
+              <div className={`h-0.5 mb-3 ${col.bar} opacity-50`} />
               {colTasks.map((task) => (
                 <TaskCard
                   key={task.id}
@@ -79,9 +79,11 @@ export function KanbanBoard({ tasks, onOpenTask, onMove, currentUserId, timerEla
         onDragOver={(e) => { e.preventDefault(); setDragOverCol(ABANDONED_STATUS) }}
         onDragLeave={() => setDragOverCol(null)}
         onDrop={(e) => handleDrop(e, ABANDONED_STATUS)}
-        className={`rounded-xl border transition-all ${
+        className={`border transition-all ${
           isAbandonedOver
-            ? 'border-rose-400/50 ring-2 ring-rose-400/15 bg-rose-500/5'
+            ? // Tailwind (v3) não aplica modificador de opacidade a cor arbitrária
+              // baseada em var() — o color-mix() precisa ir inteiro no valor.
+              'border-state-danger ring-2 ring-[color:color-mix(in_srgb,var(--state-danger)_15%,transparent)] bg-[color-mix(in_srgb,var(--state-danger)_5%,transparent)]'
             : 'border-border-subtle bg-surface-alt/20'
         }`}
       >
@@ -95,12 +97,12 @@ export function KanbanBoard({ tasks, onOpenTask, onMove, currentUserId, timerEla
             className={`text-text-secondary transition-transform ${showAbandoned ? 'rotate-90' : ''}`}
           />
           <Archive size={13} className="text-text-secondary" />
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary">Abandonados</span>
-          <span className="text-[11px] font-medium text-text-secondary tabular-nums bg-surface-alt rounded-full px-2 py-0.5">
+          <span className="text-[11px] font-medium uppercase tracking-wider text-text-secondary">Abandonados</span>
+          <span className="text-[11px] font-medium text-text-secondary tabular-nums bg-surface-alt px-2 py-0.5">
             {abandoned.length}
           </span>
           {isAbandonedOver && (
-            <span className="ml-auto text-[11px] text-rose-400">Solte para abandonar</span>
+            <span className="ml-auto text-[11px] state-danger">Solte para abandonar</span>
           )}
         </button>
 

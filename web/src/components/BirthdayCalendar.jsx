@@ -67,21 +67,21 @@ export function BirthdayCalendar() {
     d === today.getDate() && viewMonth === today.getMonth() && viewYear === today.getFullYear()
 
   return (
-    <Card padded={false} className="overflow-hidden rounded-2xl">
+    <Card padded={false} className="overflow-hidden">
       <div className="px-4 pt-4 pb-2 flex items-center justify-between">
         <button
           onClick={prevMonth}
-          className="p-1 rounded text-text-secondary hover:text-text-primary hover:bg-surface-alt transition-colors"
+          className="p-1 text-text-secondary hover:text-text-primary hover:bg-surface-alt transition-colors"
         >
           <ChevronLeft size={16} />
         </button>
         <div className="flex items-center gap-1.5">
           <Cake size={14} className="text-accent" />
-          <span className="text-sm font-semibold capitalize text-text-primary">{monthName}</span>
+          <span className="text-sm font-medium capitalize text-text-primary">{monthName}</span>
         </div>
         <button
           onClick={nextMonth}
-          className="p-1 rounded text-text-secondary hover:text-text-primary hover:bg-surface-alt transition-colors"
+          className="p-1 text-text-secondary hover:text-text-primary hover:bg-surface-alt transition-colors"
         >
           <ChevronRight size={16} />
         </button>
@@ -90,7 +90,7 @@ export function BirthdayCalendar() {
       <div className="px-3 pb-3">
         <div className="grid grid-cols-7 gap-0.5 text-center mb-1">
           {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, i) => (
-            <div key={i} className="text-[10px] text-text-secondary font-semibold py-1">
+            <div key={i} className="text-[10px] text-text-secondary font-medium py-1">
               {d}
             </div>
           ))}
@@ -104,16 +104,22 @@ export function BirthdayCalendar() {
               <div
                 key={i}
                 title={names}
-                className={`relative text-xs h-8 flex items-center justify-center rounded-lg transition-colors ${
+                className={`relative text-xs h-8 flex items-center justify-center transition-colors ${
                   !d
                     ? ''
                     : today
-                      ? 'text-white font-bold'
+                      ? 'text-white font-medium'
                       : hasBirthday
-                        ? 'text-accent font-semibold ring-1 ring-accent/40 cursor-help bg-[color:var(--color-accent)]/10'
+                        ? 'text-accent font-medium ring-1 ring-accent/40 cursor-help'
                         : 'text-text-primary hover:bg-surface-alt'
                 }`}
-                style={today ? { background: 'var(--color-accent)' } : undefined}
+                style={
+                  today
+                    ? { background: 'var(--color-accent)' }
+                    : hasBirthday
+                      ? { background: 'color-mix(in srgb, var(--color-accent) 10%, transparent)' }
+                      : undefined
+                }
               >
                 {d || ''}
                 {hasBirthday && !today && (
@@ -129,7 +135,7 @@ export function BirthdayCalendar() {
       </div>
 
       <div className="border-t border-border-subtle px-4 py-3 bg-surface-alt/50">
-        <p className="text-[11px] text-text-secondary uppercase tracking-wider font-semibold mb-2">
+        <p className="text-[11px] text-text-secondary uppercase tracking-wider font-medium mb-2">
           Aniversariantes
         </p>
         {monthBirthdays.length === 0 ? (
@@ -156,7 +162,7 @@ export function BirthdayCalendar() {
                       target="_blank"
                       rel="noreferrer"
                       title={`WhatsApp ${p.phone}`}
-                      className="text-emerald-500 hover:text-emerald-400 p-1 rounded hover:bg-emerald-500/10 transition-colors"
+                      className="state-success hover:bg-surface-alt hover:opacity-80 p-1 transition-colors"
                     >
                       <MessageCircle size={14} />
                     </a>

@@ -21,7 +21,7 @@ export function EtapaChip({ value, onChange, disabled }) {
         type="button"
         disabled={disabled}
         onClick={() => setOpen((o) => !o)}
-        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-surface-alt text-text-secondary disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-surface-alt text-text-secondary disabled:cursor-not-allowed disabled:opacity-60"
       >
         <GitBranch size={12} />
         {value ? `Etapa: ${value}` : 'Etapa'}
@@ -29,7 +29,7 @@ export function EtapaChip({ value, onChange, disabled }) {
       </button>
 
       {open && (
-        <div className="absolute z-30 left-0 top-full mt-1 w-48 max-h-64 overflow-y-auto bg-surface border border-border-subtle rounded-lg shadow-xl">
+        <div className="absolute z-30 left-0 top-full mt-1 w-48 max-h-64 overflow-y-auto bg-surface border border-border-subtle shadow-xl">
           <button
             type="button"
             onClick={() => pick('')}

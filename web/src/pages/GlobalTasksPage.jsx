@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { LayoutGrid, List, Plus, Play, Square } from 'lucide-react'
+import { LayoutGrid, List, Plus, Play, Square, Search } from 'lucide-react'
 import { api } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 import { PageHeader } from '../components/ui/PageHeader'
-import { Input, Select } from '../components/ui/Input'
+import { Select } from '../components/ui/Input'
 import { Button } from '../components/ui/Button'
 import { Toast } from '../components/ui/Toast'
 import { Avatar } from '../components/Avatar'
@@ -134,50 +134,68 @@ export function GlobalTasksPage() {
     })
   }, [tasks, projectFilter, assigneeFilter, onlyMine, search, profile?.id])
 
-  const filters = (
-    <div className="flex items-end gap-2 flex-wrap">
-      <Select label="Projeto" value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)} className="w-44">
-        <option value="">Todos</option>
+  // P1 — faixa de controle: busca → filtros → "só minhas" → segmentado → ação primária.
+  const controls = (
+    <div className="mb-3 flex flex-wrap items-center gap-2">
+      <div className="relative min-w-[240px] max-w-xs flex-1">
+        <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-secondary" />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar por título ou projeto..."
+          className="form-control h-8 w-full border pl-8 pr-3 text-[12px] outline-none transition-colors"
+        />
+      </div>
+
+      <Select value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)} className="w-44" size="sm">
+        <option value="">Todos os projetos</option>
         {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
       </Select>
       <Select
-        label="Responsável"
         value={assigneeFilter}
         onChange={(e) => setAssigneeFilter(e.target.value)}
         className="w-44"
+        size="sm"
         disabled={onlyMine}
       >
-        <option value="">Todos</option>
+        <option value="">Todos os responsáveis</option>
         {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
       </Select>
+
       <button
         type="button"
         onClick={() => setOnlyMine((v) => !v)}
-        className={`h-[38px] rounded-lg px-3 text-sm font-medium transition-colors ${
+        className={`h-8 px-3 text-[12px] font-medium transition-colors ${
           onlyMine ? 'bg-accent text-white' : 'border border-border-subtle text-text-secondary hover:text-text-primary'
         }`}
       >
         Só minhas
       </button>
-      <div className="flex h-[38px] items-center rounded-lg border border-border-subtle overflow-hidden">
+
+      <div className="flex h-8 border border-border-subtle">
         <button
           type="button"
           onClick={() => setView('board')}
           title="Board"
-          className={`flex h-full items-center px-2.5 ${view === 'board' ? 'bg-surface-alt text-text-primary' : 'text-text-secondary'}`}
+          className={`flex items-center px-3 text-[11px] transition-colors ${
+            view === 'board' ? 'bg-ink text-white' : 'text-text-secondary hover:text-text-primary'
+          }`}
         >
-          <LayoutGrid size={16} />
+          <LayoutGrid size={14} />
         </button>
         <button
           type="button"
           onClick={() => setView('list')}
           title="Lista"
-          className={`flex h-full items-center px-2.5 ${view === 'list' ? 'bg-surface-alt text-text-primary' : 'text-text-secondary'}`}
+          className={`flex items-center border-l border-border-subtle px-3 text-[11px] transition-colors ${
+            view === 'list' ? 'bg-ink text-white' : 'text-text-secondary hover:text-text-primary'
+          }`}
         >
-          <List size={16} />
+          <List size={14} />
         </button>
       </div>
-      <Button onClick={() => setCreating(true)}>
+
+      <Button size="sm" className="ml-auto h-8" onClick={() => setCreating(true)}>
         <Plus size={16} /> Nova
       </Button>
     </div>
@@ -185,16 +203,9 @@ export function GlobalTasksPage() {
 
   return (
     <div>
-      <PageHeader title="Tarefas" subtitle="Todas as tarefas, de todos os projetos" actions={filters} />
+      <PageHeader title="Tarefas" subtitle="Todas as tarefas, de todos os projetos" />
 
-      <div className="mb-4">
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar por título ou projeto..."
-          className="w-full sm:w-96"
-        />
-      </div>
+      {controls}
 
       {loading ? (
         <div className="py-16 text-center text-text-secondary text-sm">Carregando...</div>
@@ -265,11 +276,11 @@ function TaskList({ tasks, onOpen, currentUserId, runningTaskId, timerElapsed, t
         return (
           <div key={col.key}>
             <div className="flex items-center gap-2 mb-2">
-              <span className={`h-1.5 w-1.5 rounded-full ${col.dot}`} />
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary">{col.label}</span>
+              <span className={`h-1.5 w-1.5 ${col.dot}`} />
+              <span className="text-[11px] font-medium uppercase tracking-wider text-text-secondary">{col.label}</span>
               <span className="text-[11px] text-text-secondary tabular-nums">· {rows.length}</span>
             </div>
-            <div className="rounded-xl border border-border-subtle divide-y divide-border-subtle overflow-hidden">
+            <div className="border border-border-subtle divide-y divide-border-subtle overflow-hidden">
               {rows.map((t) => {
                 const u = urgency(t.due_date, t.status)
                 const isRunning = Boolean(t.open_started_at)
@@ -285,8 +296,8 @@ function TaskList({ tasks, onOpen, currentUserId, runningTaskId, timerElapsed, t
                         type="button"
                         onClick={(e) => { e.stopPropagation(); onToggleTimer(t) }}
                         disabled={timerBusyId === t.id}
-                        className={`inline-flex h-6 w-6 items-center justify-center rounded-md flex-none disabled:opacity-50 ${
-                          isRunning ? 'bg-rose-500/15 text-rose-500' : 'bg-emerald-500/15 text-emerald-600'
+                        className={`inline-flex h-6 w-6 items-center justify-center flex-none disabled:opacity-50 ${
+                          isRunning ? 'state-danger-soft' : 'state-success-soft'
                         }`}
                       >
                         {isRunning ? <Square size={12} /> : <Play size={12} />}
@@ -294,18 +305,18 @@ function TaskList({ tasks, onOpen, currentUserId, runningTaskId, timerElapsed, t
                     )}
                     <span className="text-sm text-text-primary truncate flex-1 min-w-0">{t.title}</span>
                     {t.project_name && (
-                      <span className="hidden sm:inline text-[11px] rounded-full bg-surface-alt px-2 py-0.5 text-text-secondary flex-none">
+                      <span className="hidden sm:inline text-[11px] bg-surface-alt px-2 py-0.5 text-text-secondary flex-none">
                         {t.project_name}
                       </span>
                     )}
                     {isRunning && (
-                      <span className="text-[11px] tabular-nums text-emerald-500 font-medium flex-none">{formatClock(timerElapsed)}</span>
+                      <span className="text-[11px] tabular-nums state-success font-medium flex-none">{formatClock(timerElapsed)}</span>
                     )}
                     {!isRunning && t.total_minutes > 0 && (
                       <span className="text-[11px] tabular-nums text-text-secondary flex-none">{formatMinutes(t.total_minutes)}</span>
                     )}
                     {t.due_date && (
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full flex-none ${urgencyClasses(u.level === 'none' ? 'normal' : u.level)}`}>
+                      <span className={`text-[10px] px-1.5 py-0.5 flex-none ${urgencyClasses(u.level === 'none' ? 'normal' : u.level)}`}>
                         {formatShortDate(t.due_date)}
                       </span>
                     )}
@@ -322,7 +333,7 @@ function TaskList({ tasks, onOpen, currentUserId, runningTaskId, timerElapsed, t
         )
       })}
       {tasks.length === 0 && (
-        <div className="rounded-xl border border-dashed border-border-subtle py-16 text-center text-sm text-text-secondary">
+        <div className="border border-dashed border-border-subtle py-16 text-center text-sm text-text-secondary">
           Nenhuma tarefa encontrada com esses filtros.
         </div>
       )}

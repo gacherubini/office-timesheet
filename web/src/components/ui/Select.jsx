@@ -11,9 +11,17 @@ import {
 import { createPortal } from 'react-dom'
 import { Check, ChevronDown } from 'lucide-react'
 
-const TRIGGER_CLASS =
-  'w-full form-control border rounded-lg px-3 py-2 text-sm outline-none transition-colors ' +
+const TRIGGER_BASE_CLASS =
+  'w-full form-control border outline-none transition-colors ' +
   'disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-between gap-2 text-left'
+
+// Mesma convenção do Button.jsx: mapa de tamanhos, padrão inalterado ('md').
+// 'sm' entrega h-8 (a faixa de controle padrão do sistema) com padding e
+// texto proporcionais.
+const SIZES = {
+  sm: 'h-8 px-3 py-0 text-[12px]',
+  md: 'px-3 py-2 text-sm',
+}
 
 // Extrai o texto de um filho React (string, número, array ou <option>{...}</option>).
 function nodeText(node) {
@@ -70,6 +78,7 @@ export function Select({
   name,
   id,
   placeholder,
+  size = 'md',
 }) {
   const options = useMemo(() => parseOptions(children), [children])
   const [open, setOpen] = useState(false)
@@ -218,7 +227,7 @@ export function Select({
           aria-expanded={open}
           onClick={() => !disabled && setOpen((o) => !o)}
           onKeyDown={onTriggerKeyDown}
-          className={TRIGGER_CLASS}
+          className={`${TRIGGER_BASE_CLASS} ${SIZES[size] || SIZES.md}`}
         >
           <span className={`truncate ${showPlaceholder ? 'text-text-secondary' : ''}`}>
             {displayLabel || ' '}
@@ -246,7 +255,7 @@ export function Select({
         </select>
       </div>
 
-      {error && <p className="text-xs text-rose-500 mt-1">{error}</p>}
+      {error && <p className="text-xs state-danger mt-1">{error}</p>}
 
       {open &&
         coords &&
@@ -254,7 +263,7 @@ export function Select({
           <div
             ref={panelRef}
             role="listbox"
-            className="fixed z-[70] rounded-xl border border-border-subtle bg-surface shadow-xl overflow-auto py-1"
+            className="fixed z-[70] border border-border-subtle bg-surface shadow-xl overflow-auto py-1"
             style={{
               left: coords.left,
               width: coords.width,
@@ -274,7 +283,7 @@ export function Select({
               return (
                 <div key={`${opt.value}-${idx}`}>
                   {opt.group && opt.group !== prevGroup && (
-                    <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
+                    <div className="px-3 pt-2 pb-1 text-[10px] font-medium uppercase tracking-wider text-text-secondary">
                       {opt.group}
                     </div>
                   )}

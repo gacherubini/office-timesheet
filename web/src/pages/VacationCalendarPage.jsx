@@ -88,17 +88,12 @@ function vacationIncludesDate(vacation, key) {
   return vacation.start_date <= key && vacation.end_date >= key
 }
 
-function colorForUser(userId) {
-  const palette = [
-    'bg-emerald-500/15 text-emerald-700',
-    'bg-sky-500/15 text-sky-700',
-    'bg-amber-500/15 text-amber-700',
-    'bg-rose-500/15 text-rose-700',
-    'bg-violet-500/15 text-violet-700',
-    'bg-teal-500/15 text-teal-700',
-  ]
-  const seed = String(userId || '').split('').reduce((sum, char) => sum + char.charCodeAt(0), 0)
-  return palette[seed % palette.length]
+// Cor por categoria, não por pessoa: aprovadas em verde, pendentes em laranja —
+// mesma lógica da Agenda, para as duas telas de calendário conversarem.
+function vacationStyle(vacation) {
+  return vacation.status === 'pending'
+    ? 'bg-orange/15 text-orange'
+    : 'bg-green/15 text-green-dk'
 }
 
 export function VacationCalendarPage() {
@@ -229,8 +224,45 @@ export function VacationCalendarPage() {
         subtitle="Férias da equipe, feriados nacionais, agenda do escritório e sua agenda Google"
       />
 
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="flex min-w-[160px] flex-1 items-center gap-2">
+          <CalendarOff size={18} className="text-accent" />
+          <h2 className="font-display text-lg capitalize text-text-primary">
+            {formatMonth(monthDate)}
+          </h2>
+        </div>
+
+        <div className="flex h-8 border border-border-subtle">
+          <button
+            type="button"
+            onClick={() => setMonthDate((current) => addMonths(current, -1))}
+            aria-label="Mês anterior"
+            title="Mês anterior"
+            className="flex h-8 w-8 items-center justify-center border-r border-border-subtle text-text-secondary transition-colors hover:text-text-primary"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setMonthDate(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}
+            className="border-r border-border-subtle px-3 text-[11px] font-medium text-text-secondary transition-colors hover:text-text-primary"
+          >
+            Hoje
+          </button>
+          <button
+            type="button"
+            onClick={() => setMonthDate((current) => addMonths(current, 1))}
+            aria-label="Próximo mês"
+            title="Próximo mês"
+            className="flex h-8 w-8 items-center justify-center text-text-secondary transition-colors hover:text-text-primary"
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
+      </div>
+
       {error && (
-        <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">
+        <div className="state-danger-soft text-sm p-3 mb-4">
           {error}
         </div>
       )}
@@ -242,48 +274,11 @@ export function VacationCalendarPage() {
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-5">
         <Card padded={false} className="overflow-hidden">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-5 py-4 border-b border-border-subtle">
-            <div className="flex items-center gap-2">
-              <CalendarOff size={18} className="text-accent" />
-              <h2 className="font-display text-lg capitalize text-text-primary">
-                {formatMonth(monthDate)}
-              </h2>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setMonthDate((current) => addMonths(current, -1))}
-                aria-label="Mês anterior"
-                title="Mês anterior"
-              >
-                <ChevronLeft size={16} />
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setMonthDate(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}
-              >
-                Hoje
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setMonthDate((current) => addMonths(current, 1))}
-                aria-label="Próximo mês"
-                title="Próximo mês"
-              >
-                <ChevronRight size={16} />
-              </Button>
-            </div>
-          </div>
-
           <div className="grid grid-cols-7 border-b border-border-subtle bg-surface-alt">
             {WEEKDAYS.map((weekday) => (
               <div
                 key={weekday}
-                className="px-2 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-text-secondary"
+                className="px-2 py-3 text-center text-[11px] font-medium uppercase tracking-wider text-text-secondary"
               >
                 {weekday}
               </div>
@@ -304,7 +299,7 @@ export function VacationCalendarPage() {
                 >
                   <div className="mb-2 flex items-center justify-between gap-1">
                     <span
-                      className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${
+                      className={`flex h-7 w-7 items-center justify-center text-xs font-medium ${
                         isToday
                           ? 'bg-[color:var(--color-accent)] text-white'
                           : day.inMonth
@@ -318,12 +313,12 @@ export function VacationCalendarPage() {
 
                   <div className="space-y-1">
                     {loading ? (
-                      <div className="h-5 rounded bg-surface-alt animate-pulse" />
+                      <div className="h-5 bg-surface-alt animate-pulse" />
                     ) : (
                       <>
                         {holidaysByDay[day.key] && (
                           <div
-                            className="flex items-center gap-1 truncate rounded px-2 py-1 text-[11px] font-medium bg-rose-500/15 text-rose-600"
+                            className="flex items-center gap-1 truncate px-2 py-1 text-[11px] font-medium bg-brown/15 text-brown"
                             title={holidaysByDay[day.key]}
                           >
                             <Flag size={10} className="flex-shrink-0" />
@@ -335,7 +330,7 @@ export function VacationCalendarPage() {
                             key={ev.id}
                             type="button"
                             onClick={() => setSelectedEvent(ev)}
-                            className="flex w-full items-center gap-1 truncate rounded px-2 py-1 text-left text-[11px] font-medium bg-violet-500/15 text-violet-700 hover:bg-violet-500/25 transition-colors"
+                            className="flex w-full items-center gap-1 truncate px-2 py-1 text-left text-[11px] font-medium bg-ink/5 text-text-primary hover:bg-ink/10 transition-colors"
                             title={`Escritório · ${ev.title}${ev.location ? ' · ' + ev.location : ''}`}
                           >
                             <Building2 size={10} className="flex-shrink-0" />
@@ -346,7 +341,7 @@ export function VacationCalendarPage() {
                           </button>
                         ))}
                         {(officeByDay[day.key] || []).length > 4 && (
-                          <p className="text-[11px] text-violet-600 px-1">
+                          <p className="text-[11px] text-text-secondary px-1">
                             +{officeByDay[day.key].length - 4} do escritório
                           </p>
                         )}
@@ -355,7 +350,7 @@ export function VacationCalendarPage() {
                             key={ev.id}
                             type="button"
                             onClick={() => setSelectedEvent(ev)}
-                            className="flex w-full items-center gap-1 truncate rounded px-2 py-1 text-left text-[11px] font-medium bg-sky-500/15 text-sky-700 hover:bg-sky-500/25 transition-colors"
+                            className="flex w-full items-center gap-1 truncate px-2 py-1 text-left text-[11px] font-medium bg-ink/5 text-text-primary hover:bg-ink/10 transition-colors"
                             title={`${ev.title}${ev.location ? ' · ' + ev.location : ''}`}
                           >
                             <Video size={10} className="flex-shrink-0" />
@@ -366,7 +361,7 @@ export function VacationCalendarPage() {
                           </button>
                         ))}
                         {(googleByDay[day.key] || []).length > 4 && (
-                          <p className="text-[11px] text-sky-600 px-1">
+                          <p className="text-[11px] text-text-secondary px-1">
                             +{googleByDay[day.key].length - 4} eventos
                           </p>
                         )}
@@ -375,7 +370,7 @@ export function VacationCalendarPage() {
                             key={task.id}
                             type="button"
                             onClick={() => setSelectedTask(task)}
-                            className="flex w-full items-center gap-1 truncate rounded px-2 py-1 text-left text-[11px] font-medium bg-amber-500/15 text-amber-700 hover:bg-amber-500/25 transition-colors"
+                            className="flex w-full items-center gap-1 truncate px-2 py-1 text-left text-[11px] font-medium bg-ink/5 text-text-primary hover:bg-ink/10 transition-colors"
                             title={`Tarefa: ${task.title}${task.project_name ? ' · ' + task.project_name : ''}`}
                           >
                             <ListTodo size={10} className="flex-shrink-0" />
@@ -385,7 +380,7 @@ export function VacationCalendarPage() {
                         {dayVacations.slice(0, 3).map((vacation) => (
                           <div
                             key={`${day.key}-${vacation.id}`}
-                            className={`truncate rounded px-2 py-1 text-[11px] font-medium ${colorForUser(vacation.user_id)}`}
+                            className={`truncate px-2 py-1 text-[11px] font-medium ${vacationStyle(vacation)}`}
                             title={`${vacation.profile?.name || 'Colaborador'}: ${formatDate(vacation.start_date)} até ${formatDate(vacation.end_date)}`}
                           >
                             {vacation.profile?.name || 'Colaborador'}
@@ -408,8 +403,8 @@ export function VacationCalendarPage() {
         <div className="space-y-5">
           <Card padded={false} className="overflow-hidden">
             <div className="px-5 py-4 border-b border-border-subtle">
-              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary inline-flex items-center gap-1.5">
-                <Flag size={13} className="text-rose-500" /> Próximos feriados
+              <h2 className="text-[11px] font-medium uppercase tracking-wider text-text-secondary inline-flex items-center gap-1.5">
+                <Flag size={13} className="text-brown" /> Próximos feriados
               </h2>
             </div>
             <div className="divide-y divide-border-subtle">
@@ -428,8 +423,8 @@ export function VacationCalendarPage() {
 
           <Card padded={false} className="overflow-hidden">
             <div className="px-5 py-4 border-b border-border-subtle">
-              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary inline-flex items-center gap-1.5">
-                <Building2 size={13} className="text-violet-500" /> Agenda do escritório
+              <h2 className="text-[11px] font-medium uppercase tracking-wider text-text-secondary inline-flex items-center gap-1.5">
+                <Building2 size={13} className="text-text-secondary" /> Agenda do escritório
               </h2>
             </div>
             <div className="divide-y divide-border-subtle">
@@ -445,7 +440,7 @@ export function VacationCalendarPage() {
                     onClick={() => setSelectedEvent(ev)}
                     className="w-full text-left px-5 py-3 hover:bg-surface-alt transition-colors flex items-center gap-2.5"
                   >
-                    <Building2 size={14} className="text-violet-500 flex-shrink-0" />
+                    <Building2 size={14} className="text-text-secondary flex-shrink-0" />
                     <div className="min-w-0">
                       <p className="text-sm text-text-primary truncate">{ev.title}</p>
                       <p className="text-xs text-text-secondary">{formatEventWhen(ev)}</p>
@@ -458,8 +453,8 @@ export function VacationCalendarPage() {
 
           <Card padded={false} className="overflow-hidden">
             <div className="px-5 py-4 border-b border-border-subtle">
-              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary inline-flex items-center gap-1.5">
-                <Video size={13} className="text-sky-500" /> Próximos eventos
+              <h2 className="text-[11px] font-medium uppercase tracking-wider text-text-secondary inline-flex items-center gap-1.5">
+                <Video size={13} className="text-text-secondary" /> Próximos eventos
               </h2>
             </div>
             <div className="divide-y divide-border-subtle">
@@ -477,7 +472,7 @@ export function VacationCalendarPage() {
                     onClick={() => setSelectedEvent(ev)}
                     className="w-full text-left px-5 py-3 hover:bg-surface-alt transition-colors flex items-center gap-2.5"
                   >
-                    <Video size={14} className="text-sky-500 flex-shrink-0" />
+                    <Video size={14} className="text-text-secondary flex-shrink-0" />
                     <div className="min-w-0">
                       <p className="text-sm text-text-primary truncate">{ev.title}</p>
                       <p className="text-xs text-text-secondary">{formatEventWhen(ev)}</p>
@@ -490,7 +485,7 @@ export function VacationCalendarPage() {
 
           <Card padded={false} className="overflow-hidden">
             <div className="px-5 py-4 border-b border-border-subtle">
-              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary">
+              <h2 className="text-[11px] font-medium uppercase tracking-wider text-text-secondary">
                 Férias no mês
               </h2>
             </div>
@@ -530,7 +525,7 @@ export function VacationCalendarPage() {
         >
           <div className="space-y-3 text-sm">
             {selectedEvent.source === 'office' && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-500/15 text-violet-700 px-2.5 py-1 text-xs font-medium">
+              <span className="inline-flex items-center gap-1.5 bg-surface-alt text-text-secondary px-2.5 py-1 text-xs font-medium">
                 <Building2 size={12} /> Agenda do escritório
               </span>
             )}
@@ -574,7 +569,7 @@ export function VacationCalendarPage() {
           }
         >
           <div className="space-y-3 text-sm">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 text-amber-700 px-2.5 py-1 text-xs font-medium">
+            <span className="inline-flex items-center gap-1.5 bg-surface-alt text-text-secondary px-2.5 py-1 text-xs font-medium">
               <ListTodo size={12} /> Tarefa
             </span>
             {selectedTask.project_name && (
@@ -591,12 +586,12 @@ export function VacationCalendarPage() {
             )}
             <div className="flex flex-wrap gap-2">
               {TASK_STATUS_LABEL[selectedTask.status] && (
-                <span className="rounded-full bg-surface-alt px-2.5 py-1 text-xs text-text-secondary">
+                <span className="bg-surface-alt px-2.5 py-1 text-xs text-text-secondary">
                   {TASK_STATUS_LABEL[selectedTask.status]}
                 </span>
               )}
               {TASK_PRIORITY_LABEL[selectedTask.priority] && (
-                <span className="rounded-full bg-surface-alt px-2.5 py-1 text-xs text-text-secondary">
+                <span className="bg-surface-alt px-2.5 py-1 text-xs text-text-secondary">
                   Prioridade: {TASK_PRIORITY_LABEL[selectedTask.priority]}
                 </span>
               )}

@@ -38,12 +38,12 @@ export function DescriptionAttachments({ taskId, currentUserId, isAdmin, uploadi
 
   return (
     <div className="mt-2 flex flex-wrap items-center gap-1.5">
-      {error && <span className="text-[11px] text-rose-500">{error}</span>}
+      {error && <span className="text-[11px] state-danger">{error}</span>}
       {items.map((a) => (
         <AttachmentChip key={a.id} att={a} onRemove={canRemove(a) ? () => remove(a) : undefined} />
       ))}
       {uploading && (
-        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-surface-alt text-[11px] text-text-secondary">
+        <span className="inline-flex items-center gap-1 px-2 py-1 bg-surface-alt text-[11px] text-text-secondary">
           <Paperclip size={11} /> Enviando...
         </span>
       )}

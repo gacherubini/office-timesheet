@@ -21,15 +21,15 @@ export function PriorityChip({ value, onChange, disabled }) {
         type="button"
         disabled={disabled}
         onClick={() => setOpen((o) => !o)}
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${current.chip} disabled:cursor-not-allowed disabled:opacity-60`}
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium ${current.chip} disabled:cursor-not-allowed disabled:opacity-60`}
       >
-        <span className={`w-2 h-2 rounded-full ${current.dot}`} />
+        <span className={`w-2 h-2 ${current.dot}`} />
         {current.label}
         <ChevronDown size={12} />
       </button>
 
       {open && (
-        <div className="absolute z-30 left-0 top-full mt-1 w-40 bg-surface border border-border-subtle rounded-lg shadow-xl overflow-hidden">
+        <div className="absolute z-30 left-0 top-full mt-1 w-40 bg-surface border border-border-subtle shadow-xl overflow-hidden">
           {PRIORITIES.map((p) => (
             <button
               key={p.key}
@@ -38,7 +38,7 @@ export function PriorityChip({ value, onChange, disabled }) {
               className="w-full flex items-center justify-between px-3 py-2 text-xs text-text-primary hover:bg-surface-alt"
             >
               <span className="inline-flex items-center gap-1.5">
-                <span className={`w-2 h-2 rounded-full ${p.dot}`} />
+                <span className={`w-2 h-2 ${p.dot}`} />
                 {p.label}
               </span>
               {p.key === value && <Check size={12} className="text-text-secondary" />}

@@ -39,20 +39,26 @@ function hm(minutes) {
 function Kpi({ label, value, detail, highlight = false }) {
   return (
     <Card
-      className={
+      style={
         highlight
-          ? 'bg-emerald-500/10 border-emerald-500/30'
-          : ''
+          ? {
+              backgroundColor: 'color-mix(in srgb, var(--state-success) 10%, transparent)',
+              borderColor: 'color-mix(in srgb, var(--state-success) 30%, transparent)',
+            }
+          : undefined
       }
     >
-      <p className={`text-[13px] font-medium ${highlight ? 'text-emerald-700' : 'text-text-secondary'}`}>
+      <p className={`text-[13px] font-medium ${highlight ? 'state-success' : 'text-text-secondary'}`}>
         {label}
       </p>
-      <p className={`font-display text-[28px] leading-none tabular-nums mt-2 ${highlight ? 'text-emerald-700' : 'text-text-primary'}`}>
+      <p className={`font-display text-[28px] leading-none tabular-nums mt-2 ${highlight ? 'state-success' : 'text-text-primary'}`}>
         {value}
       </p>
       {detail && (
-        <p className={`text-xs mt-1.5 ${highlight ? 'text-emerald-700/70' : 'text-text-secondary'}`}>
+        <p
+          className={`text-xs mt-1.5 ${highlight ? '' : 'text-text-secondary'}`}
+          style={highlight ? { color: 'color-mix(in srgb, var(--state-success) 70%, transparent)' } : undefined}
+        >
           {detail}
         </p>
       )}
@@ -89,12 +95,12 @@ function HoursByProjectBody({ breakdown, loading }) {
             <span className="text-sm text-text-primary truncate">{r.name}</span>
             <span className="text-sm font-medium text-text-primary tabular-nums flex-none">{hm(r.minutes)}</span>
           </div>
-          <div className="h-2 rounded-full bg-surface-alt overflow-hidden">
+          <div className="h-2 bg-surface-alt overflow-hidden">
             <div
-              className="h-full rounded-full transition-all"
+              className="h-full transition-all"
               style={{
                 width: `${Math.max(4, (r.minutes / max) * 100)}%`,
-                background: r.muted ? 'var(--color-accent-2)' : 'var(--color-accent)',
+                background: r.muted ? 'rgba(15, 15, 15, 0.25)' : 'var(--color-accent)',
                 opacity: r.muted ? 0.6 : 1,
               }}
             />
@@ -140,9 +146,9 @@ function TaskTypesBody({ breakdown, loading }) {
             <span className="text-sm text-text-primary truncate">{r.name}</span>
             <span className="text-sm font-medium text-text-primary tabular-nums flex-none">{hm(r.minutes)}</span>
           </div>
-          <div className="h-2 rounded-full bg-surface-alt overflow-hidden">
+          <div className="h-2 bg-surface-alt overflow-hidden">
             <div
-              className="h-full rounded-full bg-emerald-500 transition-all"
+              className="h-full bg-state-success transition-all"
               style={{ width: `${Math.max(4, (r.minutes / max) * 100)}%`, opacity: r.muted ? 0.55 : 1 }}
             />
           </div>
@@ -178,9 +184,12 @@ function CollapsiblePanelCard({ icon: Icon, title, summary, onOpen }) {
     <button
       type="button"
       onClick={onOpen}
-      className="group flex items-center gap-3 rounded-xl border border-border-subtle bg-surface p-4 text-left hover:border-[color:var(--color-accent)]/40 hover:bg-surface-alt transition-colors w-full"
+      className="group flex items-center gap-3 border border-border-subtle bg-surface p-4 text-left hover-border-accent-40 hover:bg-surface-alt transition-colors w-full"
     >
-      <span className="w-9 h-9 rounded-lg bg-[color:var(--color-accent)]/15 text-accent flex items-center justify-center flex-none">
+      <span
+        className="w-9 h-9 text-accent flex items-center justify-center flex-none"
+        style={{ background: 'color-mix(in srgb, var(--color-accent) 15%, transparent)' }}
+      >
         <Icon size={18} />
       </span>
       <span className="min-w-0">
@@ -215,13 +224,16 @@ function AdminPerformanceHub() {
             <Link
               key={tool.to}
               to={tool.to}
-              className="group flex items-start gap-4 rounded-xl border border-border-subtle bg-surface p-5 hover:border-[color:var(--color-accent)]/40 hover:bg-surface-alt transition-colors"
+              className="group flex items-start gap-4 border border-border-subtle bg-surface p-5 hover-border-accent-40 hover:bg-surface-alt transition-colors"
             >
-              <span className="w-11 h-11 rounded-lg bg-[color:var(--color-accent)]/15 text-accent flex items-center justify-center flex-none">
+              <span
+                className="w-11 h-11 text-accent flex items-center justify-center flex-none"
+                style={{ background: 'color-mix(in srgb, var(--color-accent) 15%, transparent)' }}
+              >
                 <Icon size={20} />
               </span>
               <span className="min-w-0">
-                <span className="flex items-center gap-1.5 font-semibold text-text-primary">
+                <span className="flex items-center gap-1.5 font-medium text-text-primary">
                   {tool.label}
                   <ChevronRight size={16} className="text-text-secondary group-hover:translate-x-0.5 transition-transform" />
                 </span>
@@ -292,11 +304,11 @@ function EmployeePerformancePage() {
   const toReceive = stats?.total_cost || 0
 
   const monthNav = (
-    <div className="flex items-center gap-1 rounded-lg border border-border-subtle bg-surface px-1 py-1">
+    <div className="flex items-center gap-1 border border-border-subtle bg-surface px-1 py-1">
       <button
         type="button"
         onClick={() => shiftMonth(-1)}
-        className="flex h-8 w-8 items-center justify-center rounded-md text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary"
+        className="flex h-8 w-8 items-center justify-center text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary"
         aria-label="Mês anterior"
       >
         <ChevronLeft size={16} />
@@ -308,7 +320,7 @@ function EmployeePerformancePage() {
         type="button"
         onClick={() => shiftMonth(1)}
         disabled={isCurrentMonth}
-        className="flex h-8 w-8 items-center justify-center rounded-md text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary disabled:opacity-30 disabled:pointer-events-none"
+        className="flex h-8 w-8 items-center justify-center text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary disabled:opacity-30 disabled:pointer-events-none"
         aria-label="Próximo mês"
       >
         <ChevronRight size={16} />
@@ -325,7 +337,7 @@ function EmployeePerformancePage() {
       />
 
       {error && (
-        <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">
+        <div className="state-danger-soft text-sm p-3 mb-4">
           {error}
         </div>
       )}

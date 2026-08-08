@@ -27,7 +27,7 @@ export function AssigneePicker({ users, value, onChange, disabled }) {
         type="button"
         disabled={disabled}
         onClick={() => setOpen((o) => !o)}
-        className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-surface-alt border border-border-subtle text-xs text-text-primary hover:border-border disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex items-center gap-1.5 px-2 py-1 bg-surface-alt border border-border-subtle text-xs text-text-primary hover:border-border disabled:cursor-not-allowed disabled:opacity-60"
       >
         {current ? (
           <>
@@ -41,7 +41,7 @@ export function AssigneePicker({ users, value, onChange, disabled }) {
       </button>
 
       {open && (
-        <div className="absolute z-30 left-0 top-full mt-1 w-64 bg-surface border border-border-subtle rounded-lg shadow-xl overflow-hidden">
+        <div className="absolute z-30 left-0 top-full mt-1 w-64 bg-surface border border-border-subtle shadow-xl overflow-hidden">
           <div className="flex items-center gap-2 px-3 py-2 border-b border-border-subtle">
             <Search size={13} className="text-text-secondary" />
             <input

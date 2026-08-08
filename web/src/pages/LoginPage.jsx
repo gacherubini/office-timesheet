@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useNavigate, Navigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { Logo } from '../components/Logo'
+import { BrandLine } from '../components/BrandLine'
+import assinatura from '../assets/studio-vivian-hor.png'
 
 export function LoginPage() {
   const { profile, login } = useAuth()
@@ -30,34 +31,23 @@ export function LoginPage() {
   return (
     <div className="min-h-screen grid lg:grid-cols-2 bg-bg text-text-primary">
       {/* Painel do "vazio" — a assinatura da marca */}
-      <div
-        className="relative hidden lg:flex flex-col justify-between overflow-hidden p-12"
-        style={{ background: '#2E3D38', color: '#ECE7DF' }}
-      >
-        <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div
-            className="absolute -top-32 -right-24 h-[440px] w-[440px] rounded-full"
-            style={{ background: 'radial-gradient(circle, rgba(203,109,49,0.24), transparent 70%)', filter: 'blur(30px)' }}
-          />
-          <svg className="absolute inset-0 h-full w-full" preserveAspectRatio="none">
-            <line x1="-5%" y1="82%" x2="105%" y2="16%" stroke="rgba(203,109,49,0.5)" strokeWidth="1.25" />
-            <line x1="-5%" y1="99%" x2="105%" y2="40%" stroke="rgba(236,231,223,0.12)" strokeWidth="1" />
-          </svg>
-        </div>
+      <div className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-green-dk p-12 text-white">
+        <BrandLine x1={-5} y1={82} x2={105} y2={16} opacity={0.28} />
 
         <div className="relative z-10 flex items-center gap-3">
-          <Logo size={28} color="#ECE7DF" />
-          <span className="text-sm uppercase tracking-[0.16em]">Gestão VOID</span>
+          <img src={assinatura} alt="Studio Vivian" className="h-4 w-auto invert" />
+          <span className="h-4 w-px bg-white/25" />
+          <span className="text-[13px] font-light tracking-wide text-white/80">Gestão VOID</span>
         </div>
 
         <p className="relative z-10 font-display text-[42px] leading-[1.12] max-w-[15ch] font-medium">
           Tudo começa no{' '}
-          <span className="font-serif italic" style={{ color: '#E4A063' }}>
+          <span className="font-serif italic" style={{ color: 'var(--color-orange)' }}>
             vazio fértil.
           </span>
         </p>
 
-        <p className="relative z-10 font-mono text-[11px] tracking-[0.14em]" style={{ color: 'rgba(236,231,223,0.6)' }}>
+        <p className="relative z-10 text-[11px] tracking-[0.14em]" style={{ color: 'rgba(255,255,255,0.6)' }}>
           STUDIO VIVIAN · ARQUITETURA
         </p>
       </div>
@@ -65,9 +55,10 @@ export function LoginPage() {
       {/* Formulário */}
       <div className="flex items-center justify-center p-6 sm:p-10">
         <div className="w-full max-w-sm">
-          <div className="lg:hidden flex items-center justify-center gap-2.5 mb-10">
-            <Logo size={30} />
-            <span className="text-xl font-semibold">Gestão VOID</span>
+          <div className="lg:hidden flex items-center justify-center gap-3 mb-10">
+            <img src={assinatura} alt="Studio Vivian" className="h-4 w-auto" />
+            <span className="h-4 w-px bg-border-subtle" />
+            <span className="text-[13px] font-light tracking-wide text-text-secondary">Gestão VOID</span>
           </div>
 
           <h1 className="font-display text-3xl leading-tight text-text-primary">
@@ -76,7 +67,7 @@ export function LoginPage() {
           </h1>
 
           {error && (
-            <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">
+            <div className="state-danger-soft text-sm p-3 mb-4">
               {error}
             </div>
           )}
@@ -92,7 +83,7 @@ export function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full form-control rounded-lg border px-3 py-2.5 text-sm outline-none transition-colors"
+                className="w-full form-control border px-3 py-2.5 text-sm outline-none transition-colors"
                 placeholder="seu@email.com"
               />
             </div>
@@ -107,7 +98,7 @@ export function LoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full form-control rounded-lg border px-3 py-2.5 text-sm outline-none transition-colors"
+                className="w-full form-control border px-3 py-2.5 text-sm outline-none transition-colors"
                 placeholder="••••••"
               />
             </div>
@@ -115,7 +106,7 @@ export function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full text-white rounded-lg py-2.5 text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full text-white py-2.5 text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ background: 'var(--color-accent)' }}
             >
               {loading ? 'Entrando...' : 'Entrar'}

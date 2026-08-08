@@ -1,42 +1,42 @@
 /** @type {import('tailwindcss').Config} */
+
+// Tailwind v3 can't inject an alpha modifier (e.g. bg-green/15) into an
+// opaque var() color value. Wrapping the color in a function that receives
+// { opacityValue } lets Tailwind hand us the modifier so we can build the
+// final color with color-mix() instead. Without opacityValue, we fall back
+// to the plain var() so unmodified classes (bg-green, text-ink, ...) are
+// unaffected.
+const withAlpha = (cssVar) => ({ opacityValue }) =>
+  opacityValue === undefined
+    ? `var(${cssVar})`
+    : `color-mix(in srgb, var(${cssVar}) calc(${opacityValue} * 100%), transparent)`
+
 export default {
   content: ['./index.html', './src/**/*.{js,jsx}'],
   darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        brand: {
-          teal: '#3D5C5C',
-          'teal-dk': '#2B3D3D',
-          brown: '#8B7355',
-          orange: '#D4792C',
-          cream: '#F5F2EE',
-          black: '#1A1A1A',
-          gray100: '#F7F7F5',
-          gray200: '#ECEAE6',
-          gray300: '#D5D2CC',
-          gray400: '#A09A90',
-          gray500: '#6E685E',
-        },
-        bg: 'var(--color-bg)',
-        surface: 'var(--color-surface)',
-        'surface-alt': 'var(--color-surface-alt)',
-        'text-primary': 'var(--color-text)',
-        'text-secondary': 'var(--color-text-sec)',
-        'border-subtle': 'var(--color-border)',
-        accent: 'var(--color-accent)',
-        'accent-2': 'var(--color-accent-2)',
-        'accent-3': 'var(--color-accent-3)',
-        sidebar: 'var(--color-sidebar)',
+        ink: withAlpha('--color-ink'),
+        'state-danger': withAlpha('--state-danger'),
+        'state-success': withAlpha('--state-success'),
+        'green-dk': withAlpha('--color-green-dk'),
+        green: withAlpha('--color-green'),
+        brown: withAlpha('--color-brown'),
+        'brown-dk': withAlpha('--color-brown-dk'),
+        orange: withAlpha('--color-orange'),
+        bg: withAlpha('--color-bg'),
+        surface: withAlpha('--color-surface'),
+        'surface-alt': withAlpha('--color-surface-alt'),
+        'text-primary': withAlpha('--color-text'),
+        'text-secondary': withAlpha('--color-text-sec'),
+        'border-subtle': withAlpha('--color-border'),
+        accent: withAlpha('--color-accent'),
       },
       fontFamily: {
         sans: ['var(--font-sans)'],
         serif: ['var(--font-serif)'],
         display: ['var(--font-display)'],
-        mono: ['var(--font-mono)'],
-      },
-      boxShadow: {
-        card: '0 1px 3px rgba(0,0,0,0.06)',
       },
     },
   },

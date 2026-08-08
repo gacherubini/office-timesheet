@@ -180,7 +180,7 @@ export function TaskDetailContent({
     <div className="flex flex-col h-full">
       {/* Erro */}
       {error && (
-        <div className="mx-6 mt-4 px-3 py-2 rounded-lg bg-rose-500/10 text-rose-500 text-xs">{error}</div>
+        <div className="mx-6 mt-4 px-3 py-2 state-danger-soft text-xs">{error}</div>
       )}
 
       {/* Header: contexto */}
@@ -244,10 +244,10 @@ export function TaskDetailContent({
               disabled={!canEdit}
               rows={5}
               placeholder={canEdit ? 'Adicione mais detalhes... (arraste arquivos pra anexar)' : 'Sem descrição.'}
-              className="w-full form-control border rounded-lg px-3 py-2 text-sm outline-none transition-colors resize-y disabled:opacity-70"
+              className="w-full form-control border px-3 py-2 text-sm outline-none transition-colors resize-y disabled:opacity-70"
             />
             {descDragOver && (
-              <div className="absolute inset-0 rounded-lg border-2 border-dashed border-accent bg-accent/10 flex items-center justify-center pointer-events-none">
+              <div className="absolute inset-0 border-2 border-dashed border-accent bg-accent/10 flex items-center justify-center pointer-events-none">
                 <span className="text-xs font-medium text-accent">Solte para anexar</span>
               </div>
             )}
@@ -277,7 +277,7 @@ export function TaskDetailContent({
         </section>
 
         {/* Cronometro na base */}
-        <section className="rounded-lg border border-border-subtle bg-surface-alt/40 p-4">
+        <section className="border border-border-subtle bg-surface-alt/40 p-4">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[11px] uppercase tracking-wider text-text-secondary">Cronômetro</span>
             <span className="text-sm text-text-primary tabular-nums">{formatMinutes(timeData?.total_minutes || 0)} total</span>
@@ -286,8 +286,8 @@ export function TaskDetailContent({
             type="button"
             onClick={toggleTimer}
             disabled={timeBusy}
-            className={`inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg font-medium disabled:opacity-60 transition-colors ${
-              timeData?.open_session ? 'bg-rose-500/15 text-rose-500' : 'bg-emerald-500/15 text-emerald-600'
+            className={`inline-flex items-center gap-1.5 text-sm px-4 py-2 font-medium disabled:opacity-60 transition-colors ${
+              timeData?.open_session ? 'state-danger-soft' : 'state-success-soft'
             }`}
           >
             {timeData?.open_session ? <Square size={13} /> : <Play size={13} />}
@@ -318,7 +318,7 @@ export function TaskDetailContent({
                 type="button"
                 onClick={handleReopen}
                 disabled={saving}
-                className="inline-flex items-center gap-1.5 text-xs text-emerald-600 hover:text-emerald-700 disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 text-xs state-success hover:opacity-80 disabled:opacity-60"
               >
                 <RotateCcw size={13} /> Reabrir tarefa
               </button>
@@ -327,7 +327,7 @@ export function TaskDetailContent({
                   type="button"
                   onClick={() => setConfirmingDelete(true)}
                   disabled={saving}
-                  className="inline-flex items-center gap-1.5 text-xs text-rose-500 hover:text-rose-600 disabled:opacity-60"
+                  className="inline-flex items-center gap-1.5 text-xs state-danger hover:opacity-80 disabled:opacity-60"
                 >
                   <Trash2 size={13} /> Excluir definitivamente
                 </button>
@@ -338,7 +338,7 @@ export function TaskDetailContent({
               type="button"
               onClick={() => setConfirmingAbandon(true)}
               disabled={saving}
-              className="inline-flex items-center gap-1.5 text-xs text-text-secondary hover:text-rose-500 disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 text-xs text-text-secondary hover:text-state-danger disabled:opacity-60"
             >
               <Archive size={13} /> Abandonar tarefa
             </button>
@@ -368,7 +368,7 @@ export function TaskDetailContent({
         }
       >
         <p className="text-sm text-text-primary">
-          Mover <span className="font-semibold">{task.title}</span> para os abandonados? Ela sai do quadro ativo, mas
+          Mover <span className="font-medium">{task.title}</span> para os abandonados? Ela sai do quadro ativo, mas
           não é apagada — você pode reabri-la quando quiser.
         </p>
       </Modal>
@@ -390,7 +390,7 @@ export function TaskDetailContent({
         }
       >
         <p className="text-sm text-text-primary">
-          Apagar <span className="font-semibold">{task.title}</span> de vez? Esta ação <span className="font-semibold">não pode ser desfeita</span> —
+          Apagar <span className="font-medium">{task.title}</span> de vez? Esta ação <span className="font-medium">não pode ser desfeita</span> —
           comentários, anexos e tempo registrado serão removidos.
         </p>
       </Modal>
@@ -402,8 +402,8 @@ export function TaskDetailContent({
         footer={<Button onClick={() => setSuccessMessage('')}>OK</Button>}
       >
         <div className="flex flex-col items-center text-center py-2">
-          <div className="bg-emerald-500/15 rounded-full p-4 mb-4">
-            <CheckCircle2 className="text-emerald-500" size={36} />
+          <div className="state-success-soft p-4 mb-4">
+            <CheckCircle2 className="state-success" size={36} />
           </div>
           <p className="text-text-primary font-medium">{successMessage}</p>
         </div>

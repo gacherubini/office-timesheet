@@ -54,33 +54,36 @@ export function CalendarConnect({ onChange, hideWhenConnected = false }) {
   if (hideWhenConnected && !loading && connected) return null
 
   return (
-    <div className="bg-surface rounded-xl border border-border-subtle shadow-card overflow-hidden">
+    <div className="bg-surface border border-border-subtle overflow-hidden">
       <div className="p-5 border-b border-border-subtle flex items-center gap-3">
-        <div className="w-10 h-10 rounded-lg bg-[color:var(--color-accent)]/15 text-accent flex items-center justify-center">
+        <div
+          className="w-10 h-10 text-accent flex items-center justify-center"
+          style={{ background: 'color-mix(in srgb, var(--color-accent) 15%, transparent)' }}
+        >
           <CalendarClock size={18} />
         </div>
         <div>
-          <h2 className="font-semibold text-text-primary">Minha agenda Google</h2>
+          <h2 className="font-medium text-text-primary">Minha agenda Google</h2>
           <p className="text-sm text-text-secondary">Veja seus eventos do Google dentro do sistema.</p>
         </div>
       </div>
 
       <div className="p-5 space-y-4">
-        {error && <div className="rounded-lg bg-rose-500/10 text-rose-600 text-sm p-3">{error}</div>}
-        {success && <div className="rounded-lg bg-emerald-500/10 text-emerald-600 text-sm p-3">{success}</div>}
+        {error && <div className="state-danger-soft text-sm p-3">{error}</div>}
+        {success && <div className="state-success-soft text-sm p-3">{success}</div>}
 
         {loading ? (
           <p className="text-sm text-text-secondary">Carregando...</p>
         ) : connected ? (
           <div className="flex items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-2 text-sm text-emerald-600">
+            <span className="inline-flex items-center gap-2 text-sm state-success">
               <Check size={16} /> Agenda conectada.
             </span>
             <button
               type="button"
               onClick={handleDisconnect}
               disabled={busy}
-              className="inline-flex items-center gap-1.5 text-sm text-text-secondary hover:text-rose-500 disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-1.5 text-sm text-text-secondary hover:text-[color:var(--state-danger)] disabled:opacity-50 transition-colors"
             >
               <Unlink size={15} /> {busy ? 'Desconectando...' : 'Desconectar'}
             </button>
@@ -93,13 +96,13 @@ export function CalendarConnect({ onChange, hideWhenConnected = false }) {
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://calendar.google.com/calendar/ical/.../basic.ics"
-                className="flex-1 min-w-0 form-control rounded-lg border px-3 py-2 text-sm outline-none transition-colors"
+                className="flex-1 min-w-0 form-control border px-3 py-2 text-sm outline-none transition-colors"
                 required
               />
               <button
                 type="submit"
                 disabled={busy || !url.trim()}
-                className="inline-flex items-center justify-center gap-1.5 text-white px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity whitespace-nowrap"
+                className="inline-flex items-center justify-center gap-1.5 text-white px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity whitespace-nowrap"
                 style={{ background: 'var(--color-accent)' }}
               >
                 <Link2 size={15} /> {busy ? 'Conectando...' : 'Conectar'}

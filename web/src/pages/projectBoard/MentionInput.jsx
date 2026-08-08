@@ -67,17 +67,17 @@ export function MentionInput({ users, onSubmit, submitting }) {
           onChange={handleChange}
           rows={2}
           placeholder="Escreva um comentário... use @ para mencionar (arraste arquivos pra anexar)"
-          className="w-full form-control border rounded-lg px-3 py-2 text-sm outline-none transition-colors resize-none"
+          className="w-full form-control border px-3 py-2 text-sm outline-none transition-colors resize-none"
         />
         {dragOver && (
-          <div className="absolute inset-0 rounded-lg border-2 border-dashed border-accent bg-accent/10 flex items-center justify-center pointer-events-none">
+          <div className="absolute inset-0 border-2 border-dashed border-accent bg-accent/10 flex items-center justify-center pointer-events-none">
             <span className="text-xs font-medium text-accent">Solte para anexar ao comentário</span>
           </div>
         )}
       </div>
 
       {suggestions.length > 0 && (
-        <div className="absolute z-10 left-0 right-0 -top-2 -translate-y-full bg-surface border border-border-subtle rounded-lg shadow-lg overflow-hidden">
+        <div className="absolute z-10 left-0 right-0 -top-2 -translate-y-full bg-surface border border-border-subtle shadow-lg overflow-hidden">
           {suggestions.map((u) => (
             <button
               key={u.id}

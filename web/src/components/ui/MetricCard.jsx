@@ -7,12 +7,12 @@ export function MetricCard({ label, value, icon: Icon, iconColor = 'var(--color-
         <p className="text-[11px] uppercase tracking-wider font-medium text-text-secondary mb-2">
           {label}
         </p>
-        <p className="font-semibold tabular-nums text-2xl text-text-primary truncate">{value}</p>
+        <p className="font-medium tabular-nums text-2xl text-text-primary truncate">{value}</p>
         {sublabel && <p className="text-xs text-text-secondary mt-1">{sublabel}</p>}
       </div>
       {Icon && (
         <div
-          className="w-10 h-10 rounded-[10px] flex items-center justify-center flex-shrink-0"
+          className="w-10 h-10 flex items-center justify-center flex-shrink-0"
           style={{
             background: `color-mix(in srgb, ${iconColor} 15%, transparent)`,
             color: iconColor,

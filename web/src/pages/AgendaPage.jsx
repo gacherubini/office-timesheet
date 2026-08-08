@@ -91,17 +91,22 @@ function vacationIncludesDate(vacation, key) {
   return vacation.start_date <= key && vacation.end_date >= key
 }
 
-// Estilo (chip) por tipo de item na agenda. Cores seguem a Legenda do mockup.
-const LAYER_STYLE = {
-  presence: 'bg-[color:var(--color-accent)]/15 text-accent',
-  vacation: 'bg-violet-500/15 text-violet-700',
-  holiday: 'bg-rose-500/15 text-rose-600',
-  office: 'bg-emerald-500/15 text-emerald-700',
-  google: 'bg-sky-500/15 text-sky-700',
+// Estilo (chip) por TIPO do item na agenda — a cor codifica o tipo, e só o
+// tipo, igual à tela de Calendário (VacationCalendarPage). Origem (pessoal,
+// escritório, presença) não tem cor própria: some com o ícone, que já a
+// distingue.
+const TYPE_STYLE = {
+  vacation_approved: 'bg-green/15 text-green-dk',
+  vacation_pending: 'bg-orange/15 text-orange',
+  holiday: 'bg-brown/15 text-brown',
+  office: 'bg-ink/5 text-text-primary',
+  google: 'bg-ink/5 text-text-primary',
+  presence: 'bg-ink/5 text-text-primary',
 }
 
 const ICON_BY_KIND = {
-  vacation: Plane,
+  vacation_approved: Plane,
+  vacation_pending: Plane,
   holiday: Flag,
   office: Building2,
   google: Video,
@@ -214,7 +219,7 @@ export function AgendaPage() {
           if (!vacationIncludesDate(vac, day.key)) continue
           push(day.key, {
             id: `vac:${vac.id}:${day.key}`,
-            kind: 'vacation',
+            kind: vac.status === 'pending' ? 'vacation_pending' : 'vacation_approved',
             title: `Férias — ${vac.profile?.name || 'Colaborador'}`,
             allDay: true,
           })
@@ -288,37 +293,30 @@ export function AgendaPage() {
       <PageHeader
         title="Agenda"
         subtitle="Sua semana: agendas Google, escritório, feriados e férias da equipe."
-        actions={
-          <>
-            <div className="inline-flex rounded-lg border border-border-subtle bg-surface p-0.5">
-              <button
-                type="button"
-                onClick={() => setView('week')}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                  view === 'week' ? 'bg-surface-alt text-text-primary' : 'text-text-secondary hover:text-text-primary'
-                }`}
-              >
-                Semana
-              </button>
-              <button
-                type="button"
-                onClick={() => setView('month')}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                  view === 'month' ? 'bg-surface-alt text-text-primary' : 'text-text-secondary hover:text-text-primary'
-                }`}
-              >
-                Mês
-              </button>
-            </div>
-            <Button onClick={() => { setPresenceInitial(null); setPresenceOpen(true) }}>
-              <Plus size={16} /> Marcar presença
-            </Button>
-          </>
-        }
       />
 
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="flex h-8 border border-border-subtle">
+          {[{ v: 'week', l: 'Semana' }, { v: 'month', l: 'Mês' }].map((o, i) => (
+            <button
+              key={o.v}
+              type="button"
+              onClick={() => setView(o.v)}
+              className={`px-3 text-[11px] transition-colors ${i === 0 ? 'border-r border-border-subtle' : ''} ${
+                view === o.v ? 'bg-ink text-white' : 'text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              {o.l}
+            </button>
+          ))}
+        </div>
+        <Button className="ml-auto h-8" onClick={() => { setPresenceInitial(null); setPresenceOpen(true) }}>
+          <Plus size={15} /> Marcar presença
+        </Button>
+      </div>
+
       {error && (
-        <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3 mb-4">{error}</div>
+        <div className="state-danger-soft text-sm p-3 mb-4">{error}</div>
       )}
 
       <div className="grid grid-cols-1 xl:grid-cols-[280px_1fr] gap-5 items-start">
@@ -328,7 +326,7 @@ export function AgendaPage() {
           {connected && (
             <Card padded={false} className="overflow-hidden">
               <div className="px-5 py-4 flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-emerald-500/15 text-emerald-600 flex items-center justify-center">
+                <div className="w-9 h-9 state-success-soft flex items-center justify-center">
                   <CalendarClock size={16} />
                 </div>
                 <div className="min-w-0">
@@ -341,7 +339,7 @@ export function AgendaPage() {
 
           <Card padded={false} className="overflow-hidden">
             <div className="px-5 py-4 border-b border-border-subtle">
-              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary">
+              <h2 className="text-[11px] font-medium uppercase tracking-wider text-text-secondary">
                 Minhas agendas
               </h2>
             </div>
@@ -349,20 +347,17 @@ export function AgendaPage() {
               <LayerToggle
                 label="Pessoal (Google)"
                 hint={connected ? undefined : 'Conecte sua conta Google'}
-                dotClass="bg-sky-500"
                 checked={layers.personal}
                 onChange={(v) => setLayers((l) => ({ ...l, personal: v }))}
               />
               <LayerToggle
                 label="Escritório (Google)"
-                dotClass="bg-emerald-500"
                 checked={layers.office}
                 onChange={(v) => setLayers((l) => ({ ...l, office: v }))}
               />
               <LayerToggle
                 label="Empresa (comum)"
                 hint="Férias e feriados"
-                dotClass="bg-violet-500"
                 checked={layers.company}
                 onChange={(v) => setLayers((l) => ({ ...l, company: v }))}
               />
@@ -371,15 +366,16 @@ export function AgendaPage() {
 
           <Card padded={false} className="overflow-hidden">
             <div className="px-5 py-4 border-b border-border-subtle">
-              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary">Legenda</h2>
+              <h2 className="text-[11px] font-medium uppercase tracking-wider text-text-secondary">Legenda</h2>
             </div>
             <div className="p-4 space-y-2.5 text-sm">
-              <LegendItem colorClass="bg-[color:var(--color-accent)]" label="Presença (chego / não vou)" />
-              <LegendItem colorClass="bg-violet-500" label="Férias" />
-              <LegendItem colorClass="bg-rose-500" label="Feriado / aviso" />
+              <LegendItem colorClass="bg-green" label="Férias aprovadas" />
+              <LegendItem colorClass="bg-orange" label="Férias pendentes" />
+              <LegendItem colorClass="bg-brown" label="Feriado" />
               <div className="pt-2 mt-1 border-t border-border-subtle space-y-2.5">
-                <LegendItem colorClass="bg-sky-500" label="Agenda pessoal (Google)" />
-                <LegendItem colorClass="bg-emerald-500" label="Agenda do escritório" />
+                <LegendItem Icon={Video} label="Compromisso pessoal (Google)" />
+                <LegendItem Icon={Building2} label="Compromisso do escritório" />
+                <LegendItem Icon={CalendarClock} label="Presença (chego / não vou)" />
               </div>
             </div>
           </Card>
@@ -418,11 +414,11 @@ export function AgendaPage() {
                     }`}
                   >
                     <div className="mb-2 flex flex-col items-center gap-0.5">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
+                      <span className="text-[10px] font-medium uppercase tracking-wider text-text-secondary">
                         {WEEKDAYS[day.date.getDay()]}
                       </span>
                       <span
-                        className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${
+                        className={`flex h-7 w-7 items-center justify-center text-xs font-medium ${
                           isToday ? 'bg-[color:var(--color-accent)] text-white' : 'text-text-primary'
                         }`}
                       >
@@ -431,7 +427,7 @@ export function AgendaPage() {
                     </div>
                     <div className="space-y-1">
                       {loading ? (
-                        <div className="h-5 rounded bg-surface-alt animate-pulse" />
+                        <div className="h-5 bg-surface-alt animate-pulse" />
                       ) : items.length === 0 ? (
                         <p className="text-center text-[11px] text-text-secondary/70 pt-2">—</p>
                       ) : (
@@ -448,7 +444,7 @@ export function AgendaPage() {
                 {WEEKDAYS.map((weekday) => (
                   <div
                     key={weekday}
-                    className="px-2 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-text-secondary"
+                    className="px-2 py-3 text-center text-[11px] font-medium uppercase tracking-wider text-text-secondary"
                   >
                     {weekday}
                   </div>
@@ -467,7 +463,7 @@ export function AgendaPage() {
                     >
                       <div className="mb-2 flex items-center justify-between gap-1">
                         <span
-                          className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${
+                          className={`flex h-7 w-7 items-center justify-center text-xs font-medium ${
                             isToday
                               ? 'bg-[color:var(--color-accent)] text-white'
                               : day.inMonth
@@ -480,7 +476,7 @@ export function AgendaPage() {
                       </div>
                       <div className="space-y-1">
                         {loading ? (
-                          <div className="h-5 rounded bg-surface-alt animate-pulse" />
+                          <div className="h-5 bg-surface-alt animate-pulse" />
                         ) : (
                           <>
                             {items.slice(0, 4).map((item) => (
@@ -512,7 +508,7 @@ export function AgendaPage() {
         >
           <div className="space-y-3 text-sm">
             {selectedEvent.source === 'office' && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 text-emerald-700 px-2.5 py-1 text-xs font-medium">
+              <span className="inline-flex items-center gap-1.5 bg-surface-alt text-text-secondary px-2.5 py-1 text-xs font-medium">
                 <Building2 size={12} /> Agenda do escritório
               </span>
             )}
@@ -548,16 +544,17 @@ export function AgendaPage() {
   )
 }
 
-function LayerToggle({ label, hint, dotClass, checked, onChange }) {
+// Camada = origem do calendário, não tipo. Filtra a origem; não tem cor
+// própria (a cor é reservada para o tipo, ver TYPE_STYLE/Legenda).
+function LayerToggle({ label, hint, checked, onChange }) {
   return (
-    <label className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-surface-alt cursor-pointer transition-colors">
+    <label className="flex items-center gap-2.5 px-2 py-1.5 hover:bg-surface-alt cursor-pointer transition-colors">
       <input
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="h-4 w-4 rounded border-border-subtle accent-[color:var(--color-accent)]"
+        className="h-4 w-4 border-border-subtle accent-[color:var(--color-accent)]"
       />
-      <span className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${dotClass}`} />
       <span className="min-w-0">
         <span className="block text-sm text-text-primary truncate">{label}</span>
         {hint && <span className="block text-[11px] text-text-secondary truncate">{hint}</span>}
@@ -566,23 +563,24 @@ function LayerToggle({ label, hint, dotClass, checked, onChange }) {
   )
 }
 
-function LegendItem({ colorClass, label, muted }) {
+// Item de legenda: `colorClass` para tipos com cor própria (férias, feriado);
+// `Icon` para os tipos neutros, distinguidos só pelo ícone (já usado no chip).
+function LegendItem({ colorClass, label, Icon }) {
   return (
     <div className="flex items-center gap-2.5">
-      <span className={`h-3 w-3 rounded-sm flex-shrink-0 ${colorClass}`} />
-      <span className="text-text-primary">{label}</span>
-      {muted && (
-        <span className="ml-auto text-[10px] uppercase tracking-wide text-text-secondary bg-surface-alt rounded px-1.5 py-0.5">
-          {muted}
-        </span>
+      {Icon ? (
+        <Icon size={13} className="flex-shrink-0 text-text-secondary" />
+      ) : (
+        <span className={`h-3 w-3 flex-shrink-0 ${colorClass}`} />
       )}
+      <span className="text-text-primary">{label}</span>
     </div>
   )
 }
 
 function EventChip({ item, onOpen }) {
   const Icon = ICON_BY_KIND[item.kind] || CalendarClock
-  const style = LAYER_STYLE[item.kind] || LAYER_STYLE.google
+  const style = TYPE_STYLE[item.kind] || TYPE_STYLE.google
   const clickable =
     (item.raw && (item.kind === 'google' || item.kind === 'office')) ||
     (item.kind === 'presence' && item.mine)
@@ -601,7 +599,7 @@ function EventChip({ item, onOpen }) {
         type="button"
         onClick={() => onOpen(item)}
         title={item.kind === 'presence' ? 'Editar/remover minha presença' : item.title}
-        className={`flex w-full items-center gap-1 truncate rounded px-2 py-1 text-left text-[11px] font-medium transition-opacity hover:opacity-80 ${style}`}
+        className={`flex w-full items-center gap-1 truncate px-2 py-1 text-left text-[11px] font-medium transition-opacity hover:opacity-80 ${style}`}
       >
         {content}
       </button>
@@ -610,7 +608,7 @@ function EventChip({ item, onOpen }) {
   return (
     <div
       title={item.title}
-      className={`flex w-full items-center gap-1 truncate rounded px-2 py-1 text-[11px] font-medium ${style}`}
+      className={`flex w-full items-center gap-1 truncate px-2 py-1 text-[11px] font-medium ${style}`}
     >
       {content}
     </div>
@@ -693,18 +691,18 @@ function PresenceModal({ open, initial, onClose, onSaved }) {
     >
       <div className="space-y-4">
         {error && (
-          <div className="rounded-lg bg-rose-500/10 text-rose-600 p-3 text-xs">{error}</div>
+          <div className="state-danger-soft p-3 text-xs">{error}</div>
         )}
 
         <DateField label="Data" value={date} onChange={(e) => setDate(e.target.value)} />
 
         <div>
           <label className="block text-xs font-medium text-text-secondary mb-1.5">Vou ao escritório?</label>
-          <div className="inline-flex w-full rounded-lg border border-border-subtle bg-surface p-0.5">
+          <div className="inline-flex w-full border border-border-subtle bg-surface p-0.5">
             <button
               type="button"
               onClick={() => setStatus('coming')}
-              className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+              className={`flex-1 px-3 py-1.5 text-sm font-medium transition-colors ${
                 status === 'coming' ? 'bg-[color:var(--color-accent)] text-white' : 'text-text-secondary hover:text-text-primary'
               }`}
             >
@@ -713,7 +711,7 @@ function PresenceModal({ open, initial, onClose, onSaved }) {
             <button
               type="button"
               onClick={() => setStatus('absent')}
-              className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+              className={`flex-1 px-3 py-1.5 text-sm font-medium transition-colors ${
                 status === 'absent' ? 'bg-[color:var(--color-accent)] text-white' : 'text-text-secondary hover:text-text-primary'
               }`}
             >

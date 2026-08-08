@@ -30,14 +30,14 @@ export function ActivityPopover({ taskId }) {
       <button
         type="button"
         onClick={toggle}
-        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs text-text-secondary hover:text-text-primary border border-border-subtle bg-surface-alt hover:bg-surface"
+        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs text-text-secondary hover:text-text-primary border border-border-subtle bg-surface-alt hover:bg-surface"
       >
         <History size={12} />
         Atividade
       </button>
 
       {open && (
-        <div className="absolute z-30 right-0 top-full mt-1 w-72 max-h-72 overflow-y-auto bg-surface border border-border-subtle rounded-lg shadow-xl">
+        <div className="absolute z-30 right-0 top-full mt-1 w-72 max-h-72 overflow-y-auto bg-surface border border-border-subtle shadow-xl">
           <div className="px-3 py-2 border-b border-border-subtle text-[11px] uppercase tracking-wider text-text-secondary">
             Histórico
           </div>

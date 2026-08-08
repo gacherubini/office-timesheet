@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
-import { Logo } from '../components/Logo'
+import assinatura from '../assets/studio-vivian-hor.png'
 
 export function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
@@ -28,11 +28,11 @@ export function ForgotPasswordPage() {
     <div className="min-h-screen flex items-center justify-center bg-bg text-text-primary px-4">
       <div className="w-full max-w-sm">
         <div className="flex items-center justify-center gap-2 mb-8">
-          <Logo size={32} />
-          <h1 className="text-2xl font-bold text-text-primary">Gestão VOID</h1>
+          <img src={assinatura} alt="Studio Vivian" className="h-4 w-auto" />
+          <h1 className="text-2xl font-medium text-text-primary">Gestão VOID</h1>
         </div>
 
-        <div className="bg-surface rounded-xl shadow-card border border-border-subtle p-6 space-y-4">
+        <div className="bg-surface border border-border-subtle p-6 space-y-4">
           {submitted ? (
             <div className="text-center space-y-3">
               <p className="text-sm text-text-primary">
@@ -45,14 +45,14 @@ export function ForgotPasswordPage() {
           ) : (
             <>
               <div>
-                <h2 className="text-base font-semibold text-text-primary">Esqueceu a senha?</h2>
+                <h2 className="text-base font-medium text-text-primary">Esqueceu a senha?</h2>
                 <p className="text-sm text-text-secondary mt-1">
                   Informe seu e-mail e enviaremos um link de redefinição.
                 </p>
               </div>
 
               {error && (
-                <div className="bg-rose-500/10 text-rose-600 text-sm rounded-lg p-3">{error}</div>
+                <div className="state-danger-soft text-sm p-3">{error}</div>
               )}
 
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -66,7 +66,7 @@ export function ForgotPasswordPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full form-control rounded-lg border px-3 py-2 text-sm outline-none transition-colors"
+                    className="w-full form-control border px-3 py-2 text-sm outline-none transition-colors"
                     placeholder="seu@email.com"
                   />
                 </div>
@@ -74,7 +74,7 @@ export function ForgotPasswordPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full text-white rounded-lg py-2 text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full text-white py-2 text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ background: 'var(--color-accent)' }}
                 >
                   {loading ? 'Enviando...' : 'Enviar link'}
