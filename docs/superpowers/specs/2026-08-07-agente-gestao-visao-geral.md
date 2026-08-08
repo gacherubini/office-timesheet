@@ -48,6 +48,7 @@ respondendo em português.
 | **Escrita** | Só com confirmação e preview do efeito | "Check antes de fazer" vira parte estrutural, não opcional |
 | **Contexto** | `dominio/` cacheado, **fatiado por papel** *(2026-08-08)* | Menos alucinação, ir direto ao ponto, gastar menos token. Ver §6 |
 | **Histórico** | Sessão server-side **em memória**, efêmera *(2026-08-08)* | Servidor dono do transcript (cliente não forja resultado de tool); funciona igual no WhatsApp; não força a decisão de retenção. Persistir "como o ChatGPT" fica para a Fase 2 |
+| **Tetos de gasto** | 3M tokens/usuário/dia + R$ 150/mês global, **em tabela** *(2026-08-08)* | Contra anomalia, não contra a média. Persistido, e não em memória como a sessão: contador que zera no restart não é teto |
 
 ### 2.1 Acesso por papel *(2026-08-08)*
 
@@ -343,10 +344,17 @@ coerente com a política de privacidade atual (identificação por `user_id`).
 
 ## 11. Custo (não-técnico)
 
-- **LLM:** ~R$ 30–100/mês na Fase 1 — **estimativa vencida (2026-08-08)**. Ela pressupunha
-  admin-only e baixo volume; com todos os papéis, o volume passa a acompanhar o tamanho do
-  time. O contexto cacheado continua valendo (agora um prefixo por papel, ver §6), mas
-  **falta definir um teto de gasto por usuário** — pendência no §13.
+- **LLM:** ~R$ 30–100/mês na Fase 1 — **estimativa confirmada com os números reais
+  (2026-08-08)**. Contexto: 10 funcionários, 2 a 5 usando de verdade. Com DeepSeek V4 Flash
+  e contexto cacheado, uma pergunta custa ~1 centavo de real; o cenário esperado dá **R$ 27**
+  e o pesado, **R$ 73**. *(Eu havia registrado que a estimativa caducara com o acesso por
+  papel; com os números na mão, ela se sustenta — o que multiplica custo é usuário pesado, e
+  esse número saiu de 1–2 para 2–5.)* Detalhe da conta no §19 do design.
+- **Tetos, ativos desde o lançamento:** 3M tokens por usuário/dia e orçamento global de
+  R$ 150/mês, com alerta em 60%. Eles não existem para controlar a conta acima — existem
+  para limitar a **anomalia** (laço que não converge, documento gigante colado, script no
+  endpoint). Ao estourar, **bloqueia e avisa; não degrada para um modelo mais barato** em
+  silêncio. Ver §19.1 do design.
 - **WhatsApp (Fase 3):** ~R$ 0 de mensagens (Evolution é self-hosted, sem tarifa da Meta);
   custo só do container onde a Evolution roda (baixo).
 - **Hospedagem:** incremental ~zero na Fase 1 (roda na API/Fly existente); na Fase 3, soma o
@@ -376,8 +384,10 @@ coerente com a política de privacidade atual (identificação por `user_id`).
 
 - [x] ~~Margem na Fase 1~~ — **decidido em 2026-08-08**: receita e margem saem da fase;
       entra custo por projeto (§4).
-- [ ] **Teto de gasto por usuário.** Precisa de um número; a estimativa do §11 (Custo)
-      caducou com o acesso por papel. **Última pendência.**
+- [x] ~~Teto de gasto por usuário~~ — **decidido em 2026-08-08**: 3M tokens/usuário/dia mais
+      orçamento global de R$ 150/mês, ativos desde o lançamento (§11 e §19.1 do design).
+
+**Nenhuma pendência bloqueia mais o plano de implementação da Fase 1.**
 - [x] ~~Opção de histórico de conversa~~ — **decidido em 2026-08-08**: memória efêmera
       (§11 do design).
 

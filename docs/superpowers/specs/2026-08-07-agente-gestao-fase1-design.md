@@ -63,7 +63,9 @@ Princípios que guiam o design:
   memória, efêmera, com o núcleo recebendo o histórico como parâmetro (§11).
 - **Conjunto de avaliação (eval set)** para medir alucinação/acerto de tool e escolher o
   modelo por A/B (§13).
-- **Guardas de execução** (limite de iterações, timeout, teto de tokens).
+- **Guardas de execução** (limite de iterações, timeout, teto de tokens por requisição).
+- **Tetos de gasto acumulados** *(2026-08-08)*: tokens por usuário/dia e orçamento global
+  mensal, com tabela de consumo (§19.1).
 - **Widget de chat no React** com streaming e UI de confirmação.
 
 ### Fora da Fase 1 (backlog)
@@ -411,8 +413,10 @@ apresentar dado falso como verdade.
    validado. SQL livre só para leitura, em role read-only + allowlist + limite + timeout.
 6. **Auditoria e reversibilidade.** Tudo logado (quem, o quê, antes/depois); ações
    reversíveis quando possível (soft delete/undo).
-7. **Guardas de execução.** Limite de iterações, timeout e teto de tokens — sem loop
-   infinito nem gasto sem controle.
+7. **Guardas de execução.** Limite de iterações, timeout e teto de tokens **por
+   requisição** — sem loop infinito. *(2026-08-08)* A esses somam-se os tetos
+   **acumulados** do §19.1: tokens por usuário/dia e orçamento global mensal, contabilizados
+   por chamada de API e persistidos em tabela, não em memória.
 8. **Injeção de prompt.** Conteúdo vindo de dados é tratado como não-confiável, nunca como
    instrução. **Mudança de 2026-08-08: a mitigação "admin-only reduz muito a superfície"
    caiu.** Com todos os papéis usando o agente, nome de projeto, título de task e
@@ -566,6 +570,13 @@ achismo.
 - **Sessão de conversa: nenhuma mudança de dados** *(2026-08-08)*. A decisão do §11 foi
   memória efêmera — sem tabela, sem migration, sem secret. Passa a existir só quando as
   conversas persistidas entrarem (§20).
+- **Tabela de consumo — esta precisa existir** *(2026-08-08, §19.1)*. `agent_usage` com
+  `user_id`, dia, tokens de entrada/saída/cache e custo, mais índice por `(user_id, dia)`.
+  **Contador de gasto não pode viver em memória como a sessão:** se zera no restart, o teto
+  vira ficção e deploy passa a ser a forma de burlar o limite. A assimetria é intencional —
+  perder uma conversa num deploy é irritação pequena; perder o teto é perder o controle.
+- **Novos secrets no Fly** para os tetos e preços: `AGENT_DAILY_TOKENS_PER_USER`,
+  `AGENT_MONTHLY_BUDGET_BRL`, `AGENT_PRICE_IN`, `AGENT_PRICE_OUT`, `AGENT_PRICE_CACHED`.
 - Novos secrets no Fly: `AGENT_API_KEY`, `AGENT_MODEL`, `AGENT_PROVIDER_BASE_URL`, etc.
 - Sem mudança nas tabelas de domínio existentes.
 
@@ -578,6 +589,10 @@ achismo.
 - Erros de LLM (rate limit, timeout, provedor fora) → mensagem clara ao usuário + retry
   com backoff; via OpenRouter, considerar fallback de modelo.
 - SQL inválido/negado → recusado com motivo, sem vazar detalhes internos.
+- **Teto estourado** *(2026-08-08, §19.1)* → mensagem clara dizendo **qual** teto e **quando
+  libera** ("seu limite diário; volta amanhã" ou "orçamento do mês do estúdio; fale com o
+  admin"), nunca um erro genérico. O teto global também notifica o admin. **Sem fallback
+  silencioso para modelo mais barato.**
 
 ---
 
@@ -605,18 +620,79 @@ achismo.
   último é o teste que protege a camada 1 do §9 contra transcript forjado.
 - Comportamento: casos do **eval set** (§13) — não inventar, pedir esclarecimento, admitir
   dado ausente.
+- **Tetos de gasto** *(2026-08-08, §19.1)*: o consumo é contabilizado **por chamada de
+  API**, inclusive quando o laço falha ou estoura o timeout no meio; o teto por usuário
+  bloqueia sem afetar os outros; o teto global bloqueia todo mundo e alerta; e o contador
+  **sobrevive a restart** — este último é o teste que impede o deploy de virar forma de
+  burlar o limite.
 - Auditoria: toda escrita gera registro.
 
 ---
 
 ## 19. Custo estimado (Fase 1)
 
-- ~~Admin-only, baixo volume, com arquivo de contexto cacheado: **faixa de R$ 30–100/mês**
-  de LLM.~~ **Estimativa vencida em 2026-08-08:** ela pressupunha admin-only. Com todos os
-  papéis, o volume passa a acompanhar o tamanho do time, e o cache passa a ser por papel
-  (§5) — quatro prefixos aquecendo em vez de um.
-- Hospedagem incremental ~zero (roda na API/Fly existente); isso não muda.
-- **Falta definir um teto de gasto por usuário** — pendência no §20.
+**Contexto real (2026-08-08):** 10 funcionários, dos quais **2 a 5 usam de verdade**.
+
+**Unidade de conta.** Uma pergunta não é uma chamada de API: o laço é agêntico — o modelo
+pede a tool, recebe o resultado, às vezes pede outra, e só então responde. São 2 a 4
+chamadas por pergunta, cada uma reenviando o contexto inteiro. É isso que domina o custo,
+não o tamanho da resposta.
+
+Com DeepSeek V4 Flash ($0.14/1M entrada, $0.28/1M saída, cache-hit $0.0028/1M) e dólar a
+R$ 5,50: prefixo cacheado de ~8k tokens (system prompt + fatia do `dominio/` + definições de
+tool), ~4k não-cacheados por chamada (histórico + resultado de tool) e ~300 de saída dão
+**~$0,002 por pergunta, cerca de 1 centavo de real**.
+
+| Cenário | Perguntas/mês | Custo |
+|---|---|---|
+| Leve — 5 pessoas, 5 perguntas/dia | ~550 | R$ 6 |
+| Esperado — 5 a 20/dia + 5 a 2/dia | ~2.400 | R$ 27 |
+| Pesado — 5 a 50/dia + 5 a 10/dia | ~6.600 | R$ 73 |
+| Pesado com contexto 4× maior | ~6.600 | R$ 290 |
+
+**Correção da nota anterior.** Em 2026-08-08 eu registrei que a estimativa original de
+R$ 30–100/mês tinha caducado com o acesso por papel. **Com os números reais, ela se
+sustenta.** O que multiplica custo é usuário *pesado*, e esse número saiu de 1–2 (admin-only)
+para 2–5. Os demais, perguntando de vez em quando, não movem o ponteiro.
+
+Hospedagem incremental ~zero (roda na API/Fly existente); isso não muda.
+
+### 19.1 Tetos de gasto *(decidido em 2026-08-08)*
+
+**O teto não existe para controlar essa conta** — R$ 27/mês não precisa de governança. Ele
+limita a **anomalia**: laço que não converge, alguém colando um documento gigante, script
+batendo no endpoint, ou um modelo novo que resolve chamar tool doze vezes. É seguro contra a
+cauda, não contra a média. Os guards da camada 7 do §9 (`AGENT_MAX_ITERATIONS`,
+`AGENT_MAX_TOKENS`, `AGENT_TIMEOUT_MS`) já cobrem uma requisição isolada; o que falta é o
+acumulado.
+
+**Decisão: os dois tetos ativos desde o lançamento.**
+
+1. **Por usuário, por dia, em tokens** — `AGENT_DAILY_TOKENS_PER_USER`, padrão **3.000.000**.
+   Equivale a ~80 perguntas/dia, folgado sobre o cenário pesado (50/dia): só dispara em
+   anomalia, nunca em uso normal. Tokens é a unidade certa porque a API devolve `usage` a
+   cada chamada; "número de perguntas" contaria o que é fácil, não o que gasta.
+2. **Global, por mês, em dinheiro** — `AGENT_MONTHLY_BUDGET_BRL`, padrão **R$ 150** (~2× o
+   cenário pesado). Alerta ao admin em 60%, corte em 100%.
+
+O teto por usuário é quem deve pegar a anomalia; o global é rede, e **deveria nunca
+disparar** — se disparar, o problema é o teto por usuário estar frouxo, não o global estar
+apertado. Isso importa porque o global derruba o agente para o time inteiro.
+
+**Ao estourar: bloquear e avisar — nunca degradar para um modelo mais barato.** Trocar de
+modelo em silêncio muda a qualidade da resposta sem ninguém saber. Num agente cuja premissa
+é "todo número vem de tool e é confiável" (§9, camada 1), degradar caladamente é pior que
+parar.
+
+**Contabilização.** O `usage` é registrado **por chamada de API**, não por pergunta
+concluída — senão um laço que estoura o timeout ou dá erro no meio não conta, que é
+exatamente o caso que o teto existe para pegar. A conversão tokens → dinheiro sai de preços
+configurados junto com o modelo (`AGENT_PRICE_IN`, `AGENT_PRICE_OUT`, `AGENT_PRICE_CACHED`),
+ou do custo que o provedor reportar, quando reportar.
+
+**Um teto só para todos os papéis**, não um por papel: os 2–5 usuários pesados são
+justamente de gestão, e um teto que só pega anomalia não precisa distinguir perfil. Se um
+dia precisar, os valores já são configuração.
 
 ---
 
@@ -626,7 +702,10 @@ achismo.
 
 - [x] ~~Margem na Fase 1~~ — **decidido em 2026-08-08**: receita e margem saem; entra
       `custo_por_projeto` (§8.1).
-- [ ] **Teto de gasto por usuário** (§19). Precisa de um número. **Última pendência.**
+- [x] ~~Teto de gasto por usuário~~ — **decidido em 2026-08-08**: 3M tokens/usuário/dia mais
+      orçamento global de R$ 150/mês, ativos desde o lançamento (§19.1).
+
+**Não há mais pendência bloqueando o plano de implementação.**
 - [x] ~~Opção de histórico de conversa~~ — **decidido em 2026-08-08**: memória efêmera
       (§11).
 - [ ] **Confirmar o recorte de `expenses` linha a linha**, mapeado até aqui só pelo guard
