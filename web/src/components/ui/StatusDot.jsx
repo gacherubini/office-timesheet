@@ -1,10 +1,11 @@
+// Sinal de estado pela paleta de estado do tema — não hex cravado.
 const STATUS_COLORS = {
-  online: '#16A34A',
-  running: '#16A34A',
-  active: '#16A34A',
-  paused: '#E8B004',
-  offline: '#94A0AE',
-  inactive: '#94A0AE',
+  online: 'var(--state-success)',
+  running: 'var(--state-success)',
+  active: 'var(--state-success)',
+  paused: 'var(--color-orange)',
+  offline: 'rgba(15, 15, 15, 0.35)',
+  inactive: 'rgba(15, 15, 15, 0.35)',
 }
 
 const STATUS_LABELS = {

@@ -73,9 +73,9 @@ export function AgendaCard() {
                   className="flex h-8 w-8 items-center justify-center flex-shrink-0"
                   style={{
                     background: holiday
-                      ? 'color-mix(in srgb, #E5484D 14%, transparent)'
+                      ? 'color-mix(in srgb, var(--color-brown) 14%, transparent)'
                       : 'color-mix(in srgb, var(--color-accent) 14%, transparent)',
-                    color: holiday ? '#E5484D' : 'var(--color-accent)',
+                    color: holiday ? 'var(--color-brown)' : 'var(--color-accent)',
                   }}
                 >
                   <Icon size={14} />
