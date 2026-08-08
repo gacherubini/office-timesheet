@@ -9,6 +9,13 @@
 > implementação. O design técnico da Fase 1 está no arquivo irmão
 > `2026-08-07-agente-gestao-fase1-design.md`.
 
+> **Mudança de 2026-08-08 — acesso por papel.** A decisão original era **admin-only**.
+> Passou a ser: **todos os papéis usam o agente**, e cada pessoa alcança por ele
+> exatamente o que já alcançaria navegando o site. O detalhamento está no §2.1; os
+> pontos afetados ao longo do documento estão marcados com a data. Nada disso foi
+> implementado ainda — a versão admin-only está preservada no histórico do git
+> (`a7d6de7`, `471fa7d`, `fb60b45`).
+
 ---
 
 ## 1. O que é o produto
@@ -30,16 +37,69 @@ respondendo em português.
 
 | Tema | Decisão | Motivo |
 |---|---|---|
-| **Usuários** | Só admin/gestão | Casos de maior valor (faturamento, equipe) e controle de acesso mais simples |
+| **Usuários** | ~~Só admin/gestão~~ → **todos os papéis, com escopo por papel** *(2026-08-08)* | Todo mundo acessa o agente; cada um alcança por ele exatamente o que já alcançaria pelo site. Ver §2.1 |
 | **Escopo** | Read **+** write | Além de responder, age: apontar, encerrar timer, criar task |
 | **Canal inicial** | Site primeiro | Já há JWT e SSE; valida o "cérebro" sem custo/risco de WhatsApp |
 | **WhatsApp (Fase 3)** | **Evolution API** (self-hosted, não-oficial), reusando o mesmo núcleo | Grátis e sob nosso controle; WhatsApp vira só um adaptador do agente do site |
-| **Abordagem de dados** | Híbrido: tools curadas + SQL de leitura restrito | Segurança das tools + flexibilidade do SQL para perguntas ad-hoc |
+| **Abordagem de dados** | Híbrido: tools curadas + SQL de leitura restrito **admin-only** *(2026-08-08)* | Segurança das tools + flexibilidade do SQL para perguntas ad-hoc. Allowlist de tabela não filtra linha nem coluna, então SQL livre não serve aos demais papéis |
 | **Modelo** | Agnóstico via OpenRouter, padrão **DeepSeek V4 Flash** | O mais barato; trocável por Kimi/Gemini em 1 linha; decisão final por A/B |
 | **Privacidade** | Sem restrição (prioriza custo) | Usuário optou pelo mais barato mesmo com hospedagem na China |
 | **Onde roda** | Dentro da API Express atual | Reusa DB, `permissions.js`, `jwt.js`, logger/Axiom; zero serviço novo |
 | **Escrita** | Só com confirmação e preview do efeito | "Check antes de fazer" vira parte estrutural, não opcional |
-| **Contexto** | Arquivo `dominio.md` cacheado | Menos alucinação, ir direto ao ponto, gastar menos token |
+| **Contexto** | `dominio/` cacheado, **fatiado por papel** *(2026-08-08)* | Menos alucinação, ir direto ao ponto, gastar menos token. Ver §6 |
+
+### 2.1 Acesso por papel *(2026-08-08)*
+
+**Invariante.** O agente alcança exatamente as linhas que a pessoa já alcançaria pelo
+site — nem mais, nem menos —, mas pode cruzá-las e agregá-las de formas que nenhuma tela
+oferece hoje. **Escrita segue a mesma regra:** se a rota já permite a ação para aquele
+papel, o agente pode propor, com a confirmação do §8.
+
+O que cada papel alcança hoje, conforme os guards das rotas:
+
+| | admin | estagiário adm. | gestor de projetos | colaborador |
+|---|---|---|---|---|
+| Relatórios, dashboard, folha, bônus, custo | sim | não | não | não |
+| Filas de aprovação (férias, despesa, apontamento) | sim | sim | não | não |
+| Lista de pessoas | sim, **com** salário | sim, **sem** salário | não | não |
+| Ao vivo (`/admin/live`) | sim | sim | não | não |
+| Criar/editar projeto e templates | sim | não | sim | não |
+| Projetos, tasks, clientes não-restritos | sim | sim | sim | sim |
+| Próprio apontamento, férias, despesa, custo | sim | sim | sim | sim |
+
+A matriz vem dos guards (`requireAdmin`, `requireApprover`, `requireOperationalAccess`,
+`requireProjectManagement`) e das rotas lidas nesta revisão. Cada célula é reconfirmada
+quando a tool correspondente for escrita; `expenses` foi mapeado pelo guard do endpoint,
+não linha a linha.
+
+**Como o escopo é aplicado — e onde está o risco.** Neste código o recorte não é por
+linha, é **por endpoint com omissão de coluna**. A forma canônica está em
+`src/routes/users.js:108`: o `GET /users` é `requireOperationalAccess`, então o estagiário
+administrativo entra no endpoint e recebe **as mesmas linhas** que o admin — o SELECT é
+que troca de lista de colunas conforme `canAccessMoney`, e aí somem `hourly_rate` e
+`fixed_salary`.
+
+Isso desloca o modo de falhar do agente. O risco não é permissão mal checada; é uma query
+escrita para a tool do admin e reusada por outro papel, entregando a coluna de dinheiro
+sem nenhum `if` errado no caminho. Silencioso, e nenhuma checagem dispara. A resposta
+técnica — um `scope.js` que devolve linhas **e** colunas, catálogo de tools filtrado por
+papel e teste de paridade — está nos §3.1, §8 e §18 do design da Fase 1.
+
+**Mapa das colunas de dinheiro** (levantado nesta revisão):
+
+| Coluna | Escreve | Lê |
+|---|---|---|
+| `users.hourly_rate`, `users.fixed_salary` | admin | o próprio dono (`/me`) e admin |
+| `time_entries.cost_snapshot` | o sistema, ao encerrar o apontamento | o próprio dono (`/me`) e admin |
+| `projects.sale_value` | **ninguém** (ver §4) | só admin, no `/admin/dashboard` |
+| `bonuses.amount` | admin | admin |
+| `expenses.amount` | quem cria a despesa | dono + fila de aprovação |
+
+**Consequência de produto — o agente do colaborador é fino.** Dashboard, relatórios,
+folha, custo de projeto e bônus são todos `requireAdmin` hoje; sob o invariante, a
+"inteligência de gestão" do §4 é admin por construção. Para o colaborador sobram o próprio
+trabalho e os dados abertos — e o valor dele está na **escrita**: apontar hora falando,
+encerrar timer, pedir férias. Vale calibrar a expectativa do produto por isso.
 
 ---
 
@@ -62,6 +122,10 @@ O cérebro do bot. Onde mora o risco e o valor. Detalhe técnico no arquivo de d
 
 ### Fase 2 — Automação e integrações
 
+> **Nota de 2026-08-08:** o acesso por papel se propaga para cá. As Fases 2 e 3 precisam
+> decidir, cada uma no seu spec, **quais papéis** podem agendar rotinas e **quais** ganham o
+> canal WhatsApp. Nada disso é decidido agora; fica registrado para não passar batido.
+
 - **Tarefas agendadas configuráveis pelo ADM**: o admin conversa com o bot ("toda terça,
   me traz X") e o próprio bot cria a rotina. **Tensão importante:** no disparo não há
   ninguém para confirmar → tarefa agendada só faz coisa segura sozinha (relatório, alerta,
@@ -83,7 +147,7 @@ O cérebro do bot. Onde mora o risco e o valor. Detalhe técnico no arquivo de d
   pendente — optamos pelo caminho **não-oficial** (grátis, self-hosted, sob nosso controle)
   em vez da API oficial da Meta.
 - **Fluxo:** mensagem recebida no WhatsApp → Evolution dispara um **webhook** para a nossa
-  API → a API identifica o admin pelo número → chama o **mesmo núcleo do agente** → a resposta
+  API → a API identifica a pessoa pelo número → chama o **mesmo núcleo do agente** → a resposta
   volta pelo endpoint de envio da Evolution. O WhatsApp "chama o modelo diretamente" pelo
   mesmo caminho que o site.
 - **Confirmação de escrita:** sem botão como no site, vira resposta (ex.: "responda *SIM*
@@ -103,8 +167,18 @@ O cérebro do bot. Onde mora o risco e o valor. Detalhe técnico no arquivo de d
 
 Aproveitando dados que já existem no banco. Marcado por fase.
 
+> **Nota de 2026-08-08:** com o acesso por papel, tudo que hoje vive atrás de
+> `requireAdmin` — esta seção de inteligência de gestão, relatórios, folha, bônus —
+> permanece **admin-only** por força do invariante do §2.1. Os demais papéis usam o
+> subconjunto que já lhes é visível.
+
 **Inteligência de gestão** *(Fase 1)*
 - Margem/lucratividade por projeto (valor − custo de horas − despesas).
+  **Bloqueado por dado ausente (2026-08-08):** `projects.sale_value` nasce `0` no INSERT
+  (`src/routes/projects.js:104`, literal no `VALUES`) e **nenhuma rota atualiza** — o
+  único leitor é o `/admin/dashboard`, cujo `potentialRevenue` é portanto sempre zero.
+  Sem valor de venda, a tool devolveria margem negativa para todo projeto, com aparência
+  de número real. Não é problema de permissão, é pré-requisito de dado. Pendência no §13.
 - Projeção de estouro de orçamento de horas.
 - Simulação de performance (tabela `performance_simulations`).
 - Provisão de bônus *(Fase 2)*.
@@ -178,6 +252,13 @@ glossário e allowlist. Reduz alucinação, guia o bot direto ao ponto e economi
 - **O que NÃO tocar.**
 - Injetado no **prefixo cacheado** do prompt. Mantido em sincronia com as migrations.
 
+**Mudança de 2026-08-08 — fatiado por papel.** O arquivo único vira um diretório
+`dominio/`: um núcleo comum mais uma fatia por papel. O agente do colaborador não recebe
+a descrição das tabelas e colunas que ele não alcança. Não é só higiene de segurança — é
+o que evita o modelo tentar uma consulta impossível, falhar e responder "não posso",
+queimando token e revelando o mapa. São quatro prefixos cacheados em vez de um; o
+cache-hit continua valendo, agora por papel.
+
 ---
 
 ## 7. Segurança / anti-alucinação — as camadas
@@ -188,14 +269,20 @@ mesmo que ele erre, não há como causar dano nem apresentar dado falso como ver
 1. **Modelo nunca é a fonte da verdade.** Todo número vem de tool/query; ele só repassa.
 2. **Propor × executar.** Escrita só é proposta; código determinístico valida e executa.
 3. **Confirmação com preview real.** Mostra exatamente o que muda antes de executar.
-4. **Permissão na execução.** Tools rodam sob o RBAC do admin (`permissions.js`); o modelo
-   não tem credencial própria.
+4. **Permissão na execução.** Tools rodam sob o RBAC **de quem perguntou**
+   (`permissions.js`) — *(2026-08-08: era "do admin")*; o modelo não tem credencial
+   própria. Cada tool recebe o `profile` e monta a query pelo `scope.js`, que devolve
+   linhas **e** colunas permitidas.
 5. **Escrita tipada, leitura SQL confinada.** Cada escrita é função específica com schema
    validado; SQL livre só para leitura, em role read-only + allowlist + limite + timeout.
 6. **Auditoria e reversibilidade.** Tudo logado (quem, o quê, antes/depois) no Axiom.
 7. **Guardas de execução.** Limite de iterações, timeout e teto de tokens.
 8. **Injeção de prompt.** Conteúdo de dados é tratado como não-confiável, nunca como
-   instrução. Admin-only reduz muito a superfície.
+   instrução. **Mudança de 2026-08-08: a mitigação "admin-only reduz muito a superfície"
+   caiu.** Com todos os papéis usando o agente, nome de projeto, título de task e
+   comentário — texto que qualquer pessoa digita — passam a chegar ao contexto do agente
+   de outra pessoa. Sobra só a separação dado × instrução, que agora precisa de caso
+   próprio no eval set.
 
 O "check antes de fazer" que o usuário pediu é exatamente a camada 3 — obrigatória, não
 opcional.
@@ -239,7 +326,10 @@ coerente com a política de privacidade atual (identificação por `user_id`).
 
 ## 11. Custo (não-técnico)
 
-- **LLM:** ~R$ 30–100/mês na Fase 1 (admin-only, baixo volume, contexto cacheado).
+- **LLM:** ~R$ 30–100/mês na Fase 1 — **estimativa vencida (2026-08-08)**. Ela pressupunha
+  admin-only e baixo volume; com todos os papéis, o volume passa a acompanhar o tamanho do
+  time. O contexto cacheado continua valendo (agora um prefixo por papel, ver §6), mas
+  **falta definir um teto de gasto por usuário** — pendência no §13.
 - **WhatsApp (Fase 3):** ~R$ 0 de mensagens (Evolution é self-hosted, sem tarifa da Meta);
   custo só do container onde a Evolution roda (baixo).
 - **Hospedagem:** incremental ~zero na Fase 1 (roda na API/Fly existente); na Fase 3, soma o
@@ -265,10 +355,23 @@ coerente com a política de privacidade atual (identificação por `user_id`).
 
 ## 13. O que falta validar / próximos passos
 
-- [ ] Validar este documento mestre (é o objetivo desta rodada).
-- [ ] **Decidir a opção de histórico de conversa** (§11 do design — A/B/C).
+**Decisões pendentes** *(as três primeiras bloqueiam o plano da Fase 1)*
+
+- [ ] **Margem na Fase 1.** `projects.sale_value` é campo morto (ver §4). Ou entra uma
+      rota/tela para definir o valor de venda do projeto, ou a tool `margem_por_projeto`
+      sai da Fase 1. Não dá para entregá-la como está.
+- [ ] **Teto de gasto por usuário.** Precisa de um número; a estimativa do §11 caducou com
+      o acesso por papel.
+- [ ] **Opção de histórico de conversa** (§11 do design — A/B/C). Pendente desde a
+      primeira rodada.
+
+**Próximos passos**
+
+- [x] Validar este documento mestre.
+- [x] Revisar para acesso por papel (2026-08-08).
 - [ ] Aprovar o design técnico da Fase 1 (`...-fase1-design.md`).
 - [ ] Gerar o **plano de implementação da Fase 1** (skill writing-plans).
 - [ ] Fases 2 e 3 ganham spec + plano próprios quando chegarmos nelas (evitar planejar
       cedo demais — dependem do aprendizado do núcleo).
-- [ ] Commit dos documentos quando você autorizar (ainda não commitado).
+- [ ] Confirmar linha a linha o recorte de `expenses`, mapeado só pelo guard do endpoint
+      (§2.1), quando a tool correspondente for escrita.
