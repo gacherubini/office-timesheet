@@ -45,8 +45,9 @@ Princípios que guiam o design:
 ### Dentro da Fase 1
 
 - Serviço de agente dentro da API Express existente (`src/`).
-- Cliente de LLM agnóstico (OpenAI-compatible via OpenRouter), padrão **DeepSeek V4 Flash**,
-  trocável por Kimi/Gemini em uma linha de config.
+- Cliente de LLM agnóstico (OpenAI-compatible via OpenRouter), padrão **DeepSeek V4 Pro**
+  *(2026-08-08; era o Flash)*, trocável por Kimi/Gemini em uma linha de config, com override
+  de modelo por requisição previsto e **roteamento fora da fase** (§4.1).
 - **Arquivo de contexto de domínio** (schema anotado + glossário + allowlist), cacheado no
   prompt (ver §5).
 - **System prompt / regras de comportamento** (nunca inventar, confirmar escrita, pedir
@@ -64,17 +65,17 @@ Princípios que guiam o design:
 - **Conjunto de avaliação (eval set)** para medir alucinação/acerto de tool e escolher o
   modelo por A/B (§13).
 - **Guardas de execução** (limite de iterações, timeout, teto de tokens por requisição).
-- **Tetos de gasto acumulados** *(2026-08-08)*: tokens por usuário/dia e orçamento global
-  mensal, com tabela de consumo (§19.1).
+- **Consumo observável** *(2026-08-08)*: `usage` na linha de log, alertas no Axiom, sem
+  bloqueio e sem tabela (§19.1).
 - **Widget de chat no React** com streaming e UI de confirmação.
 
 ### Fora da Fase 1 (backlog)
 
 - **Deixado para depois (decidir na fase certa):** política de log e retenção do conteúdo
   das conversas (dados sensíveis que passam pelo LLM / LGPD); autenticação do canal WhatsApp
-  (allowlist de números); observabilidade específica do agente + teto de gasto por dia;
-  feature flag / rollout gradual; teste que falha se o `dominio.md` citar tabela/coluna
-  inexistente.
+  (allowlist de números); feature flag / rollout gradual; teste que falha se o `dominio/`
+  citar tabela/coluna inexistente. *(Observabilidade do agente e teto de gasto saíram desta
+  lista em 2026-08-08 — resolvidos no §19.1.)*
 - **Fase 2:** tarefas agendadas configuráveis pelo ADM (com fila de aprovação para
   escritas), Google Calendar, relatórios em PDF (Tigris), alertas proativos, provisão de
   bônus, leitura de briefings em PDF, memória de preferências, exportações.
@@ -174,14 +175,50 @@ do `routes/agent.js` — o objetivo "WhatsApp ser a mesma coisa que o site" depe
 - Configuração por ambiente:
   - `AGENT_PROVIDER_BASE_URL` (padrão: OpenRouter)
   - `AGENT_API_KEY`
-  - `AGENT_MODEL` (padrão: `deepseek/deepseek-v4-flash`)
+  - `AGENT_MODEL` — **padrão `deepseek/deepseek-v4-pro`** *(2026-08-08; era o Flash)*
   - `AGENT_MAX_ITERATIONS`, `AGENT_MAX_TOKENS`, `AGENT_TIMEOUT_MS`
-- Trocar de modelo (Kimi K2.6, Gemini 3 Flash-Lite, etc.) = mudar `AGENT_MODEL`. Decisão
-  final adiada para fase de A/B (ver §13); sem restrição de privacidade (usuário optou por
-  custo).
+- Trocar de modelo (Kimi K2.6, Gemini 3 Flash-Lite, etc.) = mudar `AGENT_MODEL`. Sem
+  restrição de privacidade (usuário optou por custo).
+- **Override por requisição** *(2026-08-08)*: o cliente aceita um modelo por chamada, não só
+  o da config. É barato agora e é o que permite ligar roteamento depois sem tocar no núcleo.
+  **A política de roteamento não entra na Fase 1** — ver §4.1.
 - **Prompt caching:** manter prefixo estável (system prompt + arquivo de contexto +
   definições de tools) para aproveitar o desconto de cache-hit de cada provedor. É a
   principal alavanca de custo.
+
+### 4.1 Escolha do modelo e roteamento *(decidido em 2026-08-08)*
+
+**Decisão: DeepSeek V4 Pro como padrão, modelo único, sem roteamento na Fase 1.**
+
+A alternativa considerada foi usar Flash para perguntas simples e Pro para análise profunda.
+É viável e a arquitetura suporta, mas não entra agora, por três motivos:
+
+1. **A conta não justifica.** No volume real (§19), Flash dá R$ 27/mês e Pro dá R$ 82 —
+   **R$ 55 de diferença**. Nenhum esquema de roteamento se paga com isso: custa dias de
+   trabalho, vira fonte permanente de "por que a resposta de hoje ficou pior que a de
+   ontem", e dobra o eval set do §13, que passa a avaliar dois modelos **e** o roteador.
+2. **Cache é por modelo.** A economia do §5 depende de manter o prefixo (~8k tokens) quente.
+   Dois modelos são dois prefixos para aquecer, e com 2–5 usuários o volume já deixa o cache
+   esfriar entre perguntas. Dividir o tráfego derruba a taxa de acerto dos dois, e parte do
+   que se economiza roteando se perde em cache frio. Escalar **no meio do laço** é o pior
+   caso: o segundo modelo chega com cache frio e relê o prefixo inteiro, então a pergunta
+   escalada custa Flash **mais** Pro, não Pro.
+3. **É otimização antes de medir.** Sem dado de uso real não há como saber quais perguntas
+   desceriam de nível nem quanto isso custaria de cache frio.
+
+**O A/B do §13 inverte de objetivo.** Em vez de provar que o Pro é necessário, ele tenta
+provar que o **Flash é suficiente** para uma fatia identificável das perguntas. Se provar, o
+roteamento entra depois com dado na mão.
+
+**Se o roteamento entrar um dia, a forma honesta é o botão** — "resposta rápida" × "análise
+profunda" no widget — e não um classificador prévio. Classificador precisa entender a
+pergunta quase tão bem quanto quem vai respondê-la: erra para baixo e a resposta piora sem
+ninguém saber por quê, erra para cima e pagou-se Pro à toa, e ainda soma uma chamada e
+latência a **toda** pergunta, inclusive as simples. Quem pergunta costuma saber o que quer.
+
+**O argumento que sobreviveria** a favor do split não é custo, é **latência**: "encerra meu
+apontamento" quer resposta instantânea, "analisa a carga da equipe no trimestre" tolera dez
+segundos. Registrado no §20.
 
 ---
 
@@ -414,9 +451,9 @@ apresentar dado falso como verdade.
 6. **Auditoria e reversibilidade.** Tudo logado (quem, o quê, antes/depois); ações
    reversíveis quando possível (soft delete/undo).
 7. **Guardas de execução.** Limite de iterações, timeout e teto de tokens **por
-   requisição** — sem loop infinito. *(2026-08-08)* A esses somam-se os tetos
-   **acumulados** do §19.1: tokens por usuário/dia e orçamento global mensal, contabilizados
-   por chamada de API e persistidos em tabela, não em memória.
+   requisição** — sem loop infinito. *(2026-08-08)* No acumulado não há trava, e sim
+   **observabilidade e alerta** pelo Axiom (§19.1): esta camada impede o runaway; o gasto
+   agregado é observado, não bloqueado.
 8. **Injeção de prompt.** Conteúdo vindo de dados é tratado como não-confiável, nunca como
    instrução. **Mudança de 2026-08-08: a mitigação "admin-only reduz muito a superfície"
    caiu.** Com todos os papéis usando o agente, nome de projeto, título de task e
@@ -532,8 +569,15 @@ achismo.
   caso que cobre a falha que as camadas do §9 não pegam, porque a origem seria a tool.
 - Usos:
   1. Medir taxa de acerto de tool e de alucinação do modelo configurado.
-  2. **A/B** entre DeepSeek V4 Flash, Kimi K2.6 e Gemini 3 Flash-Lite para fixar o padrão.
-  3. Pegar **regressão** ao mudar system prompt, tools ou `dominio.md`.
+  2. **A/B com objetivo invertido** *(2026-08-08, ver §4.1)*: o padrão passou a ser o
+     DeepSeek V4 Pro, então o A/B não tenta provar que o Pro é necessário — tenta provar que
+     o **Flash é suficiente** para uma fatia identificável das perguntas. Só com essa fatia
+     medida faz sentido discutir roteamento.
+  3. **Chamadas por pergunta** *(2026-08-08)*, medido junto com o acerto de tool: modelo que
+     erra a escolha chama de novo e infla o laço, então **um modelo mais barato por token
+     pode sair mais caro por pergunta**. Sem esta métrica, a comparação de preço da tabela
+     do §19 é enganosa.
+  4. Pegar **regressão** ao mudar system prompt, tools ou `dominio/`.
 - Roda sob demanda (e, opcionalmente, no CI).
 
 ---
@@ -570,13 +614,12 @@ achismo.
 - **Sessão de conversa: nenhuma mudança de dados** *(2026-08-08)*. A decisão do §11 foi
   memória efêmera — sem tabela, sem migration, sem secret. Passa a existir só quando as
   conversas persistidas entrarem (§20).
-- **Tabela de consumo — esta precisa existir** *(2026-08-08, §19.1)*. `agent_usage` com
-  `user_id`, dia, tokens de entrada/saída/cache e custo, mais índice por `(user_id, dia)`.
-  **Contador de gasto não pode viver em memória como a sessão:** se zera no restart, o teto
-  vira ficção e deploy passa a ser a forma de burlar o limite. A assimetria é intencional —
-  perder uma conversa num deploy é irritação pequena; perder o teto é perder o controle.
-- **Novos secrets no Fly** para os tetos e preços: `AGENT_DAILY_TOKENS_PER_USER`,
-  `AGENT_MONTHLY_BUDGET_BRL`, `AGENT_PRICE_IN`, `AGENT_PRICE_OUT`, `AGENT_PRICE_CACHED`.
+- **Consumo: nenhuma tabela** *(2026-08-08, §19.1)*. A decisão foi medir pelo Axiom, que já
+  existe — três campos a mais na linha de log do agente (`tokens_in`, `tokens_out`, `custo`)
+  em vez de tabela, migration e contador. *(Uma tabela `agent_usage` chegou a ser
+  especificada aqui, quando a decisão era bloquear; caiu junto com o bloqueio.)*
+- **Novos secrets no Fly** para conversão de preço: `AGENT_PRICE_IN`, `AGENT_PRICE_OUT`,
+  `AGENT_PRICE_CACHED`.
 - Novos secrets no Fly: `AGENT_API_KEY`, `AGENT_MODEL`, `AGENT_PROVIDER_BASE_URL`, etc.
 - Sem mudança nas tabelas de domínio existentes.
 
@@ -589,10 +632,10 @@ achismo.
 - Erros de LLM (rate limit, timeout, provedor fora) → mensagem clara ao usuário + retry
   com backoff; via OpenRouter, considerar fallback de modelo.
 - SQL inválido/negado → recusado com motivo, sem vazar detalhes internos.
-- **Teto estourado** *(2026-08-08, §19.1)* → mensagem clara dizendo **qual** teto e **quando
-  libera** ("seu limite diário; volta amanhã" ou "orçamento do mês do estúdio; fale com o
-  admin"), nunca um erro genérico. O teto global também notifica o admin. **Sem fallback
-  silencioso para modelo mais barato.**
+- **Sem fallback silencioso para modelo mais barato** *(2026-08-08)*. Se o provedor do
+  modelo configurado falhar, a resposta é erro claro e retry — nunca um downgrade calado.
+  Trocar de modelo em silêncio muda a qualidade sem ninguém saber, e num agente cuja
+  premissa é "todo número vem de tool e é confiável" (§9, camada 1) isso é pior que parar.
 
 ---
 
@@ -620,11 +663,9 @@ achismo.
   último é o teste que protege a camada 1 do §9 contra transcript forjado.
 - Comportamento: casos do **eval set** (§13) — não inventar, pedir esclarecimento, admitir
   dado ausente.
-- **Tetos de gasto** *(2026-08-08, §19.1)*: o consumo é contabilizado **por chamada de
-  API**, inclusive quando o laço falha ou estoura o timeout no meio; o teto por usuário
-  bloqueia sem afetar os outros; o teto global bloqueia todo mundo e alerta; e o contador
-  **sobrevive a restart** — este último é o teste que impede o deploy de virar forma de
-  burlar o limite.
+- **Consumo** *(2026-08-08, §19.1)*: o `usage` entra na linha de log **por chamada de
+  API**, inclusive quando o laço falha ou estoura o timeout no meio — é justamente o caso
+  que interessa observar, e o que um contador só de pergunta concluída perderia.
 - Auditoria: toda escrita gera registro.
 
 ---
@@ -638,61 +679,84 @@ pede a tool, recebe o resultado, às vezes pede outra, e só então responde. S�
 chamadas por pergunta, cada uma reenviando o contexto inteiro. É isso que domina o custo,
 não o tamanho da resposta.
 
-Com DeepSeek V4 Flash ($0.14/1M entrada, $0.28/1M saída, cache-hit $0.0028/1M) e dólar a
-R$ 5,50: prefixo cacheado de ~8k tokens (system prompt + fatia do `dominio/` + definições de
-tool), ~4k não-cacheados por chamada (histórico + resultado de tool) e ~300 de saída dão
-**~$0,002 por pergunta, cerca de 1 centavo de real**.
+**Modelo de tokens usado nas contas:** prefixo cacheado de ~8k (system prompt + fatia do
+`dominio/` + definições de tool), ~4k não-cacheados por chamada (histórico + resultado de
+tool), ~300 de saída, 3 chamadas por pergunta. Dólar a R$ 5,50.
+
+**Com o DeepSeek V4 Pro, que é o padrão (§4.1)** — $0.435/1M entrada, $0.87/1M saída:
+**~R$ 0,034 por pergunta**.
 
 | Cenário | Perguntas/mês | Custo |
 |---|---|---|
-| Leve — 5 pessoas, 5 perguntas/dia | ~550 | R$ 6 |
-| Esperado — 5 a 20/dia + 5 a 2/dia | ~2.400 | R$ 27 |
-| Pesado — 5 a 50/dia + 5 a 10/dia | ~6.600 | R$ 73 |
-| Pesado com contexto 4× maior | ~6.600 | R$ 290 |
+| Leve — 5 pessoas, 5 perguntas/dia | ~550 | R$ 19 |
+| Esperado — 5 a 20/dia + 5 a 2/dia | ~2.400 | **R$ 82** |
+| Pesado — 5 a 50/dia + 5 a 10/dia | ~6.600 | R$ 226 |
+| Pesado com contexto 4× maior | ~6.600 | ~R$ 800 |
 
-**Correção da nota anterior.** Em 2026-08-08 eu registrei que a estimativa original de
+Para comparação, no cenário esperado, se o modelo mudar: Flash **R$ 27**, Gemini 3.1
+Flash-Lite R$ 77, **Pro R$ 82**, Gemini 3 Flash R$ 156, Kimi K2.6 R$ 230–500. Fator de 20×
+entre a ponta barata e a cara — é por isso que o alerta de custo do §19.1 é revisto quando o
+modelo muda, e o de tokens não.
+
+**Três pressupostos que podem estar errados**, e por isso os alertas do §19.1 nascem
+folgados:
+
+- **Os ~4k não-cacheados por chamada** dependem de quanto as tools devolvem. Uma tool que
+  retorna 50 linhas de apontamento passa disso com folga. Pode estar 2–3× baixo.
+- **As 3 chamadas por pergunta** variam com a competência do modelo em tool-calling. Modelo
+  que erra a escolha chama de novo e infla o laço — o que significa que **um modelo mais
+  barato por token pode sair mais caro por pergunta**. O §13 mede isso.
+- **O preço de cache-hit do Pro** foi estimado em ~$0.0087/1M, proporcional à razão de 1/50
+  observada no Flash. Não foi confirmado na tabela do provedor.
+
+**Correção da nota anterior.** Em 2026-08-08 registrou-se que a estimativa original de
 R$ 30–100/mês tinha caducado com o acesso por papel. **Com os números reais, ela se
-sustenta.** O que multiplica custo é usuário *pesado*, e esse número saiu de 1–2 (admin-only)
-para 2–5. Os demais, perguntando de vez em quando, não movem o ponteiro.
+sustenta** — o cenário esperado com o Pro dá R$ 82, dentro da faixa. O que multiplica custo é
+usuário *pesado*, e esse número saiu de 1–2 (admin-only) para 2–5; os demais, perguntando de
+vez em quando, não movem o ponteiro. O cenário pesado (R$ 226) sai da faixa, e é para ele
+que servem os alertas do §19.1.
 
 Hospedagem incremental ~zero (roda na API/Fly existente); isso não muda.
 
-### 19.1 Tetos de gasto *(decidido em 2026-08-08)*
+### 19.1 Controle de gasto — medir, não travar *(decidido em 2026-08-08)*
 
-**O teto não existe para controlar essa conta** — R$ 27/mês não precisa de governança. Ele
-limita a **anomalia**: laço que não converge, alguém colando um documento gigante, script
-batendo no endpoint, ou um modelo novo que resolve chamar tool doze vezes. É seguro contra a
-cauda, não contra a média. Os guards da camada 7 do §9 (`AGENT_MAX_ITERATIONS`,
-`AGENT_MAX_TOKENS`, `AGENT_TIMEOUT_MS`) já cobrem uma requisição isolada; o que falta é o
-acumulado.
+**Decisão: nenhum teto que bloqueie. Observabilidade e alerta, sobre a infra que já existe.**
 
-**Decisão: os dois tetos ativos desde o lançamento.**
+O caminho considerado antes era teto por usuário/dia mais orçamento global, com tabela de
+consumo e bloqueio. Foi descartado: seria construir tabela, migration, contador e teste para
+um limite deliberadamente folgado a ponto de nunca disparar em uso normal — máquina parada,
+para governar uma conta de R$ 82/mês. Some-se que **a observabilidade já existe**: o
+`logger.js` já emite uma linha JSON por request, o Axiom já ingere, e o README já documenta
+as queries APL. Acrescentar `tokens_in`, `tokens_out` e `custo` à linha do agente dá consumo
+por pessoa, por dia, com gráfico e alerta — **sem tabela, sem migration, sem bloquear
+ninguém**.
 
-1. **Por usuário, por dia, em tokens** — `AGENT_DAILY_TOKENS_PER_USER`, padrão **3.000.000**.
-   Equivale a ~80 perguntas/dia, folgado sobre o cenário pesado (50/dia): só dispara em
-   anomalia, nunca em uso normal. Tokens é a unidade certa porque a API devolve `usage` a
-   cada chamada; "número de perguntas" contaria o que é fácil, não o que gasta.
-2. **Global, por mês, em dinheiro** — `AGENT_MONTHLY_BUDGET_BRL`, padrão **R$ 150** (~2× o
-   cenário pesado). Alerta ao admin em 60%, corte em 100%.
+**Os alertas são dois, e de naturezas diferentes.**
 
-O teto por usuário é quem deve pegar a anomalia; o global é rede, e **deveria nunca
-disparar** — se disparar, o problema é o teto por usuário estar frouxo, não o global estar
-apertado. Isso importa porque o global derruba o agente para o time inteiro.
+1. **Anomalia, em tokens — independe de modelo**, então não precisa ser revisto quando o
+   `AGENT_MODEL` mudar. Um dia pesado de verdade dá ~9M tokens no time (5 pessoas × 50
+   perguntas × ~37k). Alertar em **20M/dia global** e **5M/dia por pessoa**, ambos 2–3× acima
+   do realista: só disparam em coisa errada — laço que não converge, script no endpoint,
+   documento gigante colado. **É este que faz o trabalho de segurança.**
+2. **Custo, em reais — depende do modelo.** Com o Pro (§4.1), o esperado é R$ 82/mês; alerta
+   em **R$ 160**, ~2×. Este valor é revisto sempre que o modelo mudar, e o §5 do documento
+   irmão mostra por quê: entre Flash e Kimi K2.6 há fator de 20×, então um número único em
+   reais está certo para um modelo e errado para os outros.
 
-**Ao estourar: bloquear e avisar — nunca degradar para um modelo mais barato.** Trocar de
-modelo em silêncio muda a qualidade da resposta sem ninguém saber. Num agente cuja premissa
-é "todo número vem de tool e é confiável" (§9, camada 1), degradar caladamente é pior que
-parar.
+**O que se aceita como risco.** Alerta não impede gasto. Se algo disparar num sábado, você
+descobre e corrige na segunda, tendo gasto talvez algumas dezenas de reais. É um risco
+proporcional: os guards da camada 7 do §9 (`AGENT_MAX_ITERATIONS`, `AGENT_MAX_TOKENS`,
+`AGENT_TIMEOUT_MS`) já impedem o loop infinito numa requisição isolada, então o pior caso
+realista é alguém usando muito, não um runaway.
+
+**Se um dia precisar travar de verdade**, o pré-requisito é estado persistente: contador em
+memória zera no restart, e aí deploy vira a forma de burlar o limite. Registrado no §20.
 
 **Contabilização.** O `usage` é registrado **por chamada de API**, não por pergunta
-concluída — senão um laço que estoura o timeout ou dá erro no meio não conta, que é
-exatamente o caso que o teto existe para pegar. A conversão tokens → dinheiro sai de preços
+concluída — senão o laço que estoura o timeout ou dá erro no meio não é contado, e é
+justamente o caso que interessa observar. A conversão tokens → dinheiro sai de preços
 configurados junto com o modelo (`AGENT_PRICE_IN`, `AGENT_PRICE_OUT`, `AGENT_PRICE_CACHED`),
 ou do custo que o provedor reportar, quando reportar.
-
-**Um teto só para todos os papéis**, não um por papel: os 2–5 usuários pesados são
-justamente de gestão, e um teto que só pega anomalia não precisa distinguir perfil. Se um
-dia precisar, os valores já são configuração.
 
 ---
 
@@ -702,8 +766,10 @@ dia precisar, os valores já são configuração.
 
 - [x] ~~Margem na Fase 1~~ — **decidido em 2026-08-08**: receita e margem saem; entra
       `custo_por_projeto` (§8.1).
-- [x] ~~Teto de gasto por usuário~~ — **decidido em 2026-08-08**: 3M tokens/usuário/dia mais
-      orçamento global de R$ 150/mês, ativos desde o lançamento (§19.1).
+- [x] ~~Teto de gasto por usuário~~ — **decidido em 2026-08-08**: sem trava. Consumo no log,
+      alertas no Axiom em 20M tokens/dia global, 5M/dia por pessoa e R$ 160/mês (§19.1).
+- [x] ~~Escolha do modelo~~ — **decidido em 2026-08-08**: DeepSeek V4 Pro, modelo único, com
+      override por requisição previsto e roteamento fora da Fase 1 (§4.1).
 
 **Não há mais pendência bloqueando o plano de implementação.**
 - [x] ~~Opção de histórico de conversa~~ — **decidido em 2026-08-08**: memória efêmera
@@ -714,9 +780,9 @@ dia precisar, os valores já são configuração.
 **Backlog propriamente dito**
 
 - **Deixado para depois (decidir na fase certa):** política de log e retenção do conteúdo
-  das conversas (LGPD); autenticação do WhatsApp (allowlist de números); observabilidade
-  específica do agente + teto de gasto por dia com alerta; teste automático que falha se o
-  `dominio/` citar tabela/coluna inexistente.
+  das conversas (LGPD); autenticação do WhatsApp (allowlist de números); teste automático
+  que falha se o `dominio/` citar tabela/coluna inexistente. *(Observabilidade do agente e
+  teto de gasto saíram desta lista em 2026-08-08 — resolvidos no §19.1.)*
 - **Feature flag / rollout gradual** — subiu de prioridade com o acesso por papel
   *(2026-08-08)*: liberar para todo o time de uma vez é o cenário em que um erro de escopo
   aparece para todo mundo ao mesmo tempo. Um rollout por papel (admin → gestão → time) é o
@@ -730,6 +796,15 @@ dia precisar, os valores já são configuração.
   configuração de rotina agendada e passa a valer a pena guardar.
 - **Sessão fora da memória do processo** (Postgres ou sticky), se a API escalar para mais de
   uma instância — mesma dívida que o `notificationsHub.js` já carrega, e a corrigir junto.
+- **Roteamento de modelo** *(2026-08-08, ver §4.1)* — Flash para perguntas simples, Pro para
+  análise profunda. **Só depois do A/B**, que precisa primeiro identificar qual fatia das
+  perguntas o Flash atende. A forma preferida é o **botão no widget** ("resposta rápida" ×
+  "análise profunda"), não um classificador prévio. O argumento que sustenta o item não é
+  custo — a diferença é R$ 55/mês — é **latência**. O override de modelo por requisição já
+  fica pronto na Fase 1 (§4), então ligar isso depois não toca no núcleo.
+- **Trava de gasto com estado persistente**, se um dia observar não bastar (§19.1) —
+  pré-requisito é contador que sobreviva a restart, senão deploy vira forma de burlar o
+  limite.
 - **Pré-requisitos de dado para receita e margem** *(2026-08-08, ver §8.1)* — escrita de
   `sale_value` sob `canAccessMoney`, `project_id` em `expense_requests`, e a decisão sobre
   salário fixo no custo. **São decisões de produto, não do agente:** com os dados no lugar,

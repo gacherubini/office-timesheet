@@ -42,13 +42,13 @@ respondendo em português.
 | **Canal inicial** | Site primeiro | Já há JWT e SSE; valida o "cérebro" sem custo/risco de WhatsApp |
 | **WhatsApp (Fase 3)** | **Evolution API** (self-hosted, não-oficial), reusando o mesmo núcleo | Grátis e sob nosso controle; WhatsApp vira só um adaptador do agente do site |
 | **Abordagem de dados** | Híbrido: tools curadas + SQL de leitura restrito **admin-only** *(2026-08-08)* | Segurança das tools + flexibilidade do SQL para perguntas ad-hoc. Allowlist de tabela não filtra linha nem coluna, então SQL livre não serve aos demais papéis |
-| **Modelo** | Agnóstico via OpenRouter, padrão **DeepSeek V4 Flash** | O mais barato; trocável por Kimi/Gemini em 1 linha; decisão final por A/B |
+| **Modelo** | Agnóstico via OpenRouter, padrão **DeepSeek V4 Pro** *(2026-08-08; era o Flash)* | Modelo único, sem roteamento. R$ 82/mês no esperado — a diferença para o Flash é R$ 55, que não paga a complexidade de rotear. O A/B inverte: tenta provar que o Flash basta para uma fatia. Ver §4.1 do design |
 | **Privacidade** | Sem restrição (prioriza custo) | Usuário optou pelo mais barato mesmo com hospedagem na China |
 | **Onde roda** | Dentro da API Express atual | Reusa DB, `permissions.js`, `jwt.js`, logger/Axiom; zero serviço novo |
 | **Escrita** | Só com confirmação e preview do efeito | "Check antes de fazer" vira parte estrutural, não opcional |
 | **Contexto** | `dominio/` cacheado, **fatiado por papel** *(2026-08-08)* | Menos alucinação, ir direto ao ponto, gastar menos token. Ver §6 |
 | **Histórico** | Sessão server-side **em memória**, efêmera *(2026-08-08)* | Servidor dono do transcript (cliente não forja resultado de tool); funciona igual no WhatsApp; não força a decisão de retenção. Persistir "como o ChatGPT" fica para a Fase 2 |
-| **Tetos de gasto** | 3M tokens/usuário/dia + R$ 150/mês global, **em tabela** *(2026-08-08)* | Contra anomalia, não contra a média. Persistido, e não em memória como a sessão: contador que zera no restart não é teto |
+| **Controle de gasto** | **Medir, não travar** *(2026-08-08)* | `usage` na linha de log + alertas no Axiom, que já existe. Sem tabela, sem bloqueio: era muita máquina para governar R$ 82/mês, e os guards por requisição já impedem runaway. Ver §19.1 do design |
 
 ### 2.1 Acesso por papel *(2026-08-08)*
 
@@ -247,8 +247,20 @@ qualidade das tools. Preços em **USD por 1M de tokens** (pesquisa de ago/2026).
 - DeepSeek/Kimi são hospedados na **China** (nota de LGPD registrada; usuário optou por
   custo). Gemini via Vertex teria a melhor governança, caso mude de ideia.
 
-**Decisão:** construir agnóstico (OpenRouter), começar com **DeepSeek V4 Flash**, decidir o
-final por A/B na fase de teste.
+**Decisão (2026-08-08):** construir agnóstico (OpenRouter) e adotar o **DeepSeek V4 Pro**
+como padrão, **modelo único**. No cenário esperado (2.400 perguntas/mês) isso dá R$ 82 contra
+R$ 27 do Flash, R$ 77 do Gemini 3.1 Flash-Lite, R$ 156 do Gemini 3 Flash e R$ 230–500 do
+Kimi K2.6 — fator de 20× entre as pontas.
+
+**Roteamento (Flash para o simples, Pro para o profundo) foi considerado e adiado.** Três
+razões: a diferença Flash↔Pro é R$ 55/mês, que não paga a complexidade; **o cache de prefixo
+é por modelo**, então dividir o tráfego esfria os dois — e escalar no meio do laço faz a
+pergunta custar Flash *mais* Pro, porque o segundo chega com cache frio e relê o prefixo; e é
+otimização antes de medir. O A/B do §13 inverte de objetivo: em vez de provar que o Pro é
+necessário, tenta provar que o **Flash basta** para uma fatia identificável. Se um dia
+entrar, a forma preferida é um **botão no widget** ("resposta rápida" × "análise profunda"),
+não um classificador — e o argumento real a favor é latência, não custo. Detalhe no §4.1 do
+design.
 
 Fontes: [DeepSeek Pricing](https://deepseek.ai/pricing) ·
 [Moonshot/Kimi Pricing](https://benchlm.ai/moonshot/api-pricing) ·
@@ -345,16 +357,18 @@ coerente com a política de privacidade atual (identificação por `user_id`).
 ## 11. Custo (não-técnico)
 
 - **LLM:** ~R$ 30–100/mês na Fase 1 — **estimativa confirmada com os números reais
-  (2026-08-08)**. Contexto: 10 funcionários, 2 a 5 usando de verdade. Com DeepSeek V4 Flash
-  e contexto cacheado, uma pergunta custa ~1 centavo de real; o cenário esperado dá **R$ 27**
-  e o pesado, **R$ 73**. *(Eu havia registrado que a estimativa caducara com o acesso por
-  papel; com os números na mão, ela se sustenta — o que multiplica custo é usuário pesado, e
-  esse número saiu de 1–2 para 2–5.)* Detalhe da conta no §19 do design.
-- **Tetos, ativos desde o lançamento:** 3M tokens por usuário/dia e orçamento global de
-  R$ 150/mês, com alerta em 60%. Eles não existem para controlar a conta acima — existem
-  para limitar a **anomalia** (laço que não converge, documento gigante colado, script no
-  endpoint). Ao estourar, **bloqueia e avisa; não degrada para um modelo mais barato** em
-  silêncio. Ver §19.1 do design.
+  (2026-08-08)**. Contexto: 10 funcionários, 2 a 5 usando de verdade. Com **DeepSeek V4
+  Pro** (o padrão) e contexto cacheado, uma pergunta custa ~R$ 0,034; o cenário esperado dá
+  **R$ 82** e o pesado, **R$ 226**. *(Registrou-se antes que a estimativa caducara com o
+  acesso por papel; com os números na mão, ela se sustenta — o que multiplica custo é usuário
+  pesado, e esse número saiu de 1–2 para 2–5.)* Detalhe da conta e comparação entre modelos
+  no §19 do design.
+- **Controle de gasto: medir, não travar.** O `usage` de cada chamada entra na linha de log e
+  o Axiom — que já está de pé, com queries APL documentadas no README — dá consumo por
+  pessoa e por dia. Alertas em **20M tokens/dia global**, **5M/dia por pessoa** (esses não
+  dependem do modelo) e **R$ 160/mês** (esse depende, e é revisto quando o modelo mudar).
+  Nada bloqueia ninguém: os guards por requisição já impedem runaway, e travar o acumulado
+  exigiria tabela e contador persistente para governar uma conta de R$ 82. Ver §19.1.
 - **WhatsApp (Fase 3):** ~R$ 0 de mensagens (Evolution é self-hosted, sem tarifa da Meta);
   custo só do container onde a Evolution roda (baixo).
 - **Hospedagem:** incremental ~zero na Fase 1 (roda na API/Fly existente); na Fase 3, soma o
@@ -374,18 +388,23 @@ coerente com a política de privacidade atual (identificação por `user_id`).
   mitigar com um **número dedicado** (nunca o principal do estúdio) e monitorar a conexão.
 - **Alucinação:** mitigada pela camada 1 (modelo nunca é fonte da verdade) + tools.
 - **Ação indevida:** mitigada pela confirmação obrigatória + RBAC na execução.
-- **Custo descontrolado:** mitigado pelos guardas (teto de tokens/iterações/timeout).
+- **Custo descontrolado:** mitigado pelos guardas por requisição (teto de
+  tokens/iterações/timeout), que impedem o runaway. No acumulado há **alerta, não trava**
+  *(2026-08-08, §19.1)* — risco aceito conscientemente: um disparo no fim de semana só é
+  visto na segunda, com algumas dezenas de reais gastas.
 
 ---
 
 ## 13. O que falta validar / próximos passos
 
-**Decisões pendentes** *(as três primeiras bloqueiam o plano da Fase 1)*
+**Decisões da rodada de 2026-08-08** — todas fechadas
 
 - [x] ~~Margem na Fase 1~~ — **decidido em 2026-08-08**: receita e margem saem da fase;
       entra custo por projeto (§4).
-- [x] ~~Teto de gasto por usuário~~ — **decidido em 2026-08-08**: 3M tokens/usuário/dia mais
-      orçamento global de R$ 150/mês, ativos desde o lançamento (§11 e §19.1 do design).
+- [x] ~~Teto de gasto por usuário~~ — **decidido em 2026-08-08**: sem trava; consumo no log
+      e alertas no Axiom (§11 e §19.1 do design).
+- [x] ~~Escolha do modelo~~ — **decidido em 2026-08-08**: DeepSeek V4 Pro, modelo único,
+      roteamento fora da Fase 1 (§5 e §4.1 do design).
 
 **Nenhuma pendência bloqueia mais o plano de implementação da Fase 1.**
 - [x] ~~Opção de histórico de conversa~~ — **decidido em 2026-08-08**: memória efêmera
