@@ -142,6 +142,11 @@ O cérebro do bot. Onde mora o risco e o valor. Detalhe técnico no arquivo de d
 - **Conversas persistidas, "como o ChatGPT"** *(2026-08-08)*: lista de conversas anteriores,
   retomar, renomear, apagar. Não é só trocar o `Map` da Fase 1 por tabela — é funcionalidade
   visível, e traz junto retenção, expurgo e exclusão pelo usuário.
+- **Receita e margem, se forem desejadas** *(2026-08-08)*: dependem de três decisões **de
+  produto, não do agente** — caminho de escrita para `sale_value` (sob `canAccessMoney`, não
+  sob gestão de projetos, senão o gestor escreve dinheiro que não lê), `project_id` em
+  `expense_requests` com política para despesa sem projeto, e se salário fixo entra no
+  custo. Com os dados no lugar, as tools entram sem tocar no núcleo.
 
 ### Fase 3 — Canal WhatsApp
 
@@ -179,12 +184,16 @@ Aproveitando dados que já existem no banco. Marcado por fase.
 > subconjunto que já lhes é visível.
 
 **Inteligência de gestão** *(Fase 1)*
-- Margem/lucratividade por projeto (valor − custo de horas − despesas).
-  **Bloqueado por dado ausente (2026-08-08):** `projects.sale_value` nasce `0` no INSERT
-  (`src/routes/projects.js:104`, literal no `VALUES`) e **nenhuma rota atualiza** — o
-  único leitor é o `/admin/dashboard`, cujo `potentialRevenue` é portanto sempre zero.
-  Sem valor de venda, a tool devolveria margem negativa para todo projeto, com aparência
-  de número real. Não é problema de permissão, é pré-requisito de dado. Pendência no §13.
+- ~~Margem/lucratividade por projeto (valor − custo de horas − despesas).~~ **Fora da
+  Fase 1 (decidido em 2026-08-08).** Dos três termos da fórmula, só um funciona: o custo de
+  horas. `projects.sale_value` é campo morto (nasce `0`, nenhum UPDATE existe) e
+  `expense_requests` não tem `project_id`, então despesa não é atribuível a projeto. Entra
+  no lugar **custo por projeto**, que é o termo íntegro. Detalhe e pré-requisitos no §8.1 do
+  design.
+- **Custo por projeto** *(entra no lugar da margem)* — soma de `cost_snapshot` por projeto.
+  Rotulado como **"custo dos horistas"**: quem tem salário fixo aponta hora com custo zero
+  (`users.js:80-81`), coisa que o próprio sistema já sinaliza como aviso em
+  `reports.js:235`.
 - Projeção de estouro de orçamento de horas.
 - Simulação de performance (tabela `performance_simulations`).
 - Provisão de bônus *(Fase 2)*.
@@ -252,7 +261,9 @@ Documento versionado que descreve o projeto para o agente — **fonte única** d
 glossário e allowlist. Reduz alucinação, guia o bot direto ao ponto e economiza token.
 
 - **Schema anotado**: tabelas/colunas/relações permitidas (só as da allowlist).
-- **Glossário de negócio**: "apontamento", "margem", "projeto no vermelho", "sobrecarga".
+- **Glossário de negócio**: "apontamento", "custo dos horistas", "estouro de orçamento de
+  horas", "sobrecarga". *(2026-08-08: "margem" e "projeto no vermelho" saíram — dependem de
+  receita, que não existe no banco. O glossário não define o que o agente não calcula.)*
 - **Enums explicados**: status de task, tipos, papéis.
 - **Joins canônicos / dicas de query** para perguntas comuns.
 - **O que NÃO tocar.**
@@ -363,11 +374,10 @@ coerente com a política de privacidade atual (identificação por `user_id`).
 
 **Decisões pendentes** *(as três primeiras bloqueiam o plano da Fase 1)*
 
-- [ ] **Margem na Fase 1.** `projects.sale_value` é campo morto (ver §4). Ou entra uma
-      rota/tela para definir o valor de venda do projeto, ou a tool `margem_por_projeto`
-      sai da Fase 1. Não dá para entregá-la como está.
+- [x] ~~Margem na Fase 1~~ — **decidido em 2026-08-08**: receita e margem saem da fase;
+      entra custo por projeto (§4).
 - [ ] **Teto de gasto por usuário.** Precisa de um número; a estimativa do §11 (Custo)
-      caducou com o acesso por papel.
+      caducou com o acesso por papel. **Última pendência.**
 - [x] ~~Opção de histórico de conversa~~ — **decidido em 2026-08-08**: memória efêmera
       (§11 do design).
 
