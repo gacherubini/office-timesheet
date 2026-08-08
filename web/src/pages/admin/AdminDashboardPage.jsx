@@ -62,7 +62,7 @@ function LiveNowStrip({ live }) {
   return (
     <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2 border border-border-subtle bg-surface px-5 py-2.5">
       <span className="flex items-center gap-2 text-[9px] uppercase tracking-[.2em] text-text-secondary">
-        <span className="h-1.5 w-1.5 rounded-full bg-orange" />
+        <span className="h-1.5 w-1.5 rounded-full bg-state-success" />
         Ao vivo · {online.length}
       </span>
       {online.length === 0 ? (
@@ -269,13 +269,17 @@ export function AdminDashboardPage() {
   }
 
   // Solicitações, despesas e férias são a mesma tarefa do gestor: decidir.
-  // Viram uma fila só, com etiqueta de tipo.
+  // Viram uma fila só, com etiqueta de tipo. `note`/`receiptUrl` carregam o
+  // que a decisão precisa (motivo, descrição, comprovante) — sem isso esta
+  // fila é a única tela de aprovação que um admin pleno alcança por clique.
   const pending = [
     ...requests.map((r) => ({
       key: `req-${r.id}`,
       type: 'Horas',
       who: r.profile?.name || 'Colaborador',
       detail: `${r.time_entry?.project?.name || '-'}, ${isoToDateKey(r.time_entry?.started_at)} — ${formatRange(r.time_entry?.started_at, r.time_entry?.ended_at)} passa a ${formatRange(r.requested_started_at, r.requested_ended_at)}`,
+      note: r.reason,
+      receiptUrl: null,
       busy: decidingId === r.id,
       onApprove: () => approveRequest(r.id),
       onReject: () => rejectRequest(r.id),
@@ -285,6 +289,8 @@ export function AdminDashboardPage() {
       type: 'Despesa',
       who: e.profile?.name || 'Colaborador',
       detail: `${e.title} — ${formatCurrency(e.amount)}`,
+      note: e.description,
+      receiptUrl: e.receipt_url,
       busy: decidingExpenseId === e.id,
       onApprove: () => approveExpense(e.id),
       onReject: () => rejectExpense(e.id),
@@ -294,6 +300,8 @@ export function AdminDashboardPage() {
       type: 'Férias',
       who: v.profile?.name || 'Colaborador',
       detail: `${formatDate(v.start_date)} → ${formatDate(v.end_date)}, ${formatDays(v.days_count)}`,
+      note: v.reason,
+      receiptUrl: null,
       busy: decidingVacationId === v.id,
       onApprove: () => approveVacation(v.id),
       onReject: () => rejectVacation(v.id),
@@ -476,6 +484,19 @@ export function AdminDashboardPage() {
                       {item.type} · {item.who}
                     </p>
                     <p className="mt-1.5 text-[12px] text-text-secondary">{item.detail}</p>
+                    {item.note && (
+                      <p className="mt-1 text-[12px] text-text-secondary line-clamp-2">{item.note}</p>
+                    )}
+                    {item.receiptUrl && (
+                      <a
+                        href={item.receiptUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-1 inline-block text-[12px] text-accent underline hover:opacity-80"
+                      >
+                        Abrir comprovante
+                      </a>
+                    )}
                     <div className="mt-2.5 flex gap-2">
                       <button
                         type="button"

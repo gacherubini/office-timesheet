@@ -737,7 +737,7 @@ export function PessoasPage() {
             <strong className="text-text-primary">{userToDelete?.name}</strong>
           </p>
         </div>
-        <div className="state-success-soft border border-border-subtle p-4 text-sm">
+        <div className="bg-surface-alt border border-border-subtle p-4 text-sm">
           <p className="font-medium text-text-primary mb-1">Os apontamentos serão preservados.</p>
           <p className="text-text-secondary">
             Você pode restaurar este colaborador a qualquer momento na aba{' '}

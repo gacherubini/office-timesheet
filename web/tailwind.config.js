@@ -32,7 +32,6 @@ export default {
         'text-secondary': withAlpha('--color-text-sec'),
         'border-subtle': withAlpha('--color-border'),
         accent: withAlpha('--color-accent'),
-        'accent-3': withAlpha('--color-accent-3'),
       },
       fontFamily: {
         sans: ['var(--font-sans)'],

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
-import { ChevronRight, Clock3, FolderKanban } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 import { BirthdayCalendar } from '../components/BirthdayCalendar'
 import { AgendaCard } from '../components/AgendaCard'
 import { MyTasksTimer } from '../components/MyTasksTimer'
@@ -22,7 +22,7 @@ function formatHM(minutes) {
   return `${h}h${String(m).padStart(2, '0')}`
 }
 
-function SectionCard({ icon: Icon, title, count, action, children }) {
+function SectionCard({ title, count, action, children }) {
   return (
     <Card padded={false} className="overflow-hidden">
       <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-border-subtle">
@@ -103,7 +103,7 @@ export function EmployeeDashboardPage() {
       <div className="flex flex-col lg:flex-row gap-5">
         <div className="flex-1 flex flex-col gap-5">
           {/* Registro de horas por projeto */}
-          <SectionCard icon={Clock3} title="Registro de horas por projeto">
+          <SectionCard title="Registro de horas por projeto">
             <div className="divide-y divide-border-subtle">
               {breakdown.length === 0 && !statsLoading ? (
                 <p className="text-sm text-text-secondary text-center py-8">Nenhum apontamento este mês.</p>
@@ -150,7 +150,6 @@ export function EmployeeDashboardPage() {
 
           {/* Projetos */}
           <SectionCard
-            icon={FolderKanban}
             title="Projetos"
             count={projects.length || null}
             action={

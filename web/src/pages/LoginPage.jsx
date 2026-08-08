@@ -31,10 +31,7 @@ export function LoginPage() {
   return (
     <div className="min-h-screen grid lg:grid-cols-2 bg-bg text-text-primary">
       {/* Painel do "vazio" — a assinatura da marca */}
-      <div
-        className="relative hidden lg:flex flex-col justify-between overflow-hidden p-12"
-        style={{ background: '#2E3D38', color: '#FFFFFF' }}
-      >
+      <div className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-green-dk p-12 text-white">
         <BrandLine x1={-5} y1={82} x2={105} y2={16} opacity={0.28} />
 
         <div className="relative z-10 flex items-center gap-3">
@@ -58,9 +55,10 @@ export function LoginPage() {
       {/* Formulário */}
       <div className="flex items-center justify-center p-6 sm:p-10">
         <div className="w-full max-w-sm">
-          <div className="lg:hidden flex items-center justify-center gap-2.5 mb-10">
+          <div className="lg:hidden flex items-center justify-center gap-3 mb-10">
             <img src={assinatura} alt="Studio Vivian" className="h-4 w-auto" />
-            <span className="text-xl font-medium">Gestão VOID</span>
+            <span className="h-4 w-px bg-border-subtle" />
+            <span className="text-[13px] font-light tracking-wide text-text-secondary">Gestão VOID</span>
           </div>
 
           <h1 className="font-display text-3xl leading-tight text-text-primary">

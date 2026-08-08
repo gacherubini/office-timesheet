@@ -215,10 +215,13 @@ export function ExpensesPage() {
         ))}
 
         <DateRange
+          size="sm"
           from={dateRange.from}
           to={dateRange.to}
           onFromChange={(value) => setDateRange((r) => ({ ...r, from: value }))}
           onToChange={(value) => setDateRange((r) => ({ ...r, to: value }))}
+          fromLabel=""
+          toLabel=""
         />
 
         <Button className="ml-auto h-8" onClick={openCreate}>

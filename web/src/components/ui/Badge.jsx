@@ -7,12 +7,14 @@ const TONES = {
   accent: '',
 }
 
-// `info` e `accent` usam cor de marca fora dos tokens -soft prontos: o mix
-// precisa ser feito em runtime (color-mix), porque o modificador de opacidade
-// do Tailwind não resolve alpha sobre var() em valor arbitrário.
+// `info` e `accent` usam cor de marca fora dos tokens -soft prontos. As
+// cores do tailwind.config.js já são funções (withAlpha) que resolvem
+// opacidade sobre var() via color-mix, mas só para classes bg-*/text-*
+// conhecidas do Tailwind em tempo de build; aqui o tom vem por prop em
+// runtime, então o mesmo color-mix é montado à mão em style.
 const TONE_STYLES = {
   info: {
-    backgroundColor: 'color-mix(in srgb, var(--color-brown) 14%, transparent)',
+    backgroundColor: 'color-mix(in srgb, var(--color-brown) 15%, transparent)',
     color: 'var(--color-brown)',
   },
   accent: {

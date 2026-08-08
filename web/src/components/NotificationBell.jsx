@@ -70,7 +70,7 @@ export function NotificationBell() {
         onClick={() => setOpen((o) => !o)}
         title="Notificações"
         aria-label="Notificações"
-        className="relative inline-flex h-8 w-8 items-center justify-center text-white/70 transition-colors hover:text-white"
+        className="group relative inline-flex h-8 w-8 items-center justify-center text-white/70 transition-colors hover:text-white"
       >
         <Bell size={18} className="relative transition-transform group-hover:rotate-[8deg]" strokeWidth={1.75} />
         {hasUnread && (

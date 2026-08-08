@@ -9,7 +9,7 @@ import { useClickOutside } from '../../hooks/useClickOutside'
 const STATUS_STYLES = {
   todo: 'bg-surface-alt text-text-secondary',
   in_progress: 'state-attention-soft',
-  in_review: 'bg-brown/12 text-brown',
+  in_review: 'bg-brown/15 text-brown',
   done: 'state-success-soft',
   abandoned: 'state-danger-soft',
 }

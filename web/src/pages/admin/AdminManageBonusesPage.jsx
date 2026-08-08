@@ -132,6 +132,7 @@ export function AdminManageBonusesPage() {
       <div className="mb-3 flex flex-wrap items-end gap-2">
         <Select
           className="w-56"
+          size="sm"
           label="Colaborador"
           value={filters.user_id}
           onChange={(e) => setFilters((prev) => ({ ...prev, user_id: e.target.value }))}
@@ -145,6 +146,7 @@ export function AdminManageBonusesPage() {
         </Select>
 
         <DateRange
+          size="sm"
           from={filters.start_date}
           to={filters.end_date}
           onFromChange={(value) => setFilters((prev) => ({ ...prev, start_date: value }))}

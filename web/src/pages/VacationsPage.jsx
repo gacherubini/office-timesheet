@@ -233,6 +233,7 @@ export function VacationsPage() {
         ))}
 
         <DateRange
+          size="sm"
           from={dateRange.from}
           to={dateRange.to}
           onFromChange={(value) => setDateRange((r) => ({ ...r, from: value }))}
