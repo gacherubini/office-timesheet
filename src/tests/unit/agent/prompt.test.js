@@ -33,4 +33,11 @@ describe('prompt — regras + domínio fatiado', () => {
     expect(p).toMatch(/tarefas? travadas?|in_review/i)
     expect(p).toMatch(/férias/i)
   })
+
+  it('domínio (todos) cita status do projeto, andamento e simulação de performance', () => {
+    const p = buildSystemPrompt({ role: 'employee' })
+    expect(p).toMatch(/status do projeto|retrato do projeto/i)
+    expect(p).toMatch(/andamento do projeto|o que mudou no projeto/i)
+    expect(p).toMatch(/simulação de performance|horas planejadas/i)
+  })
 })
