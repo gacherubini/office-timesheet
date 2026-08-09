@@ -60,3 +60,17 @@ describe('registry — tools de escrita do M4 por papel', () => {
     }
   })
 })
+
+describe('registry — consultar_dados é admin-only (M5)', () => {
+  it('admin recebe consultar_dados', () => {
+    const nomes = buildRegistry({ role: 'admin' }).definitions.map((d) => d.function.name)
+    expect(nomes).toContain('consultar_dados')
+  })
+
+  it('nenhum papel não-admin recebe consultar_dados', () => {
+    for (const role of ['employee', 'project_manager', 'administrative_intern']) {
+      const nomes = buildRegistry({ role }).definitions.map((d) => d.function.name)
+      expect(nomes).not.toContain('consultar_dados')
+    }
+  })
+})
