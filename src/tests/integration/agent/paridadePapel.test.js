@@ -23,6 +23,7 @@ import proporEncerrarApontamento from '../../../lib/agent/tools/write/proporEnce
 import proporCriarTask from '../../../lib/agent/tools/write/proporCriarTask.js'
 import despesasDoPeriodo from '../../../lib/agent/tools/read/despesasDoPeriodo.js'
 import apontamentosAbertos from '../../../lib/agent/tools/read/apontamentosAbertos.js'
+import proporPedirFerias from '../../../lib/agent/tools/write/proporPedirFerias.js'
 
 const PAPEIS = ['admin', 'administrative_intern', 'project_manager', 'employee']
 
@@ -57,6 +58,10 @@ const CASOS = [
   },
   { tool: despesasDoPeriodo, chamar: (u) => [asUser(u).get('/admin/expense-requests')] },
   { tool: apontamentosAbertos, chamar: (u) => [asUser(u).get('/admin/live')] },
+  {
+    tool: proporPedirFerias,
+    chamar: (u) => [asUser(u).post('/me/vacation-requests').send({ start_date: '2030-01-10', end_date: '2030-01-12' })],
+  },
 ]
 
 describe('paridade de papel: tool ↔ endpoint espelhado (§18)', () => {

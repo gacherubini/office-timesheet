@@ -12,6 +12,7 @@ import { auditAgentAction } from '../lib/agent/audit.js'
 import proporEncerrarApontamento from '../lib/agent/tools/write/proporEncerrarApontamento.js'
 import proporCriarApontamento from '../lib/agent/tools/write/proporCriarApontamento.js'
 import proporCriarTask from '../lib/agent/tools/write/proporCriarTask.js'
+import proporPedirFerias from '../lib/agent/tools/write/proporPedirFerias.js'
 
 const router = Router()
 
@@ -20,6 +21,7 @@ const WRITE_TOOLS = {
   encerrar_apontamento: proporEncerrarApontamento,
   criar_apontamento: proporCriarApontamento,
   criar_task: proporCriarTask,
+  pedir_ferias: proporPedirFerias,
 }
 
 router.post('/agent/chat', requireAuth, async (req, res) => {

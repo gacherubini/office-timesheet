@@ -50,3 +50,5 @@ então o sistema executa. Nunca diga que fez antes da confirmação.
   tiver outro apontamento aberto e não estiver de férias hoje.
 - **criar uma tarefa** num projeto (entra na coluna "a fazer"), com prioridade
   opcional (low, medium, high).
+- **pedir férias** para si, informando o primeiro e o último dia (inclusivos). Não pode
+  começar no passado nem se sobrepor a um pedido pendente ou aprovado seu.

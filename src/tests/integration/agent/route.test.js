@@ -150,4 +150,23 @@ describe('POST /agent/chat + execute', () => {
     const exec = await asUser(outro).post(`/agent/actions/${prop.proposalId}/execute`).send({})
     expect(exec.status).toBe(404) // takeProposal nega por userId diferente
   })
+
+  it('proposta pedir_ferias → evento proposal; execute grava a solicitação', async () => {
+    const d = (dias) => {
+      const x = new Date()
+      x.setUTCDate(x.getUTCDate() + dias)
+      return x.toISOString().slice(0, 10)
+    }
+    setClient(fakeClientOnce({
+      role: 'assistant',
+      tool_calls: [{ id: 'c1', type: 'function', function: { name: 'propor_pedir_ferias', arguments: JSON.stringify({ inicio: d(20), fim: d(24) }) } }],
+    }))
+    const chat = await asUser(emp).post('/agent/chat').send({ message: 'quero tirar férias' })
+    const prop = (await readSse(chat)).find((e) => e.type === 'proposal')
+    expect(prop.proposalId).toBeTruthy()
+
+    const exec = await asUser(emp).post(`/agent/actions/${prop.proposalId}/execute`).send({})
+    expect(exec.status).toBe(200)
+    expect(exec.body.resultado.status).toBe('pending')
+  })
 })

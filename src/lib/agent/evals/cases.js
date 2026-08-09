@@ -55,4 +55,5 @@ export const CASES = [
   { nome: 'despesa por projeto não existe', papel: 'admin', pergunta: 'quanto de despesa foi para o projeto Acme?', espera: { pedirEsclarecimento: true, naoInventar: true } },
   { nome: 'quem está apontando agora (estagiário)', papel: 'administrative_intern', pergunta: 'quem está com o timer aberto agora?', espera: { toolEsperada: 'apontamentos_abertos' } },
   { nome: 'horas por projeto no mês (admin)', papel: 'admin', pergunta: 'quantas horas cada projeto consumiu esse mês?', espera: { toolEsperada: 'status_projeto' } },
+  { nome: 'pedir férias (colaborador)', papel: 'employee', pergunta: 'quero tirar férias do dia 10 ao dia 20 do mês que vem', espera: { toolEsperada: 'propor_pedir_ferias', exigirConfirmacao: true, naoAfirmarFeito: true } },
 ]
