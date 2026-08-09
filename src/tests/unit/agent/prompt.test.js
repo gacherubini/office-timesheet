@@ -15,4 +15,10 @@ describe('prompt — regras + domínio fatiado', () => {
     expect(admin).toMatch(/valor\/hora|custo dos horistas/i)
     expect(emp).not.toMatch(/valor\/hora|hourly_rate/i)
   })
+
+  it('tem regra explícita de não escolher tool quando a pergunta é ambígua', () => {
+    const p = buildSystemPrompt({ role: 'admin' })
+    expect(p).toMatch(/ambígu/i)
+    expect(p).toMatch(/não chame nenhuma ferramenta|não use ferramenta/i)
+  })
 })
