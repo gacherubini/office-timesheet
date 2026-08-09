@@ -1,5 +1,6 @@
 import { Topbar } from './Topbar'
 import { ClockInReminder } from './ClockInReminder'
+import AgentWidget from './AgentWidget'
 
 export function Layout({ children }) {
   return (
@@ -7,6 +8,7 @@ export function Layout({ children }) {
       <Topbar />
       <main className="px-4 py-6 md:px-8 md:py-8">{children}</main>
       <ClockInReminder />
+      <AgentWidget />
     </div>
   )
 }
