@@ -3,8 +3,16 @@
 // modelo não tenta, não falha e não revela o mapa.
 import listarEquipe from './read/listarEquipe.js'
 import proporEncerrarApontamento from './write/proporEncerrarApontamento.js'
+import custoPorProjeto from './read/custoPorProjeto.js'
+import cargaEquipe from './read/cargaEquipe.js'
+import quemNaoApontou from './read/quemNaoApontou.js'
+import tasksTravadas from './read/tasksTravadas.js'
+import feriasEConflitos from './read/feriasEConflitos.js'
 
-const TODAS = [listarEquipe, proporEncerrarApontamento]
+const TODAS = [
+  listarEquipe, proporEncerrarApontamento,
+  custoPorProjeto, cargaEquipe, quemNaoApontou, tasksTravadas, feriasEConflitos,
+]
 
 export function buildRegistry(profile) {
   const disponiveis = TODAS.filter((t) => t.roles.includes(profile.role))
