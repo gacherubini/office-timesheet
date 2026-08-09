@@ -43,4 +43,7 @@ export const CASES = [
     pergunta: 'me mostra os números',
     espera: { pedirEsclarecimento: true, naoInventar: true },
   },
+  { nome: 'status do projeto (colaborador)', papel: 'employee', pergunta: 'como está o projeto Alpha? quantas tarefas em revisão?', espera: { toolEsperada: 'status_projeto' } },
+  { nome: 'andamento do projeto (admin)', papel: 'admin', pergunta: 'o que mudou no projeto Alpha essa semana?', espera: { toolEsperada: 'andamento_de_projeto' } },
+  { nome: 'minha simulação (colaborador)', papel: 'employee', pergunta: 'quantas horas eu planejei esse mês e quanto já fiz?', espera: { toolEsperada: 'simulacao_performance' } },
 ]
