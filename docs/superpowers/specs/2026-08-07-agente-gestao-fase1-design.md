@@ -628,6 +628,16 @@ achismo.
 
 - **Role read-only do Postgres** para a tool de SQL, agora só usada pelo admin
   (migration/secret novo).
+
+  **Operação da role read-only (M5, 2026-08-09).** A migration `030_agent_readonly_role.sql`
+  cria a role `agent_readonly` (LOGIN, **sem senha**) e concede `SELECT` apenas nas tabelas da
+  allowlist. A senha é setada fora de banda: um secret novo no Fly, **`AGENT_READONLY_DATABASE_URL`**
+  (string de conexão completa da role, com a senha), mais o `ALTER ROLE agent_readonly PASSWORD ...`
+  na operação de deploy. Nos testes, um `beforeAll` (`tests/helpers/roDb.js`) faz esse `ALTER ROLE`
+  com senha efêmera e monta a URL a partir da `DATABASE_URL` de teste. Limites por env:
+  `AGENT_SQL_MAX_ROWS` (LIMIT, padrão 200), `AGENT_SQL_TIMEOUT_MS` (statement_timeout, padrão 3000),
+  `AGENT_SQL_POOL_MAX` (padrão 4).
+
 - **Sem mudança de schema para o acesso por papel** *(2026-08-08)*: o `scope.js` (§3.1) é
   código, e reusa `users.role` e os helpers de `permissions.js` que já existem.
 - **Propostas pendentes: `Map` em memória com TTL, sem tabela** *(decidido em 2026-08-08)*.
