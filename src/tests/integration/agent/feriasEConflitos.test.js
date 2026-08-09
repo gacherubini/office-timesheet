@@ -39,5 +39,10 @@ describe('tool ferias_e_conflitos (todos os papéis)', () => {
     expect(nomes).toContain('Bruno')
     const par = data.conflitos.map((c) => [c.pessoa_a, c.pessoa_b].sort().join('×'))
     expect(par).toContain('Ana×Bruno')
+    // Datas do payload vêm formatadas dd/mm/aaaa, não ISO cru.
+    for (const f of data.ferias) {
+      expect(f.inicio).toMatch(/^\d{2}\/\d{2}\/\d{4}$/)
+      expect(f.fim).toMatch(/^\d{2}\/\d{2}\/\d{4}$/)
+    }
   })
 })

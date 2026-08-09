@@ -32,4 +32,11 @@ describe('tool tasks_travadas (todos os papéis)', () => {
     expect(titulos).not.toContain('Revisão nova')
     expect(titulos).not.toContain('Tocando')
   })
+
+  it('coage dias stringificado ("3") pro mesmo resultado do número 3', async () => {
+    const comNumero = await tool.run(emp, { dias: 3 })
+    const comString = await tool.run(emp, { dias: '3' })
+    expect(comString.data.map((t) => t.titulo).sort())
+      .toEqual(comNumero.data.map((t) => t.titulo).sort())
+  })
 })

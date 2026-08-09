@@ -2,7 +2,7 @@
 // período. Além de listar, detecta sobreposições (duas pessoas fora ao mesmo
 // tempo) — comparação de pares em JS, barata para o volume de um estúdio.
 import { query } from '../../../db.js'
-import { resolvePeriodo } from '../../format.js'
+import { resolvePeriodo, formatDateBR } from '../../format.js'
 
 const definition = {
   type: 'function',
@@ -21,6 +21,14 @@ function sobrepoe(a, b) {
   return a.inicio <= b.fim && b.inicio <= a.fim
 }
 
+// node-postgres devolve `date` como Date (meia-noite UTC) ou, dependendo do
+// parser configurado, como string. Em ambos os casos os primeiros 10
+// caracteres da forma ISO bastam como chave comparável e determinística
+// (independe do fuso do host rodando o processo).
+function toISODate(d) {
+  return typeof d === 'string' ? d.slice(0, 10) : d.toISOString().slice(0, 10)
+}
+
 async function run(_profile, args) {
   const { inicio, fim } = resolvePeriodo(args?.periodo || 'mes')
   const { rows } = await query(
@@ -31,15 +39,26 @@ async function run(_profile, args) {
       ORDER BY v.start_date ASC`,
     [inicio, fim],
   )
-  const ferias = rows.map((r) => ({ pessoa: r.pessoa, inicio: r.inicio, fim: r.fim, dias: r.dias }))
+  // Mantém as datas comparáveis (ISO) separadas das formatadas pro humano: a
+  // sobreposição precisa comparar YYYY-MM-DD, não dd/mm/aaaa — comparação
+  // lexicográfica de dd/mm/aaaa erra mês e ano.
+  const registros = rows.map((r) => ({
+    pessoa: r.pessoa,
+    inicio: toISODate(r.inicio),
+    fim: toISODate(r.fim),
+    inicioFmt: formatDateBR(r.inicio),
+    fimFmt: formatDateBR(r.fim),
+    dias: r.dias,
+  }))
   const conflitos = []
-  for (let i = 0; i < ferias.length; i++) {
-    for (let j = i + 1; j < ferias.length; j++) {
-      if (sobrepoe(ferias[i], ferias[j])) {
-        conflitos.push({ pessoa_a: ferias[i].pessoa, pessoa_b: ferias[j].pessoa })
+  for (let i = 0; i < registros.length; i++) {
+    for (let j = i + 1; j < registros.length; j++) {
+      if (sobrepoe(registros[i], registros[j])) {
+        conflitos.push({ pessoa_a: registros[i].pessoa, pessoa_b: registros[j].pessoa })
       }
     }
   }
+  const ferias = registros.map((r) => ({ pessoa: r.pessoa, inicio: r.inicioFmt, fim: r.fimFmt, dias: r.dias }))
   return { data: { ferias, conflitos }, count: ferias.length }
 }
 

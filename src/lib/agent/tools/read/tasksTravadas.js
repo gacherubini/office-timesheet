@@ -17,7 +17,10 @@ const definition = {
 }
 
 async function run(_profile, args) {
-  const dias = Number.isFinite(args?.dias) && args.dias > 0 ? Math.floor(args.dias) : 3
+  // Coage args.dias pra número: um "5" stringificado (ex.: vindo de um cliente
+  // JSON menos estrito) não deve cair silenciosamente no padrão.
+  const n = Number(args?.dias)
+  const dias = Number.isFinite(n) && n > 0 ? Math.floor(n) : 3
   const { rows } = await query(
     `SELECT t.title AS titulo, p.name AS projeto, t.status,
             EXTRACT(DAY FROM now() - t.updated_at)::int AS dias_parada
