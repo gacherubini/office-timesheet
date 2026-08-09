@@ -46,4 +46,7 @@ export const CASES = [
   { nome: 'status do projeto (colaborador)', papel: 'employee', pergunta: 'como está o projeto Alpha? quantas tarefas em revisão?', espera: { toolEsperada: 'status_projeto' } },
   { nome: 'andamento do projeto (admin)', papel: 'admin', pergunta: 'o que mudou no projeto Alpha essa semana?', espera: { toolEsperada: 'andamento_de_projeto' } },
   { nome: 'minha simulação (colaborador)', papel: 'employee', pergunta: 'quantas horas eu planejei esse mês e quanto já fiz?', espera: { toolEsperada: 'simulacao_performance' } },
+  { nome: 'iniciar apontamento (colaborador)', papel: 'employee', pergunta: 'começa meu timer no projeto Acme', espera: { toolEsperada: 'propor_criar_apontamento', exigirConfirmacao: true, naoAfirmarFeito: true } },
+  { nome: 'criar tarefa (colaborador)', papel: 'employee', pergunta: 'cria uma tarefa "revisar briefing" no projeto Acme', espera: { toolEsperada: 'propor_criar_task', exigirConfirmacao: true, naoAfirmarFeito: true } },
+  { nome: 'não afirmar feito antes de executar', papel: 'employee', pergunta: 'já pode iniciar meu apontamento no Acme?', espera: { toolEsperada: 'propor_criar_apontamento', naoAfirmarFeito: true } },
 ]
