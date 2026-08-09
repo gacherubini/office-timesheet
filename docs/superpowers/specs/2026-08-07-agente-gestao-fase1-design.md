@@ -585,7 +585,12 @@ achismo.
 ## 14. Frontend (widget)
 
 - Componente de chat React (Vite/Tailwind, Lucide), coerente com a identidade visual atual.
-- Streaming de tokens (usar a infra de SSE existente ou stream direto do endpoint).
+- **Streaming de tokens — decidido (2026-08-08): stream direto do `POST /agent/chat`.** A
+  própria resposta do endpoint streama (`text/event-stream` / chunked); o cliente lê com
+  `fetch` + reader do body, e a proposta de ação chega como um evento no mesmo stream. **Não
+  reusa o `notificationsHub`**: aquele canal é push por `userId` (notificações), não um
+  request/response de chat — misturá-lo obrigaria a correlacionar mensagem↔conversa no
+  cliente sem ganho.
 - Renderização de propostas de ação (preview + Aprovar/Cancelar).
 - Aberto a **qualquer usuário autenticado** *(2026-08-08; era restrito a admin)* — reusa
   auth/JWT. O recorte não é mais "quem vê o widget", é o que o agente alcança por trás
@@ -596,9 +601,10 @@ achismo.
 ## 15. Endpoints (API)
 
 - `POST /agent/chat` — envia **a mensagem nova mais um `conversation_id`** *(2026-08-08,
-  conforme o §11)* e recebe resposta em streaming (pode conter texto e/ou proposta de ação).
-  O histórico **não** trafega no request: quem o guarda é o servidor. `conversation_id`
-  ausente ou expirado abre sessão nova.
+  conforme o §11)* e recebe **a resposta streamada na própria conexão** *(2026-08-08,
+  conforme o §14)*: `text/event-stream`, o loop escreve chunks conforme avança, e a proposta
+  de ação vem como um evento no mesmo stream. O histórico **não** trafega no request: quem o
+  guarda é o servidor. `conversation_id` ausente ou expirado abre sessão nova.
 - `POST /agent/actions/:proposalId/execute` — executa uma proposta aprovada (revalida +
   audita).
 
@@ -610,7 +616,14 @@ achismo.
   (migration/secret novo).
 - **Sem mudança de schema para o acesso por papel** *(2026-08-08)*: o `scope.js` (§3.1) é
   código, e reusa `users.role` e os helpers de `permissions.js` que já existem.
-- Possível tabela curta para **propostas pendentes** (ou assinatura/expiração sem persistir).
+- **Propostas pendentes: `Map` em memória com TTL, sem tabela** *(decidido em 2026-08-08)*.
+  Mesmo padrão do `session.js`/§11: `propor_*` guarda `{proposal_id: {payload, user_id,
+  papel, expira_em}}` no servidor e o cliente recebe **só o `proposal_id`**. O execute (§10)
+  olha o `Map` e revalida permissão + estado atual + expiração. Coerente com a premissa do
+  §11 (servidor é dono, cliente não forja) e com a instância única do `fly.toml` — sem
+  migration. **Aceita-se perder** a proposta no restart, irritação pequena numa proposta de
+  vida curta; se um dia precisar sobreviver a deploy, vira a tabela `agent_proposals`
+  (backlog §20), que também serviria de auditoria.
 - **Sessão de conversa: nenhuma mudança de dados** *(2026-08-08)*. A decisão do §11 foi
   memória efêmera — sem tabela, sem migration, sem secret. Passa a existir só quando as
   conversas persistidas entrarem (§20).

@@ -414,8 +414,11 @@ coerente com a política de privacidade atual (identificação por `user_id`).
 
 - [x] Validar este documento mestre.
 - [x] Revisar para acesso por papel (2026-08-08).
-- [ ] Aprovar o design técnico da Fase 1 (`...-fase1-design.md`).
-- [ ] Gerar o **plano de implementação da Fase 1** (skill writing-plans).
+- [x] Aprovar o design técnico da Fase 1 (`...-fase1-design.md`) — **revisado em 2026-08-08**:
+      âncoras de código reconferidas (todas batem) e três forks de implementação fechados —
+      streaming direto do `POST /agent/chat` (§14), propostas em `Map` com TTL (§16) e
+      primeira fatia em **esqueleto andante** (vertical fino ponta a ponta).
+- [ ] Gerar o **plano de implementação da Fase 1** (skill writing-plans) — *em andamento*.
 - [ ] Fases 2 e 3 ganham spec + plano próprios quando chegarmos nelas (evitar planejar
       cedo demais — dependem do aprendizado do núcleo).
 - [ ] Confirmar linha a linha o recorte de `expenses`, mapeado só pelo guard do endpoint
