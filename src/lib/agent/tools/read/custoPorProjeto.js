@@ -28,7 +28,7 @@ async function run(_profile, args) {
        FROM time_entries te LEFT JOIN projects p ON p.id = te.project_id
       WHERE te.status = 'completed'
         AND te.started_at >= $1::date AND te.started_at < ($2::date + interval '1 day')
-      GROUP BY p.name, p.client
+      GROUP BY p.id, p.name, p.client
       ORDER BY custo_horistas DESC`,
     [inicio, fim],
   )

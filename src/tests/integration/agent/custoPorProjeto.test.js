@@ -36,4 +36,20 @@ describe('tool custo_por_projeto (admin)', () => {
     expect(b.custo_horistas).toBe(50)
     expect(data[0].projeto).toBe('Projeto A') // ordenado por custo desc
   })
+
+  it('não mescla dois projetos distintos com o mesmo nome e cliente', async () => {
+    // projects.name não tem unique constraint; dois projetos podem ter o
+    // mesmo nome (e cliente). O GROUP BY precisa incluir p.id pra não
+    // colapsar as duas linhas numa só.
+    const projC1 = await makeProject({ name: 'Duplicado' })
+    const projC2 = await makeProject({ name: 'Duplicado' })
+    await completedToday(emp.id, projC1.id, 10, 15)
+    await completedToday(emp.id, projC2.id, 20, 25)
+
+    const { data } = await tool.run(admin, { periodo: 'mes' })
+    const duplicados = data.filter((p) => p.projeto === 'Duplicado')
+    expect(duplicados).toHaveLength(2)
+    const custos = duplicados.map((p) => p.custo_horistas).sort((a, b) => a - b)
+    expect(custos).toEqual([15, 25])
+  })
 })
