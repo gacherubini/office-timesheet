@@ -60,4 +60,13 @@ describe('prompt — regras + domínio fatiado', () => {
     const p = buildSystemPrompt({ role: 'employee' })
     expect(p).not.toMatch(/consultar_dados/i)
   })
+
+  it('estagiário administrativo tem fatia própria: aprova pedidos, mas não vê custo de hora', () => {
+    const p = buildSystemPrompt({ role: 'administrative_intern' })
+    expect(p).toMatch(/aprovador|aprova/i)
+    // Ele vê valor de despesa (é quem aprova), mas não o custo/hora das pessoas:
+    expect(p).not.toMatch(/valor\/hora|hourly_rate|cost_snapshot/i)
+    // E não recebe a fatia do colaborador, que nega TODA informação financeira:
+    expect(p).not.toMatch(/Não há informação financeira nem de custo/i)
+  })
 })
