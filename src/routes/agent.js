@@ -10,11 +10,17 @@ import { getClient } from '../lib/agent/client.js'
 import { takeProposal } from '../lib/agent/proposals.js'
 import { auditAgentAction } from '../lib/agent/audit.js'
 import proporEncerrarApontamento from '../lib/agent/tools/write/proporEncerrarApontamento.js'
+import proporCriarApontamento from '../lib/agent/tools/write/proporCriarApontamento.js'
+import proporCriarTask from '../lib/agent/tools/write/proporCriarTask.js'
 
 const router = Router()
 
 // Mapa kind → módulo de tool de escrita (para o execute rotear a proposta).
-const WRITE_TOOLS = { encerrar_apontamento: proporEncerrarApontamento }
+const WRITE_TOOLS = {
+  encerrar_apontamento: proporEncerrarApontamento,
+  criar_apontamento: proporCriarApontamento,
+  criar_task: proporCriarTask,
+}
 
 router.post('/agent/chat', requireAuth, async (req, res) => {
   const { message, conversation_id } = req.body || {}

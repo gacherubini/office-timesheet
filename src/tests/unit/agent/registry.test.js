@@ -50,3 +50,13 @@ describe('registry — tools do M3 (todos os papéis)', () => {
     for (const n of M3) expect(nomes).toContain(n)
   })
 })
+
+describe('registry — tools de escrita do M4 por papel', () => {
+  it('todos os papéis recebem as duas tools de escrita novas', () => {
+    for (const role of ['admin', 'administrative_intern', 'project_manager', 'employee']) {
+      const nomes = buildRegistry({ role }).definitions.map((d) => d.function.name)
+      expect(nomes).toContain('propor_criar_apontamento')
+      expect(nomes).toContain('propor_criar_task')
+    }
+  })
+})

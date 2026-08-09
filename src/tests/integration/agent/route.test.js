@@ -72,4 +72,72 @@ describe('POST /agent/chat + execute', () => {
     // não explode e responde normalmente — o campo forjado não entra no laço.
     expect((await readSse(res)).some((e) => e.type === 'done')).toBe(true)
   })
+
+  it('proposta criar_task → evento proposal; execute cria a tarefa (roteamento por kind)', async () => {
+    setClient(fakeClientOnce({
+      role: 'assistant',
+      tool_calls: [{ id: 'c1', type: 'function', function: { name: 'propor_criar_task', arguments: JSON.stringify({ projeto: 'Projeto Y', titulo: 'Do agente' }) } }],
+    }))
+    const chat = await asUser(emp).post('/agent/chat').send({ message: 'cria uma tarefa' })
+    const prop = (await readSse(chat)).find((e) => e.type === 'proposal')
+    expect(prop.proposalId).toBeTruthy()
+    expect(prop.descricao).toMatch(/Do agente/)
+
+    const exec = await asUser(emp).post(`/agent/actions/${prop.proposalId}/execute`).send({})
+    expect(exec.status).toBe(200)
+    expect(exec.body.resultado.title).toBe('Do agente')
+
+    const { rows } = await query('SELECT status FROM tasks WHERE project_id = $1', [project.id])
+    expect(rows[0].status).toBe('todo')
+  })
+
+  it('criar_apontamento: propor → executar audita e cria running; repetir dá 404 (uso único)', async () => {
+    setClient(fakeClientOnce({
+      role: 'assistant',
+      tool_calls: [{ id: 'c1', type: 'function', function: { name: 'propor_criar_apontamento', arguments: JSON.stringify({ projeto: 'Projeto Y' }) } }],
+    }))
+    const chat = await asUser(emp).post('/agent/chat').send({ message: 'começa meu timer no Projeto Y' })
+    const prop = (await readSse(chat)).find((e) => e.type === 'proposal')
+    expect(prop.proposalId).toBeTruthy()
+
+    const exec = await asUser(emp).post(`/agent/actions/${prop.proposalId}/execute`).send({})
+    expect(exec.status).toBe(200)
+    expect(exec.body.resultado.status).toBe('running')
+
+    // uso único: repetir dá 404
+    const de2 = await asUser(emp).post(`/agent/actions/${prop.proposalId}/execute`).send({})
+    expect(de2.status).toBe(404)
+  })
+
+  it('execute revalida na rota: se a pessoa já abriu apontamento entre propor e aprovar, recusa (409)', async () => {
+    setClient(fakeClientOnce({
+      role: 'assistant',
+      tool_calls: [{ id: 'c1', type: 'function', function: { name: 'propor_criar_apontamento', arguments: JSON.stringify({ projeto: 'Projeto Y' }) } }],
+    }))
+    const chat = await asUser(emp).post('/agent/chat').send({ message: 'começa meu timer' })
+    const prop = (await readSse(chat)).find((e) => e.type === 'proposal')
+
+    // Estado muda entre propor e aprovar: abre um apontamento por fora.
+    await query(
+      `INSERT INTO time_entries (user_id, project_id, started_at, status)
+       VALUES ($1, $2, now(), 'running')`,
+      [emp.id, project.id],
+    )
+    const exec = await asUser(emp).post(`/agent/actions/${prop.proposalId}/execute`).send({})
+    expect(exec.status).toBe(409)
+    expect(exec.body.error).toMatch(/já tem um apontamento aberto/i)
+  })
+
+  it('usuário errado não executa a proposta de outro (404)', async () => {
+    const outro = await makeUser({ role: 'employee' })
+    setClient(fakeClientOnce({
+      role: 'assistant',
+      tool_calls: [{ id: 'c1', type: 'function', function: { name: 'propor_criar_task', arguments: JSON.stringify({ projeto: 'Projeto Y', titulo: 'X' }) } }],
+    }))
+    const chat = await asUser(emp).post('/agent/chat').send({ message: 'cria tarefa' })
+    const prop = (await readSse(chat)).find((e) => e.type === 'proposal')
+
+    const exec = await asUser(outro).post(`/agent/actions/${prop.proposalId}/execute`).send({})
+    expect(exec.status).toBe(404) // takeProposal nega por userId diferente
+  })
 })

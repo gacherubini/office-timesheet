@@ -3,6 +3,8 @@
 // modelo não tenta, não falha e não revela o mapa.
 import listarEquipe from './read/listarEquipe.js'
 import proporEncerrarApontamento from './write/proporEncerrarApontamento.js'
+import proporCriarApontamento from './write/proporCriarApontamento.js'
+import proporCriarTask from './write/proporCriarTask.js'
 import custoPorProjeto from './read/custoPorProjeto.js'
 import cargaEquipe from './read/cargaEquipe.js'
 import quemNaoApontou from './read/quemNaoApontou.js'
@@ -13,7 +15,7 @@ import statusProjeto from './read/statusProjeto.js'
 import andamentoDeProjeto from './read/andamentoDeProjeto.js'
 
 const TODAS = [
-  listarEquipe, proporEncerrarApontamento,
+  listarEquipe, proporEncerrarApontamento, proporCriarApontamento, proporCriarTask,
   custoPorProjeto, cargaEquipe, quemNaoApontou, tasksTravadas, feriasEConflitos,
   simulacaoPerformance, statusProjeto, andamentoDeProjeto,
 ]
