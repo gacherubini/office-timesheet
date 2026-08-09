@@ -267,6 +267,12 @@ escopo de cada papel.
 Consequência de custo: **quatro prefixos cacheados em vez de um**. O cache-hit continua
 sendo a alavanca principal, só que agora por papel — cada papel aquece o próprio prefixo.
 
+**Terceira fatia (2026-08-09, M6).** `dominio/administrative_intern.md`. O `prompt.js`
+tratava o estagiário como colaborador, e a fatia do colaborador afirma que não há
+informação financeira — o que passou a ser mentira quando `despesas_do_periodo` entrou
+(ele é aprovador e vê valor de despesa). São três mundos: admin, estagiário
+administrativo e todo o resto.
+
 ---
 
 ## 6. Comportamento do agente (system prompt)
@@ -339,7 +345,8 @@ construção** — não por decisão do agente, mas porque o endpoint equivalent
   lugar da margem:** é o único termo íntegro da fórmula, e já existe pronto em
   `/admin/reports/project-cost`. Ver a ressalva do salário fixo abaixo.
 - `despesas_do_periodo(periodo)` *(admin/aprovador)* — total de despesas aprovadas no
-  período. **Global, nunca por projeto** — ver abaixo.
+  período. **Global, nunca por projeto** — ver abaixo. **Implementada em 2026-08-09 (M6)**,
+  espelhando `GET /admin/expense-requests`.
 - ~~`projecao_estouro(projeto_id)` — no ritmo atual, quando o orçamento de horas estoura.~~
   **Fora da Fase 1 (2026-08-09, M3)** — mesmo motivo da margem: o dado é morto. Verificado
   contra o schema: `projects` (`004`/`018`) e `tasks` (`012`/`013`) não têm coluna de
@@ -349,8 +356,13 @@ construção** — não por decisão do agente, mas porque o endpoint equivalent
   projeção sem base, que as camadas do §9 não pegam (a origem seria a tool, como na margem).
   Pré-requisito de produto no §20.
 - `simulacao_performance(...)` — lê `performance_simulations` e explica cenários.
-- `horas_por_projeto(periodo)` / `status_projeto(projeto_id)`.
-- `quem_nao_apontou(periodo)` / `apontamentos_abertos()`.
+- ~~`horas_por_projeto(periodo)`~~ **absorvida pelo `status_projeto(projeto?, periodo?)`
+  (2026-08-09, M6)**: com `periodo` a tool devolve as horas da janela, e sem nome de projeto
+  vale para todos os ativos — que é exatamente a pergunta que a tool separada responderia.
+  Uma tool a menos para o modelo escolher errado.
+- `quem_nao_apontou(periodo)` / `apontamentos_abertos()` — a segunda **implementada em
+  2026-08-09 (M6)**, espelhando `GET /admin/live`; devolve só quem está com o timer aberto,
+  recorte para menos do que o endpoint (que lista todos e marca 'offline').
 - `carga_equipe(periodo)` — sobrecarga/ociosidade por colaborador (horas + tasks).
 - `ferias_e_conflitos(periodo)` — quem sai de férias, sobreposições (`vacations`).
 - `tasks_travadas(dias)` — tasks em `in_review`/paradas há mais de N dias, ou `abandoned`.
@@ -435,7 +447,9 @@ mutação. A execução real só acontece após aprovação (ver §10).
 - `propor_criar_apontamento(...)`
 - `propor_encerrar_apontamento(apontamento_id)`
 - `propor_criar_task(...)`
-- (demais ações de escrita seguem o mesmo padrão)
+- `propor_pedir_ferias(inicio, fim, motivo?)` *(2026-08-09, M6)* — espelha
+  `POST /me/vacation-requests`, incluindo o auto-aprovar do admin. As regras de data e a
+  checagem de sobreposição vivem em `lib/vacationRequests.js`, lidas pela rota e pela tool.
 
 **Escrita por papel *(2026-08-08)*.** Vale a mesma regra da leitura: se a rota já permite a
 ação para aquele papel, o agente pode propor — nada de novo é liberado. Cada tool `propor_*`
@@ -701,6 +715,20 @@ achismo.
   Já existe base para isso: a suíte de integração em `src/tests/` tem factories
   (`makeUser({ role })`, `makeTimeEntry`) e casos por papel — o teste de paridade nasce em
   cima dela, não do zero.
+
+  **Como ficou (2026-08-09, M6).** A paridade virou **dois testes dirigidos por tabela**,
+  não um por tool:
+
+  1. `paridadePapel.test.js` — para cada tool com `espelha`, bate no endpoint com os quatro
+     papéis e exige que `tool.roles` seja exatamente o conjunto de papéis que o endpoint não
+     nega (401/403). Um caso extra falha se alguma tool do registry ficar fora da tabela.
+  2. `paridadeColuna.test.js` — a comparação de `Object.keys()` **só funciona para tool
+     pass-through** (`listar_equipe`); as demais renomeiam para português e agregam. O risco
+     real do §18 é valor financeiro chegando a quem não pode ver, então o teste planta
+     sentinelas no fixture (`hourly_rate = 777.77`, `cost_snapshot = 999999`,
+     `sale_value = 424242`) e exige que não apareçam no JSON de nenhuma tool oferecida a
+     papel não-admin. Um caso de controle confirma que o sentinela **aparece** para o admin,
+     senão o teste passaria por vacuidade.
 - Fluxo de confirmação: proposta → revalidação → execução; expiração; mudança de estado.
 - **Sessão de conversa** *(2026-08-08, §11)*: expira por inatividade; é descartada quando o
   papel muda; e **histórico enviado pelo cliente é ignorado** — o servidor usa o dele. Este
