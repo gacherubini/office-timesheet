@@ -4,7 +4,8 @@ import { defineConfig } from 'vitest/config'
 // senão cai no default (o Postgres do docker-compose.test.yml em localhost:5432).
 const DATABASE_URL =
   process.env.DATABASE_URL ||
-  'postgres://postgres:postgres@localhost:5432/office_timesheet_test'
+  // 127.0.0.1 evita ECONNREFUSED em ::1 no Windows (Docker escuta IPv4).
+  'postgres://postgres:postgres@127.0.0.1:5432/office_timesheet_test'
 const JWT_SECRET = process.env.JWT_SECRET || 'test-secret'
 
 // Propaga para o processo principal (globalSetup roda as migrações aqui).

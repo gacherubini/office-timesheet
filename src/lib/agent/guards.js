@@ -11,3 +11,10 @@ export function withTimeout(promise, ms) {
   const timeout = new Promise((_, reject) => { t = setTimeout(() => reject(new Error('timeout')), ms) })
   return Promise.race([promise, timeout]).finally(() => clearTimeout(t))
 }
+
+// Limites do SQL de leitura restrito (§8.2). maxRows é o teto do LIMIT forçado;
+// statementTimeoutMs corta consulta longa no banco. Env-overridable, folgado.
+export const SQL_LIMITS = {
+  maxRows: Number(process.env.AGENT_SQL_MAX_ROWS) || 200,
+  statementTimeoutMs: Number(process.env.AGENT_SQL_TIMEOUT_MS) || 3000,
+}
