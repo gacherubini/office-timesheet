@@ -74,23 +74,24 @@ Herdadas dos M2–M5. Todo task as respeita.
 
 ## Task 0: Ponto de partida verde
 
-O working tree pode chegar até você **com alterações não commitadas**: uma rodada de correções de code review (23 arquivos) que consertou, entre outras coisas, um `import` que impedia o app de subir. Antes de escrever qualquer linha nova, garanta que a base está verde e commitada — senão você vai depurar o erro de outra pessoa achando que é seu.
+O HEAD chega até você limpo, com cinco commits recentes de correção de code review (`f7290c7`..`dc2e134`) sobre os milestones M3–M5. Um deles conserta um `import` que impedia o app de subir; outro reescreve o cálculo de horas planejadas. **Esses commits nunca foram validados contra um banco de verdade** — a máquina onde foram escritos estava sem Docker, então só os testes unitários rodaram (127 verdes) mais um check de boot.
+
+Ou seja: esta task não escreve código. Ela existe para você descobrir um vermelho herdado **antes** de começar o trabalho novo, em vez de depurar o erro de outra pessoa achando que é seu.
 
 **Files:**
-- Nenhum arquivo novo. Só verificação e commit do que já existe.
+- Nenhum. Só verificação.
 
 **Interfaces:**
 - Consumes: nada.
-- Produces: um HEAD limpo e uma suíte de integração comprovadamente verde, que todas as tasks seguintes assumem.
+- Produces: a certeza de que a base está verde — todas as tasks seguintes assumem isso.
 
-- [ ] **Step 1: Ver o que está pendente**
+- [ ] **Step 1: Confirmar que o tree está limpo**
 
 ```bash
-cd src
 git status --porcelain
 ```
 
-Se não houver saída, o tree está limpo — pule para o Step 3.
+Esperado: nenhuma saída. Se houver alteração pendente, **pare e pergunte** — não é seu trabalho e commitar por cima confunde o histórico.
 
 - [ ] **Step 2: Subir o Postgres de teste e rodar a suíte inteira**
 
@@ -101,9 +102,9 @@ cd src
 npm run test:docker
 ```
 
-Esperado: todos os arquivos passando. Se o Docker não estiver rodando, suba o Docker Desktop e repita — sem banco, só os unit tests rodam, e são justamente os de integração que precisam ser validados aqui.
+Esperado: todos os arquivos passando. Se o Docker não estiver rodando, suba o Docker Desktop e repita — sem banco, só os unit tests rodam, e são justamente os de integração que nunca foram exercitados.
 
-Se algum teste falhar, **pare e reporte**: as correções pendentes nunca foram validadas contra um banco de verdade, e um teste vermelho aqui é informação, não obstáculo a contornar.
+Se algum teste falhar, **pare e reporte** com o comando e a saída. Os arquivos de integração com maior chance de vermelho, porque foram reescritos às cegas, são: `agent/simulacaoPerformance.test.js`, `agent/statusProjeto.test.js`, `agent/andamentoDeProjeto.test.js`, `agent/consultarDados.test.js`, `agent/criarTask.test.js` e `agent/route.test.js`. Um vermelho aí é informação, não obstáculo a contornar.
 
 - [ ] **Step 3: Confirmar que o app sobe em Node puro**
 
@@ -114,14 +115,7 @@ cd src
 DATABASE_URL=postgres://x:y@127.0.0.1:5432/z JWT_SECRET=z node -e "import('./app.js').then(()=>console.log('APP OK')).catch(e=>{console.log('APP FAIL:', e.message); process.exit(1)})"
 ```
 
-Esperado: `APP OK`.
-
-- [ ] **Step 4: Commitar o que estava pendente**
-
-```bash
-git add -A
-git commit -m "fix(agente): correcoes de code review do M3-M5 (boot ESM, simulacao, projeto por nome, guard, evals)"
-```
+Esperado: `APP OK`. O mesmo check está automatizado em `tests/unit/bootEsm.test.js` e já roda dentro da suíte; este passo é só para você ver com os próprios olhos antes de confiar na base.
 
 ---
 
