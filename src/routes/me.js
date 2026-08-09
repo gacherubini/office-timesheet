@@ -6,6 +6,7 @@ import { comparePassword, hashPassword } from '../lib/password.js'
 import { uploadFile, deleteFile, extractKeyFromUrl } from '../lib/storage.js'
 import { canAccessMoney } from '../lib/permissions.js'
 import { logger } from '../lib/logger.js'
+import { DEFAULT_SIM_CONFIG, normalizeSimConfig } from '../lib/performanceSimulation.js'
 
 const router = Router()
 
@@ -459,41 +460,8 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 // Simulador de performance: config por mês (jsonb). O usuário informa a META de
 // ganho e, opcionalmente, horas de fim de semana; o cliente distribui as horas
 // pelos dias úteis que faltam. Horas reais nunca entram aqui — vêm de time_entries.
-//   config = {
-//     target_amount: number>=0,          // meta de ganho do mês (R$)
-//     include_weekends: boolean,          // considerar sáb/dom como hora extra
-//     weekend_default_minutes: int 0..1440, // horas padrão por dia de FDS
-//     overrides: { 'YYYY-MM-DD': minutos } // ajustes manuais por dia (0..1440)
-//   }
-const DEFAULT_SIM_CONFIG = {
-  target_amount: 0,
-  include_weekends: false,
-  weekend_default_minutes: 240,
-  overrides: {},
-}
-
-// Normaliza qualquer jsonb salvo (inclusive o formato antigo de mapa de datas)
-// para o shape de config atual, caindo nos defaults quando faltar/for inválido.
-function normalizeSimConfig(raw) {
-  const c = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}
-  return {
-    target_amount:
-      typeof c.target_amount === 'number' && Number.isFinite(c.target_amount) && c.target_amount >= 0
-        ? c.target_amount
-        : 0,
-    include_weekends: c.include_weekends === true,
-    weekend_default_minutes:
-      Number.isInteger(c.weekend_default_minutes) &&
-      c.weekend_default_minutes >= 0 &&
-      c.weekend_default_minutes <= 1440
-        ? c.weekend_default_minutes
-        : 240,
-    overrides:
-      c.overrides && typeof c.overrides === 'object' && !Array.isArray(c.overrides)
-        ? c.overrides
-        : {},
-  }
-}
+// O shape e a normalização vivem em lib/performanceSimulation.js: a tool
+// simulacao_performance do agente lê a mesma config e precisa da mesma leitura.
 
 router.get('/me/simulation', requireAuth, async (req, res) => {
   const month = String(req.query.month || '')
