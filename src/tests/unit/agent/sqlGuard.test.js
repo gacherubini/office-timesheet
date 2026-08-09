@@ -42,4 +42,30 @@ describe('guard do SQL restrito', () => {
   it('rejeita lixo que não parseia como SELECT', () => {
     expect(() => validarESanitizar('não é sql')).toThrow(SqlRecusado)
   })
+
+  it('aceita CTE de leitura (o alias não é tabela fora da allowlist)', () => {
+    const { tabelas } = validarESanitizar(
+      `WITH ativos AS (SELECT id, name FROM projects WHERE status = 'active')
+       SELECT name FROM ativos`,
+    )
+    expect(tabelas).toContain('projects')
+    expect(tabelas).not.toContain('ativos')
+  })
+
+  it('rejeita consulta sem tabela alguma (só chamada de função)', () => {
+    expect(() => validarESanitizar('SELECT pg_sleep(9)')).toThrow(/ao menos uma tabela/i)
+    expect(() => validarESanitizar('SELECT 1')).toThrow(SqlRecusado)
+  })
+
+  it('envelopa sem deixar comentário final engolir o LIMIT', () => {
+    const { sql } = validarESanitizar('SELECT id FROM users -- só os ids')
+    // O `--` tem de morrer no fim da própria linha, antes do `)` e do LIMIT.
+    expect(sql).toMatch(/--[^\n]*\n\) AS _agente_sub LIMIT \d+/)
+  })
+
+  it('allowlist cobre as tabelas de colaboração que o domínio anuncia', () => {
+    for (const t of ['task_comments', 'task_attachments', 'task_activity']) {
+      expect(TABELAS_PERMITIDAS.has(t)).toBe(true)
+    }
+  })
 })
