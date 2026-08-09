@@ -4,6 +4,8 @@
 // execute revalida que o projeto existe, calcula a position no fim da coluna
 // 'todo' e insere com created_by do próprio usuário. Nada de novo é liberado.
 import { query } from '../../../db.js'
+import { logActivity } from '../../../taskActivity.js'
+import { resolverProjeto } from '../projetos.js'
 
 const PRIORIDADES = ['low', 'medium', 'high']
 
@@ -25,19 +27,6 @@ const definition = {
   },
 }
 
-// Resolve um projeto pelo nome (sem filtrar por status — a rota não filtra).
-async function resolverProjeto(nome) {
-  const alvo = (nome || '').trim()
-  if (!alvo) throw new Error('Em qual projeto? Diga o nome do projeto para criar a tarefa.')
-  const { rows } = await query(
-    `SELECT id, name FROM projects WHERE deleted_at IS NULL AND name ILIKE $1 ORDER BY name`,
-    [`%${alvo}%`],
-  )
-  if (rows.length === 0) throw new Error(`Não encontrei um projeto chamado "${alvo}".`)
-  if (rows.length > 1) throw new Error(`Há mais de um projeto com esse nome; especifique melhor "${alvo}".`)
-  return rows[0]
-}
-
 async function propose(profile, args) {
   const titulo = (args?.titulo || '').trim()
   if (!titulo) throw new Error('Qual o título da tarefa?')
@@ -45,7 +34,8 @@ async function propose(profile, args) {
   if (prioridade !== undefined && !PRIORIDADES.includes(prioridade)) {
     throw new Error('Prioridade inválida. Use low, medium ou high.')
   }
-  const projeto = await resolverProjeto(args?.projeto)
+  // Sem filtro de status: a rota espelhada também não filtra.
+  const projeto = await resolverProjeto(args?.projeto, { acao: 'criar a tarefa' })
   const priority = prioridade || 'medium'
   return {
     kind: 'criar_task',
@@ -76,6 +66,10 @@ async function execute(profile, payload) {
      RETURNING id, project_id, title, status, priority, position, created_by, created_at`,
     [payload.project_id, payload.title, payload.priority, position, profile.id],
   )
+  // Mesmo registro de histórico que a rota faz (projectManagement.js:60). Sem
+  // isto a tarefa nasce sem 'created' em task_activity e some do andamento do
+  // projeto — que é justamente a tabela que andamento_de_projeto lê.
+  await logActivity(rows[0].id, profile.id, 'created', { title: rows[0].title })
   return { before: null, after: rows[0] }
 }
 

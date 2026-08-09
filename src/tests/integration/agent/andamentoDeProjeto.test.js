@@ -30,11 +30,32 @@ describe('tool andamento_de_projeto (todos os papéis)', () => {
   })
 
   it('conta comentários, anexos e atividade da semana e lista os itens de atividade', async () => {
-    const { data } = await tool.run(ana, { projeto_id: proj.id, periodo: 'semana' })
+    const { data } = await tool.run(ana, { projeto: 'P', periodo: 'semana' })
+    expect(data.projeto).toBe('P')
     expect(data.novos_comentarios).toBe(1)
     expect(data.novos_anexos).toBe(1)
     expect(data.atividades).toBe(1)
-    expect(data.itens[0].tarefa).toBe('Tarefa X')
-    expect(data.itens[0].tipo).toBe('status_change')
+    expect(data.itens_truncados).toBe(false)
+    expect(data.ultimas_atividades[0].tarefa).toBe('Tarefa X')
+    expect(data.ultimas_atividades[0].tipo).toBe('status_change')
+  })
+
+  it('a contagem é o total do período, não o teto da lista', async () => {
+    // 25 atividades > os 20 itens que a lista devolve.
+    for (let i = 0; i < 24; i++) {
+      await query(
+        `INSERT INTO task_activity (task_id, actor_id, type, detail) VALUES ($1,$2,'status_change','{}'::jsonb)`,
+        [taskId, ana.id],
+      )
+    }
+    const { data, count } = await tool.run(ana, { projeto: 'P', periodo: 'semana' })
+    expect(data.atividades).toBe(25) // e não 20
+    expect(count).toBe(25)
+    expect(data.ultimas_atividades).toHaveLength(20)
+    expect(data.itens_truncados).toBe(true)
+  })
+
+  it('projeto pelo nome: inexistente vira erro legível, não erro cru de uuid', async () => {
+    await expect(tool.run(ana, { projeto: 'Nada' })).rejects.toThrow(/não encontrei/i)
   })
 })

@@ -5,6 +5,7 @@
 // blockTimerDuringVacation impede iniciar durante férias aprovadas de hoje.
 // Nada de novo é liberado — a rota já permite isto a qualquer autenticado.
 import { query } from '../../../db.js'
+import { resolverProjeto } from '../projetos.js'
 
 const definition = {
   type: 'function',
@@ -18,19 +19,6 @@ const definition = {
       additionalProperties: false,
     },
   },
-}
-
-// Resolve um projeto ATIVO pelo nome (substring). Erros viram pedido de esclarecimento (§6).
-async function resolverProjeto(nome) {
-  const alvo = (nome || '').trim()
-  if (!alvo) throw new Error('Qual projeto? Diga o nome do projeto para iniciar o apontamento.')
-  const { rows } = await query(
-    `SELECT id, name FROM projects WHERE status = 'active' AND deleted_at IS NULL AND name ILIKE $1 ORDER BY name`,
-    [`%${alvo}%`],
-  )
-  if (rows.length === 0) throw new Error(`Não encontrei um projeto ativo chamado "${alvo}".`)
-  if (rows.length > 1) throw new Error(`Há mais de um projeto ativo com esse nome; especifique melhor "${alvo}".`)
-  return rows[0]
 }
 
 async function temApontamentoAberto(userId) {
@@ -55,7 +43,7 @@ async function deFeriasHoje(userId) {
 }
 
 async function propose(profile, args) {
-  const projeto = await resolverProjeto(args?.projeto)
+  const projeto = await resolverProjeto(args?.projeto, { somenteAtivos: true, acao: 'iniciar o apontamento' })
   if (await temApontamentoAberto(profile.id)) {
     throw new Error('Você já tem um apontamento aberto. Encerre o atual antes de iniciar outro.')
   }

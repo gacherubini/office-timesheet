@@ -51,6 +51,18 @@ describe('tool propor_criar_task', () => {
     expect(after.created_by).toBe(emp.id)
   })
 
+  it('execute registra o histórico "created", igual à rota espelhada', async () => {
+    const { after } = await tool.execute(emp, { project_id: projeto.id, title: 'Com histórico', priority: 'medium' })
+    const { rows } = await query(
+      `SELECT type, actor_id, detail FROM task_activity WHERE task_id = $1`,
+      [after.id],
+    )
+    expect(rows).toHaveLength(1)
+    expect(rows[0].type).toBe('created')
+    expect(rows[0].actor_id).toBe(emp.id)
+    expect(rows[0].detail).toEqual({ title: 'Com histórico' })
+  })
+
   it('execute revalida: projeto sumiu entre propor e aprovar → recusa', async () => {
     await query('DELETE FROM projects WHERE id = $1', [projeto.id])
     await expect(tool.execute(emp, { project_id: projeto.id, title: 'X', priority: 'medium' }))

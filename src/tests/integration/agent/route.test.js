@@ -87,8 +87,18 @@ describe('POST /agent/chat + execute', () => {
     expect(exec.status).toBe(200)
     expect(exec.body.resultado.title).toBe('Do agente')
 
-    const { rows } = await query('SELECT status FROM tasks WHERE project_id = $1', [project.id])
+    const { rows } = await query('SELECT id, status FROM tasks WHERE project_id = $1', [project.id])
     expect(rows[0].status).toBe('todo')
+
+    // Mesma pegada da rota espelhada: a tarefa nasce com histórico 'created',
+    // senão some do andamento do projeto.
+    const { rows: atividade } = await query(
+      `SELECT type, actor_id FROM task_activity WHERE task_id = $1`,
+      [rows[0].id],
+    )
+    expect(atividade).toHaveLength(1)
+    expect(atividade[0].type).toBe('created')
+    expect(atividade[0].actor_id).toBe(emp.id)
   })
 
   it('criar_apontamento: propor → executar audita e cria running; repetir dá 404 (uso único)', async () => {

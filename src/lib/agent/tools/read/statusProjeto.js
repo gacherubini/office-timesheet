@@ -3,25 +3,32 @@
 // de um projeto (ou de todos os ativos): status, tarefas por coluna do kanban e
 // horas apontadas. project_status só tem dois valores (002_enums.sql): 'active'
 // e 'completed'. LATERAL para não inflar horas/contagens (fan-out).
+// O filtro é por NOME (o modelo não tem uuid nenhum), mas o id sai no resultado
+// para encadear com andamento_de_projeto.
 import { query } from '../../../db.js'
+import { resolverProjeto } from '../projetos.js'
 
 const definition = {
   type: 'function',
   function: {
     name: 'status_projeto',
-    description: 'Retrato de um projeto (ou de todos os ativos): status (active/completed), tarefas por coluna do kanban (todo, in_progress, in_review, done, abandoned) e horas já apontadas. Passe projeto_id para um projeto específico.',
+    description: 'Retrato de um projeto (ou de todos os ativos): status (active/completed), tarefas por coluna do kanban (todo, in_progress, in_review, done, abandoned) e horas já apontadas. Passe o nome do projeto para um projeto específico.',
     parameters: {
       type: 'object',
-      properties: { projeto_id: { type: 'string', description: 'id do projeto; se omitido, traz todos os projetos ativos' } },
+      properties: { projeto: { type: 'string', description: 'nome do projeto; se omitido, traz todos os projetos ativos' } },
       additionalProperties: false,
     },
   },
 }
 
 async function run(_profile, args) {
-  const id = args?.projeto_id || null
+  // Sem nome: retrato de todos os ativos. Com nome: resolve antes de consultar,
+  // para a ambiguidade virar pergunta em vez de resultado errado.
+  const alvo = (args?.projeto || '').trim()
+  const id = alvo ? (await resolverProjeto(alvo)).id : null
+
   const { rows } = await query(
-    `SELECT p.name AS projeto, COALESCE(c.name, p.client) AS cliente, p.status,
+    `SELECT p.id AS projeto_id, p.name AS projeto, COALESCE(c.name, p.client) AS cliente, p.status,
             tc.todo, tc.in_progress, tc.in_review, tc.done, tc.abandoned, tc.total_tarefas,
             COALESCE(hc.total_minutes, 0) AS total_minutes
        FROM projects p
@@ -46,6 +53,7 @@ async function run(_profile, args) {
     [id],
   )
   const data = rows.map((r) => ({
+    projeto_id: r.projeto_id,
     projeto: r.projeto,
     cliente: r.cliente || null,
     status: r.status,
