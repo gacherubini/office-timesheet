@@ -340,8 +340,14 @@ construção** — não por decisão do agente, mas porque o endpoint equivalent
   `/admin/reports/project-cost`. Ver a ressalva do salário fixo abaixo.
 - `despesas_do_periodo(periodo)` *(admin/aprovador)* — total de despesas aprovadas no
   período. **Global, nunca por projeto** — ver abaixo.
-- `projecao_estouro(projeto_id)` — no ritmo atual, quando o orçamento de horas estoura.
-  Sobrevive à decisão de 2026-08-08: é orçamento de **horas**, não depende de dinheiro.
+- ~~`projecao_estouro(projeto_id)` — no ritmo atual, quando o orçamento de horas estoura.~~
+  **Fora da Fase 1 (2026-08-09, M3)** — mesmo motivo da margem: o dado é morto. Verificado
+  contra o schema: `projects` (`004`/`018`) e `tasks` (`012`/`013`) não têm coluna de
+  orçamento/estimativa de horas, e `performance_simulations` (`029`) guarda minutos
+  planejados **por usuário por mês**, não um orçamento **por projeto**. Sem denominador, "quando
+  estoura" não é calculável — e uma tool que devolvesse um número aqui repassaria uma
+  projeção sem base, que as camadas do §9 não pegam (a origem seria a tool, como na margem).
+  Pré-requisito de produto no §20.
 - `simulacao_performance(...)` — lê `performance_simulations` e explica cenários.
 - `horas_por_projeto(periodo)` / `status_projeto(projeto_id)`.
 - `quem_nao_apontou(periodo)` / `apontamentos_abertos()`.
@@ -830,6 +836,11 @@ ou do custo que o provedor reportar, quando reportar.
   `sale_value` sob `canAccessMoney`, `project_id` em `expense_requests`, e a decisão sobre
   salário fixo no custo. **São decisões de produto, não do agente:** com os dados no lugar,
   `margem_por_projeto` e o faturamento de `resumo_financeiro` entram sem tocar no núcleo.
+- **Orçamento de horas por projeto** *(2026-08-09, ver §8.1)* — pré-requisito de
+  `projecao_estouro`. Hoje não há coluna de horas orçadas em `projects` nem estimativa em
+  `tasks`; `performance_simulations` é planejamento por usuário, não por projeto. Com uma
+  coluna de orçamento (ou soma de estimativas de tarefa) a tool entra depois sem tocar no
+  núcleo. **Decisão de produto, não do agente.**
 - **Fase 2:** tarefas agendadas pelo ADM via conversa (agendador + tabela +
   **fila de aprovação** — automação nunca escreve sem humano no meio); Google Calendar
   (OAuth próprio); relatórios em PDF (Tigris); alertas proativos; provisão de bônus;
