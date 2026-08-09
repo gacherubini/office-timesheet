@@ -36,3 +36,17 @@ describe('registry — tools do M2 por papel', () => {
     expect(nomes).not.toContain('quem_nao_apontou')
   })
 })
+
+describe('registry — tools do M3 (todos os papéis)', () => {
+  const M3 = ['simulacao_performance', 'status_projeto', 'andamento_de_projeto']
+
+  it('admin recebe as tools do M3', () => {
+    const nomes = buildRegistry({ role: 'admin' }).definitions.map((d) => d.function.name)
+    for (const n of M3) expect(nomes).toContain(n)
+  })
+
+  it('colaborador também recebe as três (são de todos os papéis)', () => {
+    const nomes = buildRegistry({ role: 'employee' }).definitions.map((d) => d.function.name)
+    for (const n of M3) expect(nomes).toContain(n)
+  })
+})

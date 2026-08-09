@@ -8,10 +8,14 @@ import cargaEquipe from './read/cargaEquipe.js'
 import quemNaoApontou from './read/quemNaoApontou.js'
 import tasksTravadas from './read/tasksTravadas.js'
 import feriasEConflitos from './read/feriasEConflitos.js'
+import simulacaoPerformance from './read/simulacaoPerformance.js'
+import statusProjeto from './read/statusProjeto.js'
+import andamentoDeProjeto from './read/andamentoDeProjeto.js'
 
 const TODAS = [
   listarEquipe, proporEncerrarApontamento,
   custoPorProjeto, cargaEquipe, quemNaoApontou, tasksTravadas, feriasEConflitos,
+  simulacaoPerformance, statusProjeto, andamentoDeProjeto,
 ]
 
 export function buildRegistry(profile) {
