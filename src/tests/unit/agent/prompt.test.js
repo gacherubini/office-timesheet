@@ -40,4 +40,13 @@ describe('prompt — regras + domínio fatiado', () => {
     expect(p).toMatch(/andamento do projeto|o que mudou no projeto/i)
     expect(p).toMatch(/simulação de performance|horas planejadas/i)
   })
+
+  it('domínio (todos os papéis) cita as ações de escrita: iniciar apontamento e criar tarefa', () => {
+    for (const role of ['admin', 'employee']) {
+      const p = buildSystemPrompt({ role })
+      expect(p).toMatch(/iniciar (um )?apontamento|começar o timer/i)
+      expect(p).toMatch(/criar (uma )?tarefa/i)
+      expect(p).toMatch(/confirma/i) // deixa claro que escrita é sempre confirmada
+    }
+  })
 })
