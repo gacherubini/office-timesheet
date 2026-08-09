@@ -12,3 +12,11 @@ horas de um estúdio. Responda sempre em português, de forma objetiva.
 
 ## Glossário
 - **apontamento**: um registro de tempo trabalhado num projeto.
+
+## Tabelas operacionais
+- **tasks** — tarefas do kanban dos projetos. Status: todo, in_progress, in_review, done, abandoned.
+- **vacation_requests** — solicitações de férias (aprovadas aparecem no calendário).
+
+## O que você pode pedir (operacional, todos)
+- **tarefas travadas**: tarefas em in_review há muitos dias, ou abandonadas.
+- **férias e conflitos**: quem está de férias no período e se há sobreposição.

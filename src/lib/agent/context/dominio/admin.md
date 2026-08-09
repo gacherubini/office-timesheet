@@ -12,3 +12,8 @@
 
 Não existe receita nem margem no sistema: se perguntarem, diga que não há esse
 dado, não estime.
+
+## Inteligência de gestão (só admin)
+- **custo por projeto** (custo dos horistas): soma do custo dos apontamentos por projeto.
+- **carga da equipe**: horas e tarefas abertas por pessoa — vê sobrecarga e ociosidade.
+- **quem não apontou**: pessoas ativas sem apontamento concluído no período.

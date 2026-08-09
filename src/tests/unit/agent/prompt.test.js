@@ -21,4 +21,16 @@ describe('prompt — regras + domínio fatiado', () => {
     expect(p).toMatch(/ambígu/i)
     expect(p).toMatch(/não chame nenhuma ferramenta|não use ferramenta/i)
   })
+
+  it('domínio do admin cita custo por projeto e carga da equipe', () => {
+    const p = buildSystemPrompt({ role: 'admin' })
+    expect(p).toMatch(/custo por projeto|custo dos horistas/i)
+    expect(p).toMatch(/carga da equipe|sobrecarga/i)
+  })
+
+  it('domínio do colaborador cita tarefas travadas e férias', () => {
+    const p = buildSystemPrompt({ role: 'employee' })
+    expect(p).toMatch(/tarefas? travadas?|in_review/i)
+    expect(p).toMatch(/férias/i)
+  })
 })
