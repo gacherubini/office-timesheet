@@ -55,4 +55,21 @@ describe('tool status_projeto (todos os papéis)', () => {
   it('nome inexistente vira erro legível (nunca erro cru de uuid)', async () => {
     await expect(tool.run(emp, { projeto: 'Nada' })).rejects.toThrow(/não encontrei/i)
   })
+
+  it('com período, conta só as horas apontadas na janela', async () => {
+    // O fixture já tem 120 min de hoje. Este é de um ano atrás:
+    await query(
+      `INSERT INTO time_entries (user_id, project_id, started_at, ended_at, status, duration_minutes, cost_snapshot)
+       VALUES ($1, $2, now() - interval '1 year', now() - interval '1 year', 'completed', 600, 0)`,
+      [emp.id, proj.id],
+    )
+
+    const semPeriodo = await tool.run(emp, { projeto: 'Projeto A' })
+    expect(semPeriodo.data[0].total_horas).toBe(12) // 120 + 600 min
+    expect(semPeriodo.data[0].periodo).toBeNull()
+
+    const comPeriodo = await tool.run(emp, { projeto: 'Projeto A', periodo: 'mes' })
+    expect(comPeriodo.data[0].total_horas).toBe(2) // só os 120 min deste mês
+    expect(comPeriodo.data[0].periodo).toEqual(expect.objectContaining({ inicio: expect.any(String) }))
+  })
 })

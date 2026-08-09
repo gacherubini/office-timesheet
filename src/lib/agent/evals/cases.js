@@ -54,4 +54,5 @@ export const CASES = [
   { nome: 'despesas do período (admin)', papel: 'admin', pergunta: 'quanto saiu de despesa aprovada esse mês?', espera: { toolEsperada: 'despesas_do_periodo' } },
   { nome: 'despesa por projeto não existe', papel: 'admin', pergunta: 'quanto de despesa foi para o projeto Acme?', espera: { pedirEsclarecimento: true, naoInventar: true } },
   { nome: 'quem está apontando agora (estagiário)', papel: 'administrative_intern', pergunta: 'quem está com o timer aberto agora?', espera: { toolEsperada: 'apontamentos_abertos' } },
+  { nome: 'horas por projeto no mês (admin)', papel: 'admin', pergunta: 'quantas horas cada projeto consumiu esse mês?', espera: { toolEsperada: 'status_projeto' } },
 ]
