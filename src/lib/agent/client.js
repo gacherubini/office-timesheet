@@ -3,18 +3,21 @@
 // parâmetro; getClient/setClient permitem injetar um cliente falso nos testes.
 import OpenAI from 'openai'
 
+export const DEFAULT_BASE_URL = 'https://integrate.api.nvidia.com/v1'
+export const DEFAULT_MODEL = 'deepseek-ai/deepseek-v4-flash-0731'
+
 function makeRealClient() {
   // Placeholder de chave para a construção não estourar sem AGENT_API_KEY (o
   // SDK v7 exige apiKey já no construtor). Uma chamada real com chave inválida
   // ainda falha alto — nada de fallback silencioso (§17).
   const client = new OpenAI({
     apiKey: process.env.AGENT_API_KEY || 'sk-agente-sem-chave',
-    baseURL: process.env.AGENT_PROVIDER_BASE_URL || 'https://openrouter.ai/api/v1',
+    baseURL: process.env.AGENT_PROVIDER_BASE_URL || DEFAULT_BASE_URL,
   })
 
   async function stream({ messages, tools, model }, onToken) {
     const resp = await client.chat.completions.create({
-      model: model || process.env.AGENT_MODEL || 'deepseek/deepseek-v4-pro',
+      model: model || process.env.AGENT_MODEL || DEFAULT_MODEL,
       messages, tools, tool_choice: 'auto',
       max_tokens: Number(process.env.AGENT_MAX_TOKENS) || 1024,
       stream: true,

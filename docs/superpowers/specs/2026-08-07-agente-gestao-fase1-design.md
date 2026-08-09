@@ -220,6 +220,14 @@ latência a **toda** pergunta, inclusive as simples. Quem pergunta costuma saber
 apontamento" quer resposta instantânea, "analisa a carga da equipe no trimestre" tolera dez
 segundos. Registrado no §20.
 
+**Realidade de provedor (2026-08-09).** No ambiente real a chave é da **NVIDIA** e o
+modelo hospedado é `deepseek-ai/deepseek-v4-flash-0731` (o `v4-pro` não está disponível na
+conta). O default do código passou a ser NVIDIA + Flash. A decisão "modelo único, sem
+roteamento" continua; o objeto do A/B (§13) — provar se o Flash basta — ganhou um dado
+inicial: na primeira ligada ao vivo o Flash **acertou** a escolha de tool no caso claro e
+**errou** o caso ambíguo (chamou tool em vez de pedir esclarecimento), o que motivou o
+reforço da regra de ambiguidade no system prompt.
+
 ---
 
 ## 5. Contexto de domínio (`dominio/`, fatiado por papel)
