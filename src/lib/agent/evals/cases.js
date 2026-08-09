@@ -13,4 +13,34 @@ export const CASES = [
     pergunta: 'qual o custo?',
     espera: { pedirEsclarecimento: true, naoInventar: true },
   },
+  {
+    nome: 'custo por projeto (admin)',
+    papel: 'admin',
+    pergunta: 'qual o custo dos horistas por projeto esse mês?',
+    espera: { toolEsperada: 'custo_por_projeto' },
+  },
+  {
+    nome: 'quem não apontou (admin)',
+    papel: 'admin',
+    pergunta: 'quem ainda não apontou esse mês?',
+    espera: { toolEsperada: 'quem_nao_apontou' },
+  },
+  {
+    nome: 'tasks travadas (colaborador)',
+    papel: 'employee',
+    pergunta: 'tem alguma tarefa travada em revisão?',
+    espera: { toolEsperada: 'tasks_travadas' },
+  },
+  {
+    nome: 'férias (colaborador)',
+    papel: 'employee',
+    pergunta: 'quem vai estar de férias esse mês?',
+    espera: { toolEsperada: 'ferias_e_conflitos' },
+  },
+  {
+    nome: 'ambíguo continua pedindo esclarecimento',
+    papel: 'admin',
+    pergunta: 'me mostra os números',
+    espera: { pedirEsclarecimento: true, naoInventar: true },
+  },
 ]
