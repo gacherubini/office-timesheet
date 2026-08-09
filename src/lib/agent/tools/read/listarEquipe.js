@@ -23,4 +23,8 @@ async function run(profile, _args) {
   return { data: rows, count: rows.length }
 }
 
-export default { kind: 'read', espelha: 'GET /users', roles: ['admin', 'administrative_intern'], definition, run }
+export default {
+  kind: 'read', espelha: 'GET /admin/users',
+  roles: ['admin', 'administrative_intern'],
+  definition, run,
+}
