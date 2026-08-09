@@ -636,7 +636,14 @@ achismo.
   na operação de deploy. Nos testes, um `beforeAll` (`tests/helpers/roDb.js`) faz esse `ALTER ROLE`
   com senha efêmera e monta a URL a partir da `DATABASE_URL` de teste. Limites por env:
   `AGENT_SQL_MAX_ROWS` (LIMIT, padrão 200), `AGENT_SQL_TIMEOUT_MS` (statement_timeout, padrão 3000),
-  `AGENT_SQL_POOL_MAX` (padrão 4).
+  `AGENT_SQL_POOL_MAX` (padrão 4). A `031_agent_readonly_grants.sql` completa o GRANT com
+  `task_attachments` e `task_activity`, que o domínio já anunciava e a 030 tinha deixado de fora
+  — a allowlist do `guard.js` e o GRANT têm de ser mexidos sempre juntos.
+
+  **Projeto entra por nome, nunca por id** *(2026-08-09)*: nenhuma tool expõe uuid de projeto,
+  então uma tool que pedisse `projeto_id` ficaria inalcançável para o modelo (e mandar nome numa
+  coluna `uuid` devolve erro cru do Postgres para dentro da conversa). `tools/projetos.js`
+  centraliza a resolução por nome — não achou / achou vários viram pedido de esclarecimento (§6).
 
 - **Sem mudança de schema para o acesso por papel** *(2026-08-08)*: o `scope.js` (§3.1) é
   código, e reusa `users.role` e os helpers de `permissions.js` que já existem.
