@@ -49,4 +49,15 @@ describe('prompt — regras + domínio fatiado', () => {
       expect(p).toMatch(/confirma/i) // deixa claro que escrita é sempre confirmada
     }
   })
+
+  it('domínio do admin descreve a consulta SQL ad-hoc e seus limites', () => {
+    const p = buildSystemPrompt({ role: 'admin' })
+    expect(p).toMatch(/consultar_dados|consulta ad-hoc|SQL/i)
+    expect(p).toMatch(/somente leitura|só leitura|SELECT/i)
+  })
+
+  it('domínio do colaborador NÃO menciona a consulta SQL', () => {
+    const p = buildSystemPrompt({ role: 'employee' })
+    expect(p).not.toMatch(/consultar_dados/i)
+  })
 })

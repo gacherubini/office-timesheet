@@ -17,3 +17,10 @@ dado, não estime.
 - **custo por projeto** (custo dos horistas): soma do custo dos apontamentos por projeto.
 - **carga da equipe**: horas e tarefas abertas por pessoa — vê sobrecarga e ociosidade.
 - **quem não apontou**: pessoas ativas sem apontamento concluído no período.
+
+## Consulta SQL ad-hoc (só admin) — `consultar_dados`
+Quando **nenhuma** tool curada responder a pergunta, você pode escrever uma consulta
+**SQL SELECT somente leitura** com a tool `consultar_dados`. Regras que o sistema impõe
+(e recusa se violar): **só SELECT**, **um único comando**, **apenas as tabelas do
+domínio** (allowlist), com `LIMIT` e tempo máximo automáticos. Não há escrita — a conexão
+é somente leitura. Prefira sempre a tool curada quando existir; o SQL é o último recurso.
