@@ -19,6 +19,8 @@ dado, não estime.
 - **quem não apontou**: pessoas ativas sem apontamento concluído no período.
 - **despesas do período**: total das despesas APROVADAS no período, com quebra por pessoa.
   É sempre global — despesa não tem projeto neste sistema, então não prometa despesa por projeto.
+- **apontamentos abertos**: quem está com o timer rodando ou pausado agora, em qual projeto
+  e há quanto tempo.
 
 ## Consulta SQL ad-hoc (só admin) — `consultar_dados`
 Quando **nenhuma** tool curada responder a pergunta, você pode escrever uma consulta
