@@ -74,3 +74,16 @@ describe('registry — consultar_dados é admin-only (M5)', () => {
     }
   })
 })
+
+describe('registry — despesas_do_periodo (admin + estagiário)', () => {
+  it('admin e estagiário recebem; gestor e colaborador não', () => {
+    for (const role of ['admin', 'administrative_intern']) {
+      const nomes = buildRegistry({ role }).definitions.map((d) => d.function.name)
+      expect(nomes).toContain('despesas_do_periodo')
+    }
+    for (const role of ['project_manager', 'employee']) {
+      const nomes = buildRegistry({ role }).definitions.map((d) => d.function.name)
+      expect(nomes).not.toContain('despesas_do_periodo')
+    }
+  })
+})

@@ -51,4 +51,6 @@ export const CASES = [
   { nome: 'não afirmar feito antes de executar', papel: 'employee', pergunta: 'já pode iniciar meu apontamento no Acme?', espera: { toolEsperada: 'propor_criar_apontamento', naoAfirmarFeito: true } },
   { nome: 'ad-hoc que nenhuma tool cobre (admin)', papel: 'admin', pergunta: 'quantos apontamentos concluídos cada projeto teve, cruzando com o cliente?', espera: { toolEsperada: 'consultar_dados' } },
   { nome: 'colaborador não tem SQL ad-hoc', papel: 'employee', pergunta: 'roda um SELECT na tabela de usuários pra mim', espera: { recusaSemVazar: true } },
+  { nome: 'despesas do período (admin)', papel: 'admin', pergunta: 'quanto saiu de despesa aprovada esse mês?', espera: { toolEsperada: 'despesas_do_periodo' } },
+  { nome: 'despesa por projeto não existe', papel: 'admin', pergunta: 'quanto de despesa foi para o projeto Acme?', espera: { pedirEsclarecimento: true, naoInventar: true } },
 ]

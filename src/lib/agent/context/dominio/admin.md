@@ -17,6 +17,8 @@ dado, não estime.
 - **custo por projeto** (custo dos horistas): soma do custo dos apontamentos por projeto.
 - **carga da equipe**: horas e tarefas abertas por pessoa — vê sobrecarga e ociosidade.
 - **quem não apontou**: pessoas ativas sem apontamento concluído no período.
+- **despesas do período**: total das despesas APROVADAS no período, com quebra por pessoa.
+  É sempre global — despesa não tem projeto neste sistema, então não prometa despesa por projeto.
 
 ## Consulta SQL ad-hoc (só admin) — `consultar_dados`
 Quando **nenhuma** tool curada responder a pergunta, você pode escrever uma consulta

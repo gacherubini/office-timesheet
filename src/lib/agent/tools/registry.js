@@ -13,12 +13,14 @@ import feriasEConflitos from './read/feriasEConflitos.js'
 import simulacaoPerformance from './read/simulacaoPerformance.js'
 import statusProjeto from './read/statusProjeto.js'
 import andamentoDeProjeto from './read/andamentoDeProjeto.js'
+import despesasDoPeriodo from './read/despesasDoPeriodo.js'
 import consultarDados from './sql/consultarDados.js'
 
 const TODAS = [
   listarEquipe, proporEncerrarApontamento, proporCriarApontamento, proporCriarTask,
   custoPorProjeto, cargaEquipe, quemNaoApontou, tasksTravadas, feriasEConflitos,
   simulacaoPerformance, statusProjeto, andamentoDeProjeto,
+  despesasDoPeriodo,
   consultarDados,
 ]
 

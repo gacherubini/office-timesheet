@@ -21,6 +21,7 @@ import andamentoDeProjeto from '../../../lib/agent/tools/read/andamentoDeProjeto
 import proporCriarApontamento from '../../../lib/agent/tools/write/proporCriarApontamento.js'
 import proporEncerrarApontamento from '../../../lib/agent/tools/write/proporEncerrarApontamento.js'
 import proporCriarTask from '../../../lib/agent/tools/write/proporCriarTask.js'
+import despesasDoPeriodo from '../../../lib/agent/tools/read/despesasDoPeriodo.js'
 
 const PAPEIS = ['admin', 'administrative_intern', 'project_manager', 'employee']
 
@@ -53,6 +54,7 @@ const CASOS = [
     tool: proporCriarTask,
     chamar: (u, ctx) => [asUser(u).post(`/projects/${ctx.projeto.id}/tasks`).send({ title: 'paridade' })],
   },
+  { tool: despesasDoPeriodo, chamar: (u) => [asUser(u).get('/admin/expense-requests')] },
 ]
 
 describe('paridade de papel: tool ↔ endpoint espelhado (§18)', () => {
