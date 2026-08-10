@@ -7,7 +7,6 @@ import { useClickOutside } from '../hooks/useClickOutside'
 import { Avatar } from './Avatar'
 import { BrandLine } from './BrandLine'
 import { NotificationBell } from './NotificationBell'
-import assinatura from '../assets/studio-vivian-hor.png'
 import simbolo from '../assets/studio-vivian-simbolo.png'
 
 function NavLink({ item, active }) {
@@ -141,26 +140,32 @@ export function Topbar() {
           {drawerOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
 
-        <Link to={nav[0].to} className="relative z-10 flex flex-none items-center gap-3">
-          <img src={assinatura} alt="Studio Vivian" className="hidden h-3.5 w-auto invert md:block" />
-          <img src={simbolo} alt="Studio Vivian" className="h-5 w-auto invert md:hidden" />
-          <span className="hidden h-4 w-px bg-white/25 lg:block" />
-          <span className="hidden text-[13px] font-light tracking-wide text-white/80 lg:block">
-            Gestão VOID
-          </span>
-        </Link>
+        {/* Marca: símbolo + Gestão VOID | nav */}
+        <div className="relative z-10 flex min-w-0 flex-1 items-center gap-3 md:gap-4">
+          <Link to={nav[0].to} className="flex flex-none items-center gap-2.5">
+            <img src={simbolo} alt="Studio Vivian" className="h-5 w-auto invert" />
+            <span className="text-[13px] font-light tracking-wide text-white/85">
+              Gestão VOID
+            </span>
+          </Link>
 
-        <nav className="relative z-10 hidden items-center gap-5 md:flex">
-          {nav.map((item) =>
-            item.children ? (
-              <NavMenu key={item.label} item={item} active={isActive(item)} />
-            ) : (
-              <NavLink key={item.label} item={item} active={isActive(item)} />
-            ),
-          )}
-        </nav>
+          <span
+            className="hidden h-4 w-px flex-none bg-white/30 md:block"
+            aria-hidden="true"
+          />
 
-        <div className="relative z-10 ml-auto flex items-center gap-4">
+          <nav className="hidden items-center gap-5 md:flex">
+            {nav.map((item) =>
+              item.children ? (
+                <NavMenu key={item.label} item={item} active={isActive(item)} />
+              ) : (
+                <NavLink key={item.label} item={item} active={isActive(item)} />
+              ),
+            )}
+          </nav>
+        </div>
+
+        <div className="relative z-10 flex flex-none items-center gap-4">
           <NotificationBell />
           <AvatarMenu profile={profile} onLogout={handleLogout} />
         </div>

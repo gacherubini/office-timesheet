@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
-import assinatura from '../assets/studio-vivian-hor.png'
+import simbolo from '../assets/studio-vivian-simbolo.png'
 
 export function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
@@ -27,9 +27,9 @@ export function ForgotPasswordPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-bg text-text-primary px-4">
       <div className="w-full max-w-sm">
-        <div className="flex items-center justify-center gap-2 mb-8">
-          <img src={assinatura} alt="Studio Vivian" className="h-4 w-auto" />
-          <h1 className="text-2xl font-medium text-text-primary">Gestão VOID</h1>
+        <div className="mb-8 flex items-center justify-center gap-2.5">
+          <img src={simbolo} alt="Studio Vivian" className="h-5 w-auto" />
+          <span className="text-[13px] font-light tracking-wide text-text-secondary">Gestão VOID</span>
         </div>
 
         <div className="bg-surface border border-border-subtle p-6 space-y-4">

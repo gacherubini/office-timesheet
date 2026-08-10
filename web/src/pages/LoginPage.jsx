@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate, Navigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { BrandLine } from '../components/BrandLine'
-import assinatura from '../assets/studio-vivian-hor.png'
+import simbolo from '../assets/studio-vivian-simbolo.png'
 
 export function LoginPage() {
   const { profile, login } = useAuth()
@@ -30,14 +30,13 @@ export function LoginPage() {
 
   return (
     <div className="min-h-screen grid lg:grid-cols-2 bg-bg text-text-primary">
-      {/* Painel do "vazio" — a assinatura da marca */}
+      {/* Painel do "vazio" — símbolo + Gestão VOID */}
       <div className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-green-dk p-12 text-white">
         <BrandLine x1={-5} y1={82} x2={105} y2={16} opacity={0.28} />
 
-        <div className="relative z-10 flex items-center gap-3">
-          <img src={assinatura} alt="Studio Vivian" className="h-4 w-auto invert" />
-          <span className="h-4 w-px bg-white/25" />
-          <span className="text-[13px] font-light tracking-wide text-white/80">Gestão VOID</span>
+        <div className="relative z-10 flex items-center gap-2.5">
+          <img src={simbolo} alt="Studio Vivian" className="h-5 w-auto invert" />
+          <span className="text-[13px] font-light tracking-wide text-white/85">Gestão VOID</span>
         </div>
 
         <p className="relative z-10 font-display text-[42px] leading-[1.12] max-w-[15ch] font-medium">
@@ -55,9 +54,8 @@ export function LoginPage() {
       {/* Formulário */}
       <div className="flex items-center justify-center p-6 sm:p-10">
         <div className="w-full max-w-sm">
-          <div className="lg:hidden flex items-center justify-center gap-3 mb-10">
-            <img src={assinatura} alt="Studio Vivian" className="h-4 w-auto" />
-            <span className="h-4 w-px bg-border-subtle" />
+          <div className="lg:hidden mb-10 flex items-center justify-center gap-2.5">
+            <img src={simbolo} alt="Studio Vivian" className="h-5 w-auto" />
             <span className="text-[13px] font-light tracking-wide text-text-secondary">Gestão VOID</span>
           </div>
 
