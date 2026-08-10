@@ -1,11 +1,14 @@
-// Cliente de LLM agnóstico (OpenAI-compatible via OpenRouter). Streama tokens e
-// devolve a mensagem assistant montada + usage. O loop recebe o cliente por
-// parâmetro; getClient/setClient permitem injetar um cliente falso nos testes.
+// Cliente de LLM agnóstico (OpenAI-compatible, apontando pra API oficial da
+// DeepSeek). Streama tokens e devolve a mensagem assistant montada + usage. O
+// loop recebe o cliente por parâmetro; getClient/setClient permitem injetar um
+// cliente falso nos testes. Provider/model/chave são sobrepostos por env
+// (AGENT_PROVIDER_BASE_URL / AGENT_MODEL / AGENT_API_KEY).
 import OpenAI from 'openai'
 import { withTimeout, LIMITS } from './guards.js'
 
-export const DEFAULT_BASE_URL = 'https://integrate.api.nvidia.com/v1'
-export const DEFAULT_MODEL = 'deepseek-ai/deepseek-v4-flash-0731'
+// deepseek-v4-flash já resolve pro build mais recente (0731) do lado da DeepSeek.
+export const DEFAULT_BASE_URL = 'https://api.deepseek.com'
+export const DEFAULT_MODEL = 'deepseek-v4-flash'
 export const DEFAULT_MAX_RETRIES = 2
 export const DEFAULT_RETRY_BACKOFF_MS = 250
 

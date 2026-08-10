@@ -24,8 +24,8 @@ describe('client — injeção e contrato', () => {
 })
 
 describe('client — defaults do provedor real', () => {
-  it('default aponta para a NVIDIA e o DeepSeek V4 Flash', () => {
-    expect(DEFAULT_BASE_URL).toBe('https://integrate.api.nvidia.com/v1')
-    expect(DEFAULT_MODEL).toBe('deepseek-ai/deepseek-v4-flash-0731')
+  it('default aponta para a API oficial da DeepSeek e o V4 Flash', () => {
+    expect(DEFAULT_BASE_URL).toBe('https://api.deepseek.com')
+    expect(DEFAULT_MODEL).toBe('deepseek-v4-flash')
   })
 })
