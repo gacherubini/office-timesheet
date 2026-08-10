@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Send, RotateCcw, AlertCircle, Check, Plus, Sparkles } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { streamChat, executeProposal } from '../lib/agentClient'
+import { lerSessao, salvarSessao, limparSessao } from '../lib/agentSession'
 
 // ── Página do Assistente (tela cheia) ──────────────────────────────────────
 // Aposenta o widget flutuante: coluna central única, sem sidebar/histórico, a
@@ -111,9 +112,30 @@ export function AssistentePage() {
 
   const textareaRef = useRef(null)
   const fimRef = useRef(null)
+  const restauradoRef = useRef(false)
 
   const estaVazio = mensagens.length === 0
   const primeiroNome = (profile?.name || '').trim().split(' ')[0]
+
+  // Restaura a conversa salva (localStorage, 30 min, por usuário) assim que o
+  // profile existe — uma vez só. Sem isto, navegar na navbar desmonta a página e
+  // zera o useState, perdendo a conversa mesmo com a sessão do servidor viva.
+  useEffect(() => {
+    if (restauradoRef.current || !profile?.id) return
+    const salvo = lerSessao(profile.id)
+    if (salvo) {
+      setMensagens(salvo.mensagens)
+      setConversa(salvo.conversationId)
+    }
+    restauradoRef.current = true
+  }, [profile?.id])
+
+  // Persiste a cada mudança — mas só DEPOIS de restaurar, para o render inicial
+  // (vazio) não sobrescrever o que já estava salvo.
+  useEffect(() => {
+    if (!restauradoRef.current || !profile?.id) return
+    salvarSessao(profile.id, { conversationId: conversa, mensagens })
+  }, [mensagens, conversa, profile?.id])
 
   // Foco no campo ao montar e a cada troca entre vazio ↔ conversa.
   useEffect(() => {
@@ -202,6 +224,7 @@ export function AssistentePage() {
   }
 
   function novaConversa() {
+    limparSessao()
     setMensagens([])
     setConversa(null)
     setInput('')
