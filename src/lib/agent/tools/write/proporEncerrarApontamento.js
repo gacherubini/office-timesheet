@@ -2,6 +2,7 @@
 // aberto. propose só descreve; execute revalida e encerra. Mesmo cálculo do
 // route (duração líquida de pausas + cost_snapshot do hourly_rate).
 import { query } from '../../../db.js'
+import { notifyAdmins } from '../../../notificationsHub.js'
 import { calculateDurationMinutes, calculateCostSnapshot } from '../../../timeMath.js'
 import { formatDateBR } from '../../format.js'
 
@@ -39,7 +40,7 @@ async function execute(profile, payload) {
   // Revalida: ainda em aberto E ainda do próprio usuário (pode ter mudado entre
   // propor e aprovar). Sem isso, uma proposta velha encerraria o que não devia.
   const { rows: atual } = await query(
-    `SELECT id, started_at, status FROM time_entries
+    `SELECT id, started_at, status, project_id FROM time_entries
       WHERE id = $1 AND user_id = $2 AND status = 'running'`,
     [payload.entry_id, profile.id],
   )
@@ -69,6 +70,9 @@ async function execute(profile, payload) {
       WHERE id = $3 RETURNING id, status, duration_minutes, cost_snapshot`,
     [durationMinutes, costSnapshot, entry.id],
   )
+  // Paridade de comportamento com POST /time-entries/stop (§8.3): a rota notifica
+  // os admins ao encerrar; o canal do agente faz o mesmo.
+  await notifyAdmins({ type: 'time_entry_stopped', projectId: entry.project_id, actorId: profile.id })
   return { before: { id: entry.id, status: 'running' }, after: after[0] }
 }
 

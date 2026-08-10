@@ -5,6 +5,7 @@
 // blockTimerDuringVacation impede iniciar durante férias aprovadas de hoje.
 // Nada de novo é liberado — a rota já permite isto a qualquer autenticado.
 import { query } from '../../../db.js'
+import { notifyAdmins } from '../../../notificationsHub.js'
 import { resolverProjeto } from '../projetos.js'
 
 const definition = {
@@ -74,6 +75,9 @@ async function execute(profile, payload) {
        RETURNING id, user_id, project_id, started_at, status`,
       [profile.id, payload.project_id],
     )
+    // Paridade de comportamento com POST /time-entries/start (§8.3): a rota
+    // notifica os admins ao iniciar; o canal do agente faz o mesmo.
+    await notifyAdmins({ type: 'time_entry_started', projectId: payload.project_id, actorId: profile.id })
     return { before: { aberto: false }, after: rows[0] }
   } catch (err) {
     // Backstop do índice único parcial one_open_entry_per_user.

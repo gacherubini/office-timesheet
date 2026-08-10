@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { createProposal, takeProposal, PROPOSAL_TTL_MS } from '../../../lib/agent/proposals.js'
+import { createProposal, takeProposal, pendingCount, PROPOSAL_TTL_MS } from '../../../lib/agent/proposals.js'
 
 const emp = { id: 1, role: 'employee' }
 const outro = { id: 2, role: 'employee' }
@@ -20,5 +20,16 @@ describe('proposals — pendências em memória, uso único, TTL', () => {
   it('expira após o TTL', () => {
     const { proposalId } = createProposal({ profile: emp, kind: 'x', payload: {}, now: 1000 })
     expect(takeProposal(proposalId, emp, 1000 + PROPOSAL_TTL_MS + 1)).toBeNull()
+  })
+
+  it('varre propostas vencidas ao criar (não vaza memória)', () => {
+    // base bem à frente dos outros testes: propostas nunca aprovadas venceriam e
+    // ficariam para sempre; a criação seguinte precisa expurgá-las.
+    const base = 10_000_000
+    createProposal({ profile: emp, kind: 'x', payload: {}, now: base }) // duas velhas
+    createProposal({ profile: emp, kind: 'x', payload: {}, now: base })
+    createProposal({ profile: emp, kind: 'x', payload: {}, now: base + PROPOSAL_TTL_MS + 1 })
+    // As duas velhas venceram; só a recém-criada sobrou.
+    expect(pendingCount()).toBe(1)
   })
 })

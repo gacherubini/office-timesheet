@@ -25,7 +25,8 @@ async function run(_profile, args) {
         AND NOT EXISTS (
           SELECT 1 FROM time_entries te
            WHERE te.user_id = u.id AND te.status = 'completed'
-             AND te.started_at >= $1::date AND te.started_at < ($2::date + interval '1 day')
+             AND te.started_at >= ($1::date AT TIME ZONE 'America/Sao_Paulo')
+             AND te.started_at < (($2::date + interval '1 day') AT TIME ZONE 'America/Sao_Paulo')
         )
       ORDER BY u.name`,
     [inicio, fim],

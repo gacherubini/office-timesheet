@@ -3,6 +3,12 @@ import { resetDb, query } from '../../helpers/db.js'
 import { makeUser, makeProject, makeRunningEntry, makeApprovedVacation } from '../../helpers/factories.js'
 import tool from '../../../lib/agent/tools/write/proporCriarApontamento.js'
 
+// "Hoje" no fuso do estúdio (America/Sao_Paulo), igual ao deFeriasHoje da tool.
+// Usar a data em UTC (new Date().toISOString()) quebrava na janela 00:00–03:00Z,
+// quando o dia UTC já virou mas o de SP ainda não — a data das férias não batia
+// com (now() AT TIME ZONE 'America/Sao_Paulo')::date. 'en-CA' dá YYYY-MM-DD.
+const hojeSP = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date())
+
 describe('tool propor_criar_apontamento', () => {
   let emp, projeto
   beforeEach(async () => {
@@ -40,7 +46,7 @@ describe('tool propor_criar_apontamento', () => {
   })
 
   it('propose durante férias aprovadas hoje → erro (timer bloqueado)', async () => {
-    const hoje = new Date().toISOString().slice(0, 10)
+    const hoje = hojeSP()
     await makeApprovedVacation({ user_id: emp.id, start_date: hoje, end_date: hoje, days_count: 1 })
     await expect(tool.propose(emp, { projeto: 'Acme' })).rejects.toThrow(/férias/i)
   })
@@ -65,10 +71,24 @@ describe('tool propor_criar_apontamento', () => {
   })
 
   it('execute revalida: entrou de férias entre propor e aprovar → recusa', async () => {
-    const hoje = new Date().toISOString().slice(0, 10)
+    const hoje = hojeSP()
     await makeApprovedVacation({ user_id: emp.id, start_date: hoje, end_date: hoje, days_count: 1 })
     await expect(tool.execute(emp, { project_id: projeto.id })).rejects.toThrow(/férias/i)
     const { rows } = await query(`SELECT COUNT(*)::int AS n FROM time_entries WHERE user_id = $1`, [emp.id])
     expect(rows[0].n).toBe(0)
+  })
+
+  it('execute notifica os admins, igual ao POST /time-entries/start (§8.3)', async () => {
+    // Paridade de COMPORTAMENTO: a rota espelhada dispara notifyAdmins ao iniciar.
+    const admin = await makeUser({ role: 'admin', name: 'Chefe' })
+    await tool.execute(emp, { project_id: projeto.id })
+    const { rows } = await query(
+      `SELECT type, project_id, actor_id FROM notifications WHERE user_id = $1`,
+      [admin.id],
+    )
+    expect(rows).toHaveLength(1)
+    expect(rows[0].type).toBe('time_entry_started')
+    expect(rows[0].project_id).toBe(projeto.id)
+    expect(rows[0].actor_id).toBe(emp.id)
   })
 })

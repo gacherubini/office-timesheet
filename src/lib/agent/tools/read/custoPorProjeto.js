@@ -27,7 +27,8 @@ async function run(_profile, args) {
             COUNT(DISTINCT te.user_id)::int AS pessoas
        FROM time_entries te LEFT JOIN projects p ON p.id = te.project_id
       WHERE te.status = 'completed'
-        AND te.started_at >= $1::date AND te.started_at < ($2::date + interval '1 day')
+        AND te.started_at >= ($1::date AT TIME ZONE 'America/Sao_Paulo')
+        AND te.started_at < (($2::date + interval '1 day') AT TIME ZONE 'America/Sao_Paulo')
       GROUP BY p.id, p.name, p.client
       ORDER BY custo_horistas DESC`,
     [inicio, fim],

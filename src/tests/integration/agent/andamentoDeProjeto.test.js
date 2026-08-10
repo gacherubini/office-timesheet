@@ -58,4 +58,23 @@ describe('tool andamento_de_projeto (todos os papéis)', () => {
   it('projeto pelo nome: inexistente vira erro legível, não erro cru de uuid', async () => {
     await expect(tool.run(ana, { projeto: 'Nada' })).rejects.toThrow(/não encontrei/i)
   })
+
+  it('conta atividade das 22h no fuso SP como HOJE (fronteira no fuso, não em UTC)', async () => {
+    // 22h de HOJE em SP = 01h de AMANHÃ em UTC. Com created_at comparado à data
+    // nua (UTC) a atividade cairia fora do dia; a fronteira certa é no fuso SP.
+    const projFuso = await makeProject({ name: 'Fuso' })
+    const tf = await query(
+      `INSERT INTO tasks (project_id, title, status, position) VALUES ($1,'TF','todo',0) RETURNING id`,
+      [projFuso.id],
+    )
+    await query(
+      `INSERT INTO task_activity (task_id, actor_id, type, detail, created_at)
+       VALUES ($1,$2,'status_change','{}'::jsonb,
+         (((now() AT TIME ZONE 'America/Sao_Paulo')::date + time '22:00') AT TIME ZONE 'America/Sao_Paulo'))`,
+      [tf.rows[0].id, ana.id],
+    )
+    const { data } = await tool.run(ana, { projeto: 'Fuso', periodo: 'hoje' })
+    expect(data.atividades).toBe(1)
+    expect(data.ultimas_atividades).toHaveLength(1)
+  })
 })

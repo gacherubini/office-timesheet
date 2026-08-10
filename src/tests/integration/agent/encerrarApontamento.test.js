@@ -50,4 +50,19 @@ describe('tool propor_encerrar_apontamento', () => {
     const { rows } = await query('SELECT status FROM time_entries WHERE id = $1', [entryId])
     expect(rows[0].status).toBe('running') // intacto
   })
+
+  it('execute notifica os admins, igual ao POST /time-entries/stop (§8.3)', async () => {
+    // Paridade de COMPORTAMENTO: a rota espelhada dispara notifyAdmins ao encerrar.
+    const admin = await makeUser({ role: 'admin', name: 'Chefe' })
+    const entryId = await startedMinutesAgo(emp.id, project.id, 45)
+    await tool.execute(emp, { entry_id: entryId })
+    const { rows } = await query(
+      `SELECT type, project_id, actor_id FROM notifications WHERE user_id = $1`,
+      [admin.id],
+    )
+    expect(rows).toHaveLength(1)
+    expect(rows[0].type).toBe('time_entry_stopped')
+    expect(rows[0].project_id).toBe(project.id)
+    expect(rows[0].actor_id).toBe(emp.id)
+  })
 })

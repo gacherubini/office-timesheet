@@ -37,6 +37,24 @@ describe('tool custo_por_projeto (admin)', () => {
     expect(data[0].projeto).toBe('Projeto A') // ordenado por custo desc
   })
 
+  it('conta apontamento das 22h no fuso SP como HOJE (fronteira no fuso, não em UTC)', async () => {
+    // 22h de HOJE em SP = 01h de AMANHÃ em UTC. Comparar started_at com a data
+    // NUA (resolvida em UTC na sessão) jogaria este apontamento para fora do dia.
+    // A fronteira correta é AT TIME ZONE 'America/Sao_Paulo'.
+    const projFuso = await makeProject({ name: 'Projeto Fuso' })
+    await query(
+      `INSERT INTO time_entries (user_id, project_id, started_at, ended_at, status, duration_minutes, cost_snapshot)
+       VALUES ($1, $2,
+         (((now() AT TIME ZONE 'America/Sao_Paulo')::date + time '22:00') AT TIME ZONE 'America/Sao_Paulo'),
+         now(), 'completed', 60, 77)`,
+      [emp.id, projFuso.id],
+    )
+    const { data } = await tool.run(admin, { periodo: 'hoje' })
+    const alvo = data.find((p) => p.projeto === 'Projeto Fuso')
+    expect(alvo, 'apontamento das 22h SP deve entrar no dia de hoje').toBeTruthy()
+    expect(alvo.custo_horistas).toBe(77)
+  })
+
   it('não mescla dois projetos distintos com o mesmo nome e cliente', async () => {
     // projects.name não tem unique constraint; dois projetos podem ter o
     // mesmo nome (e cliente). O GROUP BY precisa incluir p.id pra não

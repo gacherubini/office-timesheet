@@ -23,6 +23,23 @@ describe('tool carga_equipe (admin)', () => {
     )
   })
 
+  it('conta apontamento das 22h no fuso SP como HOJE (fronteira no fuso, não em UTC)', async () => {
+    // 22h de HOJE em SP = 01h de AMANHÃ em UTC: com a data nua (UTC) a hora cairia
+    // fora do dia. Carla só tem esse apontamento; sob 'hoje' precisa somar 1h.
+    const carla = await makeUser({ role: 'employee', name: 'Carla' })
+    await query(
+      `INSERT INTO time_entries (user_id, project_id, started_at, ended_at, status, duration_minutes, cost_snapshot)
+       VALUES ($1, $2,
+         (((now() AT TIME ZONE 'America/Sao_Paulo')::date + time '22:00') AT TIME ZONE 'America/Sao_Paulo'),
+         now(), 'completed', 60, 0)`,
+      [carla.id, proj.id],
+    )
+    const { data } = await tool.run(admin, { periodo: 'hoje' })
+    const c = data.find((p) => p.pessoa === 'Carla')
+    expect(c.total_horas).toBe(1)
+    expect(c.apontamentos).toBe(1)
+  })
+
   it('mostra horas, apontamentos e tarefas abertas por pessoa', async () => {
     const { data } = await tool.run(admin, { periodo: 'mes' })
     const a = data.find((p) => p.pessoa === 'Ana')
