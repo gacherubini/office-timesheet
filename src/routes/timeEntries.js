@@ -318,7 +318,7 @@ router.post('/admin/time-entry-change-requests/:id/approve', requireAuth, requir
 
   try {
     const { rows: requestRows } = await query(
-      `SELECT id, time_entry_id, requested_project_id, requested_started_at, requested_ended_at, user_id
+      `SELECT id, time_entry_id, requested_project_id, requested_started_at, requested_ended_at, user_id, status
        FROM time_entry_change_requests WHERE id = $1`,
       [id]
     )
@@ -328,6 +328,15 @@ router.post('/admin/time-entry-change-requests/:id/approve', requireAuth, requir
     }
 
     const changeRequest = requestRows[0]
+    if (changeRequest.status !== 'pending') {
+      return res.status(400).json({ error: 'Esta solicitação já foi decidida.' })
+    }
+
+    // Aprovador não pode aprovar a própria solicitação (recalcula o próprio custo).
+    if (changeRequest.user_id === req.profile.id) {
+      return res.status(403).json({ error: 'Você não pode aprovar a própria solicitação de alteração.' })
+    }
+
     const { time_entry_id, requested_project_id, requested_started_at, requested_ended_at, user_id } = changeRequest
 
     // Valida se a entry pertence ao usuário
@@ -340,16 +349,27 @@ router.post('/admin/time-entry-change-requests/:id/approve', requireAuth, requir
       return res.status(404).json({ error: 'Apontamento não encontrado.' })
     }
 
-    // Atualiza com transaction
+    // Atualiza com transaction; claim atômico do pending evita double-approve.
     await withTransaction(async (client) => {
+      const { rows: claimed } = await client.query(
+        `UPDATE time_entry_change_requests
+         SET status = 'approved', decided_by = $1, decided_at = now(), admin_note = $2
+         WHERE id = $3 AND status = 'pending'
+         RETURNING id`,
+        [req.profile.id, admin_note || null, id]
+      )
+      if (!claimed.length) {
+        const err = new Error('Esta solicitação já foi decidida.')
+        err.status = 400
+        throw err
+      }
+
       const { rows: userRates } = await client.query(
         'SELECT hourly_rate FROM users WHERE id = $1',
         [user_id]
       )
 
-      const userRate = userRates?.[0]?.hourly_rate
-      const rate = userRate || 0
-
+      const rate = userRates?.[0]?.hourly_rate || 0
       const startDate = new Date(requested_started_at)
       const endDate = new Date(requested_ended_at)
       const durationMinutes = calculateDurationMinutes(startDate, endDate)
@@ -362,13 +382,6 @@ router.post('/admin/time-entry-change-requests/:id/approve', requireAuth, requir
          WHERE id = $7`,
         [requested_project_id, requested_started_at, requested_ended_at, durationMinutes, costSnapshot, req.profile.id, time_entry_id]
       )
-
-      await client.query(
-        `UPDATE time_entry_change_requests
-         SET status = 'approved', decided_by = $1, decided_at = now(), admin_note = $2
-         WHERE id = $3`,
-        [req.profile.id, admin_note || null, id]
-      )
     })
 
     const { rows: approvedRequest } = await query(
@@ -380,6 +393,7 @@ router.post('/admin/time-entry-change-requests/:id/approve', requireAuth, requir
     const enriched = await enrichChangeRequests(approvedRequest)
     return res.json(enriched[0])
   } catch (err) {
+    if (err.status === 400) return res.status(400).json({ error: err.message })
     return res.status(400).json({ error: err.message })
   }
 })
@@ -389,16 +403,30 @@ router.post('/admin/time-entry-change-requests/:id/reject', requireAuth, require
   const { admin_note } = req.body
 
   try {
+    const { rows: existing } = await query(
+      `SELECT id, user_id, status FROM time_entry_change_requests WHERE id = $1`,
+      [id]
+    )
+    if (!existing.length) {
+      return res.status(404).json({ error: 'Solicitação não encontrada.' })
+    }
+    if (existing[0].status !== 'pending') {
+      return res.status(400).json({ error: 'Esta solicitação já foi decidida.' })
+    }
+    if (existing[0].user_id === req.profile.id) {
+      return res.status(403).json({ error: 'Você não pode rejeitar a própria solicitação de alteração.' })
+    }
+
     const { rows } = await query(
       `UPDATE time_entry_change_requests
        SET status = 'rejected', decided_by = $1, decided_at = now(), admin_note = $2
-       WHERE id = $3
+       WHERE id = $3 AND status = 'pending'
        RETURNING id, time_entry_id, user_id, requested_project_id, requested_started_at, requested_ended_at, reason, status, admin_note, decided_at, created_at, updated_at`,
       [req.profile.id, admin_note || null, id]
     )
 
     if (!rows || rows.length === 0) {
-      return res.status(404).json({ error: 'Solicitação não encontrada.' })
+      return res.status(400).json({ error: 'Esta solicitação já foi decidida.' })
     }
 
     const enriched = await enrichChangeRequests(rows)

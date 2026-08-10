@@ -76,4 +76,55 @@ describe('POST /me/vacation-requests — regras de validação', () => {
     expect(res.status).toBe(409)
     expect(res.body.error).toMatch(/já existe/i)
   })
+
+  it('employee só cancela pending; approved vira 400', async () => {
+    const pending = await asUser(emp).post('/me/vacation-requests')
+      .send({ start_date: daquiA(20), end_date: daquiA(22) })
+    expect(pending.status).toBe(201)
+
+    const delPending = await asUser(emp).delete(`/me/vacation-requests/${pending.body.id}`)
+    expect(delPending.status).toBe(200)
+
+    const approved = await asUser(admin).post('/me/vacation-requests')
+      .send({ start_date: daquiA(30), end_date: daquiA(32) })
+    expect(approved.body.status).toBe('approved')
+
+    // employee tenta apagar férias aprovadas de outro? own delete only own.
+    // admin auto-approved is owned by admin:
+    const delApproved = await asUser(admin).delete(`/me/vacation-requests/${approved.body.id}`)
+    expect(delApproved.status).toBe(400)
+    expect(delApproved.body.error).toMatch(/pendentes/i)
+  })
+
+  it('intern não apaga férias de admin; admin apaga', async () => {
+    const intern = await makeUser({ role: 'administrative_intern', name: 'Estagiária' })
+    const vac = await asUser(admin).post('/me/vacation-requests')
+      .send({ start_date: daquiA(40), end_date: daquiA(42) })
+    expect(vac.status).toBe(201)
+
+    const denied = await asUser(intern).delete(`/admin/vacation-requests/${vac.body.id}`)
+    expect(denied.status).toBe(403)
+
+    const ok = await asUser(admin).delete(`/admin/vacation-requests/${vac.body.id}`)
+    expect(ok.status).toBe(200)
+  })
+
+  it('constraint EXCLUDE devolve erro amigável em overlap (23P01)', async () => {
+    await asUser(emp).post('/me/vacation-requests')
+      .send({ start_date: daquiA(50), end_date: daquiA(54) })
+
+    // Bypass do hasOverlappingVacation (race path): insert direto que viola EXCLUDE
+    // é capturado pelo mapVacationError na rota; aqui validamos a constraint no DB.
+    let code = null
+    try {
+      await query(
+        `INSERT INTO vacation_requests (user_id, start_date, end_date, days_count, status)
+         VALUES ($1, $2, $3, 3, 'pending')`,
+        [emp.id, daquiA(52), daquiA(56)],
+      )
+    } catch (err) {
+      code = err.code
+    }
+    expect(code).toBe('23P01')
+  })
 })
