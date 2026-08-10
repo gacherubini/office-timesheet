@@ -40,8 +40,9 @@ export function canAccessAdminArea(profile) {
   return isAdmin(profile) || isAdministrativeIntern(profile)
 }
 
+// CRM (clientes/fornecedores com PII): só operações (admin + intern).
 export function canManageClients(profile) {
-  return Boolean(profile)
+  return canAccessOperations(profile)
 }
 
 export function canDeleteClients(profile) {
@@ -49,7 +50,7 @@ export function canDeleteClients(profile) {
 }
 
 export function canManageSuppliers(profile) {
-  return Boolean(profile)
+  return canAccessOperations(profile)
 }
 
 export function canDeleteSuppliers(profile) {

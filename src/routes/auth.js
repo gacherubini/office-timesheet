@@ -5,14 +5,20 @@ import { comparePassword, hashPassword } from '../lib/password.js'
 import { signAccessToken } from '../lib/jwt.js'
 import { sendResetEmail } from '../lib/email.js'
 import { logger } from '../lib/logger.js'
+import { rateLimit } from '../lib/rateLimit.js'
 
 const router = Router()
+
+// Hash dummy (bcrypt de "invalid") pra equalizar tempo quando o usuário não existe.
+const DUMMY_PASSWORD_HASH = '$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012'
 
 function sha256Hex(input) {
   return createHash('sha256').update(input).digest('hex')
 }
 
-router.post('/auth/login', async (req, res) => {
+const authRateLimit = rateLimit({ windowMs: 15 * 60 * 1000, max: 30 })
+
+router.post('/auth/login', authRateLimit, async (req, res) => {
   try {
     const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : ''
     const password = typeof req.body?.password === 'string' ? req.body.password : ''
@@ -28,12 +34,13 @@ router.post('/auth/login', async (req, res) => {
     )
     const user = rows[0]
 
-    if (!user || !user.is_active || user.deleted_at) {
+    // Sempre roda bcrypt (hash real ou dummy) pra não vazar existência por timing.
+    const hash = user?.password_hash || DUMMY_PASSWORD_HASH
+    const ok = await comparePassword(password, hash)
+
+    if (!user || !user.is_active || user.deleted_at || !ok) {
       return res.status(401).json({ error: 'Credenciais inválidas.' })
     }
-
-    const ok = await comparePassword(password, user.password_hash)
-    if (!ok) return res.status(401).json({ error: 'Credenciais inválidas.' })
 
     const access_token = signAccessToken(user)
     return res.json({
@@ -46,7 +53,7 @@ router.post('/auth/login', async (req, res) => {
   }
 })
 
-router.post('/auth/forgot-password', async (req, res) => {
+router.post('/auth/forgot-password', authRateLimit, async (req, res) => {
   try {
     const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : ''
     if (!email) return res.status(400).json({ error: 'Email é obrigatório.' })
@@ -64,18 +71,20 @@ router.post('/auth/forgot-password', async (req, res) => {
 
     if (rowCount > 0) {
       const frontendUrl = (process.env.FRONTEND_URL || '').replace(/\/$/, '')
-      await sendResetEmail(email, `${frontendUrl}/reset-password?token=${token}`)
+      const resetUrl = `${frontendUrl}/reset-password?token=${token}`
+      await sendResetEmail(email, resetUrl)
     }
 
     // Sempre responde igual pra não vazar enumeração
     return res.json({ message: 'Se o email existir, você receberá um link de redefinição.' })
   } catch (err) {
     logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em /auth/forgot-password')
+    // Em produção, falha de e-mail/config não pode virar "enviado" silencioso.
     return res.status(500).json({ error: 'Erro interno.' })
   }
 })
 
-router.post('/auth/reset-password', async (req, res) => {
+router.post('/auth/reset-password', authRateLimit, async (req, res) => {
   try {
     const token = typeof req.body?.token === 'string' ? req.body.token : ''
     const newPassword = typeof req.body?.newPassword === 'string' ? req.body.newPassword : ''
@@ -98,11 +107,13 @@ router.post('/auth/reset-password', async (req, res) => {
     if (!user) return res.status(401).json({ error: 'Token inválido ou expirado.' })
 
     const hash = await hashPassword(newPassword)
+    // sessions_valid_after = now() invalida JWTs emitidos antes do reset.
     await query(
       `UPDATE users
           SET password_hash = $1,
               password_reset_token = NULL,
-              password_reset_expires_at = NULL
+              password_reset_expires_at = NULL,
+              sessions_valid_after = now()
         WHERE id = $2`,
       [hash, user.id],
     )

@@ -169,6 +169,16 @@ router.put('/users/:id', requireAuth, requireAdmin, async (req, res) => {
   const { id } = req.params
   const { name, role, hourly_rate, fixed_salary, is_active, position, birth_date, phone } = req.body
 
+  // Admin não se auto-desativa nem troca o próprio papel (self-lock).
+  if (id === req.profile.id) {
+    if (is_active === false || is_active === 'false') {
+      return res.status(400).json({ error: 'Você não pode desativar a própria conta.' })
+    }
+    if (role !== undefined && role !== req.profile.role) {
+      return res.status(400).json({ error: 'Você não pode alterar o próprio papel.' })
+    }
+  }
+
   const updates = {}
   if (name !== undefined) updates.name = name.trim()
   if (role !== undefined) {

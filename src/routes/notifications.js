@@ -70,15 +70,39 @@ router.post('/notifications/read-all', requireAuth, async (req, res) => {
 
 // ─── SSE stream ────────────────────────────────────────────────────────
 // EventSource não envia header Authorization, então o token vem por query.
+// Recarrega o usuário do DB (is_active/deleted_at/sessions_valid_after) —
+// JWT sozinho deixava demitido/inativo recebendo por até 7 dias.
 router.get('/notifications/stream', async (req, res) => {
   const token = req.query.token
   if (!token) return res.status(401).json({ error: 'Token ausente.' })
 
-  let userId
+  let payload
   try {
-    userId = verifyAccessToken(token).sub
+    payload = verifyAccessToken(token)
   } catch {
     return res.status(401).json({ error: 'Token inválido.' })
+  }
+
+  let userId
+  try {
+    const { rows } = await query(
+      `SELECT id, is_active, deleted_at, sessions_valid_after
+         FROM users WHERE id = $1`,
+      [payload.sub],
+    )
+    const user = rows[0]
+    if (!user || user.deleted_at || !user.is_active) {
+      return res.status(403).json({ error: 'Usuário inativo ou removido.' })
+    }
+    if (user.sessions_valid_after && payload.iat) {
+      const validAfterMs = new Date(user.sessions_valid_after).getTime()
+      if (Number.isFinite(validAfterMs) && validAfterMs > 0 && payload.iat * 1000 <= validAfterMs) {
+        return res.status(401).json({ error: 'Sessão invalidada. Faça login novamente.' })
+      }
+    }
+    userId = user.id
+  } catch {
+    return res.status(500).json({ error: 'Erro ao validar sessão.' })
   }
 
   res.writeHead(200, {
@@ -98,6 +122,7 @@ router.get('/notifications/stream', async (req, res) => {
       res.write(': ping\n\n')
     } catch {
       clearInterval(heartbeat)
+      removeClient(userId, res)
     }
   }, 25000)
 

@@ -4,8 +4,10 @@ import { requireAuth } from '../middleware/auth.js'
 import { query } from '../lib/db.js'
 import { encrypt, decrypt, isCryptoConfigured } from '../lib/crypto.js'
 import { getHolidays } from '../lib/holidays.js'
+import { rateLimit } from '../lib/rateLimit.js'
 
 const router = Router()
+const calendarPutLimit = rateLimit({ windowMs: 15 * 60 * 1000, max: 20 })
 
 // Cache em memória do .ics parseado por usuário (TTL 15min) — evita martelar o
 // feed do Google a cada navegação.
@@ -111,7 +113,7 @@ router.get('/me/calendar', requireAuth, async (req, res) => {
 })
 
 // ─── Conectar (salvar URL secreta) ─────────────────────────────────────
-router.put('/me/calendar', requireAuth, async (req, res) => {
+router.put('/me/calendar', requireAuth, calendarPutLimit, async (req, res) => {
   if (!isCryptoConfigured()) {
     return res.status(503).json({ error: 'Recurso de calendário não configurado no servidor.' })
   }

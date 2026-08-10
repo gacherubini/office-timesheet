@@ -19,7 +19,7 @@ export async function requireAuth(req, res, next) {
 
     const { rows } = await query(
       `SELECT id, name, email, role, is_active, deleted_at, position,
-              birth_date, phone, avatar_url
+              birth_date, phone, avatar_url, sessions_valid_after
          FROM users
         WHERE id = $1`,
       [payload.sub],
@@ -29,6 +29,15 @@ export async function requireAuth(req, res, next) {
     if (!profile) return res.status(403).json({ error: 'Perfil não encontrado.' })
     if (profile.deleted_at) return res.status(403).json({ error: 'Usuário deletado.' })
     if (!profile.is_active) return res.status(403).json({ error: 'Usuário inativo.' })
+
+    // Reset de senha (e futuros "logout em todos") invalidam JWTs anteriores.
+    // iat do JWT é em segundos; usa <= pra cobrir token emitido no mesmo segundo do reset.
+    if (profile.sessions_valid_after && payload.iat) {
+      const validAfterMs = new Date(profile.sessions_valid_after).getTime()
+      if (Number.isFinite(validAfterMs) && validAfterMs > 0 && payload.iat * 1000 <= validAfterMs) {
+        return res.status(401).json({ error: 'Sessão invalidada. Faça login novamente.' })
+      }
+    }
 
     req.accessToken = token
     req.authUser = { id: profile.id, email: profile.email }
