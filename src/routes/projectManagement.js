@@ -96,6 +96,8 @@ router.get('/tasks', requireAuth, async (req, res) => {
       params.push(req.query.assignee_id)
       conditions.push(`t.assignee_id = $${params.length}`)
     }
+    // Soft-delete de projeto some com o board/counts (SD-11).
+    conditions.push('p.deleted_at IS NULL')
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
 
     const { rows } = await query(
@@ -145,15 +147,16 @@ router.get('/tasks', requireAuth, async (req, res) => {
 router.get('/tasks/counts', requireAuth, async (_req, res) => {
   try {
     const { rows } = await query(
-      `SELECT project_id,
+      `SELECT t.project_id,
               COUNT(*)::int AS total,
-              COUNT(*) FILTER (WHERE status = 'todo')::int        AS todo,
-              COUNT(*) FILTER (WHERE status = 'in_progress')::int AS in_progress,
-              COUNT(*) FILTER (WHERE status = 'in_review')::int   AS in_review,
-              COUNT(*) FILTER (WHERE status = 'done')::int        AS done,
-              COUNT(*) FILTER (WHERE status = 'abandoned')::int   AS abandoned
-       FROM tasks
-       GROUP BY project_id`
+              COUNT(*) FILTER (WHERE t.status = 'todo')::int        AS todo,
+              COUNT(*) FILTER (WHERE t.status = 'in_progress')::int AS in_progress,
+              COUNT(*) FILTER (WHERE t.status = 'in_review')::int   AS in_review,
+              COUNT(*) FILTER (WHERE t.status = 'done')::int        AS done,
+              COUNT(*) FILTER (WHERE t.status = 'abandoned')::int   AS abandoned
+       FROM tasks t
+       JOIN projects p ON p.id = t.project_id AND p.deleted_at IS NULL
+       GROUP BY t.project_id`
     )
     return res.json(rows)
   } catch (err) {
@@ -189,6 +192,7 @@ router.get('/me/tasks', requireAuth, async (req, res) => {
        WHERE t.assignee_id = $1
          AND t.status IN ('todo', 'in_progress')
          AND p.status = 'active'
+         AND p.deleted_at IS NULL
        ORDER BY (open.started_at IS NOT NULL) DESC, t.due_date ASC NULLS LAST, t.created_at`,
       [req.profile.id]
     )
@@ -212,7 +216,7 @@ router.get('/tasks/:id', requireAuth, async (req, res) => {
               COALESCE(cc.comment_count, 0) AS comment_count,
               COALESCE(ac.attachment_count, 0) AS attachment_count
        FROM tasks t
-       JOIN projects p ON p.id = t.project_id
+       JOIN projects p ON p.id = t.project_id AND p.deleted_at IS NULL
        LEFT JOIN users a ON a.id = t.assignee_id
        LEFT JOIN LATERAL (
          SELECT COALESCE(SUM(

@@ -11,6 +11,13 @@ primary_region = "gru"
   auto_start_machines = true
   min_machines_running = 1
 
+  [[http_service.checks]]
+    grace_period = "15s"
+    interval = "15s"
+    method = "GET"
+    path = "/health"
+    timeout = "5s"
+
 [env]
   PORT = "3333"
   NODE_ENV = "production"
