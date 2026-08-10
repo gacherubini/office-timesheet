@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { resetDb } from '../helpers/db.js'
+import { resetDb, query } from '../helpers/db.js'
 import { asUser } from '../helpers/api.js'
 import { makeUser, makeAdmin, makeProject } from '../helpers/factories.js'
 
@@ -111,5 +111,29 @@ describe('Admin — editar/excluir apontamentos', () => {
 
     const del = await asUser(employee).delete(`/admin/time-entries/${entry.id}`)
     expect(del.status).toBe(403)
+  })
+
+  it('PUT com ended_at em entry running força completed e grava edited_by', async () => {
+    const { rows } = await query(
+      `INSERT INTO time_entries (user_id, project_id, started_at, status)
+       VALUES ($1, $2, now() - interval '2 hours', 'running')
+       RETURNING id`,
+      [employee.id, projectA.id],
+    )
+    const entryId = rows[0].id
+
+    const res = await asUser(admin)
+      .put(`/admin/time-entries/${entryId}`)
+      .send({ ended_at: new Date().toISOString() })
+    expect(res.status).toBe(200)
+    expect(res.body.status).toBe('completed')
+    expect(res.body.ended_at).toBeTruthy()
+    expect(res.body.edited_by).toBe(admin.id)
+    expect(res.body.edited_at).toBeTruthy()
+    expect(res.body.duration_minutes).toBeGreaterThanOrEqual(110)
+
+    // timer liberado — usuário consegue abrir outro
+    const start = await asUser(employee).post('/time-entries/start').send({ project_id: projectB.id })
+    expect(start.status).toBe(200)
   })
 })

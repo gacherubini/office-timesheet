@@ -52,17 +52,38 @@ async function fetchNotification(id) {
 }
 
 // Cria a notificação e empurra via SSE. Não notifica o próprio ator.
+// Erros são engolidos (como notifyAdmins): falha de notificação não pode
+// derrubar a request depois do INSERT de task/comentário já commitado.
 export async function createNotification({ userId, type, taskId, commentId = null, projectId = null, actorId }) {
   if (!userId || userId === actorId) return null
-  const { rows } = await query(
-    `INSERT INTO notifications (user_id, type, task_id, comment_id, project_id, actor_id)
-     VALUES ($1, $2, $3, $4, $5, $6)
-     RETURNING id`,
-    [userId, type, taskId || null, commentId, projectId || null, actorId || null]
-  )
-  const enriched = await fetchNotification(rows[0].id)
-  if (enriched) publish(userId, enriched)
-  return enriched
+  try {
+    const { rows } = await query(
+      `INSERT INTO notifications (user_id, type, task_id, comment_id, project_id, actor_id)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id`,
+      [userId, type, taskId || null, commentId, projectId || null, actorId || null]
+    )
+    const enriched = await fetchNotification(rows[0].id)
+    if (enriched) publish(userId, enriched)
+    return enriched
+  } catch (err) {
+    logger.error({ err: { message: err.message, stack: err.stack }, type, userId }, 'Erro em createNotification')
+    return null
+  }
+}
+
+// Fecha conexões SSE (graceful shutdown).
+export function closeAllSseClients() {
+  for (const [userId, set] of clients) {
+    for (const res of set) {
+      try {
+        res.end()
+      } catch {
+        // ignore
+      }
+      removeClient(userId, res)
+    }
+  }
 }
 
 // Notifica todos os admins ativos (exceto o próprio ator). Falhas são

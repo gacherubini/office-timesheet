@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { sendResetEmail } from '../../lib/email.js'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { sendResetEmail, assertResetEmailConfig } from '../../lib/email.js'
 import { testSink, clearTestSink } from '../../lib/logger.js'
 
 // Sem RESEND_API_KEY (o caso do dev e o do teste) o envio é pulado. O que não
@@ -25,5 +25,23 @@ describe('sendResetEmail — sem provedor configurado', () => {
 
     expect(testSink).toHaveLength(1)
     expect(testSink[0].msg).toContain('Provedor de e-mail não configurado')
+  })
+})
+
+describe('assertResetEmailConfig — produção não engole config quebrada', () => {
+  const prev = process.env.NODE_ENV
+
+  afterEach(() => {
+    process.env.NODE_ENV = prev
+  })
+
+  it('em production exige FRONTEND_URL absoluta e RESEND_*', () => {
+    process.env.NODE_ENV = 'production'
+    expect(() => assertResetEmailConfig('/reset-password?token=x')).toThrow(/FRONTEND_URL|RESEND/)
+  })
+
+  it('fora de production aceita ausência de provedor', () => {
+    process.env.NODE_ENV = 'test'
+    expect(() => assertResetEmailConfig('https://app.exemplo.com/reset?token=x')).not.toThrow()
   })
 })

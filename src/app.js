@@ -2,7 +2,7 @@ import express from 'express'
 import cors from 'cors'
 
 import { pool } from './lib/db.js'
-import { localUploadsDir } from './lib/storage.js'
+import { localUploadsDir, isLocalStorage } from './lib/storage.js'
 import { requestLogger } from './middleware/requestLogger.js'
 import { notFound, errorHandler } from './middleware/errorHandler.js'
 
@@ -26,6 +26,7 @@ import suppliersRoutes from './routes/suppliers.js'
 import holidaysRoutes from './routes/holidays.js'
 import calendarRoutes from './routes/calendar.js'
 import presencesRoutes from './routes/presences.js'
+import agentRoutes from './routes/agent.js'
 
 // Constrói e exporta o app Express (sem escutar porta). Assim o server.js
 // sobe a porta em produção e os testes (Supertest) usam o app direto.
@@ -48,15 +49,24 @@ app.use(cors({
 }))
 app.use(express.json())
 
-// Fallback local de storage: serve arquivos gravados em src/uploads/
-app.use('/uploads', express.static(localUploadsDir))
+// Fallback local de storage (só dev; produção usa BUCKET_NAME S3/Tigris).
+// Coerente com a decisão harden-only (§5.2): os objetos são públicos por URL,
+// então o estático local também serve sem auth — senão <img src="/api/uploads/…">
+// quebra, porque a tag <img> não manda o header Authorization: Bearer.
+if (isLocalStorage) {
+  if (process.env.NODE_ENV === 'production') {
+    // eslint-disable-next-line no-console
+    console.warn('[storage] BUCKET_NAME ausente em production — uploads locais efêmeros e inseguros')
+  }
+  app.use('/uploads', express.static(localUploadsDir))
+}
 
 app.get('/health', async (_req, res) => {
   try {
     await pool.query('SELECT 1')
     res.json({ ok: true, db: 'up' })
   } catch (err) {
-    res.status(503).json({ ok: false, db: 'down', error: err.message })
+    res.status(503).json({ ok: false, db: 'down' })
   }
 })
 
@@ -78,6 +88,7 @@ app.use(suppliersRoutes)
 app.use(holidaysRoutes)
 app.use(calendarRoutes)
 app.use(presencesRoutes)
+app.use(agentRoutes)
 app.use('/admin', reportsRoutes)
 app.use('/admin', dashboardRoutes)
 

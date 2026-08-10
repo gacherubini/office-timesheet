@@ -10,23 +10,16 @@ import { calculateDurationMinutes, calculateCostSnapshot } from '../lib/timeMath
 
 const router = Router()
 
-function todayValue() {
-  const today = new Date()
-  const year = today.getFullYear()
-  const month = String(today.getMonth() + 1).padStart(2, '0')
-  const day = String(today.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
 async function getApprovedVacationForToday(userId) {
-  const today = todayValue()
-
+  // "Hoje" no fuso do estúdio — no Fly o processo é UTC e todayValue() JS
+  // liberaria timer entre 21h–00h BRT no primeiro dia de férias.
   const { rows } = await query(
     `SELECT id, start_date, end_date FROM vacation_requests
      WHERE user_id = $1 AND status = 'approved'
-       AND start_date <= $2::date AND end_date >= $2::date
+       AND start_date <= (now() AT TIME ZONE 'America/Sao_Paulo')::date
+       AND end_date   >= (now() AT TIME ZONE 'America/Sao_Paulo')::date
      LIMIT 1`,
-    [userId, today]
+    [userId]
   )
 
   return rows.length > 0 ? rows[0] : null
@@ -114,6 +107,15 @@ router.post('/time-entries/start', requireAuth, blockTimerDuringVacation, async 
   }
 
   try {
+    const { rows: projects } = await query(
+      `SELECT id FROM projects
+       WHERE id = $1 AND deleted_at IS NULL AND status = 'active'`,
+      [project_id]
+    )
+    if (projects.length === 0) {
+      return res.status(400).json({ error: 'Projeto inválido, inativo ou removido.' })
+    }
+
     const { rows } = await query(
       `INSERT INTO time_entries (user_id, project_id, started_at, status)
        VALUES ($1, $2, now(), 'running') RETURNING *`,
@@ -209,65 +211,81 @@ router.post('/time-entries/resume', requireAuth, blockTimerDuringVacation, async
 })
 
 // ─── STOP ─────────────────────────────────────────────────────────────
+// Atômico: um único relógio (now() do Postgres), fecha pausa aberta, e
+// UPDATE com AND status='running' mata double-stop (double-click / retry).
 router.post('/time-entries/stop', requireAuth, async (req, res) => {
   try {
-    const { rows: openEntries } = await query(
-      `SELECT id, started_at, project_id FROM time_entries
-       WHERE user_id = $1 AND status = 'running'
-       LIMIT 1`,
-      [req.profile.id]
-    )
+    const result = await withTransaction(async (client) => {
+      const { rows: openEntries } = await client.query(
+        `SELECT te.id, te.started_at, te.project_id, u.hourly_rate
+         FROM time_entries te
+         JOIN users u ON u.id = te.user_id
+         WHERE te.user_id = $1 AND te.status = 'running'
+         FOR UPDATE OF te
+         LIMIT 1`,
+        [req.profile.id]
+      )
 
-    if (!openEntries || openEntries.length === 0) {
+      if (!openEntries.length) return { notFound: true }
+
+      const entry = openEntries[0]
+      const { rows: nowRows } = await client.query('SELECT now() AS stop_ts')
+      const stopTs = nowRows[0].stop_ts
+
+      // Fecha pausa aberta no mesmo instante do stop (evita resumed_at null).
+      await client.query(
+        `UPDATE time_entry_pauses
+         SET resumed_at = $1
+         WHERE time_entry_id = $2 AND resumed_at IS NULL`,
+        [stopTs, entry.id]
+      )
+
+      const { rows: pausesData } = await client.query(
+        `SELECT paused_at, resumed_at FROM time_entry_pauses
+         WHERE time_entry_id = $1
+         ORDER BY paused_at`,
+        [entry.id]
+      )
+
+      const startDate = new Date(entry.started_at)
+      const endDate = new Date(stopTs)
+      let totalPausedMs = 0
+      for (const pause of pausesData) {
+        const pausedTime = new Date(pause.paused_at)
+        const resumedTime = pause.resumed_at ? new Date(pause.resumed_at) : endDate
+        totalPausedMs += Math.max(0, resumedTime.getTime() - pausedTime.getTime())
+      }
+
+      const durationMs = endDate.getTime() - startDate.getTime() - totalPausedMs
+      const durationMinutes = calculateDurationMinutes(new Date(0), new Date(durationMs))
+      const costSnapshot = calculateCostSnapshot(durationMinutes, entry.hourly_rate)
+
+      const { rows } = await client.query(
+        `UPDATE time_entries
+         SET status = 'completed',
+             ended_at = $1,
+             duration_minutes = $2,
+             cost_snapshot = $3
+         WHERE id = $4 AND status = 'running'
+         RETURNING *`,
+        [stopTs, durationMinutes, costSnapshot, entry.id]
+      )
+
+      if (!rows.length) return { notFound: true }
+      return { entry: rows[0], projectId: entry.project_id }
+    })
+
+    if (result.notFound) {
       return res.status(404).json({ error: 'Nenhum apontamento aberto.' })
     }
 
-    const entry = openEntries[0]
-    const startDate = new Date(entry.started_at)
-    const now = new Date()
-
-    // Calcula duração líquida descontando pausas
-    const { rows: pausesData } = await query(
-      `SELECT paused_at, resumed_at FROM time_entry_pauses
-       WHERE time_entry_id = $1
-       ORDER BY paused_at`,
-      [entry.id]
-    )
-
-    let totalPausedMs = 0
-    for (const pause of pausesData) {
-      const pausedTime = new Date(pause.paused_at)
-      const resumedTime = pause.resumed_at ? new Date(pause.resumed_at) : now
-      totalPausedMs += Math.max(0, resumedTime.getTime() - pausedTime.getTime())
-    }
-
-    const durationMs = now.getTime() - startDate.getTime() - totalPausedMs
-    const durationMinutes = calculateDurationMinutes(new Date(0), new Date(durationMs))
-
-    const { rows: userRates } = await query(
-      `SELECT hourly_rate FROM users WHERE id = $1`,
-      [req.profile.id]
-    )
-
-    const userRate = userRates?.[0]?.hourly_rate
-    const rate = userRate || 0
-    const costSnapshot = calculateCostSnapshot(durationMinutes, rate)
-
-    // Atualiza entry
-    const { rows } = await query(
-      `UPDATE time_entries
-       SET status = 'completed', ended_at = now(), duration_minutes = $1, cost_snapshot = $2
-       WHERE id = $3 RETURNING *`,
-      [durationMinutes, costSnapshot, entry.id]
-    )
-
     await notifyAdmins({
       type: 'time_entry_stopped',
-      projectId: entry.project_id,
+      projectId: result.projectId,
       actorId: req.profile.id,
     })
 
-    return res.json(rows[0])
+    return res.json(result.entry)
   } catch (err) {
     return res.status(400).json({ error: err.message })
   }
@@ -300,7 +318,7 @@ router.post('/admin/time-entry-change-requests/:id/approve', requireAuth, requir
 
   try {
     const { rows: requestRows } = await query(
-      `SELECT id, time_entry_id, requested_project_id, requested_started_at, requested_ended_at, user_id
+      `SELECT id, time_entry_id, requested_project_id, requested_started_at, requested_ended_at, user_id, status
        FROM time_entry_change_requests WHERE id = $1`,
       [id]
     )
@@ -310,6 +328,15 @@ router.post('/admin/time-entry-change-requests/:id/approve', requireAuth, requir
     }
 
     const changeRequest = requestRows[0]
+    if (changeRequest.status !== 'pending') {
+      return res.status(400).json({ error: 'Esta solicitação já foi decidida.' })
+    }
+
+    // Aprovador não pode aprovar a própria solicitação (recalcula o próprio custo).
+    if (changeRequest.user_id === req.profile.id) {
+      return res.status(403).json({ error: 'Você não pode aprovar a própria solicitação de alteração.' })
+    }
+
     const { time_entry_id, requested_project_id, requested_started_at, requested_ended_at, user_id } = changeRequest
 
     // Valida se a entry pertence ao usuário
@@ -322,16 +349,27 @@ router.post('/admin/time-entry-change-requests/:id/approve', requireAuth, requir
       return res.status(404).json({ error: 'Apontamento não encontrado.' })
     }
 
-    // Atualiza com transaction
+    // Atualiza com transaction; claim atômico do pending evita double-approve.
     await withTransaction(async (client) => {
+      const { rows: claimed } = await client.query(
+        `UPDATE time_entry_change_requests
+         SET status = 'approved', decided_by = $1, decided_at = now(), admin_note = $2
+         WHERE id = $3 AND status = 'pending'
+         RETURNING id`,
+        [req.profile.id, admin_note || null, id]
+      )
+      if (!claimed.length) {
+        const err = new Error('Esta solicitação já foi decidida.')
+        err.status = 400
+        throw err
+      }
+
       const { rows: userRates } = await client.query(
         'SELECT hourly_rate FROM users WHERE id = $1',
         [user_id]
       )
 
-      const userRate = userRates?.[0]?.hourly_rate
-      const rate = userRate || 0
-
+      const rate = userRates?.[0]?.hourly_rate || 0
       const startDate = new Date(requested_started_at)
       const endDate = new Date(requested_ended_at)
       const durationMinutes = calculateDurationMinutes(startDate, endDate)
@@ -344,13 +382,6 @@ router.post('/admin/time-entry-change-requests/:id/approve', requireAuth, requir
          WHERE id = $7`,
         [requested_project_id, requested_started_at, requested_ended_at, durationMinutes, costSnapshot, req.profile.id, time_entry_id]
       )
-
-      await client.query(
-        `UPDATE time_entry_change_requests
-         SET status = 'approved', decided_by = $1, decided_at = now(), admin_note = $2
-         WHERE id = $3`,
-        [req.profile.id, admin_note || null, id]
-      )
     })
 
     const { rows: approvedRequest } = await query(
@@ -362,6 +393,7 @@ router.post('/admin/time-entry-change-requests/:id/approve', requireAuth, requir
     const enriched = await enrichChangeRequests(approvedRequest)
     return res.json(enriched[0])
   } catch (err) {
+    if (err.status === 400) return res.status(400).json({ error: err.message })
     return res.status(400).json({ error: err.message })
   }
 })
@@ -371,16 +403,30 @@ router.post('/admin/time-entry-change-requests/:id/reject', requireAuth, require
   const { admin_note } = req.body
 
   try {
+    const { rows: existing } = await query(
+      `SELECT id, user_id, status FROM time_entry_change_requests WHERE id = $1`,
+      [id]
+    )
+    if (!existing.length) {
+      return res.status(404).json({ error: 'Solicitação não encontrada.' })
+    }
+    if (existing[0].status !== 'pending') {
+      return res.status(400).json({ error: 'Esta solicitação já foi decidida.' })
+    }
+    if (existing[0].user_id === req.profile.id) {
+      return res.status(403).json({ error: 'Você não pode rejeitar a própria solicitação de alteração.' })
+    }
+
     const { rows } = await query(
       `UPDATE time_entry_change_requests
        SET status = 'rejected', decided_by = $1, decided_at = now(), admin_note = $2
-       WHERE id = $3
+       WHERE id = $3 AND status = 'pending'
        RETURNING id, time_entry_id, user_id, requested_project_id, requested_started_at, requested_ended_at, reason, status, admin_note, decided_at, created_at, updated_at`,
       [req.profile.id, admin_note || null, id]
     )
 
     if (!rows || rows.length === 0) {
-      return res.status(404).json({ error: 'Solicitação não encontrada.' })
+      return res.status(400).json({ error: 'Esta solicitação já foi decidida.' })
     }
 
     const enriched = await enrichChangeRequests(rows)
@@ -443,7 +489,7 @@ router.put('/admin/time-entries/:id', requireAuth, requireAdmin, async (req, res
 
   try {
     const { rows: entryRows } = await query(
-      'SELECT id FROM time_entries WHERE id = $1',
+      'SELECT id, user_id, project_id, started_at, ended_at, status FROM time_entries WHERE id = $1',
       [id]
     )
 
@@ -451,6 +497,7 @@ router.put('/admin/time-entries/:id', requireAuth, requireAdmin, async (req, res
       return res.status(404).json({ error: 'Apontamento não encontrado.' })
     }
 
+    const current = entryRows[0]
     const updates = {}
     let paramIdx = 1
     const params = []
@@ -485,32 +532,43 @@ router.put('/admin/time-entries/:id', requireAuth, requireAdmin, async (req, res
       return res.status(400).json({ error: 'Nenhum campo para atualizar.' })
     }
 
-    // Se atualizou datas, recalcula duração e custo
-    let shouldRecalculate = false
-    if (updates.started_at || updates.ended_at) {
-      shouldRecalculate = true
-      const { rows: currentEntry } = await query(
-        'SELECT user_id, project_id, started_at, ended_at FROM time_entries WHERE id = $1',
-        [id]
-      )
+    // ended_at presente (novo ou já existente) → completed. Sem isso, um PUT
+    // em entry running com ended_at deixa status=running e trava o timer
+    // (índice one_open_entry_per_user).
+    const finalEndedAt = ended_at !== undefined ? ended_at : current.ended_at
+    if (finalEndedAt) {
+      updates.status = `$${paramIdx}`
+      params.push('completed')
+      paramIdx++
+    }
 
-      const start = updates.started_at ? new Date(params[Object.keys(updates).indexOf('started_at')]) : new Date(currentEntry[0].started_at)
-      const end = updates.ended_at ? new Date(params[Object.keys(updates).indexOf('ended_at')]) : new Date(currentEntry[0].ended_at)
+    // Auditoria de edição admin
+    updates.edited_by = `$${paramIdx}`
+    params.push(req.profile.id)
+    paramIdx++
+    updates.edited_at = 'now()'
+
+    // Se atualizou datas, recalcula duração e custo
+    if (updates.started_at || updates.ended_at) {
+      const start = started_at !== undefined ? new Date(started_at) : new Date(current.started_at)
+      const end = finalEndedAt ? new Date(finalEndedAt) : null
+
+      if (!end || Number.isNaN(end.getTime())) {
+        return res.status(400).json({ error: 'Data de término inválida.' })
+      }
 
       if (end <= start) {
         return res.status(400).json({ error: 'A saída deve ser posterior ao início.' })
       }
 
       const durationMinutes = calculateDurationMinutes(start, end)
-      const userId = currentEntry[0].user_id
 
       const { rows: userRates } = await query(
         'SELECT hourly_rate FROM users WHERE id = $1',
-        [userId]
+        [current.user_id]
       )
 
-      const userRate = userRates?.[0]?.hourly_rate
-      const rate = userRate || 0
+      const rate = userRates?.[0]?.hourly_rate || 0
       const costSnapshot = calculateCostSnapshot(durationMinutes, rate)
 
       updates.duration_minutes = `$${paramIdx}`
@@ -639,11 +697,11 @@ router.get('/admin/time-entries', requireAuth, requireAdmin, async (req, res) =>
     }
     if (req.query.start_date) {
       baseParams.push(req.query.start_date)
-      conditions.push(`te.started_at >= ($${baseParams.length}::date AT TIME ZONE 'America/Sao_Paulo')`)
+      conditions.push(`te.started_at >= ($${baseParams.length}::timestamp AT TIME ZONE 'America/Sao_Paulo')`)
     }
     if (req.query.end_date) {
       baseParams.push(req.query.end_date)
-      conditions.push(`te.started_at < (($${baseParams.length}::date + interval '1 day') AT TIME ZONE 'America/Sao_Paulo')`)
+      conditions.push(`te.started_at < (($${baseParams.length}::date + interval '1 day')::timestamp AT TIME ZONE 'America/Sao_Paulo')`)
     }
     const whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : ''
 

@@ -9,81 +9,13 @@ import {
   canViewVacationApprovals,
   isAdmin,
 } from '../lib/permissions.js'
+import {
+  parseDateOnly,
+  parseVacationPayload,
+  hasOverlappingVacation,
+} from '../lib/vacationRequests.js'
 
 const router = Router()
-const ACTIVE_VACATION_STATUSES = ['pending', 'approved']
-
-function parseDateOnly(value) {
-  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
-
-  const [year, month, day] = value.split('-').map(Number)
-  const utcTime = Date.UTC(year, month - 1, day)
-  const date = new Date(utcTime)
-
-  if (
-    date.getUTCFullYear() !== year ||
-    date.getUTCMonth() !== month - 1 ||
-    date.getUTCDate() !== day
-  ) {
-    return null
-  }
-
-  return { value, utcTime }
-}
-
-function todayValue() {
-  const today = new Date()
-  const year = today.getFullYear()
-  const month = String(today.getMonth() + 1).padStart(2, '0')
-  const day = String(today.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
-function calculateInclusiveDays(startUtcTime, endUtcTime) {
-  return Math.round((endUtcTime - startUtcTime) / 86400000) + 1
-}
-
-function parseVacationPayload(body) {
-  const startDate = parseDateOnly(body.start_date)
-  const endDate = parseDateOnly(body.end_date)
-  const reason = body.reason?.trim() || null
-
-  if (!startDate) return { error: 'Data de início inválida.' }
-  if (!endDate) return { error: 'Data de fim inválida.' }
-
-  if (endDate.utcTime < startDate.utcTime) {
-    return { error: 'Data de fim deve ser igual ou posterior ao início.' }
-  }
-
-  if (startDate.value < todayValue()) {
-    return { error: 'Solicitações de férias não podem começar no passado.' }
-  }
-
-  return {
-    data: {
-      start_date: startDate.value,
-      end_date: endDate.value,
-      days_count: calculateInclusiveDays(startDate.utcTime, endDate.utcTime),
-      reason,
-    },
-  }
-}
-
-async function hasOverlappingVacation(userId, startDate, endDate) {
-  try {
-    const { rows } = await query(
-      `SELECT id FROM vacation_requests
-       WHERE user_id = $1
-         AND status = ANY($2)
-         AND daterange(start_date::date, end_date::date, '[]') && daterange($3::date, $4::date, '[]')
-       LIMIT 1`,
-      [userId, ACTIVE_VACATION_STATUSES, startDate, endDate]
-    )
-    return rows.length > 0
-  } catch (err) {
-    throw err
-  }
-}
 
 async function enrichVacationRequests(vacations) {
   const rows = vacations || []
@@ -110,10 +42,63 @@ async function enrichVacationRequests(vacations) {
 
 function mapVacationError(error) {
   if (!error?.message) return 'Erro ao processar solicitação de férias.'
-  if (error.code === '23505' || error.message.includes('overlap')) {
+  // 23505 = unique; 23P01 = exclusion constraint (overlap real sob corrida).
+  if (
+    error.code === '23505' ||
+    error.code === '23P01' ||
+    error.message.includes('overlap') ||
+    error.message.includes('vacation_requests_no_user_overlap')
+  ) {
     return 'Já existe uma solicitação de férias pendente ou aprovada nesse período.'
   }
   return error.message
+}
+
+// Se a férias aprovada cobre "hoje" SP, encerra timer aberto do colaborador
+// (blockTimerDuringVacation só age em start/resume).
+async function stopRunningTimerForUser(userId) {
+  const { rows: openEntries } = await query(
+    `SELECT te.id, te.started_at, u.hourly_rate
+     FROM time_entries te
+     JOIN users u ON u.id = te.user_id
+     WHERE te.user_id = $1 AND te.status = 'running'
+     LIMIT 1`,
+    [userId]
+  )
+  if (!openEntries.length) return
+
+  const entry = openEntries[0]
+  const { rows: nowRows } = await query('SELECT now() AS stop_ts')
+  const stopTs = nowRows[0].stop_ts
+
+  await query(
+    `UPDATE time_entry_pauses SET resumed_at = $1
+     WHERE time_entry_id = $2 AND resumed_at IS NULL`,
+    [stopTs, entry.id]
+  )
+
+  const { rows: pauses } = await query(
+    `SELECT paused_at, resumed_at FROM time_entry_pauses WHERE time_entry_id = $1`,
+    [entry.id]
+  )
+
+  const startDate = new Date(entry.started_at)
+  const endDate = new Date(stopTs)
+  let pausedMs = 0
+  for (const p of pauses) {
+    const a = new Date(p.paused_at)
+    const b = p.resumed_at ? new Date(p.resumed_at) : endDate
+    pausedMs += Math.max(0, b.getTime() - a.getTime())
+  }
+  const durationMinutes = Math.max(0, Math.round((endDate.getTime() - startDate.getTime() - pausedMs) / 60000))
+  const costSnapshot = Number(((durationMinutes / 60) * (Number(entry.hourly_rate) || 0)).toFixed(2))
+
+  await query(
+    `UPDATE time_entries
+     SET status = 'completed', ended_at = $1, duration_minutes = $2, cost_snapshot = $3
+     WHERE id = $4 AND status = 'running'`,
+    [stopTs, durationMinutes, costSnapshot, entry.id]
+  )
 }
 
 // ─── TODOS: CALENDÁRIO DE FÉRIAS ─────────────────────────────────────
@@ -226,14 +211,23 @@ router.delete('/me/vacation-requests/:id', requireAuth, async (req, res) => {
   }
 
   try {
+    // Só pendentes: férias aprovadas não somem pelo DELETE do próprio usuário.
     const { rows } = await query(
       `DELETE FROM vacation_requests
-       WHERE id = $1 AND user_id = $2
+       WHERE id = $1 AND user_id = $2 AND status = 'pending'
        RETURNING id, user_id, start_date, end_date, days_count, reason, status, admin_note, decided_at, created_at, updated_at`,
       [req.params.id, req.profile.id]
     )
 
     if (!rows || rows.length === 0) {
+      // Distingue "não existe" de "já decidida" pra UX.
+      const { rows: existing } = await query(
+        `SELECT status FROM vacation_requests WHERE id = $1 AND user_id = $2`,
+        [req.params.id, req.profile.id]
+      )
+      if (existing.length > 0 && existing[0].status !== 'pending') {
+        return res.status(400).json({ error: 'Só é possível cancelar solicitações pendentes.' })
+      }
       return res.status(404).json({ error: 'Solicitação de férias não encontrada.' })
     }
 
@@ -318,10 +312,31 @@ router.post('/admin/vacation-requests/:id/approve', requireAuth, requireCanViewV
     const { rows } = await query(
       `UPDATE vacation_requests
        SET status = 'approved', admin_note = $1, decided_by = $2, decided_at = $3, updated_at = $3
-       WHERE id = $4
+       WHERE id = $4 AND status = 'pending'
        RETURNING id, user_id, start_date, end_date, days_count, reason, status, admin_note, decided_by, decided_at, created_at, updated_at`,
       [adminNote, req.profile.id, decidedAt, req.params.id]
     )
+
+    if (!rows.length) {
+      return res.status(400).json({ error: 'Esta solicitação já foi decidida.' })
+    }
+
+    // Se cobre hoje (SP), encerra timer aberto do colaborador.
+    const approved = rows[0]
+    const { rows: coversToday } = await query(
+      `SELECT 1 FROM vacation_requests
+       WHERE id = $1
+         AND start_date <= (now() AT TIME ZONE 'America/Sao_Paulo')::date
+         AND end_date   >= (now() AT TIME ZONE 'America/Sao_Paulo')::date`,
+      [approved.id]
+    )
+    if (coversToday.length) {
+      try {
+        await stopRunningTimerForUser(approved.user_id)
+      } catch {
+        // falha ao encerrar timer não desfaz a aprovação
+      }
+    }
 
     const enriched = await enrichVacationRequests(rows)
     return res.json(enriched[0])
@@ -369,10 +384,14 @@ router.post('/admin/vacation-requests/:id/reject', requireAuth, requireCanViewVa
     const { rows } = await query(
       `UPDATE vacation_requests
        SET status = 'rejected', admin_note = $1, decided_by = $2, decided_at = $3, updated_at = $3
-       WHERE id = $4
+       WHERE id = $4 AND status = 'pending'
        RETURNING id, user_id, start_date, end_date, days_count, reason, status, admin_note, decided_by, decided_at, created_at, updated_at`,
       [adminNote, req.profile.id, decidedAt, req.params.id]
     )
+
+    if (!rows.length) {
+      return res.status(400).json({ error: 'Esta solicitação já foi decidida.' })
+    }
 
     const enriched = await enrichVacationRequests(rows)
     return res.json(enriched[0])
@@ -381,19 +400,42 @@ router.post('/admin/vacation-requests/:id/reject', requireAuth, requireCanViewVa
   }
 })
 
-// Admin: deletar férias de qualquer usuário, em qualquer status
+// Admin/aprovador: deletar férias com o mesmo escopo de aprovação
+// (intern não apaga férias de admin/outro intern).
 router.delete('/admin/vacation-requests/:id', requireAuth, requireCanViewVacationApprovals, async (req, res) => {
   try {
+    const { rows: requestRows } = await query(
+      `SELECT vr.id, vr.user_id, vr.status, u.role AS user_role
+       FROM vacation_requests vr
+       JOIN users u ON u.id = vr.user_id
+       WHERE vr.id = $1`,
+      [req.params.id]
+    )
+
+    if (!requestRows.length) {
+      return res.status(404).json({ error: 'Solicitação de férias não encontrada.' })
+    }
+
+    const vacation = requestRows[0]
+    // Intern só apaga férias de employee; admin/intern/PM ficam pro admin.
+    if (!isAdmin(req.profile)) {
+      const target = { role: vacation.user_role }
+      if (
+        isAdmin(target) ||
+        vacation.user_role === 'administrative_intern' ||
+        vacation.user_role === 'project_manager' ||
+        !canApproveVacationRequest(req.profile, target)
+      ) {
+        return res.status(403).json({ error: 'Você não tem permissão para excluir esta solicitação.' })
+      }
+    }
+
     const { rows } = await query(
       `DELETE FROM vacation_requests
        WHERE id = $1
        RETURNING id, user_id, start_date, end_date, days_count, status`,
       [req.params.id]
     )
-
-    if (!rows || rows.length === 0) {
-      return res.status(404).json({ error: 'Solicitação de férias não encontrada.' })
-    }
 
     return res.json(rows[0])
   } catch (err) {

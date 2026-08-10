@@ -6,6 +6,8 @@ import { comparePassword, hashPassword } from '../lib/password.js'
 import { uploadFile, deleteFile, extractKeyFromUrl } from '../lib/storage.js'
 import { canAccessMoney } from '../lib/permissions.js'
 import { logger } from '../lib/logger.js'
+import { DEFAULT_SIM_CONFIG, normalizeSimConfig } from '../lib/performanceSimulation.js'
+import { dateInSaoPaulo, yearMonthInSaoPaulo } from '../lib/dates.js'
 
 const router = Router()
 
@@ -319,19 +321,17 @@ router.get('/me/stats', requireAuth, async (req, res) => {
 
   const userId = req.profile.id
 
-  const now = new Date()
   let year, month
   if (req.query.month) {
     ;[year, month] = req.query.month.split('-').map(Number)
   } else {
-    year = now.getFullYear()
-    month = now.getMonth() + 1
+    ;({ year, month } = yearMonthInSaoPaulo())
   }
 
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`
   const lastDay = new Date(year, month, 0).getDate()
   const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
-  const todayStr = now.toISOString().slice(0, 10)
+  const todayStr = dateInSaoPaulo()
 
   try {
     const { rows: entries } = await query(
@@ -340,8 +340,8 @@ router.get('/me/stats', requireAuth, async (req, res) => {
        FROM time_entries te
        LEFT JOIN projects p ON p.id = te.project_id
        WHERE te.user_id = $1 AND te.status = 'completed'
-         AND te.started_at >= ($2::date AT TIME ZONE 'America/Sao_Paulo')
-         AND te.started_at < (($3::date + interval '1 day') AT TIME ZONE 'America/Sao_Paulo')`,
+         AND te.started_at >= ($2::timestamp AT TIME ZONE 'America/Sao_Paulo')
+         AND te.started_at < (($3::date + interval '1 day')::timestamp AT TIME ZONE 'America/Sao_Paulo')`,
       [userId, startDate, endDate]
     )
 
@@ -360,12 +360,12 @@ router.get('/me/stats', requireAuth, async (req, res) => {
     const hourly_rate = Number(profile.hourly_rate) || 0
     const monthly_income_goal = Number(profile.monthly_income_goal) || 0
 
-    const workingDaysSet = new Set(entries.map((e) => new Date(e.started_at).toISOString().slice(0, 10)))
+    const workingDaysSet = new Set(entries.map((e) => dateInSaoPaulo(new Date(e.started_at))))
     const working_days = workingDaysSet.size
     const dailyTotalsMap = {}
 
     for (const entry of entries) {
-      const date = new Date(entry.started_at).toISOString().slice(0, 10)
+      const date = dateInSaoPaulo(new Date(entry.started_at))
       dailyTotalsMap[date] = (dailyTotalsMap[date] || 0) + (entry.duration_minutes || 0)
     }
 
@@ -403,7 +403,7 @@ router.get('/me/stats', requireAuth, async (req, res) => {
         }
       }
       projectMap[pid].total_minutes += entry.duration_minutes || 0
-      if (new Date(entry.started_at).toISOString().slice(0, 10) === todayStr) {
+      if (dateInSaoPaulo(new Date(entry.started_at)) === todayStr) {
         projectMap[pid].today_minutes += entry.duration_minutes || 0
       }
     }
@@ -416,8 +416,8 @@ router.get('/me/stats', requireAuth, async (req, res) => {
        FROM task_time_logs ttl
        JOIN tasks t ON t.id = ttl.task_id
        WHERE ttl.user_id = $1 AND ttl.ended_at IS NOT NULL
-         AND ttl.started_at >= ($2::date AT TIME ZONE 'America/Sao_Paulo')
-         AND ttl.started_at < (($3::date + interval '1 day') AT TIME ZONE 'America/Sao_Paulo')
+         AND ttl.started_at >= ($2::timestamp AT TIME ZONE 'America/Sao_Paulo')
+         AND ttl.started_at < (($3::date + interval '1 day')::timestamp AT TIME ZONE 'America/Sao_Paulo')
        GROUP BY 1
        HAVING COALESCE(SUM(ttl.duration_minutes), 0) > 0
        ORDER BY total_minutes DESC`,
@@ -459,41 +459,8 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 // Simulador de performance: config por mês (jsonb). O usuário informa a META de
 // ganho e, opcionalmente, horas de fim de semana; o cliente distribui as horas
 // pelos dias úteis que faltam. Horas reais nunca entram aqui — vêm de time_entries.
-//   config = {
-//     target_amount: number>=0,          // meta de ganho do mês (R$)
-//     include_weekends: boolean,          // considerar sáb/dom como hora extra
-//     weekend_default_minutes: int 0..1440, // horas padrão por dia de FDS
-//     overrides: { 'YYYY-MM-DD': minutos } // ajustes manuais por dia (0..1440)
-//   }
-const DEFAULT_SIM_CONFIG = {
-  target_amount: 0,
-  include_weekends: false,
-  weekend_default_minutes: 240,
-  overrides: {},
-}
-
-// Normaliza qualquer jsonb salvo (inclusive o formato antigo de mapa de datas)
-// para o shape de config atual, caindo nos defaults quando faltar/for inválido.
-function normalizeSimConfig(raw) {
-  const c = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}
-  return {
-    target_amount:
-      typeof c.target_amount === 'number' && Number.isFinite(c.target_amount) && c.target_amount >= 0
-        ? c.target_amount
-        : 0,
-    include_weekends: c.include_weekends === true,
-    weekend_default_minutes:
-      Number.isInteger(c.weekend_default_minutes) &&
-      c.weekend_default_minutes >= 0 &&
-      c.weekend_default_minutes <= 1440
-        ? c.weekend_default_minutes
-        : 240,
-    overrides:
-      c.overrides && typeof c.overrides === 'object' && !Array.isArray(c.overrides)
-        ? c.overrides
-        : {},
-  }
-}
+// O shape e a normalização vivem em lib/performanceSimulation.js: a tool
+// simulacao_performance do agente lê a mesma config e precisa da mesma leitura.
 
 router.get('/me/simulation', requireAuth, async (req, res) => {
   const month = String(req.query.month || '')
@@ -575,9 +542,7 @@ router.get('/me/monthly-history', requireAuth, async (req, res) => {
   const userId = req.profile.id
   const months = Math.min(24, Math.max(1, Number(req.query.months) || 6))
 
-  const now = new Date()
-  const anchorYear = now.getFullYear()
-  const anchorMonth = now.getMonth() + 1 // 1-12
+  const { year: anchorYear, month: anchorMonth } = yearMonthInSaoPaulo()
   // Primeiro dia do mês inicial da janela (N-1 meses atrás).
   const windowStart = new Date(anchorYear, anchorMonth - 1 - (months - 1), 1)
   const startDate = `${windowStart.getFullYear()}-${String(windowStart.getMonth() + 1).padStart(2, '0')}-01`
@@ -589,7 +554,7 @@ router.get('/me/monthly-history', requireAuth, async (req, res) => {
               SUM(te.cost_snapshot) AS cost
        FROM time_entries te
        WHERE te.user_id = $1 AND te.status = 'completed'
-         AND te.started_at >= ($2::date AT TIME ZONE 'America/Sao_Paulo')
+         AND te.started_at >= ($2::timestamp AT TIME ZONE 'America/Sao_Paulo')
        GROUP BY 1`,
       [userId, startDate]
     )
@@ -628,11 +593,11 @@ router.get('/me/project-earnings', requireAuth, async (req, res) => {
   const params = [req.profile.id]
   if (req.query.from) {
     params.push(req.query.from)
-    conditions.push(`te.started_at >= ($${params.length}::date AT TIME ZONE 'America/Sao_Paulo')`)
+    conditions.push(`te.started_at >= ($${params.length}::timestamp AT TIME ZONE 'America/Sao_Paulo')`)
   }
   if (req.query.to) {
     params.push(req.query.to)
-    conditions.push(`te.started_at < (($${params.length}::date + interval '1 day') AT TIME ZONE 'America/Sao_Paulo')`)
+    conditions.push(`te.started_at < (($${params.length}::date + interval '1 day')::timestamp AT TIME ZONE 'America/Sao_Paulo')`)
   }
 
   try {

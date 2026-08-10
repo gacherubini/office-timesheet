@@ -63,4 +63,29 @@ describe('Relatórios de admin — folha e custo por projeto', () => {
     expect(b.total_minutes).toBe(180)
     expect(cents(b.total_cost)).toBe(cents(refCost(180, 200)))
   })
+
+  it('range de relatórios usa America/Sao_Paulo (noite BRT não some no dia UTC seguinte)', async () => {
+    // 09/ago 22:30-23:00 SP = 10/ago 01:30-02:00 UTC — tem que entrar no dia 09 SP.
+    await entry(admin, emp1, projectA, '2026-08-09T22:30:00-03:00', '2026-08-09T23:00:00-03:00')
+
+    const day9 = await asUser(admin).get('/admin/reports/project-cost?start_date=2026-08-09&end_date=2026-08-09')
+    expect(day9.status).toBe(200)
+    const a9 = day9.body.projects.find((p) => p.id === projectA.id)
+    expect(a9?.total_minutes).toBe(30)
+
+    const day10 = await asUser(admin).get('/admin/reports/project-cost?start_date=2026-08-10&end_date=2026-08-10')
+    expect(day10.status).toBe(200)
+    const a10 = day10.body.projects.find((p) => p.id === projectA.id)
+    expect(a10).toBeUndefined()
+
+    const daily = await asUser(admin).get('/admin/reports/daily-hours?start_date=2026-08-09&end_date=2026-08-09')
+    expect(daily.status).toBe(200)
+    const row = daily.body.daily_hours.find((d) => d.user_id === emp1.id && d.date === '2026-08-09')
+    expect(row?.total_minutes).toBe(30)
+
+    const payroll = await asUser(admin).get('/admin/reports/payroll?start_date=2026-08-09&end_date=2026-08-09')
+    expect(payroll.status).toBe(200)
+    const ana = payroll.body.payroll.find((p) => p.id === emp1.id)
+    expect(cents(ana.hours_cost)).toBe(cents(refCost(30, 100)))
+  })
 })

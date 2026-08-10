@@ -174,4 +174,47 @@ describe('Solicitações de alteração de apontamento', () => {
       .send({})
     expect(res.status).toBe(403)
   })
+
+  it('approve/reject após decisão → 400; auto-approve bloqueado', async () => {
+    const entryId = await completedEntry(
+      admin, employee, projectA,
+      '2026-07-10T09:00:00-03:00', '2026-07-10T11:00:00-03:00',
+    )
+    const reqRes = await asUser(employee).post('/me/time-entry-change-requests').send({
+      time_entry_id: entryId,
+      requested_project_id: projectA.id,
+      requested_started_at: '2026-07-10T09:00:00-03:00',
+      requested_ended_at: '2026-07-10T12:00:00-03:00',
+      reason: 'teste',
+    })
+    expect(reqRes.status).toBe(201)
+
+    const reject = await asUser(admin)
+      .post(`/admin/time-entry-change-requests/${reqRes.body.id}/reject`)
+      .send({ admin_note: 'nao' })
+    expect(reject.status).toBe(200)
+
+    const approveAfter = await asUser(admin)
+      .post(`/admin/time-entry-change-requests/${reqRes.body.id}/approve`)
+      .send({})
+    expect(approveAfter.status).toBe(400)
+
+    // Admin cria o próprio apontamento e a própria change-request → não pode auto-aprovar
+    const adminEntry = await completedEntry(
+      admin, admin, projectA,
+      '2026-07-11T09:00:00-03:00', '2026-07-11T11:00:00-03:00',
+    )
+    const selfReq = await asUser(admin).post('/me/time-entry-change-requests').send({
+      time_entry_id: adminEntry,
+      requested_project_id: projectB.id,
+      requested_started_at: '2026-07-11T09:00:00-03:00',
+      requested_ended_at: '2026-07-11T12:00:00-03:00',
+      reason: 'auto',
+    })
+    expect(selfReq.status).toBe(201)
+    const selfApprove = await asUser(admin)
+      .post(`/admin/time-entry-change-requests/${selfReq.body.id}/approve`)
+      .send({})
+    expect(selfApprove.status).toBe(403)
+  })
 })

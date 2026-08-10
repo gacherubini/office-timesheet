@@ -6,6 +6,29 @@ import { addClient, removeClient } from '../lib/notificationsHub.js'
 
 const router = Router()
 
+// Revalida a sessão contra o DB (is_active/deleted_at/sessions_valid_after).
+// Usada no connect e a cada heartbeat do SSE: um usuário desativado/removido
+// (ou com sessão invalidada por reset) para de receber em no máximo um ciclo de
+// heartbeat, em vez de continuar no stream até o token expirar.
+async function loadSseSession(payload) {
+  const { rows } = await query(
+    `SELECT id, is_active, deleted_at, sessions_valid_after
+       FROM users WHERE id = $1`,
+    [payload.sub],
+  )
+  const user = rows[0]
+  if (!user || user.deleted_at || !user.is_active) {
+    return { ok: false, status: 403, error: 'Usuário inativo ou removido.' }
+  }
+  if (user.sessions_valid_after && payload.iat) {
+    const validAfterMs = new Date(user.sessions_valid_after).getTime()
+    if (Number.isFinite(validAfterMs) && validAfterMs > 0 && payload.iat * 1000 <= validAfterMs) {
+      return { ok: false, status: 401, error: 'Sessão invalidada. Faça login novamente.' }
+    }
+  }
+  return { ok: true, userId: user.id }
+}
+
 // Lista notificações do usuário (mais recentes primeiro)
 router.get('/notifications', requireAuth, async (req, res) => {
   try {
@@ -70,15 +93,26 @@ router.post('/notifications/read-all', requireAuth, async (req, res) => {
 
 // ─── SSE stream ────────────────────────────────────────────────────────
 // EventSource não envia header Authorization, então o token vem por query.
+// Recarrega o usuário do DB (is_active/deleted_at/sessions_valid_after) —
+// JWT sozinho deixava demitido/inativo recebendo por até 7 dias.
 router.get('/notifications/stream', async (req, res) => {
   const token = req.query.token
   if (!token) return res.status(401).json({ error: 'Token ausente.' })
 
-  let userId
+  let payload
   try {
-    userId = verifyAccessToken(token).sub
+    payload = verifyAccessToken(token)
   } catch {
     return res.status(401).json({ error: 'Token inválido.' })
+  }
+
+  let userId
+  try {
+    const session = await loadSseSession(payload)
+    if (!session.ok) return res.status(session.status).json({ error: session.error })
+    userId = session.userId
+  } catch {
+    return res.status(500).json({ error: 'Erro ao validar sessão.' })
   }
 
   res.writeHead(200, {
@@ -92,14 +126,32 @@ router.get('/notifications/stream', async (req, res) => {
 
   addClient(userId, res)
 
-  // Heartbeat a cada 25s pra não cair em timeout de proxy.
-  const heartbeat = setInterval(() => {
+  // Heartbeat: mantém a conexão viva contra timeout de proxy E revalida a
+  // sessão — se o usuário foi desativado/removido/invalidado no meio do stream,
+  // encerra em vez de seguir entregando. Intervalo configurável só pra teste.
+  const heartbeatMs = Number(process.env.SSE_HEARTBEAT_MS) || 25000
+  const heartbeat = setInterval(async () => {
+    let stillValid = true
+    try {
+      const session = await loadSseSession(payload)
+      stillValid = session.ok
+    } catch {
+      // blip transitório de DB não deve derrubar o stream de todo mundo.
+      stillValid = true
+    }
+    if (!stillValid) {
+      clearInterval(heartbeat)
+      removeClient(userId, res)
+      try { res.end() } catch { /* já fechado */ }
+      return
+    }
     try {
       res.write(': ping\n\n')
     } catch {
       clearInterval(heartbeat)
+      removeClient(userId, res)
     }
-  }, 25000)
+  }, heartbeatMs)
 
   req.on('close', () => {
     clearInterval(heartbeat)

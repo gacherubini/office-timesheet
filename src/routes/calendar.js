@@ -1,20 +1,33 @@
 import { Router } from 'express'
+import dns from 'node:dns/promises'
+import net from 'node:net'
 import ical from 'node-ical'
 import { requireAuth } from '../middleware/auth.js'
 import { query } from '../lib/db.js'
 import { encrypt, decrypt, isCryptoConfigured } from '../lib/crypto.js'
 import { getHolidays } from '../lib/holidays.js'
+import { rateLimit } from '../lib/rateLimit.js'
 
 const router = Router()
+const calendarPutLimit = rateLimit({ windowMs: 15 * 60 * 1000, max: 20 })
 
 // Cache em memória do .ics parseado por usuário (TTL 15min) — evita martelar o
 // feed do Google a cada navegação.
 const CACHE_TTL_MS = 15 * 60 * 1000
 const parsedCache = new Map() // userId -> { fetchedAt, parsed }
 
-// Só aceita https e hosts de calendário conhecidos / URLs .ics — barra SSRF
-// pra hosts internos.
-function isValidIcsUrl(raw) {
+// Allowlist estrita de host (SEM escape por ".ics" no path — isso liberava SSRF
+// pra qualquer host, inclusive metadata/link-local via redirect).
+function isAllowedIcsHost(hostname) {
+  const host = String(hostname || '').toLowerCase()
+  if (!host) return false
+  if (host === 'calendar.google.com') return true
+  if (host.endsWith('.google.com')) return true
+  if (host.endsWith('.googleusercontent.com')) return true
+  return false
+}
+
+export function isValidIcsUrl(raw) {
   let url
   try {
     url = new URL(raw)
@@ -22,20 +35,81 @@ function isValidIcsUrl(raw) {
     return false
   }
   if (url.protocol !== 'https:') return false
-  const host = url.hostname.toLowerCase()
-  const okHost = host === 'calendar.google.com' || host.endsWith('.google.com')
-  const okPath = url.pathname.toLowerCase().endsWith('.ics')
-  return okHost || okPath
+  if (url.username || url.password) return false
+  if (!isAllowedIcsHost(url.hostname)) return false
+  return true
 }
 
-async function fetchIcsText(url) {
+export function isPrivateOrReservedIp(ip) {
+  if (!ip) return true
+  if (net.isIPv4(ip)) {
+    const [a, b] = ip.split('.').map(Number)
+    if (a === 0 || a === 10 || a === 127) return true
+    if (a === 169 && b === 254) return true // link-local / cloud metadata
+    if (a === 172 && b >= 16 && b <= 31) return true
+    if (a === 192 && b === 168) return true
+    if (a === 100 && b >= 64 && b <= 127) return true // CGNAT
+    if (a >= 224) return true // multicast/reserved
+    return false
+  }
+  const n = String(ip).toLowerCase()
+  if (n === '::1') return true
+  if (n.startsWith('fc') || n.startsWith('fd')) return true // ULA
+  if (n.startsWith('fe80')) return true // link-local
+  if (n.startsWith('::ffff:')) return isPrivateOrReservedIp(n.slice(7))
+  return false
+}
+
+async function assertPublicHostname(hostname) {
+  const results = await dns.lookup(hostname, { all: true, verbatim: true })
+  if (!results.length) {
+    const err = new Error('host_unresolved')
+    err.code = 'ICS_BLOCKED'
+    throw err
+  }
+  for (const r of results) {
+    if (isPrivateOrReservedIp(r.address)) {
+      const err = new Error('private_address')
+      err.code = 'ICS_BLOCKED'
+      throw err
+    }
+  }
+}
+
+async function fetchIcsText(urlString) {
+  if (!isValidIcsUrl(urlString)) {
+    const err = new Error('invalid_url')
+    err.code = 'ICS_BLOCKED'
+    throw err
+  }
+  const url = new URL(urlString)
+  await assertPublicHostname(url.hostname)
+
   const ctrl = new AbortController()
   const timer = setTimeout(() => ctrl.abort(), 8000)
   try {
-    const resp = await fetch(url, { signal: ctrl.signal, redirect: 'follow' })
-    if (!resp.ok) throw new Error(`feed retornou ${resp.status}`)
+    // redirect: manual — 302 allowlisted → metadata (169.254.169.254) não segue.
+    const resp = await fetch(urlString, {
+      signal: ctrl.signal,
+      redirect: 'manual',
+      headers: { 'User-Agent': 'office-timesheet-calendar/1.0' },
+    })
+    if (resp.status >= 300 && resp.status < 400) {
+      const err = new Error('redirect_blocked')
+      err.code = 'ICS_BLOCKED'
+      throw err
+    }
+    if (!resp.ok) {
+      const err = new Error('feed_unavailable')
+      err.code = 'ICS_FETCH'
+      throw err
+    }
     const text = await resp.text()
-    if (!text.includes('BEGIN:VCALENDAR')) throw new Error('conteúdo não é um calendário iCal')
+    if (!text.includes('BEGIN:VCALENDAR')) {
+      const err = new Error('invalid_calendar')
+      err.code = 'ICS_FETCH'
+      throw err
+    }
     return text
   } finally {
     clearTimeout(timer)
@@ -111,7 +185,7 @@ router.get('/me/calendar', requireAuth, async (req, res) => {
 })
 
 // ─── Conectar (salvar URL secreta) ─────────────────────────────────────
-router.put('/me/calendar', requireAuth, async (req, res) => {
+router.put('/me/calendar', requireAuth, calendarPutLimit, async (req, res) => {
   if (!isCryptoConfigured()) {
     return res.status(503).json({ error: 'Recurso de calendário não configurado no servidor.' })
   }
@@ -121,8 +195,11 @@ router.put('/me/calendar', requireAuth, async (req, res) => {
   }
   try {
     await fetchIcsText(ics_url) // valida que dá pra ler antes de salvar
-  } catch (err) {
-    return res.status(400).json({ error: `Não foi possível ler essa agenda: ${err.message}` })
+  } catch {
+    // Erro genérico: não vazar status HTTP (oráculo de port-scan) nem detalhe de rede.
+    return res.status(400).json({
+      error: 'Não foi possível ler essa agenda. Use o endereço secreto iCal do Google Calendar.',
+    })
   }
   try {
     await query(

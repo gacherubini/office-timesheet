@@ -19,10 +19,28 @@ if (!databaseUrl) throw new Error('DATABASE_URL não configurada.')
 // Regra: PG_POOL_MAX × nº de instâncias < limite de conexões do plano do Postgres.
 const poolMax = Number(process.env.PG_POOL_MAX) || 15
 
+const statementTimeoutMs = Number(process.env.PG_STATEMENT_TIMEOUT_MS) || 30_000
+
+// statement_timeout via startup options (sem query extra no 'connect' — evita
+// race com a primeira query do pool e o deprecation do pg@9).
+function connectionStringWithTimeout(url, ms) {
+  try {
+    const u = new URL(url)
+    const prev = u.searchParams.get('options') || ''
+    const flag = `-c statement_timeout=${Math.max(1000, ms)}`
+    u.searchParams.set('options', prev ? `${prev} ${flag}` : flag)
+    return u.toString()
+  } catch {
+    return url
+  }
+}
+
 export const pool = new Pool({
-  connectionString: databaseUrl,
+  connectionString: connectionStringWithTimeout(databaseUrl, statementTimeoutMs),
   max: poolMax,
   idleTimeoutMillis: 30_000,
+  // Evita request pendurada pra sempre se o Postgres não aceitar conexão.
+  connectionTimeoutMillis: Number(process.env.PG_CONNECTION_TIMEOUT_MS) || 10_000,
 })
 
 pool.on('error', (err) => {

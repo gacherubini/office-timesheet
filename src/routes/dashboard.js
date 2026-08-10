@@ -22,8 +22,8 @@ router.get('/dashboard', requireAuth, requireAdmin, async (req, res) => {
         `SELECT user_id, project_id, duration_minutes, cost_snapshot
          FROM time_entries
          WHERE status = 'completed'
-           AND started_at >= ($1::date AT TIME ZONE 'America/Sao_Paulo')
-           AND started_at < (($2::date + interval '1 day') AT TIME ZONE 'America/Sao_Paulo')`,
+           AND started_at >= ($1::timestamp AT TIME ZONE 'America/Sao_Paulo')
+           AND started_at < (($2::date + interval '1 day')::timestamp AT TIME ZONE 'America/Sao_Paulo')`,
         [start_date, end_date]
       ),
       query(

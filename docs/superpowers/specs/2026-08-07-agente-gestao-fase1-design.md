@@ -220,6 +220,14 @@ latência a **toda** pergunta, inclusive as simples. Quem pergunta costuma saber
 apontamento" quer resposta instantânea, "analisa a carga da equipe no trimestre" tolera dez
 segundos. Registrado no §20.
 
+**Realidade de provedor (2026-08-09).** No ambiente real a chave é da **NVIDIA** e o
+modelo hospedado é `deepseek-ai/deepseek-v4-flash-0731` (o `v4-pro` não está disponível na
+conta). O default do código passou a ser NVIDIA + Flash. A decisão "modelo único, sem
+roteamento" continua; o objeto do A/B (§13) — provar se o Flash basta — ganhou um dado
+inicial: na primeira ligada ao vivo o Flash **acertou** a escolha de tool no caso claro e
+**errou** o caso ambíguo (chamou tool em vez de pedir esclarecimento), o que motivou o
+reforço da regra de ambiguidade no system prompt.
+
 ---
 
 ## 5. Contexto de domínio (`dominio/`, fatiado por papel)
@@ -258,6 +266,12 @@ escopo de cada papel.
 
 Consequência de custo: **quatro prefixos cacheados em vez de um**. O cache-hit continua
 sendo a alavanca principal, só que agora por papel — cada papel aquece o próprio prefixo.
+
+**Terceira fatia (2026-08-09, M6).** `dominio/administrative_intern.md`. O `prompt.js`
+tratava o estagiário como colaborador, e a fatia do colaborador afirma que não há
+informação financeira — o que passou a ser mentira quando `despesas_do_periodo` entrou
+(ele é aprovador e vê valor de despesa). São três mundos: admin, estagiário
+administrativo e todo o resto.
 
 ---
 
@@ -331,12 +345,24 @@ construção** — não por decisão do agente, mas porque o endpoint equivalent
   lugar da margem:** é o único termo íntegro da fórmula, e já existe pronto em
   `/admin/reports/project-cost`. Ver a ressalva do salário fixo abaixo.
 - `despesas_do_periodo(periodo)` *(admin/aprovador)* — total de despesas aprovadas no
-  período. **Global, nunca por projeto** — ver abaixo.
-- `projecao_estouro(projeto_id)` — no ritmo atual, quando o orçamento de horas estoura.
-  Sobrevive à decisão de 2026-08-08: é orçamento de **horas**, não depende de dinheiro.
+  período. **Global, nunca por projeto** — ver abaixo. **Implementada em 2026-08-09 (M6)**,
+  espelhando `GET /admin/expense-requests`.
+- ~~`projecao_estouro(projeto_id)` — no ritmo atual, quando o orçamento de horas estoura.~~
+  **Fora da Fase 1 (2026-08-09, M3)** — mesmo motivo da margem: o dado é morto. Verificado
+  contra o schema: `projects` (`004`/`018`) e `tasks` (`012`/`013`) não têm coluna de
+  orçamento/estimativa de horas, e `performance_simulations` (`029`) guarda minutos
+  planejados **por usuário por mês**, não um orçamento **por projeto**. Sem denominador, "quando
+  estoura" não é calculável — e uma tool que devolvesse um número aqui repassaria uma
+  projeção sem base, que as camadas do §9 não pegam (a origem seria a tool, como na margem).
+  Pré-requisito de produto no §20.
 - `simulacao_performance(...)` — lê `performance_simulations` e explica cenários.
-- `horas_por_projeto(periodo)` / `status_projeto(projeto_id)`.
-- `quem_nao_apontou(periodo)` / `apontamentos_abertos()`.
+- ~~`horas_por_projeto(periodo)`~~ **absorvida pelo `status_projeto(projeto?, periodo?)`
+  (2026-08-09, M6)**: com `periodo` a tool devolve as horas da janela, e sem nome de projeto
+  vale para todos os ativos — que é exatamente a pergunta que a tool separada responderia.
+  Uma tool a menos para o modelo escolher errado.
+- `quem_nao_apontou(periodo)` / `apontamentos_abertos()` — a segunda **implementada em
+  2026-08-09 (M6)**, espelhando `GET /admin/live`; devolve só quem está com o timer aberto,
+  recorte para menos do que o endpoint (que lista todos e marca 'offline').
 - `carga_equipe(periodo)` — sobrecarga/ociosidade por colaborador (horas + tasks).
 - `ferias_e_conflitos(periodo)` — quem sai de férias, sobreposições (`vacations`).
 - `tasks_travadas(dias)` — tasks em `in_review`/paradas há mais de N dias, ou `abandoned`.
@@ -421,7 +447,9 @@ mutação. A execução real só acontece após aprovação (ver §10).
 - `propor_criar_apontamento(...)`
 - `propor_encerrar_apontamento(apontamento_id)`
 - `propor_criar_task(...)`
-- (demais ações de escrita seguem o mesmo padrão)
+- `propor_pedir_ferias(inicio, fim, motivo?)` *(2026-08-09, M6)* — espelha
+  `POST /me/vacation-requests`, incluindo o auto-aprovar do admin. As regras de data e a
+  checagem de sobreposição vivem em `lib/vacationRequests.js`, lidas pela rota e pela tool.
 
 **Escrita por papel *(2026-08-08)*.** Vale a mesma regra da leitura: se a rota já permite a
 ação para aquele papel, o agente pode propor — nada de novo é liberado. Cada tool `propor_*`
@@ -585,7 +613,12 @@ achismo.
 ## 14. Frontend (widget)
 
 - Componente de chat React (Vite/Tailwind, Lucide), coerente com a identidade visual atual.
-- Streaming de tokens (usar a infra de SSE existente ou stream direto do endpoint).
+- **Streaming de tokens — decidido (2026-08-08): stream direto do `POST /agent/chat`.** A
+  própria resposta do endpoint streama (`text/event-stream` / chunked); o cliente lê com
+  `fetch` + reader do body, e a proposta de ação chega como um evento no mesmo stream. **Não
+  reusa o `notificationsHub`**: aquele canal é push por `userId` (notificações), não um
+  request/response de chat — misturá-lo obrigaria a correlacionar mensagem↔conversa no
+  cliente sem ganho.
 - Renderização de propostas de ação (preview + Aprovar/Cancelar).
 - Aberto a **qualquer usuário autenticado** *(2026-08-08; era restrito a admin)* — reusa
   auth/JWT. O recorte não é mais "quem vê o widget", é o que o agente alcança por trás
@@ -596,9 +629,10 @@ achismo.
 ## 15. Endpoints (API)
 
 - `POST /agent/chat` — envia **a mensagem nova mais um `conversation_id`** *(2026-08-08,
-  conforme o §11)* e recebe resposta em streaming (pode conter texto e/ou proposta de ação).
-  O histórico **não** trafega no request: quem o guarda é o servidor. `conversation_id`
-  ausente ou expirado abre sessão nova.
+  conforme o §11)* e recebe **a resposta streamada na própria conexão** *(2026-08-08,
+  conforme o §14)*: `text/event-stream`, o loop escreve chunks conforme avança, e a proposta
+  de ação vem como um evento no mesmo stream. O histórico **não** trafega no request: quem o
+  guarda é o servidor. `conversation_id` ausente ou expirado abre sessão nova.
 - `POST /agent/actions/:proposalId/execute` — executa uma proposta aprovada (revalida +
   audita).
 
@@ -608,9 +642,33 @@ achismo.
 
 - **Role read-only do Postgres** para a tool de SQL, agora só usada pelo admin
   (migration/secret novo).
+
+  **Operação da role read-only (M5, 2026-08-09).** A migration `030_agent_readonly_role.sql`
+  cria a role `agent_readonly` (LOGIN, **sem senha**) e concede `SELECT` apenas nas tabelas da
+  allowlist. A senha é setada fora de banda: um secret novo no Fly, **`AGENT_READONLY_DATABASE_URL`**
+  (string de conexão completa da role, com a senha), mais o `ALTER ROLE agent_readonly PASSWORD ...`
+  na operação de deploy. Nos testes, um `beforeAll` (`tests/helpers/roDb.js`) faz esse `ALTER ROLE`
+  com senha efêmera e monta a URL a partir da `DATABASE_URL` de teste. Limites por env:
+  `AGENT_SQL_MAX_ROWS` (LIMIT, padrão 200), `AGENT_SQL_TIMEOUT_MS` (statement_timeout, padrão 3000),
+  `AGENT_SQL_POOL_MAX` (padrão 4). A `031_agent_readonly_grants.sql` completa o GRANT com
+  `task_attachments` e `task_activity`, que o domínio já anunciava e a 030 tinha deixado de fora
+  — a allowlist do `guard.js` e o GRANT têm de ser mexidos sempre juntos.
+
+  **Projeto entra por nome, nunca por id** *(2026-08-09)*: nenhuma tool expõe uuid de projeto,
+  então uma tool que pedisse `projeto_id` ficaria inalcançável para o modelo (e mandar nome numa
+  coluna `uuid` devolve erro cru do Postgres para dentro da conversa). `tools/projetos.js`
+  centraliza a resolução por nome — não achou / achou vários viram pedido de esclarecimento (§6).
+
 - **Sem mudança de schema para o acesso por papel** *(2026-08-08)*: o `scope.js` (§3.1) é
   código, e reusa `users.role` e os helpers de `permissions.js` que já existem.
-- Possível tabela curta para **propostas pendentes** (ou assinatura/expiração sem persistir).
+- **Propostas pendentes: `Map` em memória com TTL, sem tabela** *(decidido em 2026-08-08)*.
+  Mesmo padrão do `session.js`/§11: `propor_*` guarda `{proposal_id: {payload, user_id,
+  papel, expira_em}}` no servidor e o cliente recebe **só o `proposal_id`**. O execute (§10)
+  olha o `Map` e revalida permissão + estado atual + expiração. Coerente com a premissa do
+  §11 (servidor é dono, cliente não forja) e com a instância única do `fly.toml` — sem
+  migration. **Aceita-se perder** a proposta no restart, irritação pequena numa proposta de
+  vida curta; se um dia precisar sobreviver a deploy, vira a tabela `agent_proposals`
+  (backlog §20), que também serviria de auditoria.
 - **Sessão de conversa: nenhuma mudança de dados** *(2026-08-08)*. A decisão do §11 foi
   memória efêmera — sem tabela, sem migration, sem secret. Passa a existir só quando as
   conversas persistidas entrarem (§20).
@@ -657,6 +715,20 @@ achismo.
   Já existe base para isso: a suíte de integração em `src/tests/` tem factories
   (`makeUser({ role })`, `makeTimeEntry`) e casos por papel — o teste de paridade nasce em
   cima dela, não do zero.
+
+  **Como ficou (2026-08-09, M6).** A paridade virou **dois testes dirigidos por tabela**,
+  não um por tool:
+
+  1. `paridadePapel.test.js` — para cada tool com `espelha`, bate no endpoint com os quatro
+     papéis e exige que `tool.roles` seja exatamente o conjunto de papéis que o endpoint não
+     nega (401/403). Um caso extra falha se alguma tool do registry ficar fora da tabela.
+  2. `paridadeColuna.test.js` — a comparação de `Object.keys()` **só funciona para tool
+     pass-through** (`listar_equipe`); as demais renomeiam para português e agregam. O risco
+     real do §18 é valor financeiro chegando a quem não pode ver, então o teste planta
+     sentinelas no fixture (`hourly_rate = 777.77`, `cost_snapshot = 999999`,
+     `sale_value = 424242`) e exige que não apareçam no JSON de nenhuma tool oferecida a
+     papel não-admin. Um caso de controle confirma que o sentinela **aparece** para o admin,
+     senão o teste passaria por vacuidade.
 - Fluxo de confirmação: proposta → revalidação → execução; expiração; mudança de estado.
 - **Sessão de conversa** *(2026-08-08, §11)*: expira por inatividade; é descartada quando o
   papel muda; e **histórico enviado pelo cliente é ignorado** — o servidor usa o dele. Este
@@ -809,6 +881,11 @@ ou do custo que o provedor reportar, quando reportar.
   `sale_value` sob `canAccessMoney`, `project_id` em `expense_requests`, e a decisão sobre
   salário fixo no custo. **São decisões de produto, não do agente:** com os dados no lugar,
   `margem_por_projeto` e o faturamento de `resumo_financeiro` entram sem tocar no núcleo.
+- **Orçamento de horas por projeto** *(2026-08-09, ver §8.1)* — pré-requisito de
+  `projecao_estouro`. Hoje não há coluna de horas orçadas em `projects` nem estimativa em
+  `tasks`; `performance_simulations` é planejamento por usuário, não por projeto. Com uma
+  coluna de orçamento (ou soma de estimativas de tarefa) a tool entra depois sem tocar no
+  núcleo. **Decisão de produto, não do agente.**
 - **Fase 2:** tarefas agendadas pelo ADM via conversa (agendador + tabela +
   **fila de aprovação** — automação nunca escreve sem humano no meio); Google Calendar
   (OAuth próprio); relatórios em PDF (Tigris); alertas proativos; provisão de bônus;

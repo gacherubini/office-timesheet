@@ -7,7 +7,7 @@ describe('buildNav', () => {
   it('manda o colaborador para /dashboard e não aninha ferramentas de admin', () => {
     const nav = buildNav({})
     expect(nav[0]).toMatchObject({ label: 'Início', to: '/dashboard' })
-    expect(labels(nav)).toEqual(['Início', 'Tarefas', 'Projetos', 'Pessoas', 'Agenda', 'Performance'])
+    expect(labels(nav)).toEqual(['Início', 'Tarefas', 'Projetos', 'Pessoas', 'Agenda', 'Assistente', 'Performance'])
     expect(nav.find((i) => i.label === 'Performance').children).toBeUndefined()
   })
 
