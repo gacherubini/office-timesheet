@@ -2,8 +2,11 @@
 // conexão (text/event-stream); a proposta de escrita vira um evento no stream.
 // O histórico é do servidor (§11): o body traz só message + conversation_id.
 import { Router } from 'express'
+import multer from 'multer'
 import { requireAuth } from '../middleware/auth.js'
 import { loadSession, saveTurn, appendExecutionNote } from '../lib/agent/session.js'
+import { extractText, MAX_ATTACHMENT_BYTES } from '../lib/agent/attachments/extract.js'
+import { buildUserMessage } from '../lib/agent/attachments/context.js'
 import { buildSystemPrompt } from '../lib/agent/prompt.js'
 import { runAgentTurn } from '../lib/agent/loop.js'
 import { getClient } from '../lib/agent/client.js'
@@ -44,12 +47,47 @@ function resumoResultado(after) {
   return ''
 }
 
-router.post('/agent/chat', requireAuth, async (req, res) => {
+// Anexo do chat: memória (lê e descarta), teto de 10 MB. O multer só age em
+// multipart; requisição JSON (sem arquivo) passa direto. Erro do multer (ex.:
+// arquivo grande demais) vira JSON ANTES de abrir o stream — mensagem clara.
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_ATTACHMENT_BYTES },
+})
+function uploadAnexo(req, res, next) {
+  upload.single('file')(req, res, (err) => {
+    if (!err) return next()
+    const grande = err.code === 'LIMIT_FILE_SIZE'
+    res.status(grande ? 413 : 400).json({
+      error: grande ? 'Arquivo grande demais (máx. 10 MB).' : 'Falha ao ler o arquivo enviado.',
+    })
+  })
+}
+
+router.post('/agent/chat', requireAuth, uploadAnexo, async (req, res) => {
   if (agenteDesligado()) return res.status(503).json({ error: 'Assistente temporariamente desativado.' })
 
   const { message, conversation_id } = req.body || {}
-  if (!message || typeof message !== 'string') {
+  const temArquivo = !!req.file
+  // Com arquivo, a mensagem digitada é opcional; sem arquivo, continua obrigatória.
+  if (!temArquivo && (!message || typeof message !== 'string')) {
     return res.status(400).json({ error: 'message é obrigatório.' })
+  }
+
+  // Extrai o texto do anexo ANTES de abrir o stream: assim erro de arquivo (tipo
+  // não suportado, PDF escaneado, vazio) vira 400 JSON limpo, não um evento de
+  // erro num stream já aberto. O buffer é descartado ao fim da requisição.
+  let attachment = null
+  if (temArquivo) {
+    try {
+      const { text, meta } = await extractText(req.file.buffer, {
+        mimetype: req.file.mimetype,
+        filename: req.file.originalname,
+      })
+      attachment = { filename: req.file.originalname, text, truncated: meta.truncated }
+    } catch (err) {
+      return res.status(err.status || 400).json({ error: err.message })
+    }
   }
 
   // §throttle: barra um 2º /agent/chat simultâneo do MESMO usuário. Adquire o
@@ -89,7 +127,9 @@ router.post('/agent/chat', requireAuth, async (req, res) => {
   emit({ type: 'session', conversation_id: session.id })
 
   // Monta o contexto: system (não persistido) + histórico do servidor + a msg nova.
-  const novaMsg = { role: 'user', content: message }
+  // Com anexo, o conteúdo do turno traz o bloco do arquivo (dado, não instrução)
+  // antes da pergunta; sem anexo, é a própria mensagem.
+  const novaMsg = { role: 'user', content: buildUserMessage({ message, attachment }) }
   const messages = [
     { role: 'system', content: buildSystemPrompt(req.profile) },
     ...session.messages,

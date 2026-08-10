@@ -17,14 +17,38 @@ export function parseSseBuffer(buffer) {
   return { eventos, resto }
 }
 
-export async function streamChat({ message, conversationId, onEvent }) {
+// Monta headers + body do POST. Com arquivo, vira multipart (FormData) e o
+// Content-Type fica por conta do browser (que precisa cravar o boundary); sem
+// arquivo, é o JSON de sempre. Função pura pra ser testável sem fetch.
+export function buildChatRequest({ message, conversationId, file, token }) {
+  const headers = {}
+  if (token) headers.Authorization = `Bearer ${token}`
+  if (file) {
+    const fd = new FormData()
+    fd.append('message', message ?? '')
+    if (conversationId) fd.append('conversation_id', conversationId)
+    fd.append('file', file)
+    return { headers, body: fd }
+  }
+  headers['Content-Type'] = 'application/json'
+  return { headers, body: JSON.stringify({ message, conversation_id: conversationId }) }
+}
+
+// Extrai a mensagem de erro do corpo (a rota manda { error } em 400/413) pra não
+// engolir "Formato não suportado" / "Arquivo grande demais" num genérico.
+export async function readErrorMessage(res, fallback = 'Falha ao falar com o agente.') {
+  try {
+    const j = await res.json()
+    if (j?.error) return j.error
+  } catch { /* corpo não-JSON: usa o fallback */ }
+  return fallback
+}
+
+export async function streamChat({ message, conversationId, file, onEvent }) {
   const token = localStorage.getItem('access_token')
-  const res = await fetch(`${BASE_URL}/agent/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
-    body: JSON.stringify({ message, conversation_id: conversationId }),
-  })
-  if (!res.ok || !res.body) throw new Error('Falha ao falar com o agente.')
+  const { headers, body } = buildChatRequest({ message, conversationId, file, token })
+  const res = await fetch(`${BASE_URL}/agent/chat`, { method: 'POST', headers, body })
+  if (!res.ok || !res.body) throw new Error(await readErrorMessage(res))
 
   const reader = res.body.getReader()
   const decoder = new TextDecoder()

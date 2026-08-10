@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, RotateCcw, AlertCircle, Check, Plus, Sparkles, Loader2 } from 'lucide-react'
+import { Send, RotateCcw, AlertCircle, Check, Plus, Sparkles, Loader2, Paperclip, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { streamChat, executeProposal } from '../lib/agentClient'
 import { lerSessao, salvarSessao, limparSessao } from '../lib/agentSession'
@@ -13,6 +13,14 @@ const SUGESTOES = [
   'Quais projetos estão ativos?',
   'Quero pedir férias',
 ]
+
+// Anexos que o bot sabe ler (texto puro). Imagem/escaneado fica de fora — é visão.
+const TIPOS_ACEITOS = [
+  '.pdf', '.txt', '.md', '.docx',
+  'application/pdf', 'text/plain', 'text/markdown',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+].join(',')
+const MAX_ANEXO_BYTES = 10 * 1024 * 1024 // espelha o teto do servidor
 
 // ── Preview estruturado da proposta ───────────────────────────────────────
 // O backend manda `dados` cru (inclui uuids internos). Traduzimos as chaves
@@ -105,8 +113,11 @@ export function AssistentePage() {
   const [input, setInput] = useState('')
   const [conversa, setConversa] = useState(null)
   const [ocupado, setOcupado] = useState(false)
+  const [arquivo, setArquivo] = useState(null) // File anexado, ainda não enviado
+  const [anexoErro, setAnexoErro] = useState(null)
 
   const textareaRef = useRef(null)
+  const fileInputRef = useRef(null)
   const fimRef = useRef(null)
   const restauradoRef = useRef(false)
 
@@ -172,10 +183,10 @@ export function AssistentePage() {
     }
   }
 
-  async function correr(idxBot, texto) {
+  async function correr(idxBot, texto, file) {
     setOcupado(true)
     try {
-      await streamChat({ message: texto, conversationId: conversa, onEvent: receber(idxBot) })
+      await streamChat({ message: texto, conversationId: conversa, file, onEvent: receber(idxBot) })
     } catch (err) {
       setMensagens((m) => m.map((msg, i) => (
         i === idxBot ? { ...msg, erro: err.message || 'Não consegui responder agora.' } : msg
@@ -185,14 +196,32 @@ export function AssistentePage() {
     }
   }
 
+  // Valida tamanho/vazio no cliente pra falhar rápido; o tipo quem confere de
+  // verdade é o servidor (extração). Zera o input pra permitir reescolher o mesmo.
+  function escolherArquivo(e) {
+    const f = e.target.files?.[0]
+    e.target.value = ''
+    if (!f) return
+    if (f.size > MAX_ANEXO_BYTES) {
+      setAnexoErro('Arquivo grande demais (máx. 10 MB).')
+      setArquivo(null)
+      return
+    }
+    setAnexoErro(null)
+    setArquivo(f)
+  }
+
   async function enviar(textoArg) {
     const texto = (typeof textoArg === 'string' ? textoArg : input).trim()
-    if (!texto || ocupado) return
+    if ((!texto && !arquivo) || ocupado) return
+    const fileToSend = arquivo // capturado ANTES de limpar o estado
     setInput('')
+    setArquivo(null)
+    setAnexoErro(null)
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
     const idxBot = mensagens.length + 1
-    setMensagens((m) => [...m, { autor: 'user', texto }, { autor: 'bot', texto: '' }])
-    await correr(idxBot, texto)
+    setMensagens((m) => [...m, { autor: 'user', texto, anexo: fileToSend?.name || null }, { autor: 'bot', texto: '' }])
+    await correr(idxBot, texto, fileToSend)
   }
 
   // Reenvia a pergunta na mesma bolha (erro de resposta).
@@ -226,6 +255,8 @@ export function AssistentePage() {
     setMensagens([])
     setConversa(null)
     setInput('')
+    setArquivo(null)
+    setAnexoErro(null)
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
     textareaRef.current?.focus()
   }
@@ -233,31 +264,71 @@ export function AssistentePage() {
   // Composer compartilhado: centralizado no vazio, fixo no rodapé na conversa.
   function renderComposer() {
     return (
-      <div className="flex items-end gap-2">
-        <textarea
-          ref={textareaRef}
-          value={input}
-          onChange={(e) => { setInput(e.target.value); ajustarAltura() }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault()
-              enviar()
-            }
-          }}
-          rows={1}
-          placeholder="Pergunte ou peça uma ação…"
-          aria-label="Mensagem para o Assistente"
-          className="form-control max-h-[200px] flex-1 resize-none rounded-md border px-3 py-2.5 text-sm outline-none"
-        />
-        <button
-          type="button"
-          onClick={() => enviar()}
-          disabled={ocupado || !input.trim()}
-          aria-label="Enviar"
-          className="inline-flex h-11 w-11 flex-none items-center justify-center rounded-md bg-accent text-white transition-opacity hover:opacity-90 disabled:opacity-40"
-        >
-          <Send size={16} />
-        </button>
+      <div className="space-y-2">
+        {/* Chip do anexo pendente (ou erro de anexo) acima da linha de digitação */}
+        {(arquivo || anexoErro) && (
+          <div className="flex flex-wrap items-center gap-2">
+            {arquivo && (
+              <span className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-border-subtle bg-surface-alt px-2.5 py-1.5 text-xs text-text-primary">
+                <Paperclip size={12} className="flex-none text-accent" />
+                <span className="max-w-[16rem] truncate">{arquivo.name}</span>
+                <button
+                  type="button"
+                  onClick={() => setArquivo(null)}
+                  aria-label="Remover anexo"
+                  className="flex-none text-text-secondary transition-colors hover:text-text-primary"
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+            {anexoErro && <span className="state-danger text-xs">{anexoErro}</span>}
+          </div>
+        )}
+
+        <div className="flex items-end gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={TIPOS_ACEITOS}
+            onChange={escolherArquivo}
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={ocupado}
+            aria-label="Anexar arquivo"
+            title="Anexar PDF, Word (.docx) ou texto (.txt/.md)"
+            className="inline-flex h-11 w-11 flex-none items-center justify-center rounded-md border border-border-subtle text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary disabled:opacity-40"
+          >
+            <Paperclip size={16} />
+          </button>
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => { setInput(e.target.value); ajustarAltura() }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                enviar()
+              }
+            }}
+            rows={1}
+            placeholder="Pergunte, peça uma ação ou anexe um documento…"
+            aria-label="Mensagem para o Assistente"
+            className="form-control max-h-[200px] flex-1 resize-none rounded-md border px-3 py-2.5 text-sm outline-none"
+          />
+          <button
+            type="button"
+            onClick={() => enviar()}
+            disabled={ocupado || (!input.trim() && !arquivo)}
+            aria-label="Enviar"
+            className="inline-flex h-11 w-11 flex-none items-center justify-center rounded-md bg-accent text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+          >
+            <Send size={16} />
+          </button>
+        </div>
       </div>
     )
   }
@@ -326,8 +397,16 @@ export function AssistentePage() {
                 if (m.autor === 'user') {
                   return (
                     <div key={i} className="flex justify-end">
-                      <div className="max-w-[80%] whitespace-pre-wrap break-words rounded-md border border-border-subtle bg-surface-alt px-4 py-2.5 text-text-primary">
-                        {m.texto}
+                      <div className="max-w-[80%] rounded-md border border-border-subtle bg-surface-alt px-4 py-2.5 text-text-primary">
+                        {m.anexo && (
+                          <div className={`flex items-center gap-1.5 text-xs text-text-secondary ${m.texto ? 'mb-1.5' : ''}`}>
+                            <Paperclip size={12} className="flex-none text-accent" />
+                            <span className="truncate">{m.anexo}</span>
+                          </div>
+                        )}
+                        {m.texto && (
+                          <div className="whitespace-pre-wrap break-words">{m.texto}</div>
+                        )}
                       </div>
                     </div>
                   )
