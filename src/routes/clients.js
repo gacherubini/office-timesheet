@@ -2,7 +2,7 @@ import { Router } from 'express'
 import multer from 'multer'
 import { query } from '../lib/db.js'
 import { requireAuth } from '../middleware/auth.js'
-import { canDeleteClients, canManageClients, isAdmin } from '../lib/permissions.js'
+import { canDeleteClients, canManageClients, canViewClients, isAdmin } from '../lib/permissions.js'
 import { uploadFile, deleteFile, extractKeyFromUrl } from '../lib/storage.js'
 import { logger } from '../lib/logger.js'
 
@@ -45,6 +45,16 @@ function requireCanManageClients(req, res, next) {
   return next()
 }
 
+// Ler a lista é liberado a qualquer autenticado; o WHERE admin_only esconde os
+// restritos dos não-admins. Gerir segue em requireCanManageClients.
+function requireCanViewClients(req, res, next) {
+  if (!canViewClients(req.profile)) {
+    return res.status(403).json({ error: 'Acesso restrito a clientes.' })
+  }
+
+  return next()
+}
+
 function requireCanDeleteClients(req, res, next) {
   if (!canDeleteClients(req.profile)) {
     return res.status(403).json({ error: 'Acesso restrito à exclusão de clientes.' })
@@ -53,7 +63,7 @@ function requireCanDeleteClients(req, res, next) {
   return next()
 }
 
-router.get('/admin/clients', requireAuth, requireCanManageClients, async (req, res) => {
+router.get('/admin/clients', requireAuth, requireCanViewClients, async (req, res) => {
   const q = req.query.q?.trim()
 
   try {

@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { query } from '../lib/db.js'
 import { requireAuth } from '../middleware/auth.js'
-import { canDeleteSuppliers, canManageSuppliers, isAdmin } from '../lib/permissions.js'
+import { canDeleteSuppliers, canManageSuppliers, canViewSuppliers, isAdmin } from '../lib/permissions.js'
 import { logger } from '../lib/logger.js'
 
 const router = Router()
@@ -36,6 +36,16 @@ function requireCanManageSuppliers(req, res, next) {
   return next()
 }
 
+// Ler a lista é liberado a qualquer autenticado; o WHERE admin_only esconde os
+// restritos dos não-admins. Gerir segue em requireCanManageSuppliers.
+function requireCanViewSuppliers(req, res, next) {
+  if (!canViewSuppliers(req.profile)) {
+    return res.status(403).json({ error: 'Acesso restrito a fornecedores.' })
+  }
+
+  return next()
+}
+
 function requireCanDeleteSuppliers(req, res, next) {
   if (!canDeleteSuppliers(req.profile)) {
     return res.status(403).json({ error: 'Acesso restrito à exclusão de fornecedores.' })
@@ -44,7 +54,7 @@ function requireCanDeleteSuppliers(req, res, next) {
   return next()
 }
 
-router.get('/admin/suppliers', requireAuth, requireCanManageSuppliers, async (req, res) => {
+router.get('/admin/suppliers', requireAuth, requireCanViewSuppliers, async (req, res) => {
   const q = req.query.q?.trim()
 
   try {

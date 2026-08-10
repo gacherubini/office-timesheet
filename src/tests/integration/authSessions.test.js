@@ -123,8 +123,12 @@ describe('Auth — reset invalida sessões e SSE checa usuário', () => {
     }
   })
 
-  it('employee não lista/edita clientes (canManageClients = operações)', async () => {
+  it('employee LISTA clientes (leitura), mas NÃO gere (canManage = operações)', async () => {
+    // Ler a lista é liberado (o filtro admin_only esconde os restritos); só a
+    // gestão (criar/editar/excluir) segue restrita a admin + estagiário.
     const list = await asUser(employee).get('/admin/clients')
-    expect(list.status).toBe(403)
+    expect(list.status).toBe(200)
+    const create = await asUser(employee).post('/admin/clients').send({ name: 'Novo' })
+    expect(create.status).toBe(403)
   })
 })

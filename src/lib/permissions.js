@@ -40,7 +40,18 @@ export function canAccessAdminArea(profile) {
   return isAdmin(profile) || isAdministrativeIntern(profile)
 }
 
-// CRM (clientes/fornecedores com PII): só operações (admin + intern).
+// CRM (clientes/fornecedores com PII): GERIR (criar/editar/excluir) é só de
+// operações (admin + intern). VER a lista é liberado a qualquer autenticado — o
+// filtro admin_only nas rotas esconde os restritos dos não-admins, então o
+// colaborador vê os contatos comuns e não vê os marcados como admin_only.
+export function canViewClients(profile) {
+  return Boolean(profile)
+}
+
+export function canViewSuppliers(profile) {
+  return Boolean(profile)
+}
+
 export function canManageClients(profile) {
   return canAccessOperations(profile)
 }

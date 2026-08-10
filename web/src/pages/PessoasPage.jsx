@@ -478,9 +478,11 @@ export function PessoasPage() {
         {tabs.map((t) => (
           <TabChip key={t.key} active={tab === t.key} label={t.label} count={counts[t.key] || 0} onClick={() => setTab(t.key)} />
         ))}
-        <Button className="ml-auto h-8" onClick={() => setShowNewChooser(true)}>
-          <Plus size={15} /> Nova pessoa
-        </Button>
+        {(canManageClients || canManageSuppliers || isAdmin) && (
+          <Button className="ml-auto h-8" onClick={() => setShowNewChooser(true)}>
+            <Plus size={15} /> Nova pessoa
+          </Button>
+        )}
       </div>
 
       <Card padded={false}>

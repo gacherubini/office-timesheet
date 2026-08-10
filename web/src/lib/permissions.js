@@ -34,8 +34,16 @@ export function canAccessMoneyRole(role) {
   return isAdminRole(role)
 }
 
+// Operações do CRM (criar/editar/excluir): admin + estagiário administrativo.
+// Espelha canAccessOperations do backend. VER a lista é liberado a todos (a
+// própria página busca e o backend filtra admin_only), então não há gate de
+// leitura aqui — só o de gestão.
+export function canAccessOperationsRole(role) {
+  return isAdminRole(role) || isAdministrativeInternRole(role)
+}
+
 export function canManageClientsRole(role) {
-  return Boolean(role)
+  return canAccessOperationsRole(role)
 }
 
 export function canDeleteClientsRole(role) {
@@ -43,7 +51,7 @@ export function canDeleteClientsRole(role) {
 }
 
 export function canManageSuppliersRole(role) {
-  return Boolean(role)
+  return canAccessOperationsRole(role)
 }
 
 export function canDeleteSuppliersRole(role) {
