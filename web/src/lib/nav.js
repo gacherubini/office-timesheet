@@ -4,6 +4,7 @@ import {
   FolderKanban,
   Users,
   CalendarDays,
+  Sparkles,
   BarChart3,
   FileText,
   Gift,
@@ -32,6 +33,12 @@ export function buildNav({ isAdmin = false, isAdministrativeIntern = false } = {
     { to: '/pessoas', label: 'Pessoas', icon: Users },
     { to: '/agenda', label: 'Agenda', icon: CalendarDays },
   ]
+
+  // Assistente (agente): visível a todos os papéis. O kill switch do front
+  // some com a aba quando VITE_AGENT_ENABLED === 'false'.
+  if (import.meta.env.VITE_AGENT_ENABLED !== 'false') {
+    items.push({ to: '/assistente', label: 'Assistente', icon: Sparkles })
+  }
 
   // Estagiário administrativo não acessa Performance.
   if (!isAdministrativeIntern) {

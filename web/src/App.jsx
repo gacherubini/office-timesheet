@@ -16,6 +16,7 @@ import { ProfilePage } from './pages/ProfilePage'
 import { EmployeeDashboardPage } from './pages/EmployeeDashboardPage'
 import { GlobalTasksPage } from './pages/GlobalTasksPage'
 import { PessoasPage } from './pages/PessoasPage'
+import { AssistentePage } from './pages/AssistentePage'
 import { PerformancePage } from './pages/PerformancePage'
 import { AdminLivePage } from './pages/admin/AdminLivePage'
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage'
@@ -69,6 +70,7 @@ export default function App() {
       <Route path="/projetos" element={<ProtectedRoute><Layout><ProjectBoardPage /></Layout></ProtectedRoute>} />
       <Route path="/pessoas" element={<ProtectedRoute><Layout><PessoasPage /></Layout></ProtectedRoute>} />
       <Route path="/agenda" element={<ProtectedRoute><Layout><AgendaPage /></Layout></ProtectedRoute>} />
+      <Route path="/assistente" element={<ProtectedRoute><Layout><AssistentePage /></Layout></ProtectedRoute>} />
       <Route path="/performance" element={<ProtectedRoute disallowAdministrativeIntern><Layout><PerformancePage /></Layout></ProtectedRoute>} />
 
       {/* Rotas do admin */}
