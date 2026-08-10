@@ -71,6 +71,21 @@ describe('prompt — regras + domínio fatiado', () => {
   })
 })
 
+describe('prompt — data de hoje', () => {
+  const now = new Date('2026-08-10T12:00:00Z') // 09:00 em America/Sao_Paulo
+
+  it('injeta a data corrente (ISO no fuso do estúdio) para resolver datas relativas', () => {
+    const p = buildSystemPrompt({ role: 'admin' }, now)
+    expect(p).toMatch(/# Data de hoje/)
+    expect(p).toContain('2026-08-10')
+  })
+
+  it('orienta a assumir o ano corrente quando a data vier sem ano', () => {
+    const p = buildSystemPrompt({ role: 'employee' }, now)
+    expect(p).toMatch(/assuma o ano corrente/i)
+  })
+})
+
 describe('prompt — identidade de quem está falando (§5)', () => {
   const perfil = { id: 'u-123', name: 'Maria Souza', email: 'maria@studio.com', role: 'employee', position: 'Designer' }
 
