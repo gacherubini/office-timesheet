@@ -9,6 +9,7 @@ import {
   FileText,
   Gift,
   Receipt,
+  Plane,
 } from 'lucide-react'
 
 // Ferramentas de admin, aninhadas sob Performance.
@@ -17,6 +18,11 @@ const ADMIN_TOOLS = [
   { to: '/admin/time-entries', label: 'Apontamentos', icon: FileText },
   { to: '/admin/manage-bonuses', label: 'Bônus', icon: Gift },
   { to: '/admin/manage-expenses', label: 'Despesas', icon: Receipt },
+]
+
+// Solicitações próprias de férias (pedir / apagar) — todos os papéis.
+const AGENDA_TOOLS = [
+  { to: '/vacations', label: 'Minhas férias', icon: Plane },
 ]
 
 export function buildNav({ isAdmin = false, isAdministrativeIntern = false } = {}) {
@@ -31,7 +37,7 @@ export function buildNav({ isAdmin = false, isAdministrativeIntern = false } = {
     { to: '/tarefas', label: 'Tarefas', icon: ListChecks },
     { to: '/projetos', label: 'Projetos', icon: FolderKanban },
     { to: '/pessoas', label: 'Pessoas', icon: Users },
-    { to: '/agenda', label: 'Agenda', icon: CalendarDays },
+    { to: '/agenda', label: 'Agenda', icon: CalendarDays, children: AGENDA_TOOLS },
   ]
 
   // Assistente (agente): visível a todos os papéis. O kill switch do front

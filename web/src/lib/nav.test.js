@@ -9,6 +9,7 @@ describe('buildNav', () => {
     expect(nav[0]).toMatchObject({ label: 'Início', to: '/dashboard' })
     expect(labels(nav)).toEqual(['Início', 'Tarefas', 'Projetos', 'Pessoas', 'Agenda', 'Assistente', 'Performance'])
     expect(nav.find((i) => i.label === 'Performance').children).toBeUndefined()
+    expect(labels(nav.find((i) => i.label === 'Agenda').children)).toEqual(['Minhas férias'])
   })
 
   it('manda o admin para /admin/dashboard e aninha as quatro ferramentas', () => {
@@ -20,11 +21,13 @@ describe('buildNav', () => {
       'Bônus',
       'Despesas',
     ])
+    expect(labels(nav.find((i) => i.label === 'Agenda').children)).toEqual(['Minhas férias'])
   })
 
   it('manda o estagiário administrativo para /admin/approvals e esconde Performance', () => {
     const nav = buildNav({ isAdministrativeIntern: true })
     expect(nav[0].to).toBe('/admin/approvals')
     expect(labels(nav)).not.toContain('Performance')
+    expect(labels(nav.find((i) => i.label === 'Agenda').children)).toEqual(['Minhas férias'])
   })
 })

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   CalendarClock,
   ChevronLeft,
@@ -310,9 +311,17 @@ export function AgendaPage() {
             </button>
           ))}
         </div>
-        <Button className="ml-auto h-8" onClick={() => { setPresenceInitial(null); setPresenceOpen(true) }}>
-          <Plus size={15} /> Marcar presença
-        </Button>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <Link
+            to="/vacations"
+            className="inline-flex h-8 items-center gap-1.5 border border-border-subtle bg-surface px-3 text-[12px] font-medium text-text-primary transition-colors hover:bg-surface-alt"
+          >
+            <Plane size={14} /> Minhas férias
+          </Link>
+          <Button className="h-8" onClick={() => { setPresenceInitial(null); setPresenceOpen(true) }}>
+            <Plus size={15} /> Marcar presença
+          </Button>
+        </div>
       </div>
 
       {error && (
