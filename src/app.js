@@ -3,7 +3,6 @@ import cors from 'cors'
 
 import { pool } from './lib/db.js'
 import { localUploadsDir, isLocalStorage } from './lib/storage.js'
-import { requireAuth } from './middleware/auth.js'
 import { requestLogger } from './middleware/requestLogger.js'
 import { notFound, errorHandler } from './middleware/errorHandler.js'
 
@@ -50,14 +49,16 @@ app.use(cors({
 }))
 app.use(express.json())
 
-// Fallback local de storage: exige auth (sem isso qualquer um lia recibos/PII).
-// Em produção deve usar BUCKET_NAME (S3/Tigris) — modo local é só dev.
+// Fallback local de storage (só dev; produção usa BUCKET_NAME S3/Tigris).
+// Coerente com a decisão harden-only (§5.2): os objetos são públicos por URL,
+// então o estático local também serve sem auth — senão <img src="/api/uploads/…">
+// quebra, porque a tag <img> não manda o header Authorization: Bearer.
 if (isLocalStorage) {
   if (process.env.NODE_ENV === 'production') {
     // eslint-disable-next-line no-console
     console.warn('[storage] BUCKET_NAME ausente em production — uploads locais efêmeros e inseguros')
   }
-  app.use('/uploads', requireAuth, express.static(localUploadsDir))
+  app.use('/uploads', express.static(localUploadsDir))
 }
 
 app.get('/health', async (_req, res) => {

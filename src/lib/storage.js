@@ -66,13 +66,17 @@ export async function uploadFile(prefix, { buffer, mimetype }) {
     return { key, url: `${LOCAL_URL_PREFIX}${key}` }
   }
 
-  // Sem ACL public-read: objetos privados no bucket (PII/recibos não ficam
-  // world-readable). URLs públicas do Tigris exigem política de bucket ou
-  // signed URL (próximo passo). Content-Disposition attachment mitiga XSS.
+  // Harden-only (decisão de produto §5.2): objetos ficam public-read pra que a
+  // URL pública do Tigris funcione direto em <img>/download, mas endurecidos —
+  // Content-Type definido a partir do MIME validado + Content-Disposition
+  // attachment nos prefixos de risco (recibos/docs/anexos) e SVG sempre baixado,
+  // nunca inline. A proteção de PII aqui é a chave UUID aleatória (URL não
+  // adivinhável), não a ACL. Migrar pra signed URL fica pro pós-go-live.
   await s3.send(new PutObjectCommand({
     Bucket: BUCKET,
     Key: key,
     Body: buffer,
+    ACL: 'public-read',
     ContentType: safeMime,
     ContentDisposition: forceAttachment
       ? 'attachment'

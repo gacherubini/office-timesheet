@@ -9,6 +9,19 @@ import { requireOperationalAccess } from '../middleware/requireOperationalAccess
 import { ROLES, VALID_ROLES, canAccessMoney, roleLabel } from '../lib/permissions.js'
 import { logger } from '../lib/logger.js'
 
+// is_active pode chegar como boolean, string ('true'/'false') ou número (0/1).
+// Normaliza pra boolean real: sem isso `is_active: 0` driblava o self-lock (o
+// guard só barrava `false`/'false') e ainda gravava o valor cru na coluna.
+function toBool(v) {
+  return v === true || v === 'true' || v === 1 || v === '1'
+}
+
+// uuid casa case-insensitive no Postgres; o compare em JS tem que casar também,
+// senão o mesmo id em outro case burla o self-lock mas ainda atualiza a linha.
+function sameId(a, b) {
+  return String(a).toLowerCase() === String(b).toLowerCase()
+}
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
@@ -170,8 +183,8 @@ router.put('/users/:id', requireAuth, requireAdmin, async (req, res) => {
   const { name, role, hourly_rate, fixed_salary, is_active, position, birth_date, phone } = req.body
 
   // Admin não se auto-desativa nem troca o próprio papel (self-lock).
-  if (id === req.profile.id) {
-    if (is_active === false || is_active === 'false') {
+  if (sameId(id, req.profile.id)) {
+    if (is_active !== undefined && !toBool(is_active)) {
       return res.status(400).json({ error: 'Você não pode desativar a própria conta.' })
     }
     if (role !== undefined && role !== req.profile.role) {
@@ -209,7 +222,7 @@ router.put('/users/:id', requireAuth, requireAdmin, async (req, res) => {
       updates.fixed_salary = Number(fixed_salary) || 0
     }
   }
-  if (is_active !== undefined) updates.is_active = is_active
+  if (is_active !== undefined) updates.is_active = toBool(is_active)
   if (birth_date !== undefined) updates.birth_date = birth_date || null
   if (phone !== undefined) updates.phone = phone?.trim() || null
 
@@ -248,7 +261,7 @@ router.put('/users/:id', requireAuth, requireAdmin, async (req, res) => {
 router.delete('/users/:id', requireAuth, requireAdmin, async (req, res) => {
   const { id } = req.params
 
-  if (id === req.profile.id) {
+  if (sameId(id, req.profile.id)) {
     return res.status(400).json({ error: 'Você não pode deletar sua própria conta.' })
   }
 
