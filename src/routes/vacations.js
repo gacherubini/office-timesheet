@@ -211,23 +211,19 @@ router.delete('/me/vacation-requests/:id', requireAuth, async (req, res) => {
   }
 
   try {
-    // Só pendentes: férias aprovadas não somem pelo DELETE do próprio usuário.
+    // O dono cancela a PRÓPRIA férias em qualquer status (pendente ou aprovada) —
+    // self-service. Como é DELETE físico, a linha some e o EXCLUDE de overlap
+    // (§032, conta pending+approved) libera o período na hora. O `user_id = $2`
+    // garante que só apaga o que é dele; férias de terceiros passam pelo fluxo
+    // admin (DELETE /admin/vacation-requests/:id).
     const { rows } = await query(
       `DELETE FROM vacation_requests
-       WHERE id = $1 AND user_id = $2 AND status = 'pending'
+       WHERE id = $1 AND user_id = $2
        RETURNING id, user_id, start_date, end_date, days_count, reason, status, admin_note, decided_at, created_at, updated_at`,
       [req.params.id, req.profile.id]
     )
 
     if (!rows || rows.length === 0) {
-      // Distingue "não existe" de "já decidida" pra UX.
-      const { rows: existing } = await query(
-        `SELECT status FROM vacation_requests WHERE id = $1 AND user_id = $2`,
-        [req.params.id, req.profile.id]
-      )
-      if (existing.length > 0 && existing[0].status !== 'pending') {
-        return res.status(400).json({ error: 'Só é possível cancelar solicitações pendentes.' })
-      }
       return res.status(404).json({ error: 'Solicitação de férias não encontrada.' })
     }
 

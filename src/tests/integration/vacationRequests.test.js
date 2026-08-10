@@ -77,23 +77,40 @@ describe('POST /me/vacation-requests — regras de validação', () => {
     expect(res.body.error).toMatch(/já existe/i)
   })
 
-  it('employee só cancela pending; approved vira 400', async () => {
+  it('o dono cancela a própria férias em qualquer status (pendente ou aprovada)', async () => {
+    // Pendente: cancela.
     const pending = await asUser(emp).post('/me/vacation-requests')
       .send({ start_date: daquiA(20), end_date: daquiA(22) })
     expect(pending.status).toBe(201)
-
     const delPending = await asUser(emp).delete(`/me/vacation-requests/${pending.body.id}`)
     expect(delPending.status).toBe(200)
 
-    const approved = await asUser(admin).post('/me/vacation-requests')
-      .send({ start_date: daquiA(30), end_date: daquiA(32) })
-    expect(approved.body.status).toBe('approved')
+    // Aprovada do próprio employee (inserida direto): também cancela — self-service.
+    const { rows } = await query(
+      `INSERT INTO vacation_requests (user_id, start_date, end_date, days_count, status)
+       VALUES ($1, $2, $3, 3, 'approved') RETURNING id`,
+      [emp.id, daquiA(30), daquiA(32)],
+    )
+    const delApproved = await asUser(emp).delete(`/me/vacation-requests/${rows[0].id}`)
+    expect(delApproved.status).toBe(200)
+    expect(delApproved.body.status).toBe('approved')
 
-    // employee tenta apagar férias aprovadas de outro? own delete only own.
-    // admin auto-approved is owned by admin:
-    const delApproved = await asUser(admin).delete(`/me/vacation-requests/${approved.body.id}`)
-    expect(delApproved.status).toBe(400)
-    expect(delApproved.body.error).toMatch(/pendentes/i)
+    // Some do banco (DELETE físico) → o período fica livre de novo.
+    const { rows: check } = await query('SELECT id FROM vacation_requests WHERE id = $1', [rows[0].id])
+    expect(check).toHaveLength(0)
+  })
+
+  it('o próprio DELETE não apaga férias de outra pessoa (404)', async () => {
+    const { rows } = await query(
+      `INSERT INTO vacation_requests (user_id, start_date, end_date, days_count, status)
+       VALUES ($1, $2, $3, 3, 'approved') RETURNING id`,
+      [admin.id, daquiA(60), daquiA(62)],
+    )
+    const del = await asUser(emp).delete(`/me/vacation-requests/${rows[0].id}`)
+    expect(del.status).toBe(404)
+    // continua no banco — só o fluxo admin apaga férias de terceiros.
+    const { rows: check } = await query('SELECT id FROM vacation_requests WHERE id = $1', [rows[0].id])
+    expect(check).toHaveLength(1)
   })
 
   it('intern não apaga férias de admin; admin apaga', async () => {
