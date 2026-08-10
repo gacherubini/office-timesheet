@@ -3,6 +3,7 @@
 // divergiriam na primeira mudança, e o agente passaria a propor o que a rota
 // recusa (ou vice-versa).
 import { query } from './db.js'
+import { dateInSaoPaulo } from './dates.js'
 
 export const ACTIVE_VACATION_STATUSES = ['pending', 'approved']
 
@@ -22,12 +23,9 @@ export function parseDateOnly(value) {
   return { value, utcTime }
 }
 
+// "Hoje" no fuso do estúdio (não do host UTC do Fly).
 function todayValue() {
-  const today = new Date()
-  const year = today.getFullYear()
-  const month = String(today.getMonth() + 1).padStart(2, '0')
-  const day = String(today.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+  return dateInSaoPaulo()
 }
 
 function calculateInclusiveDays(startUtcTime, endUtcTime) {

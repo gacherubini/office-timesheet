@@ -10,23 +10,16 @@ import { calculateDurationMinutes, calculateCostSnapshot } from '../lib/timeMath
 
 const router = Router()
 
-function todayValue() {
-  const today = new Date()
-  const year = today.getFullYear()
-  const month = String(today.getMonth() + 1).padStart(2, '0')
-  const day = String(today.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
 async function getApprovedVacationForToday(userId) {
-  const today = todayValue()
-
+  // "Hoje" no fuso do estúdio — no Fly o processo é UTC e todayValue() JS
+  // liberaria timer entre 21h–00h BRT no primeiro dia de férias.
   const { rows } = await query(
     `SELECT id, start_date, end_date FROM vacation_requests
      WHERE user_id = $1 AND status = 'approved'
-       AND start_date <= $2::date AND end_date >= $2::date
+       AND start_date <= (now() AT TIME ZONE 'America/Sao_Paulo')::date
+       AND end_date   >= (now() AT TIME ZONE 'America/Sao_Paulo')::date
      LIMIT 1`,
-    [userId, today]
+    [userId]
   )
 
   return rows.length > 0 ? rows[0] : null
@@ -639,11 +632,11 @@ router.get('/admin/time-entries', requireAuth, requireAdmin, async (req, res) =>
     }
     if (req.query.start_date) {
       baseParams.push(req.query.start_date)
-      conditions.push(`te.started_at >= ($${baseParams.length}::date AT TIME ZONE 'America/Sao_Paulo')`)
+      conditions.push(`te.started_at >= ($${baseParams.length}::timestamp AT TIME ZONE 'America/Sao_Paulo')`)
     }
     if (req.query.end_date) {
       baseParams.push(req.query.end_date)
-      conditions.push(`te.started_at < (($${baseParams.length}::date + interval '1 day') AT TIME ZONE 'America/Sao_Paulo')`)
+      conditions.push(`te.started_at < (($${baseParams.length}::date + interval '1 day')::timestamp AT TIME ZONE 'America/Sao_Paulo')`)
     }
     const whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : ''
 

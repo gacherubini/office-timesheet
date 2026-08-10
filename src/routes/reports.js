@@ -2,16 +2,16 @@ import { Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
 import { requireAdmin } from '../middleware/requireAdmin.js'
 import { query } from '../lib/db.js'
+import { dateInSaoPaulo } from '../lib/dates.js'
 
 const router = Router()
 
-function startOfDayIso(date) {
-  return new Date(`${date}T00:00:00`).toISOString()
-}
-
-function endOfDayIso(date) {
-  return new Date(`${date}T23:59:59`).toISOString()
-}
+// Filtro half-open no fuso do estúdio.
+// Usar ::timestamp (não ::date): em Postgres, `date AT TIME ZONE tz` NÃO produz
+// meia-noite em tz — vira timestamp no TZ da sessão e inclui a madrugada UTC
+// do dia seguinte (noite BRT do dia pedido).
+const TE_RANGE_SQL = `started_at >= ($1::timestamp AT TIME ZONE 'America/Sao_Paulo')
+           AND started_at < (($2::date + interval '1 day')::timestamp AT TIME ZONE 'America/Sao_Paulo')`
 
 function roundMoney(value) {
   return Number((Number(value) || 0).toFixed(2))
@@ -21,15 +21,25 @@ function hoursFromMinutes(minutes) {
   return Number(((Number(minutes) || 0) / 60).toFixed(2))
 }
 
+function dayInSaoPaulo(value) {
+  if (!value) return null
+  // DATE do Postgres já chega como YYYY-MM-DD (type parser em db.js).
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value
+  return dateInSaoPaulo(new Date(value))
+}
+
 function addMovementDate(set, value) {
-  if (value) set.add(new Date(value).toISOString().slice(0, 10))
+  const day = dayInSaoPaulo(value)
+  if (day) set.add(day)
 }
 
 function buildDailyHours(entries = [], profileMap = new Map(), projectMap = new Map()) {
   const dailyMap = new Map()
 
   for (const entry of entries || []) {
-    const day = entry.started_at ? new Date(entry.started_at).toISOString().slice(0, 10) : null
+    const day = entry.local_day
+      ? dayInSaoPaulo(entry.local_day)
+      : (entry.started_at ? dayInSaoPaulo(entry.started_at) : null)
     if (!day) continue
 
     const profile = profileMap.get(entry.user_id)
@@ -110,11 +120,12 @@ router.get('/reports/financial', requireAuth, requireAdmin, async (req, res) => 
       { rows: projects },
     ] = await Promise.all([
       query(
-        `SELECT id, user_id, project_id, started_at, ended_at, duration_minutes, cost_snapshot, status
+        `SELECT id, user_id, project_id, started_at, ended_at, duration_minutes, cost_snapshot, status,
+                (started_at AT TIME ZONE 'America/Sao_Paulo')::date AS local_day
          FROM time_entries
          WHERE status = 'completed'
-           AND started_at >= $1::timestamp AND started_at <= $2::timestamp`,
-        [startOfDayIso(start_date), endOfDayIso(end_date)]
+           AND ${TE_RANGE_SQL}`,
+        [start_date, end_date]
       ),
       query(
         `SELECT id, user_id, title, description, amount, expense_date, receipt_url, status, created_at
@@ -172,14 +183,16 @@ router.get('/reports/financial', requireAuth, requireAdmin, async (req, res) => 
       const user = ensureUser(entry.user_id)
       const minutes = Number(entry.duration_minutes) || 0
       const cost = Number(entry.cost_snapshot) || 0
-      const day = entry.started_at ? new Date(entry.started_at).toISOString().slice(0, 10) : null
+      const day = entry.local_day
+        ? dayInSaoPaulo(entry.local_day)
+        : (entry.started_at ? dayInSaoPaulo(entry.started_at) : null)
 
       user.total_minutes += minutes
       user.hours_cost += cost
       user.entries_count += 1
       if (day) user.working_days.add(day)
       if (entry.project_id) user.projects.add(entry.project_id)
-      addMovementDate(movementDates, entry.started_at)
+      if (day) movementDates.add(day)
 
       const project = projectMap.get(entry.project_id)
       const projectId = entry.project_id || 'sem-projeto'
@@ -390,11 +403,12 @@ router.get('/reports/daily-hours', requireAuth, requireAdmin, async (req, res) =
   }
 
   try {
-    let sql = `SELECT id, user_id, project_id, started_at, ended_at, duration_minutes, cost_snapshot, status
+    let sql = `SELECT id, user_id, project_id, started_at, ended_at, duration_minutes, cost_snapshot, status,
+                      (started_at AT TIME ZONE 'America/Sao_Paulo')::date AS local_day
                FROM time_entries
                WHERE status = 'completed'
-                 AND started_at >= $1::timestamp AND started_at <= $2::timestamp`
-    const params = [startOfDayIso(start_date), endOfDayIso(end_date)]
+                 AND ${TE_RANGE_SQL}`
+    const params = [start_date, end_date]
 
     if (user_id) {
       sql += ` AND user_id = $${params.length + 1}`
@@ -442,20 +456,21 @@ router.get('/reports/payroll', requireAuth, requireAdmin, async (req, res) => {
          SELECT user_id, COALESCE(SUM(cost_snapshot), 0)::numeric AS hours_cost
          FROM time_entries
          WHERE status = 'completed'
-           AND started_at >= $1::timestamp AND started_at <= $2::timestamp
+           AND started_at >= ($1::timestamp AT TIME ZONE 'America/Sao_Paulo')
+           AND started_at < (($2::date + interval '1 day')::timestamp AT TIME ZONE 'America/Sao_Paulo')
          GROUP BY user_id
        ),
        exp AS (
          SELECT user_id, COALESCE(SUM(amount), 0)::numeric AS expenses
          FROM expense_requests
          WHERE status = 'approved'
-           AND expense_date >= $3::date AND expense_date <= $4::date
+           AND expense_date >= $1::date AND expense_date <= $2::date
          GROUP BY user_id
        ),
        bon AS (
          SELECT user_id, COALESCE(SUM(amount), 0)::numeric AS bonuses
          FROM bonuses
-         WHERE bonus_date >= $3::date AND bonus_date <= $4::date
+         WHERE bonus_date >= $1::date AND bonus_date <= $2::date
          GROUP BY user_id
        ),
        ids AS (
@@ -472,7 +487,7 @@ router.get('/reports/payroll', requireAuth, requireAdmin, async (req, res) => {
        LEFT JOIN hours h ON h.user_id = ids.user_id
        LEFT JOIN exp e   ON e.user_id = ids.user_id
        LEFT JOIN bon b   ON b.user_id = ids.user_id`,
-      [startOfDayIso(start_date), endOfDayIso(end_date), start_date, end_date]
+      [start_date, end_date]
     )
 
     const payroll = records
@@ -525,9 +540,10 @@ router.get('/reports/project-cost', requireAuth, requireAdmin, async (req, res) 
        FROM time_entries te
        LEFT JOIN projects p ON p.id = te.project_id
        WHERE te.status = 'completed'
-         AND te.started_at >= $1::timestamp AND te.started_at <= $2::timestamp
+         AND te.started_at >= ($1::timestamp AT TIME ZONE 'America/Sao_Paulo')
+         AND te.started_at < (($2::date + interval '1 day')::timestamp AT TIME ZONE 'America/Sao_Paulo')
        GROUP BY te.project_id, p.name, p.client`,
-      [startOfDayIso(start_date), endOfDayIso(end_date)]
+      [start_date, end_date]
     )
 
     const projectCosts = rows

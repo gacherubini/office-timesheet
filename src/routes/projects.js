@@ -6,6 +6,7 @@ import { requireAuth } from '../middleware/auth.js'
 import { requireAdmin } from '../middleware/requireAdmin.js'
 import { requireProjectManagement } from '../middleware/requireProjectManagement.js'
 import { logger } from '../lib/logger.js'
+import { dateInSaoPaulo, yearMonthInSaoPaulo } from '../lib/dates.js'
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -348,21 +349,19 @@ router.delete('/projects/:id/documents/:docId', requireAuth, async (req, res) =>
 
 // Horas do usuário logado neste projeto (hoje / mês corrente), apontamentos concluídos.
 router.get('/projects/:id/my-hours', requireAuth, async (req, res) => {
-  const now = new Date()
-  const y = now.getFullYear()
-  const m = now.getMonth() + 1
+  const { year: y, month: m } = yearMonthInSaoPaulo()
   const monthStart = `${y}-${String(m).padStart(2, '0')}-01`
-  const todayStr = now.toISOString().slice(0, 10)
+  const todayStr = dateInSaoPaulo()
   try {
     const { rows } = await query(
       `SELECT
          COALESCE(SUM(duration_minutes), 0)::int AS month_minutes,
          COALESCE(SUM(duration_minutes) FILTER (
-           WHERE started_at >= ($3::date AT TIME ZONE 'America/Sao_Paulo')
+           WHERE started_at >= ($3::timestamp AT TIME ZONE 'America/Sao_Paulo')
          ), 0)::int AS today_minutes
        FROM time_entries
        WHERE user_id = $1 AND project_id = $2 AND status = 'completed'
-         AND started_at >= ($4::date AT TIME ZONE 'America/Sao_Paulo')`,
+         AND started_at >= ($4::timestamp AT TIME ZONE 'America/Sao_Paulo')`,
       [req.profile.id, req.params.id, todayStr, monthStart],
     )
     return res.json(rows[0] || { month_minutes: 0, today_minutes: 0 })
