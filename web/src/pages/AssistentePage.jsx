@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, RotateCcw, AlertCircle, Check, Plus, Sparkles } from 'lucide-react'
+import { Send, RotateCcw, AlertCircle, Check, Plus, Sparkles, Loader2 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { streamChat, executeProposal } from '../lib/agentClient'
 import { lerSessao, salvarSessao, limparSessao } from '../lib/agentSession'
@@ -87,18 +87,14 @@ function MarcaAssistente({ box = 28, icon = 14 }) {
   )
 }
 
-function DotsDigitando() {
+// Indicador de "pensamento": ícone girando + rótulo, enquanto o agente roda as
+// consultas internas. O raciocínio do modelo não aparece — só este indicador,
+// até a resposta final chegar (evento 'answer') e substituí-lo.
+function Pensando() {
   return (
-    <div className="py-1" aria-label="Assistente está escrevendo">
-      <span className="inline-flex items-center gap-1">
-        {[0, 1, 2].map((k) => (
-          <span
-            key={k}
-            className="soft-pulse inline-block h-1.5 w-1.5 rounded-full"
-            style={{ background: 'var(--color-text-sec)', animationDelay: `${k * 0.18}s` }}
-          />
-        ))}
-      </span>
+    <div className="flex items-center gap-2 py-1 text-text-secondary" role="status" aria-label="Assistente está pensando">
+      <Loader2 size={14} className="animate-spin" aria-hidden />
+      <span className="text-sm">Pensando…</span>
     </div>
   )
 }
@@ -158,8 +154,10 @@ export function AssistentePage() {
   function receber(idxBot) {
     return (e) => {
       if (e.type === 'session') setConversa(e.conversation_id)
-      if (e.type === 'token') {
-        setMensagens((m) => m.map((msg, i) => (i === idxBot ? { ...msg, texto: msg.texto + e.text } : msg)))
+      // Só a resposta final chega (o raciocínio fica escondido atrás do "Pensando…").
+      // Vem inteira num único evento, então define o texto de uma vez.
+      if (e.type === 'answer') {
+        setMensagens((m) => m.map((msg, i) => (i === idxBot ? { ...msg, texto: e.text } : msg)))
       }
       if (e.type === 'proposal') {
         setMensagens((m) => m.map((msg, i) => (
@@ -344,17 +342,10 @@ export function AssistentePage() {
                     <MarcaAssistente box={28} icon={14} />
                     <div className="min-w-0 flex-1 space-y-3 pt-0.5">
                       {digitando ? (
-                        <DotsDigitando />
+                        <Pensando />
                       ) : m.texto ? (
                         <p className="max-w-[46ch] whitespace-pre-wrap break-words leading-relaxed text-text-primary">
                           {m.texto}
-                          {streaming && (
-                            <span
-                              aria-hidden
-                              className="soft-pulse ml-0.5 inline-block h-3.5 w-[2px] translate-y-[2px]"
-                              style={{ background: 'var(--color-accent)' }}
-                            />
-                          )}
                         </p>
                       ) : null}
 

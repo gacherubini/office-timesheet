@@ -13,17 +13,17 @@ const clientePedeEsclarecimento = {
 }
 
 describe('comportamento — ambíguo pede esclarecimento, não inventa', () => {
-  it('sem tool_call, o laço encerra pedindo esclarecimento', async () => {
-    const tokens = []
+  it('sem tool_call, o laço encerra pedindo esclarecimento (evento answer)', async () => {
+    const respostas = []
     const res = await runAgentTurn({
       client: clientePedeEsclarecimento,
       profile: { id: 1, role: 'admin' },
       model: 'x',
       messages: [{ role: 'user', content: 'qual o custo?' }],
-      emit: (e) => e.type === 'token' && tokens.push(e.text),
+      emit: (e) => e.type === 'answer' && respostas.push(e.text),
     })
     expect(res.status).toBe('done')
-    expect(tokens.join('')).toMatch(/qual projeto|preciso do nome/i)
+    expect(respostas.join('')).toMatch(/qual projeto|preciso do nome/i)
     // não houve nenhuma mensagem role:'tool' — nada foi consultado nem inventado
     expect(res.messages.some((m) => m.role === 'tool')).toBe(false)
   })

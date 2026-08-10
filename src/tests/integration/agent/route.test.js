@@ -30,13 +30,13 @@ describe('POST /agent/chat + execute', () => {
   })
   afterEach(() => resetClient())
 
-  it('streama resposta de texto e devolve conversation_id', async () => {
+  it('emite resposta de texto (evento answer) e devolve conversation_id', async () => {
     setClient(fakeClientOnce({ role: 'assistant', content: 'Olá!' }, 'Olá!'))
     const res = await asUser(emp).post('/agent/chat').send({ message: 'oi' })
     expect(res.status).toBe(200)
     const eventos = await readSse(res)
     expect(eventos.find((e) => e.type === 'session').conversation_id).toBeTruthy()
-    expect(eventos.filter((e) => e.type === 'token').map((e) => e.text).join('')).toContain('Olá!')
+    expect(eventos.filter((e) => e.type === 'answer').map((e) => e.text).join('')).toContain('Olá!')
     expect(eventos.some((e) => e.type === 'done')).toBe(true)
   })
 

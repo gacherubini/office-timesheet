@@ -22,7 +22,14 @@ export async function runAgentTurn({ client, profile, model, messages, emit, con
     let message, usage
     try {
       ;({ message, usage } = await withTimeout(
-        client.stream({ messages, tools: registry.definitions, model }, (t) => emit({ type: 'token', text: t })),
+        // O raciocínio que o modelo escreve junto das tool calls NÃO vai pro
+        // cliente. Streamamos para dentro (o cliente acumula em message.content),
+        // mas só a resposta final — a iteração SEM tool_calls — é emitida, como um
+        // evento 'answer' inteiro (mais abaixo). Com este modelo é impossível saber,
+        // no meio do stream, se o texto que chega é raciocínio ou resposta (o sinal
+        // tool_calls só aparece no fim da iteração); por isso a resposta não sai
+        // token-a-token e o indicador "Pensando…" cobre toda a espera.
+        client.stream({ messages, tools: registry.definitions, model }, () => {}),
         LIMITS.timeoutMs,
       ))
     } catch (err) {
@@ -41,7 +48,12 @@ export async function runAgentTurn({ client, profile, model, messages, emit, con
 
     messages.push(message)
     const calls = message.tool_calls || []
-    if (calls.length === 0) return { status: 'done', messages, usage: usageTotal }
+    if (calls.length === 0) {
+      // Iteração sem tool_calls = resposta final. Só agora o conteúdo é a
+      // resposta ao usuário (não raciocínio), então emite-o de uma vez.
+      emit({ type: 'answer', text: message.content || '' })
+      return { status: 'done', messages, usage: usageTotal }
+    }
 
     for (const call of calls) {
       const tool = registry.get(call.function.name)

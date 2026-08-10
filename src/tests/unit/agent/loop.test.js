@@ -20,19 +20,21 @@ function fakeClient(steps) {
 describe('loop — tool-calling agnóstico', () => {
   beforeEach(() => clearTestSink())
 
-  it('executa uma tool de leitura e depois streama a resposta final', async () => {
+  it('executa uma tool de leitura e depois emite a resposta final (evento answer)', async () => {
     const client = fakeClient([
       { message: { role: 'assistant', tool_calls: [{ id: 'c1', type: 'function', function: { name: 'listar_equipe', arguments: '{}' } }] } },
-      { token: 'Temos ', message: { role: 'assistant', content: 'Temos 1 pessoa.' } },
+      { message: { role: 'assistant', content: 'Temos 1 pessoa.' } },
     ])
-    const tokens = []
+    const respostas = []
     const res = await runAgentTurn({
       client, profile: admin, model: 'x',
       messages: [{ role: 'user', content: 'quem está no time?' }],
-      emit: (e) => e.type === 'token' && tokens.push(e.text),
+      emit: (e) => e.type === 'answer' && respostas.push(e.text),
     })
     expect(res.status).toBe('done')
-    expect(tokens.join('')).toContain('Temos ')
+    // A resposta final sai num único evento 'answer'; o raciocínio das iterações
+    // intermediárias (com tool_calls) NÃO é emitido.
+    expect(respostas).toEqual(['Temos 1 pessoa.'])
     // houve uma mensagem role:'tool' no meio (resultado da leitura):
     expect(res.messages.some((m) => m.role === 'tool')).toBe(true)
   })
