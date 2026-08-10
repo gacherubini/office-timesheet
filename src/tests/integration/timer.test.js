@@ -93,6 +93,56 @@ describe('Cronômetro de projeto — ciclo de vida', () => {
     expect(res.body.duration_minutes).toBeLessThanOrEqual(32)
   })
 
+  it('double-stop: segundo vira 404 e só um completed', async () => {
+    await startedMinutesAgo(employee.id, project.id, 30)
+    const first = await asUser(employee).post('/time-entries/stop').send({})
+    expect(first.status).toBe(200)
+    expect(first.body.status).toBe('completed')
+
+    const second = await asUser(employee).post('/time-entries/stop').send({})
+    expect(second.status).toBe(404)
+
+    const { rows } = await query(
+      `SELECT count(*)::int AS n FROM time_entries
+       WHERE user_id = $1 AND status = 'completed'`,
+      [employee.id],
+    )
+    expect(rows[0].n).toBe(1)
+  })
+
+  it('stop durante pausa aberta preenche resumed_at e desconta a pausa', async () => {
+    const entryId = await startedMinutesAgo(employee.id, project.id, 60)
+    await query(
+      `INSERT INTO time_entry_pauses (time_entry_id, paused_at, resumed_at)
+       VALUES ($1, now() - interval '20 minutes', NULL)`,
+      [entryId],
+    )
+
+    const res = await asUser(employee).post('/time-entries/stop').send({})
+    expect(res.status).toBe(200)
+    // 60 − 20 ≈ 40 líquidos
+    expect(res.body.duration_minutes).toBeGreaterThanOrEqual(38)
+    expect(res.body.duration_minutes).toBeLessThanOrEqual(42)
+
+    const { rows: pauses } = await query(
+      `SELECT resumed_at FROM time_entry_pauses WHERE time_entry_id = $1`,
+      [entryId],
+    )
+    expect(pauses[0].resumed_at).toBeTruthy()
+  })
+
+  it('start em projeto deletado ou inativo → 400', async () => {
+    await query(`UPDATE projects SET deleted_at = now() WHERE id = $1`, [project.id])
+    const deleted = await asUser(employee).post('/time-entries/start').send({ project_id: project.id })
+    expect(deleted.status).toBe(400)
+
+    const other = await makeProject({ name: 'Inativo' })
+    await query(`UPDATE projects SET status = 'completed', deleted_at = NULL WHERE id = $1`, [other.id])
+    // status completed (ou qualquer ≠ active) também bloqueia
+    const inactive = await asUser(employee).post('/time-entries/start').send({ project_id: other.id })
+    expect(inactive.status).toBe(400)
+  })
+
   it('pause registra pausa e resume a fecha; resume sem pausa → 404', async () => {
     await asUser(employee).post('/time-entries/start').send({ project_id: project.id })
 

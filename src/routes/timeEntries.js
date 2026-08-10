@@ -107,6 +107,15 @@ router.post('/time-entries/start', requireAuth, blockTimerDuringVacation, async 
   }
 
   try {
+    const { rows: projects } = await query(
+      `SELECT id FROM projects
+       WHERE id = $1 AND deleted_at IS NULL AND status = 'active'`,
+      [project_id]
+    )
+    if (projects.length === 0) {
+      return res.status(400).json({ error: 'Projeto inválido, inativo ou removido.' })
+    }
+
     const { rows } = await query(
       `INSERT INTO time_entries (user_id, project_id, started_at, status)
        VALUES ($1, $2, now(), 'running') RETURNING *`,
@@ -202,65 +211,81 @@ router.post('/time-entries/resume', requireAuth, blockTimerDuringVacation, async
 })
 
 // ─── STOP ─────────────────────────────────────────────────────────────
+// Atômico: um único relógio (now() do Postgres), fecha pausa aberta, e
+// UPDATE com AND status='running' mata double-stop (double-click / retry).
 router.post('/time-entries/stop', requireAuth, async (req, res) => {
   try {
-    const { rows: openEntries } = await query(
-      `SELECT id, started_at, project_id FROM time_entries
-       WHERE user_id = $1 AND status = 'running'
-       LIMIT 1`,
-      [req.profile.id]
-    )
+    const result = await withTransaction(async (client) => {
+      const { rows: openEntries } = await client.query(
+        `SELECT te.id, te.started_at, te.project_id, u.hourly_rate
+         FROM time_entries te
+         JOIN users u ON u.id = te.user_id
+         WHERE te.user_id = $1 AND te.status = 'running'
+         FOR UPDATE OF te
+         LIMIT 1`,
+        [req.profile.id]
+      )
 
-    if (!openEntries || openEntries.length === 0) {
+      if (!openEntries.length) return { notFound: true }
+
+      const entry = openEntries[0]
+      const { rows: nowRows } = await client.query('SELECT now() AS stop_ts')
+      const stopTs = nowRows[0].stop_ts
+
+      // Fecha pausa aberta no mesmo instante do stop (evita resumed_at null).
+      await client.query(
+        `UPDATE time_entry_pauses
+         SET resumed_at = $1
+         WHERE time_entry_id = $2 AND resumed_at IS NULL`,
+        [stopTs, entry.id]
+      )
+
+      const { rows: pausesData } = await client.query(
+        `SELECT paused_at, resumed_at FROM time_entry_pauses
+         WHERE time_entry_id = $1
+         ORDER BY paused_at`,
+        [entry.id]
+      )
+
+      const startDate = new Date(entry.started_at)
+      const endDate = new Date(stopTs)
+      let totalPausedMs = 0
+      for (const pause of pausesData) {
+        const pausedTime = new Date(pause.paused_at)
+        const resumedTime = pause.resumed_at ? new Date(pause.resumed_at) : endDate
+        totalPausedMs += Math.max(0, resumedTime.getTime() - pausedTime.getTime())
+      }
+
+      const durationMs = endDate.getTime() - startDate.getTime() - totalPausedMs
+      const durationMinutes = calculateDurationMinutes(new Date(0), new Date(durationMs))
+      const costSnapshot = calculateCostSnapshot(durationMinutes, entry.hourly_rate)
+
+      const { rows } = await client.query(
+        `UPDATE time_entries
+         SET status = 'completed',
+             ended_at = $1,
+             duration_minutes = $2,
+             cost_snapshot = $3
+         WHERE id = $4 AND status = 'running'
+         RETURNING *`,
+        [stopTs, durationMinutes, costSnapshot, entry.id]
+      )
+
+      if (!rows.length) return { notFound: true }
+      return { entry: rows[0], projectId: entry.project_id }
+    })
+
+    if (result.notFound) {
       return res.status(404).json({ error: 'Nenhum apontamento aberto.' })
     }
 
-    const entry = openEntries[0]
-    const startDate = new Date(entry.started_at)
-    const now = new Date()
-
-    // Calcula duração líquida descontando pausas
-    const { rows: pausesData } = await query(
-      `SELECT paused_at, resumed_at FROM time_entry_pauses
-       WHERE time_entry_id = $1
-       ORDER BY paused_at`,
-      [entry.id]
-    )
-
-    let totalPausedMs = 0
-    for (const pause of pausesData) {
-      const pausedTime = new Date(pause.paused_at)
-      const resumedTime = pause.resumed_at ? new Date(pause.resumed_at) : now
-      totalPausedMs += Math.max(0, resumedTime.getTime() - pausedTime.getTime())
-    }
-
-    const durationMs = now.getTime() - startDate.getTime() - totalPausedMs
-    const durationMinutes = calculateDurationMinutes(new Date(0), new Date(durationMs))
-
-    const { rows: userRates } = await query(
-      `SELECT hourly_rate FROM users WHERE id = $1`,
-      [req.profile.id]
-    )
-
-    const userRate = userRates?.[0]?.hourly_rate
-    const rate = userRate || 0
-    const costSnapshot = calculateCostSnapshot(durationMinutes, rate)
-
-    // Atualiza entry
-    const { rows } = await query(
-      `UPDATE time_entries
-       SET status = 'completed', ended_at = now(), duration_minutes = $1, cost_snapshot = $2
-       WHERE id = $3 RETURNING *`,
-      [durationMinutes, costSnapshot, entry.id]
-    )
-
     await notifyAdmins({
       type: 'time_entry_stopped',
-      projectId: entry.project_id,
+      projectId: result.projectId,
       actorId: req.profile.id,
     })
 
-    return res.json(rows[0])
+    return res.json(result.entry)
   } catch (err) {
     return res.status(400).json({ error: err.message })
   }
@@ -436,7 +461,7 @@ router.put('/admin/time-entries/:id', requireAuth, requireAdmin, async (req, res
 
   try {
     const { rows: entryRows } = await query(
-      'SELECT id FROM time_entries WHERE id = $1',
+      'SELECT id, user_id, project_id, started_at, ended_at, status FROM time_entries WHERE id = $1',
       [id]
     )
 
@@ -444,6 +469,7 @@ router.put('/admin/time-entries/:id', requireAuth, requireAdmin, async (req, res
       return res.status(404).json({ error: 'Apontamento não encontrado.' })
     }
 
+    const current = entryRows[0]
     const updates = {}
     let paramIdx = 1
     const params = []
@@ -478,32 +504,43 @@ router.put('/admin/time-entries/:id', requireAuth, requireAdmin, async (req, res
       return res.status(400).json({ error: 'Nenhum campo para atualizar.' })
     }
 
-    // Se atualizou datas, recalcula duração e custo
-    let shouldRecalculate = false
-    if (updates.started_at || updates.ended_at) {
-      shouldRecalculate = true
-      const { rows: currentEntry } = await query(
-        'SELECT user_id, project_id, started_at, ended_at FROM time_entries WHERE id = $1',
-        [id]
-      )
+    // ended_at presente (novo ou já existente) → completed. Sem isso, um PUT
+    // em entry running com ended_at deixa status=running e trava o timer
+    // (índice one_open_entry_per_user).
+    const finalEndedAt = ended_at !== undefined ? ended_at : current.ended_at
+    if (finalEndedAt) {
+      updates.status = `$${paramIdx}`
+      params.push('completed')
+      paramIdx++
+    }
 
-      const start = updates.started_at ? new Date(params[Object.keys(updates).indexOf('started_at')]) : new Date(currentEntry[0].started_at)
-      const end = updates.ended_at ? new Date(params[Object.keys(updates).indexOf('ended_at')]) : new Date(currentEntry[0].ended_at)
+    // Auditoria de edição admin
+    updates.edited_by = `$${paramIdx}`
+    params.push(req.profile.id)
+    paramIdx++
+    updates.edited_at = 'now()'
+
+    // Se atualizou datas, recalcula duração e custo
+    if (updates.started_at || updates.ended_at) {
+      const start = started_at !== undefined ? new Date(started_at) : new Date(current.started_at)
+      const end = finalEndedAt ? new Date(finalEndedAt) : null
+
+      if (!end || Number.isNaN(end.getTime())) {
+        return res.status(400).json({ error: 'Data de término inválida.' })
+      }
 
       if (end <= start) {
         return res.status(400).json({ error: 'A saída deve ser posterior ao início.' })
       }
 
       const durationMinutes = calculateDurationMinutes(start, end)
-      const userId = currentEntry[0].user_id
 
       const { rows: userRates } = await query(
         'SELECT hourly_rate FROM users WHERE id = $1',
-        [userId]
+        [current.user_id]
       )
 
-      const userRate = userRates?.[0]?.hourly_rate
-      const rate = userRate || 0
+      const rate = userRates?.[0]?.hourly_rate || 0
       const costSnapshot = calculateCostSnapshot(durationMinutes, rate)
 
       updates.duration_minutes = `$${paramIdx}`
