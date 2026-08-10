@@ -70,3 +70,30 @@ describe('prompt — regras + domínio fatiado', () => {
     expect(p).not.toMatch(/Não há informação financeira nem de custo/i)
   })
 })
+
+describe('prompt — identidade de quem está falando (§5)', () => {
+  const perfil = { id: 'u-123', name: 'Maria Souza', email: 'maria@studio.com', role: 'employee', position: 'Designer' }
+
+  it('injeta o nome do usuário autenticado no prompt', () => {
+    expect(buildSystemPrompt(perfil)).toMatch(/Maria Souza/)
+  })
+
+  it('proíbe perguntar "quem é você" — a identidade já veio do login', () => {
+    const p = buildSystemPrompt(perfil)
+    expect(p).toMatch(/nunca pergunte.*quem é você|não pergunte.*quem é você/i)
+    expect(p).toMatch(/identidade já (foi )?resolvid[ao] pelo login/i)
+  })
+
+  it('resolve "eu/meu/minhas horas/lancei" como o próprio usuário', () => {
+    expect(buildSystemPrompt(perfil)).toMatch(/minhas horas|lancei/i)
+  })
+
+  it('inclui o cargo (position) quando existe', () => {
+    expect(buildSystemPrompt(perfil)).toMatch(/Designer/)
+  })
+
+  it('não quebra nem injeta identidade quando o perfil não traz nome (compat. com os testes por papel)', () => {
+    expect(() => buildSystemPrompt({ role: 'admin' })).not.toThrow()
+    expect(buildSystemPrompt({ role: 'admin' })).not.toMatch(/Quem está falando com você/i)
+  })
+})
