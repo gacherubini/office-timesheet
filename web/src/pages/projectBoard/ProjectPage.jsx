@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   ArrowLeft, FileText, Upload, Trash2, User, MapPin, Phone, Plus, Pencil, Save, X, Clock3,
+  Play, Pause, Square,
 } from 'lucide-react'
 import { api } from '../../lib/api'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Input, Select } from '../../components/ui/Input'
 import { KanbanBoard } from './KanbanBoard'
-import { formatMinutes } from './helpers'
+import { formatMinutes, formatClock } from './helpers'
 
 function formatFileSize(bytes) {
   if (!bytes) return ''
@@ -22,8 +23,9 @@ export function ProjectPage({
   tasks, onOpenTask, onMove, currentUserId, taskTimerElapsed, timerBusyId, onToggleTimer,
   // filtros
   assigneeFilter, setAssigneeFilter, search, setSearch, users, onNewTask, canCreate,
-  // apontamento (time-entry) — usado só para recarregar horas quando o timer muda
-  activeTimer,
+  // apontamento (time-entry) do projeto — mesmo controle do card do catálogo
+  canClockIn = false, activeTimer, entryElapsed = 0, entryBusy = false,
+  onStartEntry, onStopEntry, onPauseEntry, onResumeEntry,
 }) {
   const [hours, setHours] = useState({ today_minutes: 0, month_minutes: 0 })
   const [documents, setDocuments] = useState([])
@@ -36,6 +38,11 @@ export function ProjectPage({
 
   const completed = project?.status === 'completed'
   const taskCount = tasks?.length || 0
+
+  // Apontamento do projeto: mesmo estado usado no card do catálogo.
+  const isTiming = activeTimer?.project_id === project?.id
+  const isPaused = isTiming && activeTimer?.paused
+  const showTimer = Boolean(canClockIn && onStartEntry) && !completed
 
   async function loadHours() {
     try {
@@ -325,6 +332,48 @@ export function ProjectPage({
             </div>
             <p className="font-display text-2xl text-text-primary tabular-nums">{formatMinutes(hours.month_minutes)}</p>
             <p className="text-xs text-text-secondary mt-0.5">minhas · este mês</p>
+
+            {showTimer && (
+              <div className="mt-3 flex items-center gap-2 border-t border-border-subtle/60 pt-3">
+                {isTiming ? (
+                  <>
+                    <span className={`flex-1 text-sm font-medium tabular-nums ${isPaused ? 'state-attention' : 'state-success'}`}>
+                      {formatClock(entryElapsed)}
+                      <span className="ml-1.5 text-[10px] font-medium uppercase tracking-wider">
+                        {isPaused ? 'pausado' : 'em andamento'}
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => (isPaused ? onResumeEntry : onPauseEntry)?.()}
+                      disabled={entryBusy}
+                      title={isPaused ? 'Retomar' : 'Pausar'}
+                      className="inline-flex items-center justify-center w-9 h-9 shrink-0 state-attention-soft hover:opacity-80 disabled:opacity-50 transition-colors"
+                    >
+                      {isPaused ? <Play size={16} /> : <Pause size={16} />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onStopEntry?.()}
+                      disabled={entryBusy}
+                      title="Encerrar"
+                      className="inline-flex items-center justify-center w-9 h-9 shrink-0 state-danger-soft hover:opacity-80 disabled:opacity-50 transition-colors"
+                    >
+                      <Square size={16} />
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => onStartEntry?.(project)}
+                    disabled={entryBusy}
+                    className="inline-flex items-center justify-center gap-2 w-full h-9 text-white bg-[color:var(--color-accent)] hover:opacity-90 disabled:opacity-50 text-sm font-medium transition-opacity"
+                  >
+                    <Play size={16} /> Apontar horas
+                  </button>
+                )}
+              </div>
+            )}
           </Card>
         </div>
       </div>

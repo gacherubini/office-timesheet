@@ -58,10 +58,12 @@ export function TaskDetailContent({
     }
   }
 
+  // Recarrega o tempo ao trocar de tarefa e quando o cronômetro é ligado/desligado
+  // por fora (ex.: play/stop no card do kanban) — mantém os dois lados em sincronia.
   useEffect(() => {
     loadTime()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [task.id])
+  }, [task.id, initialTask.open_started_at])
 
   // Autosave para campos "chip" (1 click → 1 valor).
   async function patch(body, optimistic) {
@@ -169,6 +171,7 @@ export function TaskDetailContent({
       const open = timeData?.open_session
       await api.post(`/tasks/${task.id}/time/${open ? 'stop' : 'start'}`, {})
       await loadTime()
+      onChanged?.() // sincroniza o card no kanban (open_started_at)
     } catch (err) {
       setError(err.message)
     } finally {

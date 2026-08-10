@@ -329,14 +329,17 @@ export function ProjectBoardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectFilter])
 
-  // Deep-link: /project-board?project=<id> abre o quadro daquele projeto.
+  // A URL é a fonte da verdade do projeto aberto: /project-board?project=<id>.
+  // Assim refresh, botão voltar e link compartilhado preservam o projeto.
   useEffect(() => {
+    if (loading) return
     const pid = searchParams.get('project')
-    if (loading || !pid) return
-    setView('catalog')
-    setProjectFilter(pid)
-    searchParams.delete('project')
-    setSearchParams(searchParams, { replace: true })
+    if (pid) {
+      setView('catalog')
+      setProjectFilter((cur) => (cur === pid ? cur : pid))
+    } else {
+      setProjectFilter((cur) => (cur ? '' : cur))
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, searchParams])
 
@@ -353,6 +356,17 @@ export function ProjectBoardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, tasks, searchParams])
 
+  // Mantém a tarefa aberta no drawer sincronizada com a lista recém-carregada
+  // (ex.: play/stop no card do kanban reflete no cronômetro de dentro da tarefa).
+  useEffect(() => {
+    if (!drawer) return
+    const fresh = tasks.find((t) => t.id === drawer.id)
+    if (fresh && fresh.open_started_at !== drawer.open_started_at) {
+      setDrawer(fresh)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasks])
+
   function closeDrawer() {
     setDrawer(null)
     if (searchParams.get('task')) {
@@ -364,12 +378,19 @@ export function ProjectBoardPage() {
   function openProject(project) {
     setSearch('')
     setAssigneeFilter('')
+    const next = new URLSearchParams(searchParams)
+    next.delete('task')
+    next.set('project', project.id)
+    setSearchParams(next) // push: mantém histórico p/ o botão voltar
     setProjectFilter(project.id)
   }
 
   function backToCatalog() {
     setSearch('')
     setAssigneeFilter('')
+    const next = new URLSearchParams(searchParams)
+    next.delete('project')
+    setSearchParams(next)
     setProjectFilter('')
   }
 
