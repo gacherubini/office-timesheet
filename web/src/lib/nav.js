@@ -10,6 +10,7 @@ import {
   Gift,
   Receipt,
   Plane,
+  History,
 } from 'lucide-react'
 
 // Ferramentas de admin, aninhadas sob Performance.
@@ -39,6 +40,12 @@ export function buildNav({ isAdmin = false, isAdministrativeIntern = false } = {
     { to: '/pessoas', label: 'Pessoas', icon: Users },
     { to: '/agenda', label: 'Agenda', icon: CalendarDays, children: AGENDA_TOOLS },
   ]
+
+  // Histórico dos próprios apontamentos + solicitação de alteração de ponto.
+  // O admin tem a visão consolidada da equipe em Performance › Apontamentos.
+  if (!isAdmin) {
+    items.push({ to: '/history', label: 'Histórico', icon: History })
+  }
 
   // Assistente (agente): visível a todos os papéis. O kill switch do front
   // some com a aba quando VITE_AGENT_ENABLED === 'false'.

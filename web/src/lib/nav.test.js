@@ -7,7 +7,7 @@ describe('buildNav', () => {
   it('manda o colaborador para /dashboard e não aninha ferramentas de admin', () => {
     const nav = buildNav({})
     expect(nav[0]).toMatchObject({ label: 'Início', to: '/dashboard' })
-    expect(labels(nav)).toEqual(['Início', 'Tarefas', 'Projetos', 'Pessoas', 'Agenda', 'Assistente', 'Performance'])
+    expect(labels(nav)).toEqual(['Início', 'Tarefas', 'Projetos', 'Pessoas', 'Agenda', 'Histórico', 'Assistente', 'Performance'])
     expect(nav.find((i) => i.label === 'Performance').children).toBeUndefined()
     expect(labels(nav.find((i) => i.label === 'Agenda').children)).toEqual(['Minhas férias'])
   })
@@ -15,6 +15,7 @@ describe('buildNav', () => {
   it('manda o admin para /admin/dashboard e aninha as quatro ferramentas', () => {
     const nav = buildNav({ isAdmin: true })
     expect(nav[0].to).toBe('/admin/dashboard')
+    expect(labels(nav)).not.toContain('Histórico')
     expect(labels(nav.find((i) => i.label === 'Performance').children)).toEqual([
       'Relatórios',
       'Apontamentos',
@@ -28,6 +29,7 @@ describe('buildNav', () => {
     const nav = buildNav({ isAdministrativeIntern: true })
     expect(nav[0].to).toBe('/admin/approvals')
     expect(labels(nav)).not.toContain('Performance')
+    expect(labels(nav)).toContain('Histórico')
     expect(labels(nav.find((i) => i.label === 'Agenda').children)).toEqual(['Minhas férias'])
   })
 })
