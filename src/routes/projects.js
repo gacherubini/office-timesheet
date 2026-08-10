@@ -1,10 +1,11 @@
 import { Router } from 'express'
 import multer from 'multer'
 import { query, withTransaction } from '../lib/db.js'
-import { uploadFile, deleteFile, extractKeyFromUrl } from '../lib/storage.js'
+import { uploadFile, deleteFile, extractKeyFromUrl, assertSafeUploadMime } from '../lib/storage.js'
 import { requireAuth } from '../middleware/auth.js'
 import { requireAdmin } from '../middleware/requireAdmin.js'
 import { requireProjectManagement } from '../middleware/requireProjectManagement.js'
+import { canManageProjects, isAdmin } from '../lib/permissions.js'
 import { logger } from '../lib/logger.js'
 import { dateInSaoPaulo, yearMonthInSaoPaulo } from '../lib/dates.js'
 
@@ -20,13 +21,39 @@ const upload = multer({
   },
 })
 
-// Documentos do projeto: aceita qualquer tipo de arquivo (pdf, docx, imagens…).
+// Documentos do projeto: pdf/docx/imagens (SVG/HTML bloqueados em storage).
 const uploadDoc = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 15 * 1024 * 1024 }, // 15MB
+  fileFilter: (_req, file, cb) => {
+    try {
+      assertSafeUploadMime(file.mimetype)
+      cb(null, true)
+    } catch (err) {
+      cb(err)
+    }
+  },
 })
 
 const router = Router()
+
+// Documentos: gestor/admin, ou quem já apontou/tem task no projeto (não qualquer UUID).
+async function canAccessProjectDocuments(profile, projectId) {
+  if (canManageProjects(profile) || isAdmin(profile)) return true
+  const { rows } = await query(
+    `SELECT 1
+       WHERE EXISTS (
+         SELECT 1 FROM time_entries te
+         WHERE te.project_id = $1 AND te.user_id = $2
+       )
+       OR EXISTS (
+         SELECT 1 FROM tasks t
+         WHERE t.project_id = $1 AND t.assignee_id = $2
+       )`,
+    [projectId, profile.id],
+  )
+  return rows.length > 0
+}
 
 router.get('/projects', requireAuth, async (req, res) => {
   try {
@@ -247,30 +274,31 @@ router.post('/projects/:id/image', requireAuth, requireProjectManagement, upload
 
     const project = projectRows[0]
 
-    // Deletar imagem antiga se existir
-    if (project.image_url) {
-      const oldKey = extractKeyFromUrl(project.image_url)
-      if (oldKey) {
-        await deleteFile(oldKey)
-      }
-    }
-
-    // Upload nova imagem
-    const { url } = await uploadFile('projects', {
+    // Upload primeiro; só apaga a antiga depois do UPDATE (evita perder imagem se upload falhar).
+    const { url, key: newKey } = await uploadFile('projects', {
       buffer: req.file.buffer,
       mimetype: req.file.mimetype,
     })
 
-    // Atualizar projeto com nova URL
-    const { rows } = await query(
-      `UPDATE projects
-       SET image_url = $1
-       WHERE id = $2 AND deleted_at IS NULL
-       RETURNING id, name, client, status, image_url, created_at, updated_at`,
-      [url, id],
-    )
+    try {
+      const { rows } = await query(
+        `UPDATE projects
+         SET image_url = $1
+         WHERE id = $2 AND deleted_at IS NULL
+         RETURNING id, name, client, status, image_url, created_at, updated_at`,
+        [url, id],
+      )
 
-    return res.json(rows[0])
+      if (project.image_url) {
+        const oldKey = extractKeyFromUrl(project.image_url)
+        if (oldKey && oldKey !== newKey) await deleteFile(oldKey)
+      }
+
+      return res.json(rows[0])
+    } catch (err) {
+      await deleteFile(newKey)
+      throw err
+    }
   } catch (err) {
     logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em POST /projects/:id/image')
     return res.status(400).json({ error: err.message })
@@ -278,10 +306,18 @@ router.post('/projects/:id/image', requireAuth, requireProjectManagement, upload
 })
 
 // ─── DOCUMENTOS DO PROJETO ──────────────────────────────────────────
-// Projetos são visíveis a qualquer usuário autenticado; anexos seguem a
-// mesma regra (listar/anexar liberado; excluir só quem enviou ou admin).
 router.get('/projects/:id/documents', requireAuth, async (req, res) => {
   try {
+    const { rows: proj } = await query(
+      'SELECT id FROM projects WHERE id = $1 AND deleted_at IS NULL',
+      [req.params.id],
+    )
+    if (!proj[0]) return res.status(404).json({ error: 'Projeto não encontrado.' })
+
+    if (!(await canAccessProjectDocuments(req.profile, req.params.id))) {
+      return res.status(403).json({ error: 'Sem permissão para ver documentos deste projeto.' })
+    }
+
     const { rows } = await query(
       `SELECT d.id, d.file_url, d.file_name, d.file_size, d.mime_type, d.created_at,
               d.uploaded_by, u.name AS uploaded_by_name
@@ -300,6 +336,7 @@ router.get('/projects/:id/documents', requireAuth, async (req, res) => {
 
 router.post('/projects/:id/documents', requireAuth, uploadDoc.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' })
+  let uploadedKey = null
   try {
     const { rows: proj } = await query(
       'SELECT id FROM projects WHERE id = $1 AND deleted_at IS NULL',
@@ -307,10 +344,15 @@ router.post('/projects/:id/documents', requireAuth, uploadDoc.single('file'), as
     )
     if (!proj[0]) return res.status(404).json({ error: 'Projeto não encontrado.' })
 
-    const { url } = await uploadFile('projects', {
+    if (!(await canAccessProjectDocuments(req.profile, req.params.id))) {
+      return res.status(403).json({ error: 'Sem permissão para anexar documentos neste projeto.' })
+    }
+
+    const { url, key } = await uploadFile('projects', {
       buffer: req.file.buffer,
       mimetype: req.file.mimetype,
     })
+    uploadedKey = key
 
     const { rows } = await query(
       `INSERT INTO project_documents (project_id, uploaded_by, file_url, file_name, file_size, mime_type)
@@ -320,6 +362,7 @@ router.post('/projects/:id/documents', requireAuth, uploadDoc.single('file'), as
     )
     return res.status(201).json(rows[0])
   } catch (err) {
+    if (uploadedKey) await deleteFile(uploadedKey)
     logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em POST /projects/:id/documents')
     return res.status(400).json({ error: err.message })
   }

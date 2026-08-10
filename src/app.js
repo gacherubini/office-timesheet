@@ -2,7 +2,8 @@ import express from 'express'
 import cors from 'cors'
 
 import { pool } from './lib/db.js'
-import { localUploadsDir } from './lib/storage.js'
+import { localUploadsDir, isLocalStorage } from './lib/storage.js'
+import { requireAuth } from './middleware/auth.js'
 import { requestLogger } from './middleware/requestLogger.js'
 import { notFound, errorHandler } from './middleware/errorHandler.js'
 
@@ -49,15 +50,22 @@ app.use(cors({
 }))
 app.use(express.json())
 
-// Fallback local de storage: serve arquivos gravados em src/uploads/
-app.use('/uploads', express.static(localUploadsDir))
+// Fallback local de storage: exige auth (sem isso qualquer um lia recibos/PII).
+// Em produção deve usar BUCKET_NAME (S3/Tigris) — modo local é só dev.
+if (isLocalStorage) {
+  if (process.env.NODE_ENV === 'production') {
+    // eslint-disable-next-line no-console
+    console.warn('[storage] BUCKET_NAME ausente em production — uploads locais efêmeros e inseguros')
+  }
+  app.use('/uploads', requireAuth, express.static(localUploadsDir))
+}
 
 app.get('/health', async (_req, res) => {
   try {
     await pool.query('SELECT 1')
     res.json({ ok: true, db: 'up' })
   } catch (err) {
-    res.status(503).json({ ok: false, db: 'down', error: err.message })
+    res.status(503).json({ ok: false, db: 'down' })
   }
 })
 

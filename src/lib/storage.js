@@ -14,6 +14,7 @@ const LOCAL_URL_PREFIX = '/api/uploads/'
 const USE_LOCAL = !BUCKET
 
 export const localUploadsDir = LOCAL_DIR
+export const isLocalStorage = USE_LOCAL
 
 const s3 = USE_LOCAL
   ? null
@@ -23,13 +24,40 @@ const s3 = USE_LOCAL
       forcePathStyle: true,
     })
 
+// MIME perigosos se servidos inline (stored XSS).
+const BLOCKED_MIMES = new Set([
+  'image/svg+xml',
+  'text/html',
+  'application/xhtml+xml',
+  'text/xml',
+  'application/xml',
+  'application/javascript',
+  'text/javascript',
+])
+
+// Imagens de UI podem continuar legíveis via URL pública (avatar/capa).
+// Recibos, docs e anexos: force download (sem execução inline).
+const INLINE_SAFE_PREFIXES = new Set(['avatars', 'projects'])
+
 function buildKey(prefix, mimetype) {
   const ext = mimetype?.split('/')[1]?.replace(/[^a-z0-9]/gi, '') || 'bin'
   return `${prefix}/${randomUUID()}.${ext}`
 }
 
+export function assertSafeUploadMime(mimetype) {
+  const mime = String(mimetype || '').toLowerCase().split(';')[0].trim()
+  if (!mime || BLOCKED_MIMES.has(mime)) {
+    const err = new Error('Tipo de arquivo não permitido.')
+    err.status = 400
+    throw err
+  }
+  return mime
+}
+
 export async function uploadFile(prefix, { buffer, mimetype }) {
-  const key = buildKey(prefix, mimetype)
+  const safeMime = assertSafeUploadMime(mimetype)
+  const key = buildKey(prefix, safeMime)
+  const forceAttachment = !INLINE_SAFE_PREFIXES.has(prefix) || safeMime === 'image/svg+xml'
 
   if (USE_LOCAL) {
     const filePath = path.join(LOCAL_DIR, key)
@@ -38,12 +66,17 @@ export async function uploadFile(prefix, { buffer, mimetype }) {
     return { key, url: `${LOCAL_URL_PREFIX}${key}` }
   }
 
+  // Sem ACL public-read: objetos privados no bucket (PII/recibos não ficam
+  // world-readable). URLs públicas do Tigris exigem política de bucket ou
+  // signed URL (próximo passo). Content-Disposition attachment mitiga XSS.
   await s3.send(new PutObjectCommand({
     Bucket: BUCKET,
     Key: key,
     Body: buffer,
-    ContentType: mimetype,
-    ACL: 'public-read',
+    ContentType: safeMime,
+    ContentDisposition: forceAttachment
+      ? 'attachment'
+      : `inline; filename="${path.basename(key)}"`,
   }))
   return { key, url: getPublicUrl(key) }
 }
