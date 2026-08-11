@@ -61,6 +61,18 @@ describe('prompt — regras + domínio fatiado', () => {
     expect(p).not.toMatch(/consultar_dados/i)
   })
 
+  it('manda recusar sem descrever o mecanismo por trás (§8/§17)', () => {
+    // Na rodada de eval de 2026-08-11 o colaborador pediu um SELECT e a recusa
+    // saiu "não tenho capacidade de executar consultas SQL arbitrárias (SELECT
+    // ou qualquer outra operação de banco…)". Reproduziu 2 de 2 rodadas. Ele não
+    // deveria nem saber que existe SQL ali: descrever o que NÃO alcança é um
+    // mapa do que existe, e mapa é o que o §5 recorta.
+    const p = buildSystemPrompt({ role: 'employee' })
+    expect(p).toMatch(/recus/i)
+    expect(p).toMatch(/nunca cite|não cite|sem citar/i)
+    expect(p).toMatch(/\bSQL\b/)
+  })
+
   it('estagiário administrativo tem fatia própria: aprova pedidos, mas não vê custo de hora', () => {
     const p = buildSystemPrompt({ role: 'administrative_intern' })
     expect(p).toMatch(/aprovador|aprova/i)
