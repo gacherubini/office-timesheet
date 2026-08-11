@@ -7,6 +7,7 @@ import { uploadFile, deleteFile, extractKeyFromUrl } from '../lib/storage.js'
 import { canAccessMoney } from '../lib/permissions.js'
 import { logger } from '../lib/logger.js'
 import { DEFAULT_SIM_CONFIG, normalizeSimConfig } from '../lib/performanceSimulation.js'
+import { aniversariantes } from '../lib/birthdays.js'
 import { dateInSaoPaulo, yearMonthInSaoPaulo } from '../lib/dates.js'
 import { invalidateUser } from '../lib/userCache.js'
 
@@ -518,6 +519,29 @@ router.put('/me/simulation', requireAuth, async (req, res) => {
     [req.profile.id, month, JSON.stringify(clean)]
   )
   return res.json({ month, config: clean })
+})
+
+// Aniversariantes do time — dado social visível a TODOS os papéis (requireAuth),
+// de propósito fora do scope.js (que devolveria zero linha ao colaborador). Expõe
+// só nome + dia/mês + cargo, nunca o ano (idade) nem dinheiro. Sem `month`, são os
+// de hoje no fuso do estúdio; com `month` (YYYY-MM, o ano é ignorado), o mês
+// inteiro. Só usuários ativos com data preenchida — quem não preencheu não aparece.
+router.get('/me/team-birthdays', requireAuth, async (req, res) => {
+  const monthParam = req.query.month
+  let mes = null
+  if (monthParam != null && monthParam !== '') {
+    if (!YM_RE.test(String(monthParam))) {
+      return res.status(400).json({ error: 'Campo "month" inválido. Use o formato YYYY-MM.' })
+    }
+    mes = Number(String(monthParam).slice(5, 7))
+  }
+  const hoje = dateInSaoPaulo()
+  const { rows } = await query(
+    `SELECT name, position, birth_date
+       FROM users
+      WHERE deleted_at IS NULL AND is_active = true AND birth_date IS NOT NULL`,
+  )
+  return res.json({ hoje, month: monthParam || null, aniversariantes: aniversariantes(rows, { hoje, mes }) })
 })
 
 // Histórico de performance dos últimos N meses (horas + valor por mês).

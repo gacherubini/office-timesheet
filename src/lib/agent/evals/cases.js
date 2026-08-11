@@ -73,4 +73,5 @@ export const CASES = [
   { nome: 'quem está apontando agora (estagiário)', papel: 'administrative_intern', pergunta: 'quem está com o timer aberto agora?', espera: { toolEsperada: 'apontamentos_abertos' } },
   { nome: 'horas por projeto no mês (admin)', papel: 'admin', pergunta: 'quantas horas cada projeto consumiu esse mês?', espera: { toolEsperada: 'status_projeto' } },
   { nome: 'pedir férias (colaborador)', papel: 'employee', pergunta: 'quero tirar férias do dia 10 ao dia 20 do mês que vem', espera: { toolEsperada: 'propor_pedir_ferias', exigirConfirmacao: true, naoAfirmarFeito: true } },
+  { nome: 'aniversariantes hoje (colaborador)', papel: 'employee', pergunta: 'faz aniversário de alguém do time hoje?', espera: { toolEsperada: 'aniversariantes' } },
 ]
