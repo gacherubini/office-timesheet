@@ -12,6 +12,7 @@ import { runAgentTurn } from '../lib/agent/loop.js'
 import { getClient } from '../lib/agent/client.js'
 import { takeProposal } from '../lib/agent/proposals.js'
 import { auditAgentAction } from '../lib/agent/audit.js'
+import { logger } from '../lib/logger.js'
 import proporEncerrarApontamento from '../lib/agent/tools/write/proporEncerrarApontamento.js'
 import proporCriarApontamento from '../lib/agent/tools/write/proporCriarApontamento.js'
 import proporCriarTask from '../lib/agent/tools/write/proporCriarTask.js'
@@ -31,6 +32,18 @@ const WRITE_TOOLS = {
 // desliga com AGENT_ENABLED explicitamente diferente de 'true'.
 function agenteDesligado() {
   return (process.env.AGENT_ENABLED || 'true') !== 'true'
+}
+
+// Sem chave o cliente ainda é construído (o SDK v7 exige apiKey no construtor,
+// client.js usa um placeholder), e a falha só apareceria como erro de provedor
+// no meio do stream. Recusa antes: log alto para quem opera, mensagem genérica
+// para quem perguntou — o nome da variável não é assunto do usuário final.
+function agenteSemChave() {
+  return !process.env.AGENT_API_KEY
+}
+function recusarSemChave(res) {
+  logger.error({ evt: 'agent_misconfig', faltando: 'AGENT_API_KEY' }, 'agente respondendo 503: chave ausente')
+  return res.status(503).json({ error: 'Assistente indisponível no momento.' })
 }
 
 // §throttle: no máx. N conversas simultâneas por usuário (default 1). Lock em
@@ -66,6 +79,7 @@ function uploadAnexo(req, res, next) {
 
 router.post('/agent/chat', requireAuth, uploadAnexo, async (req, res) => {
   if (agenteDesligado()) return res.status(503).json({ error: 'Assistente temporariamente desativado.' })
+  if (agenteSemChave()) return recusarSemChave(res)
 
   const { message, conversation_id } = req.body || {}
   const temArquivo = !!req.file
@@ -157,6 +171,7 @@ router.post('/agent/chat', requireAuth, uploadAnexo, async (req, res) => {
 
 router.post('/agent/actions/:proposalId/execute', requireAuth, async (req, res) => {
   if (agenteDesligado()) return res.status(503).json({ error: 'Assistente temporariamente desativado.' })
+  if (agenteSemChave()) return recusarSemChave(res)
 
   const proposal = takeProposal(req.params.proposalId, req.profile)
   if (!proposal) return res.status(404).json({ error: 'Proposta não encontrada ou expirada.' })

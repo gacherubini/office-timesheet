@@ -116,6 +116,25 @@ npm run dev
 
 Frontend em `http://localhost:5173`. No desenvolvimento, o Vite encaminha chamadas `/api` para `http://localhost:3333`.
 
+## Agente (assistente)
+
+Assistente conversacional em `/assistente`, disponível para todos os papéis — cada pessoa
+alcança por ele exatamente o que alcançaria navegando o site. Backend em
+`src/lib/agent/`, rotas em `src/routes/agent.js`.
+
+Variáveis de ambiente: ver o bloco `AGENT_*` em `src/.env.example`. As três obrigatórias
+são `AGENT_API_KEY`, `AGENT_MODEL` e `AGENT_PROVIDER_BASE_URL`; sem a chave, `/agent/*`
+responde 503 e registra `evt: agent_misconfig`.
+
+- **Desligar sem deploy:** `AGENT_ENABLED=false`.
+- **SQL ad-hoc (admin):** exige `AGENT_READONLY_DATABASE_URL` apontando para a role
+  `agent_readonly` (migrations 030 e 031). Sem isso, só a tool `consultar_dados` falha.
+- **Custo:** cada chamada emite `evt: agent_usage` com `tokens_in`, `tokens_out`,
+  `tokens_cached` e `custo` em USD. `custo` é `null` quando os `AGENT_PRICE_*` não estão
+  configurados.
+- **Evals:** `npm run test:evals` roda os casos contra o modelo real (precisa de chave e
+  rede). Não entra no CI.
+
 ## Observabilidade
 
 Cada request da API gera uma linha JSON com método, rota, status, duração e usuário. Em
