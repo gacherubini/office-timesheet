@@ -24,12 +24,33 @@ describe('audit', () => {
   })
 
   it('logUsage calcula custo a partir dos preços de env', () => {
-    process.env.AGENT_PRICE_IN = '0.435'   // USD / 1M tokens
-    process.env.AGENT_PRICE_OUT = '0.87'
-    process.env.AGENT_PRICE_CACHED = '0.0087'
+    const antes = { ...process.env }
+    process.env.AGENT_PRICE_IN = '0.14'    // DeepSeek V4 Flash, USD / 1M tokens
+    process.env.AGENT_PRICE_OUT = '0.28'
+    process.env.AGENT_PRICE_CACHED = '0.14'
     logUsage({ profile: { id: 3 }, model: 'x', tokensIn: 1_000_000, tokensOut: 0, cached: 0 })
     const log = find('agent_usage')
     expect(log.tokens_in).toBe(1_000_000)
-    expect(log.custo).toBeCloseTo(0.435, 5)
+    expect(log.custo).toBeCloseTo(0.14, 5)
+    process.env = antes
+  })
+
+  it('custo é null quando os preços não estão configurados (zero mentiria)', () => {
+    delete process.env.AGENT_PRICE_IN
+    delete process.env.AGENT_PRICE_OUT
+    delete process.env.AGENT_PRICE_CACHED
+    logUsage({ profile: { id: 3 }, model: 'x', tokensIn: 1_000_000, tokensOut: 500_000 })
+    const log = find('agent_usage')
+    expect(log.tokens_in).toBe(1_000_000)
+    expect(log.custo).toBeNull()
+  })
+
+  it('preço parcial já basta para calcular (o que falta conta como zero)', () => {
+    delete process.env.AGENT_PRICE_OUT
+    delete process.env.AGENT_PRICE_CACHED
+    process.env.AGENT_PRICE_IN = '0.14'
+    logUsage({ profile: { id: 3 }, model: 'x', tokensIn: 1_000_000, tokensOut: 1_000_000 })
+    const log = find('agent_usage')
+    expect(log.custo).toBeCloseTo(0.14, 5)
   })
 })

@@ -830,6 +830,14 @@ justamente o caso que interessa observar. A conversão tokens → dinheiro sai d
 configurados junto com o modelo (`AGENT_PRICE_IN`, `AGENT_PRICE_OUT`, `AGENT_PRICE_CACHED`),
 ou do custo que o provedor reportar, quando reportar.
 
+**Correção de 2026-08-11 — `custo` é `null`, não `0`.** Os `AGENT_PRICE_*` nunca foram
+configurados em lugar nenhum, e `logUsage` caía em `|| 0`: toda linha `agent_usage` saía
+com `custo: 0`, indistinguível de "não custou". Um alerta sobre a média teria ficado em
+zero para sempre. Agora, sem nenhum preço configurado, o campo sai `null` — o Axiom
+ignora nulo em agregação, e a ausência aparece como ausência. Os preços entraram no
+`.env.example` junto com as outras dezessete variáveis `AGENT_*` que o código lê e que
+também não estavam documentadas em lugar nenhum.
+
 ---
 
 ## 20. Backlog (fases futuras)

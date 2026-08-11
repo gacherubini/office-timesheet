@@ -13,14 +13,21 @@ export function auditAgentAction({ profile, tool, params, before, after }) {
 
 // Custo = tokens não-cacheados a preço cheio + cacheados a preço de cache.
 // Preços em USD por 1M de tokens, configurados junto com o modelo.
+// SEM NENHUM preço configurado o custo é `null`, não `0`: zero é um valor de
+// verdade e faria toda média no Axiom mentir para baixo, escondendo justamente
+// o gasto que o §19.1 quer observar. Com pelo menos um preço, calcula.
 // status: 'ok' no caminho feliz; 'timeout'/'error' quando a chamada falha — o
 // evento sai mesmo assim para o custo/tentativa aparecer no log (§18/§19.1).
 export function logUsage({ profile, model, tokensIn = 0, tokensOut = 0, cached = 0, status = 'ok', erro }) {
-  const priceIn = Number(process.env.AGENT_PRICE_IN) || 0
-  const priceOut = Number(process.env.AGENT_PRICE_OUT) || 0
-  const priceCached = Number(process.env.AGENT_PRICE_CACHED) || 0
+  const precos = ['AGENT_PRICE_IN', 'AGENT_PRICE_OUT', 'AGENT_PRICE_CACHED']
+    .map((n) => Number(process.env[n]))
+    .map((v) => (Number.isFinite(v) ? v : 0))
+  const configurado = precos.some((p) => p > 0)
+  const [priceIn, priceOut, priceCached] = precos
   const naoCacheado = Math.max(0, tokensIn - cached)
-  const custo = (naoCacheado * priceIn + cached * priceCached + tokensOut * priceOut) / 1_000_000
+  const custo = configurado
+    ? (naoCacheado * priceIn + cached * priceCached + tokensOut * priceOut) / 1_000_000
+    : null
   logger.info({
     evt: 'agent_usage', user_id: profile?.id, model,
     tokens_in: tokensIn, tokens_out: tokensOut, tokens_cached: cached, custo,

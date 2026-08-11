@@ -42,7 +42,7 @@ respondendo em português.
 | **Canal inicial** | Site primeiro | Já há JWT e SSE; valida o "cérebro" sem custo/risco de WhatsApp |
 | **WhatsApp (Fase 3)** | **Evolution API** (self-hosted, não-oficial), reusando o mesmo núcleo | Grátis e sob nosso controle; WhatsApp vira só um adaptador do agente do site |
 | **Abordagem de dados** | Híbrido: tools curadas + SQL de leitura restrito **admin-only** *(2026-08-08)* | Segurança das tools + flexibilidade do SQL para perguntas ad-hoc. Allowlist de tabela não filtra linha nem coluna, então SQL livre não serve aos demais papéis |
-| **Modelo** | Agnóstico via OpenRouter, padrão **DeepSeek V4 Pro** *(2026-08-08; era o Flash)* | Modelo único, sem roteamento. R$ 82/mês no esperado — a diferença para o Flash é R$ 55, que não paga a complexidade de rotear. O A/B inverte: tenta provar que o Flash basta para uma fatia. Ver §4.1 do design |
+| **Modelo** | **DeepSeek V4 Flash (`deepseek-v4-flash`) na API oficial da DeepSeek** *(2026-08-11; era DeepSeek V4 Pro via OpenRouter; um breve default na NVIDIA NIM foi revertido para a API oficial)* | Modelo único, sem roteamento. A arquitetura continua agnóstica (cliente OpenAI-compatible, base URL por env), então a troca foi só de config. O A/B do §13 passa a ter o Flash como titular e mede se ele basta — ver a rodada em `docs/superpowers/evals/` |
 | **Privacidade** | Sem restrição (prioriza custo) | Usuário optou pelo mais barato mesmo com hospedagem na China |
 | **Onde roda** | Dentro da API Express atual | Reusa DB, `permissions.js`, `jwt.js`, logger/Axiom; zero serviço novo |
 | **Escrita** | Só com confirmação e preview do efeito | "Check antes de fazer" vira parte estrutural, não opcional |
@@ -261,6 +261,15 @@ necessário, tenta provar que o **Flash basta** para uma fatia identificável. S
 entrar, a forma preferida é um **botão no widget** ("resposta rápida" × "análise profunda"),
 não um classificador — e o argumento real a favor é latência, não custo. Detalhe no §4.1 do
 design.
+
+**Correção de 2026-08-11.** O que foi de fato implantado é o **DeepSeek V4 Flash
+(`deepseek-v4-flash`) na API oficial da DeepSeek** (`https://api.deepseek.com`), não o Pro
+via OpenRouter — o código carregava o Flash como default e o spec não acompanhou. A decisão
+fica confirmada como está: o §5 já dizia que o Flash sai por R$ 27/mês contra R$ 82 do Pro, e
+o argumento a favor do Pro era qualidade não medida. A medição é a rodada de eval da Task 10
+deste plano; se o Flash reprovar, a troca é uma variável de ambiente. Observação de
+provedor: a API oficial **não reportou** `prompt_tokens_details.cached_tokens` na sonda de
+2026-08-11 — `tokens_cached` fica 0 e `AGENT_PRICE_CACHED` é inofensivo enquanto isso.
 
 Fontes: [DeepSeek Pricing](https://deepseek.ai/pricing) ·
 [Moonshot/Kimi Pricing](https://benchlm.ai/moonshot/api-pricing) ·
