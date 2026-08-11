@@ -6,8 +6,6 @@ import { request } from '../helpers/api.js'
 
 const DEFAULT_CONFIG = {
   target_amount: 0,
-  include_weekends: false,
-  weekend_default_minutes: 240,
   overrides: {},
 }
 
@@ -27,8 +25,6 @@ describe('/me/simulation — simulador de performance', () => {
   it('PUT persiste e GET seguinte devolve a mesma config (upsert)', async () => {
     const config = {
       target_amount: 5000,
-      include_weekends: true,
-      weekend_default_minutes: 240,
       overrides: { '2026-08-15': 300 },
     }
     const put = await asUser(employee).put('/me/simulation').send({ month: '2026-08', config })
@@ -39,7 +35,7 @@ describe('/me/simulation — simulador de performance', () => {
     expect(get.body.config).toEqual(config)
 
     // Upsert: segundo PUT substitui a config inteira.
-    const config2 = { target_amount: 8000, include_weekends: false, weekend_default_minutes: 0, overrides: {} }
+    const config2 = { target_amount: 8000, overrides: {} }
     await asUser(employee).put('/me/simulation').send({ month: '2026-08', config: config2 })
     const get2 = await asUser(employee).get('/me/simulation?month=2026-08')
     expect(get2.body.config).toEqual(config2)

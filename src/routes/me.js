@@ -493,18 +493,6 @@ router.put('/me/simulation', requireAuth, async (req, res) => {
   ) {
     return res.status(400).json({ error: 'Campo "target_amount" deve ser um número >= 0.' })
   }
-  if (typeof config.include_weekends !== 'boolean') {
-    return res.status(400).json({ error: 'Campo "include_weekends" deve ser booleano.' })
-  }
-  if (
-    !Number.isInteger(config.weekend_default_minutes) ||
-    config.weekend_default_minutes < 0 ||
-    config.weekend_default_minutes > 1440
-  ) {
-    return res
-      .status(400)
-      .json({ error: 'Campo "weekend_default_minutes" deve ser um inteiro de 0 a 1440.' })
-  }
   const overridesIn = config.overrides
   if (overridesIn === null || typeof overridesIn !== 'object' || Array.isArray(overridesIn)) {
     return res.status(400).json({ error: 'Campo "overrides" deve ser um objeto de datas.' })
@@ -521,8 +509,6 @@ router.put('/me/simulation', requireAuth, async (req, res) => {
   }
   const clean = {
     target_amount: config.target_amount,
-    include_weekends: config.include_weekends,
-    weekend_default_minutes: config.weekend_default_minutes,
     overrides,
   }
   await query(

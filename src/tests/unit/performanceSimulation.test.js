@@ -42,24 +42,24 @@ describe('planejamentoDoMes', () => {
     expect(p.horasPlanejadas).toBe(110) // 20 + 80 + 10
   })
 
-  it('conta o padrão de fim de semana só quando include_weekends está ligado', () => {
+  it('só conta fim de semana com override lançado à mão', () => {
     const base = { hoje: '2026-03-27', config: { target_amount: 0 }, horasRealizadas: 0 }
-    // Restam 28 (sáb) e 29 (dom) → 2 dias × 4h.
-    const ligado = calcula({
+    // Restam 28 (sáb) e 29 (dom); só entram se tiverem override.
+    const comOverride = calcula({
       ...base,
-      config: { target_amount: 0, include_weekends: true, weekend_default_minutes: 240 },
+      config: { target_amount: 0, overrides: { '2026-03-28': 240, '2026-03-29': 240 } },
     })
-    expect(ligado.horasFimDeSemana).toBe(8)
+    expect(comOverride.horasFimDeSemana).toBe(8)
 
-    const desligado = calcula(base)
-    expect(desligado.horasFimDeSemana).toBe(0)
+    const semOverride = calcula(base)
+    expect(semOverride.horasFimDeSemana).toBe(0)
   })
 
   it('ignora fim de semana que já passou', () => {
-    // Dia 30 (seg): 28 e 29 ficaram para trás, nenhum FDS futuro sobra.
+    // Dia 30 (seg): 28 e 29 ficaram para trás, o override deles não conta.
     const p = calcula({
       hoje: '2026-03-30',
-      config: { target_amount: 0, include_weekends: true, weekend_default_minutes: 240 },
+      config: { target_amount: 0, overrides: { '2026-03-28': 240, '2026-03-29': 240 } },
     })
     expect(p.horasFimDeSemana).toBe(0)
   })
@@ -67,7 +67,7 @@ describe('planejamentoDoMes', () => {
   it('mês já encerrado: planejado é exatamente o realizado', () => {
     const p = calcula({
       hoje: '2026-04-15',
-      config: { target_amount: 10000, include_weekends: true },
+      config: { target_amount: 10000 },
       horasRealizadas: 42,
     })
     expect(p.horasPlanejadas).toBe(42)
@@ -100,8 +100,6 @@ describe('normalizeSimConfig', () => {
     for (const bruto of [null, undefined, 'texto', [], { '2026-03-01': 480 }]) {
       const c = normalizeSimConfig(bruto)
       expect(c.target_amount).toBe(0)
-      expect(c.include_weekends).toBe(false)
-      expect(c.weekend_default_minutes).toBe(240)
       expect(c.overrides).toEqual({})
     }
   })
