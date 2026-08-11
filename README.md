@@ -132,8 +132,55 @@ responde 503 e registra `evt: agent_misconfig`.
 - **Custo:** cada chamada emite `evt: agent_usage` com `tokens_in`, `tokens_out`,
   `tokens_cached` e `custo` em USD. `custo` é `null` quando os `AGENT_PRICE_*` não estão
   configurados.
+- **Temperatura:** `AGENT_TEMPERATURE` (default 0.7 no código). Sem o campo o provedor
+  assume 1.0, que é solto demais para escolher ferramenta. Se a mesma pergunta começar a
+  cair em tools diferentes, baixe para 0.3–0.4. O código respeita o `0` explícito.
 - **Evals:** `npm run test:evals` roda os casos contra o modelo real (precisa de chave e
-  rede). Não entra no CI.
+  rede). Não entra no CI. É a única coisa que responde "o modelo está bom o bastante?" —
+  teste automatizado não pega resposta incoerente.
+
+### Trocar de provedor
+
+A arquitetura é agnóstica: cliente OpenAI-compatible com base URL por env. Trocar é mexer
+em três variáveis — mas **o identificador do modelo muda junto com o provedor**, e essa é a
+armadilha. Levar o nome antigo com a URL nova faz toda requisição virar 404 e derruba o
+agente inteiro.
+
+| Provedor | `AGENT_PROVIDER_BASE_URL` | `AGENT_MODEL` |
+|---|---|---|
+| DeepSeek oficial | `https://api.deepseek.com` | `deepseek-v4-flash` |
+| NVIDIA NIM | `https://integrate.api.nvidia.com/v1` | `deepseek-ai/deepseek-v4-flash-0731` |
+
+Depois de trocar, nesta ordem:
+
+1. Confirme o identificador do modelo com **uma** chamada antes de virar a chave em
+   produção — nome errado é 404 em tudo.
+2. Atualize `src/.env` **e** os secrets do Fly. Divergência entre os dois é como a NIM
+   sobreviveu meses na produção enquanto a documentação dizia outra coisa.
+3. Rode `npm run test:evals`. Provedores diferentes servem o mesmo peso com parâmetros
+   diferentes: na rodada de 2026-08-11 contra a NIM o agente devolveu HTML de página 404
+   como resposta, `</think>` cru no meio do texto e trechos em chinês. Nenhum teste
+   automatizado pega isso.
+4. Meça se o provedor reporta `prompt_tokens_details.cached_tokens`. A NIM não reportava —
+   sem isso `AGENT_PRICE_CACHED` é decorativo e o custo logado fica superestimado.
+
+### Pendências de produção
+
+Itens que exigem credencial ou verificação manual e não dão para fechar por código:
+
+- [ ] **Role somente-leitura** (migrations 030/031): confirmar que o Postgres gerenciado do
+      Fly aceita `CREATE ROLE`, definir a senha de `agent_readonly` e setar
+      `AGENT_READONLY_DATABASE_URL`. Enquanto não existir, `consultar_dados` falha para o
+      admin — é a pergunta ad-hoc, o diferencial do papel dele.
+- [ ] **Preços** `AGENT_PRICE_IN` / `_OUT` / `_CACHED` com os valores reais da fatura. Sem
+      eles o `custo` sai `null` em toda linha `agent_usage` e não há como alertar sobre
+      gasto.
+- [ ] **Verificação no browser** de cancelar proposta, "tentar de novo" com anexo, e logout
+      limpando a conversa. O front não tem teste de página; esses três caminhos foram
+      verificados só por leitura de código.
+- [ ] **`reasoning_content`**: `streamOnce` só lê `delta.content`. Se o provedor servir o
+      modelo como raciocínio e inlinar o rascunho no content, o pensamento entra na resposta
+      visível e no histórico. Ver o TODO em `src/lib/agent/client.js`.
 
 ## Observabilidade
 
