@@ -260,6 +260,8 @@ API (`src/.env`):
 | `LOG_LEVEL` | Nível do logger. Padrão: `info` em produção, `debug` fora dela. Ver [Observabilidade](#observabilidade). |
 | `AXIOM_TOKEN` | Token de ingest do Axiom (`xaat-...`). Vazio = logs só no stdout. |
 | `AXIOM_DATASET` | Nome do dataset no Axiom. |
+| `USER_CACHE_DISABLED` | `1` desliga o cache de perfil em memória (`src/lib/userCache.js`) sem redeploy. Vazio = cache ligado. Ver [Problemas conhecidos](#problemas-conhecidos). |
+| `USER_CACHE_TTL_MS` | TTL do cache de perfil em ms. Padrão: `60000` (60s). |
 
 Frontend:
 
@@ -274,6 +276,38 @@ Três apps separados: `office-timesheet-db` (Postgres), `office-timesheet-api` (
 ## CI/CD
 
 O workflow em `.github/workflows/ci-cd.yml` roda em pull requests e pushes para `main`. Executa `npm ci` e `npm run check` na API, `npm ci` e `npm run build` no frontend. No push para `main`, o job de deploy pode disparar webhooks configurados como secrets do GitHub (`API_DEPLOY_WEBHOOK_URL`, `WEB_DEPLOY_WEBHOOK_URL`). Se os secrets não estiverem configurados, o deploy é pulado.
+
+## Problemas conhecidos
+
+### Flake intermitente na suíte de testes (~10%)
+
+A suíte de integração (`npm test` na API) falha em ~10-15% das execuções do
+**suite completo**, num teste de integração **aleatório** — visto em:
+
+- `src/tests/integration/timer.test.js` → "resume é bloqueado durante férias" (`pause` volta 404)
+- `src/tests/integration/costSnapshot.test.js` → "usuário com valor/hora 0" (`project-earnings` vazio)
+- `src/tests/integration/vacationRequests.test.js` → "dono cancela a própria férias"
+
+Sintoma sempre igual: **uma linha recém-criada/commitada por uma request não é
+encontrada pela request seguinte**. Como o CI (`ci-cd.yml`) roda `npm test`,
+isso deixa o CI vermelho ocasionalmente — **re-run resolve**.
+
+**Não é bug de dados nem do cache de perfil** (`src/lib/userCache.js`). O cache
+só afeta a identidade da request (correta, chaveada pelo id do token) e a
+velocidade/uso de memória; as queries que falham filtram `time_entries` por
+`user_id` e nem passam pelo cache. O que acontece é que o cache acelera as
+requests autenticadas e, por timing/GC, **expõe um race latente que já existe no
+harness de teste** (banco compartilhado + pool de conexões `pg` + ordenação
+async). O código original (sem o cache) roda ~50x sem falhar; com o cache,
+~10%. Ligar `USER_CACHE_DISABLED=1` **não** resolve (o flake não vem de servir o
+cache), e fechar conexões SSE órfãs também **não** resolveu.
+
+**Kill-switch:** `USER_CACHE_DISABLED=1` desliga o cache sem redeploy (não
+corrige o flake, mas remove o cache se ele causar problema em produção).
+
+**Para atacar o race de verdade** (separado, não trivial): provável isolamento
+transacional por teste (cada teste numa transação com rollback), ou investigar
+reuso de conexão suja no pool `pg`. Fechar SSE já foi testado e descartado.
 
 ## Segurança
 
