@@ -1,6 +1,7 @@
 // Traduz papel em predicado de linha e em lista de coluna. NÃO redefine papel
-// (isso é do permissions.js); só recorta. Nenhuma tool escreve SELECT à mão:
-// toda query é montada a partir daqui. Ver §3.1 do design da Fase 1.
+// (isso é do permissions.js); só recorta. Hoje conhece só `users` e é usado só
+// pelo listar_equipe — as demais tools montam o próprio SELECT e quem verifica o
+// recorte delas é o paridadeColuna.test.js. Ver §3.1 do design da Fase 1.
 import { canAccessMoney, canAccessOperations } from '../permissions.js'
 
 // Colunas de `users` que o GET /users devolve a quem tem acesso a dinheiro.

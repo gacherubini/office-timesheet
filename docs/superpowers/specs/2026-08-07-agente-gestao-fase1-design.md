@@ -160,6 +160,19 @@ dentro de transação sob pena de vazar contexto entre requests do pool).
 O `scope.js` nasce no formato que vira essa camada compartilhada se a duplicação doer: aí
 ele sobe para `lib/scope.js` e as rotas passam a consumi-lo, sem reescrever o agente.
 
+**Como ficou, de fato (2026-08-11).** O `scope.js` conhece **uma** entidade, `users`, e
+tem **um** consumidor, `listar_equipe`. As outras dez tools de leitura montam o próprio
+SELECT. Isso não é dívida a pagar às pressas: quase todas agregam ou renomeiam para
+português, e forçá-las por um `colunasVisiveis` genérico seria cerimônia sem ganho. Mas
+significa que a frase "nenhuma tool escreve SELECT à mão" descreve a intenção, não o
+código — **o que impede coluna de dinheiro de vazar é o `paridadeColuna.test.js`**, que
+planta sentinelas (`hourly_rate = 777.77`, `cost_snapshot = 999999`, `sale_value =
+424242`) e falha se elas aparecerem no JSON de qualquer tool oferecida a papel não-admin.
+A garantia é de teste, não de construção. Consequência prática: **toda tool nova que
+toque em coluna financeira precisa entrar na tabela desse teste** — se ficar de fora, o
+recorte dela não é verificado por ninguém. Extrair o `scope.js` para camada compartilhada
+continua no backlog do §20, para quando a duplicação começar a divergir.
+
 **Núcleo agnóstico de canal (pré-requisito para a Fase 3).** O laço do agente
 (`lib/agent/loop.js`) e as tools são um **serviço reutilizável**, sem acoplamento à camada
 HTTP/site. Na Fase 1 o único adaptador é o site; na Fase 3, o WhatsApp via **Evolution API**
