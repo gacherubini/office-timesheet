@@ -11,6 +11,13 @@ export function auditAgentAction({ profile, tool, params, before, after }) {
   logger.info({ evt: 'agent_action', user_id: profile?.id, role: profile?.role, tool, params, before, after })
 }
 
+// Cancelamento NÃO é agent_action: nada foi escrito. Evento próprio para o Axiom
+// conseguir separar "o agente propôs e a pessoa recusou" de "o agente escreveu" —
+// a taxa de recusa é o sinal mais direto de proposta mal formulada.
+export function auditAgentCancel({ profile, tool, params }) {
+  logger.info({ evt: 'agent_cancel', user_id: profile?.id, role: profile?.role, tool, params })
+}
+
 // Custo = tokens não-cacheados a preço cheio + cacheados a preço de cache.
 // Preços em USD por 1M de tokens, configurados junto com o modelo.
 // SEM NENHUM preço configurado o custo é `null`, não `0`: zero é um valor de

@@ -11,7 +11,7 @@ import { buildSystemPrompt } from '../lib/agent/prompt.js'
 import { runAgentTurn } from '../lib/agent/loop.js'
 import { getClient } from '../lib/agent/client.js'
 import { takeProposal } from '../lib/agent/proposals.js'
-import { auditAgentAction } from '../lib/agent/audit.js'
+import { auditAgentAction, auditAgentCancel } from '../lib/agent/audit.js'
 import { logger } from '../lib/logger.js'
 import { rateLimit } from '../lib/rateLimit.js'
 import proporEncerrarApontamento from '../lib/agent/tools/write/proporEncerrarApontamento.js'
@@ -205,6 +205,23 @@ router.post('/agent/actions/:proposalId/execute', requireAuth, async (req, res) 
   } catch (err) {
     return res.status(409).json({ error: err.message })
   }
+})
+
+// Simétrico ao execute: consome a proposta (some do Map na hora, não em 5 min) e
+// realimenta a sessão dona com uma nota de recusa. Sem esta nota o histórico do
+// modelo terminava em 'proposta_emitida' e ele não tinha como saber que a pessoa
+// disse não — reoferecia, ou pior, presumia.
+router.post('/agent/actions/:proposalId/cancel', requireAuth, async (req, res) => {
+  if (agenteDesligado()) return res.status(503).json({ error: 'Assistente temporariamente desativado.' })
+  if (agenteSemChave()) return recusarSemChave(res)
+
+  const proposal = takeProposal(req.params.proposalId, req.profile)
+  if (!proposal) return res.status(404).json({ error: 'Proposta não encontrada ou expirada.' })
+
+  const nota = `✗ Cancelado pelo usuário: ${proposal.descricao || 'ação proposta'}`
+  appendExecutionNote(proposal.conversationId, req.profile, nota)
+  auditAgentCancel({ profile: req.profile, tool: proposal.kind, params: proposal.payload })
+  return res.json({ ok: true })
 })
 
 export default router

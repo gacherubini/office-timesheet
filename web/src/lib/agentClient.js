@@ -66,3 +66,7 @@ export async function streamChat({ message, conversationId, file, onEvent }) {
 export function executeProposal(proposalId) {
   return api.post(`/agent/actions/${proposalId}/execute`, {})
 }
+
+export function cancelProposal(proposalId) {
+  return api.post(`/agent/actions/${proposalId}/cancel`, {})
+}

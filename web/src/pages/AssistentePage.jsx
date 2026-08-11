@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Send, RotateCcw, AlertCircle, Check, Plus, Sparkles, Loader2, Paperclip, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { streamChat, executeProposal } from '../lib/agentClient'
+import { streamChat, executeProposal, cancelProposal } from '../lib/agentClient'
 import { lerSessao, salvarSessao, limparSessao } from '../lib/agentSession'
 
 // ── Página do Assistente (tela cheia) ──────────────────────────────────────
@@ -246,8 +246,18 @@ export function AssistentePage() {
     }
   }
 
-  function cancelar(idx) {
+  async function cancelar(idx) {
+    const msg = mensagens[idx]
+    if (!msg?.proposta || msg.executando) return
+    // Marca na UI PRIMEIRO: cancelar não pode ficar preso esperando rede. Se a
+    // chamada falhar, o TTL de 5 min derruba a proposta de qualquer forma — o
+    // que se perde é só a nota no histórico do modelo.
     setMensagens((m) => m.map((x, i) => (i === idx ? { ...x, cancelado: true } : x)))
+    try {
+      await cancelProposal(msg.proposta.proposalId)
+    } catch {
+      /* proposta expira sozinha; não vale incomodar quem já cancelou */
+    }
   }
 
   function novaConversa() {
