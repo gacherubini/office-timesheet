@@ -561,6 +561,15 @@ conversas anteriores, retomar, renomear, apagar — e arrasta junto a política 
 expurgo e o direito de exclusão pelo usuário. É por isso que espera a fase em que a conversa
 vira configuração de rotina agendada, e não entra agora.
 
+**Complemento de 2026-08-11 — teto de tamanho, não só de turnos.** `MAX_TURNS` conta
+blocos e ignora tamanho: um resultado de `consultar_dados` com 200 linhas ficava inteiro
+na sessão e voltava ao provedor a cada turno seguinte, por até dez turnos. Agora o laço
+corta o resultado de tool de leitura em `AGENT_MAX_TOOL_RESULT_CHARS` (20k, ~5k tokens)
+antes de empurrá-lo para o histórico, com um marcador que instrui o modelo a oferecer
+refinar a consulta. O texto de anexo continua inteiro: 40k caracteres é o teto do
+`extract.js` e persistir é o comportamento desejado (§Design de anexos, "anexa uma vez,
+pergunta várias").
+
 ---
 
 ## 12. Auditoria
@@ -837,6 +846,14 @@ zero para sempre. Agora, sem nenhum preço configurado, o campo sai `null` — o
 ignora nulo em agregação, e a ausência aparece como ausência. Os preços entraram no
 `.env.example` junto com as outras dezessete variáveis `AGENT_*` que o código lê e que
 também não estavam documentadas em lugar nenhum.
+
+**Complemento de 2026-08-11 — rate limit por janela.** "Medir, não travar" continua
+valendo para o **gasto acumulado**. O que faltava era o freio por requisição no canal: o
+lock de concorrência barra a 2ª conversa simultânea, mas não o milésimo pedido
+sequencial, e os guards de iteração/timeout/token são todos por requisição. `/agent/chat`
+passa a ter `rateLimit` de 40 por 15 min **por usuário** (`AGENT_CHAT_RATE_MAX`), com a
+mesma máquina que auth e calendar já usam. O `execute` fica de fora: é barato e não chama
+modelo.
 
 ---
 

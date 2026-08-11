@@ -13,6 +13,7 @@ import { getClient } from '../lib/agent/client.js'
 import { takeProposal } from '../lib/agent/proposals.js'
 import { auditAgentAction } from '../lib/agent/audit.js'
 import { logger } from '../lib/logger.js'
+import { rateLimit } from '../lib/rateLimit.js'
 import proporEncerrarApontamento from '../lib/agent/tools/write/proporEncerrarApontamento.js'
 import proporCriarApontamento from '../lib/agent/tools/write/proporCriarApontamento.js'
 import proporCriarTask from '../lib/agent/tools/write/proporCriarTask.js'
@@ -53,6 +54,19 @@ function limiteConcorrencia() {
   return Number(process.env.AGENT_MAX_CONCURRENT_PER_USER) || 1
 }
 
+// Freio por JANELA, complementar ao lock de concorrência acima: aquele barra a 2ª
+// conversa simultânea, este barra a milésima sequencial. Chave por usuário, não
+// por IP — o escritório inteiro pode sair pelo mesmo NAT. Construído por
+// requisição porque o teto vem de env e o teste precisa apertá-lo em runtime;
+// os buckets vivem no módulo rateLimit.js, então nada se perde nisso.
+function chatRateLimit(req, res, next) {
+  return rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: Number(process.env.AGENT_CHAT_RATE_MAX) || 40,
+    key: (r) => `agent-chat:${r.profile?.id ?? r.ip}`,
+  })(req, res, next)
+}
+
 // Resumo curto do resultado da escrita para a nota de execução (§1): destaca o
 // status novo quando existe, sem despejar o payload inteiro no histórico.
 function resumoResultado(after) {
@@ -77,7 +91,7 @@ function uploadAnexo(req, res, next) {
   })
 }
 
-router.post('/agent/chat', requireAuth, uploadAnexo, async (req, res) => {
+router.post('/agent/chat', requireAuth, chatRateLimit, uploadAnexo, async (req, res) => {
   if (agenteDesligado()) return res.status(503).json({ error: 'Assistente temporariamente desativado.' })
   if (agenteSemChave()) return recusarSemChave(res)
 
