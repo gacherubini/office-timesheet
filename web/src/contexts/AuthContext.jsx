@@ -14,6 +14,7 @@ import {
   isAdminRole,
   isProjectManagerRole,
 } from '../lib/permissions'
+import { limparSessao } from '../lib/agentSession'
 
 const AuthContext = createContext(null)
 
@@ -52,6 +53,11 @@ export function AuthProvider({ children }) {
 
   function logout() {
     localStorage.removeItem('access_token')
+    // A conversa do assistente fica em texto puro no localStorage por 30 min, e
+    // para um admin ela contém salário, custo e valor de despesa. O lerSessao
+    // confere o dono, então outro login não restaura — mas o dado não tem por que
+    // continuar no disco de uma máquina que pode ser compartilhada.
+    limparSessao()
     setUser(null)
     setProfile(null)
   }
