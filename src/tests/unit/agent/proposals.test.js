@@ -32,4 +32,25 @@ describe('proposals — pendências em memória, uso único, TTL', () => {
     // As duas velhas venceram; só a recém-criada sobrou.
     expect(pendingCount()).toBe(1)
   })
+
+  it('não entrega a proposta se o papel mudou entre propor e aprovar', () => {
+    // O requireAuth relê o profile do banco a cada request, então uma troca de
+    // papel no meio do caminho chega aqui. A proposta é do par (dono, papel):
+    // quem propôs como admin não executa como employee.
+    const { proposalId } = createProposal({
+      profile: { id: 1, role: 'admin' },
+      kind: 'criar_task',
+      payload: { title: 'x' },
+    })
+    expect(takeProposal(proposalId, { id: 1, role: 'employee' })).toBeNull()
+  })
+
+  it('mesmo dono e mesmo papel continua entregando', () => {
+    const { proposalId } = createProposal({
+      profile: { id: 1, role: 'admin' },
+      kind: 'criar_task',
+      payload: { title: 'x' },
+    })
+    expect(takeProposal(proposalId, { id: 1, role: 'admin' })).toMatchObject({ kind: 'criar_task' })
+  })
 })

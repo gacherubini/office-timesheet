@@ -35,7 +35,10 @@ export function takeProposal(proposalId, profile, now = Date.now()) {
   const p = pending.get(proposalId)
   if (!p) return null
   pending.delete(proposalId) // uso único, mesmo se inválida
-  if (p.userId !== profile.id) return null
+  // Dono E papel: o requireAuth relê o profile do banco a cada request, então um
+  // rebaixamento entre propor e aprovar chega até aqui. Mesma regra que o
+  // session.js já aplica ao histórico — a assimetria é que era o defeito.
+  if (p.userId !== profile.id || p.role !== profile.role) return null
   if (now - p.criadoEm > PROPOSAL_TTL_MS) return null
   return { kind: p.kind, payload: p.payload, conversationId: p.conversationId, descricao: p.descricao }
 }
