@@ -39,6 +39,42 @@ describe('loop — tool-calling agnóstico', () => {
     expect(res.messages.some((m) => m.role === 'tool')).toBe(true)
   })
 
+  it('resultado gigante de tool entra cortado no histórico', async () => {
+    process.env.AGENT_MAX_TOOL_RESULT_CHARS = '100'
+    // Cliente falso: 1ª iteração chama listar_equipe, 2ª responde texto.
+    // Força resultado grande — o ponto do teste é o corte, não a tool.
+    const toolMod = await import('../../../lib/agent/tools/read/listarEquipe.js')
+    const spy = vi.spyOn(toolMod.default, 'run').mockResolvedValue({
+      count: 500,
+      data: Array.from({ length: 500 }, (_, i) => ({ nome: `pessoa ${i}` })),
+    })
+    let n = 0
+    const client = {
+      async stream() {
+        n++
+        if (n === 1) {
+          return {
+            message: {
+              role: 'assistant',
+              tool_calls: [{ id: 'c1', type: 'function', function: { name: 'listar_equipe', arguments: '{}' } }],
+            },
+            usage: {},
+          }
+        }
+        return { message: { role: 'assistant', content: 'pronto' }, usage: {} }
+      },
+    }
+    const messages = [{ role: 'user', content: 'quem está no time?' }]
+    const { messages: full } = await runAgentTurn({
+      client, profile: { id: 1, role: 'admin', name: 'A' }, model: 'x', messages, emit: () => {},
+    })
+    const resposta = full.find((m) => m.role === 'tool')
+    expect(resposta.content.length).toBeLessThan(400)
+    expect(resposta.content).toContain('resultado cortado')
+    spy.mockRestore()
+    delete process.env.AGENT_MAX_TOOL_RESULT_CHARS
+  })
+
   it('numa tool de escrita, emite proposta e pausa (awaiting_confirmation)', async () => {
     const client = fakeClient([
       { message: { role: 'assistant', tool_calls: [{ id: 'c1', type: 'function', function: { name: 'propor_encerrar_apontamento', arguments: '{}' } }] } },

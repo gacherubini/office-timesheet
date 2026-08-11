@@ -10,6 +10,20 @@ function parseArgs(raw) {
   try { return raw ? JSON.parse(raw) : {} } catch { return {} }
 }
 
+// Teto de tamanho do resultado de tool que entra no histórico. MAX_TURNS conta
+// BLOCOS, nunca tamanho: sem isto, 200 linhas de consultar_dados ficam na sessão
+// e são reenviadas a cada turno por dez turnos — custo imprevisível e risco de
+// estourar a janela de contexto.
+//
+// O corte deixa o JSON inválido DE PROPÓSITO. O destinatário é um modelo de
+// linguagem, não um parser: o marcador em português diz o que sumiu e o que
+// fazer a respeito. Não "conserte" isto fechando o JSON — fechar esconderia o
+// corte e o modelo trataria a fatia como resposta completa.
+export function truncarResultado(json, limite = Number(process.env.AGENT_MAX_TOOL_RESULT_CHARS) || 20_000) {
+  if (json.length <= limite) return json
+  return `${json.slice(0, limite)}\n[…resultado cortado: ${json.length} caracteres no total, ${limite} entregues. Diga isso a quem perguntou e ofereça refinar o período ou os filtros para ver o resto.]`
+}
+
 export async function runAgentTurn({ client, profile, model, messages, emit, conversationId = null, signal }) {
   const registry = buildRegistry(profile)
   const usageTotal = { tokensIn: 0, tokensOut: 0, cached: 0 }
@@ -87,7 +101,7 @@ export async function runAgentTurn({ client, profile, model, messages, emit, con
         try {
           const result = await tool.run(profile, args)
           auditAgentRead({ profile, tool: call.function.name, params: args, count: result.count })
-          messages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(result.data) })
+          messages.push({ role: 'tool', tool_call_id: call.id, content: truncarResultado(JSON.stringify(result.data)) })
         } catch (err) {
           messages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify({ error: err.message }) })
         }
