@@ -220,16 +220,24 @@ export function AssistentePage() {
     setAnexoErro(null)
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
     const idxBot = mensagens.length + 1
-    setMensagens((m) => [...m, { autor: 'user', texto, anexo: fileToSend?.name || null }, { autor: 'bot', texto: '' }])
+    setMensagens((m) => [
+      ...m,
+      { autor: 'user', texto, anexo: fileToSend?.name || null, arquivoObj: fileToSend || null },
+      { autor: 'bot', texto: '' },
+    ])
     await correr(idxBot, texto, fileToSend)
   }
 
-  // Reenvia a pergunta na mesma bolha (erro de resposta).
+  // Reenvia a pergunta na mesma bolha (erro de resposta). O anexo vai junto: um
+  // turno que falhou não foi salvo no servidor, então sem o arquivo o modelo
+  // nunca veria o documento — e a bolha continuaria mostrando o clipe, mentindo.
+  // Depois de um reload o File se perdeu (não atravessa o localStorage) e o
+  // retry manda só o texto; é o melhor possível sem reanexar.
   async function tentarStream(idxBot) {
     const userMsg = mensagens[idxBot - 1]
     if (!userMsg || userMsg.autor !== 'user' || ocupado) return
     setMensagens((m) => m.map((msg, i) => (i === idxBot ? { ...msg, texto: '', erro: null } : msg)))
-    await correr(idxBot, userMsg.texto)
+    await correr(idxBot, userMsg.texto, userMsg.arquivoObj || undefined)
   }
 
   async function aprovar(idx) {

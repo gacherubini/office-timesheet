@@ -57,6 +57,19 @@ describe('agentSession — persistência local da conversa do Assistente', () =>
     expect(lerSessao('u-1').mensagens[0].executando).toBe(false)
   })
 
+  it('não persiste o File do anexo — JSON.stringify o viraria {} e quebraria o reenvio', () => {
+    // Stand-in do File: o ambiente de teste é Node, sem File nativo. O que
+    // importa é que a chave seja descartada na serialização.
+    const arquivoObj = { name: 'briefing.pdf', size: 1234 }
+    salvarSessao(1, {
+      conversationId: 'c1',
+      mensagens: [{ autor: 'user', texto: 'resume isso', anexo: 'briefing.pdf', arquivoObj }],
+    })
+    const lido = lerSessao(1)
+    expect(lido.mensagens[0].anexo).toBe('briefing.pdf')   // o nome fica, é só exibição
+    expect(lido.mensagens[0].arquivoObj).toBeUndefined()   // o objeto, não
+  })
+
   it('limparSessao remove o registro', () => {
     salvarSessao('u-1', { conversationId: 'conv-abc', mensagens: msgs })
     limparSessao()

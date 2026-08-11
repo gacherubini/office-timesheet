@@ -20,10 +20,17 @@ function storage() {
   }
 }
 
-// Tira flags puramente de UI que não fazem sentido restaurar — ex.: um "Aprovando…"
-// (executando) congelado no meio de uma execução que já terminou noutro lugar.
-function limparTransitorios(mensagens) {
-  return mensagens.map((m) => (m.executando ? { ...m, executando: false } : m))
+// Tira o que não faz sentido (ou não pode) atravessar o localStorage:
+//  - `executando`: um "Aprovando…" congelado de uma execução que já terminou.
+//  - `arquivoObj`: o File do anexo. JSON.stringify o serializa como {}, e um {}
+//    truthy no lugar de um File faria o reenvio mandar "[object Object]" como
+//    arquivo. O nome fica em `anexo`, que é o que a bolha exibe.
+function limparNaoSerializaveis(mensagens) {
+  return mensagens.map((m) => {
+    if (!m.executando && !m.arquivoObj) return m
+    const { arquivoObj: _descartado, ...resto } = m
+    return m.executando ? { ...resto, executando: false } : resto
+  })
 }
 
 export function lerSessao(userId, agora = Date.now()) {
@@ -58,7 +65,7 @@ export function salvarSessao(userId, { conversationId, mensagens }, agora = Date
       v: 1,
       userId,
       conversationId: conversationId ?? null,
-      mensagens: limparTransitorios(mensagens || []),
+      mensagens: limparNaoSerializaveis(mensagens || []),
       updatedAt: agora,
     }))
   } catch {
