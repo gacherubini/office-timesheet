@@ -1,6 +1,7 @@
 import { verifyAccessToken } from '../lib/jwt.js'
 import { query } from '../lib/db.js'
 import { logger } from '../lib/logger.js'
+import { getCachedProfile, setCachedProfile } from '../lib/userCache.js'
 
 export async function requireAuth(req, res, next) {
   try {
@@ -17,14 +18,21 @@ export async function requireAuth(req, res, next) {
       return res.status(401).json({ error: 'Token inválido.' })
     }
 
-    const { rows } = await query(
-      `SELECT id, name, email, role, is_active, deleted_at, position,
-              birth_date, phone, avatar_url, sessions_valid_after
-         FROM users
-        WHERE id = $1`,
-      [payload.sub],
-    )
-    const profile = rows[0]
+    // Cache em memória: evita 1 SELECT por request autenticado. Invalidado em
+    // todo caminho que altera o perfil (routes/users.js, me.js, auth.js) e com
+    // TTL de rede de segurança. Ver lib/userCache.js.
+    let profile = getCachedProfile(payload.sub)
+    if (!profile) {
+      const { rows } = await query(
+        `SELECT id, name, email, role, is_active, deleted_at, position,
+                birth_date, phone, avatar_url, sessions_valid_after
+           FROM users
+          WHERE id = $1`,
+        [payload.sub],
+      )
+      profile = rows[0]
+      if (profile) setCachedProfile(payload.sub, profile)
+    }
 
     if (!profile) return res.status(403).json({ error: 'Perfil não encontrado.' })
     if (profile.deleted_at) return res.status(403).json({ error: 'Usuário deletado.' })

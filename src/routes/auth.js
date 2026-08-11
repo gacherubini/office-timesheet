@@ -6,6 +6,7 @@ import { signAccessToken } from '../lib/jwt.js'
 import { sendResetEmail } from '../lib/email.js'
 import { logger } from '../lib/logger.js'
 import { rateLimit } from '../lib/rateLimit.js'
+import { invalidateUser } from '../lib/userCache.js'
 
 const router = Router()
 
@@ -117,6 +118,11 @@ router.post('/auth/reset-password', authRateLimit, async (req, res) => {
         WHERE id = $2`,
       [hash, user.id],
     )
+
+    // Crítico: sessions_valid_after mudou. Sem invalidar, o requireAuth serviria
+    // o perfil antigo (do cache) e um JWT anterior ao reset continuaria valendo
+    // até o TTL expirar.
+    invalidateUser(user.id)
 
     return res.json({ message: 'Senha redefinida com sucesso.' })
   } catch (err) {

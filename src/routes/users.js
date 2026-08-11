@@ -7,6 +7,7 @@ import { requireAuth } from '../middleware/auth.js'
 import { requireAdmin } from '../middleware/requireAdmin.js'
 import { requireOperationalAccess } from '../middleware/requireOperationalAccess.js'
 import { ROLES, VALID_ROLES, canAccessMoney, roleLabel } from '../lib/permissions.js'
+import { invalidateUser, invalidateUsersBasic } from '../lib/userCache.js'
 import { logger } from '../lib/logger.js'
 
 // is_active pode chegar como boolean, string ('true'/'false') ou número (0/1).
@@ -101,6 +102,9 @@ router.post('/create-user', requireAuth, requireAdmin, async (req, res) => {
 
     const profile = rows[0]
 
+    // Novo usuário passa a compor /users/basic.
+    invalidateUsersBasic()
+
     return res.status(201).json({
       message: 'Usuário criado com sucesso.',
       user: {
@@ -170,6 +174,7 @@ router.post('/users/:id/restore', requireAuth, requireAdmin, async (req, res) =>
       return res.status(404).json({ error: 'Usuário deletado não encontrado.' })
     }
 
+    invalidateUser(id)
     return res.json(rows[0])
   } catch (err) {
     logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em POST /users/:id/restore')
@@ -250,6 +255,7 @@ router.put('/users/:id', requireAuth, requireAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Usuário não encontrado.' })
     }
 
+    invalidateUser(id)
     return res.json(rows[0])
   } catch (err) {
     logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em PUT /users/:id')
@@ -278,6 +284,7 @@ router.delete('/users/:id', requireAuth, requireAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Usuário não encontrado ou já deletado.' })
     }
 
+    invalidateUser(id)
     return res.status(204).send()
   } catch (err) {
     logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em DELETE /users/:id')
@@ -328,6 +335,7 @@ router.post('/users/:id/avatar', requireAuth, requireAdmin, upload.single('image
       [url, id],
     )
 
+    invalidateUser(id)
     return res.json(rows[0])
   } catch (err) {
     logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em POST /users/:id/avatar')

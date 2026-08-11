@@ -8,6 +8,7 @@ import { canAccessMoney } from '../lib/permissions.js'
 import { logger } from '../lib/logger.js'
 import { DEFAULT_SIM_CONFIG, normalizeSimConfig } from '../lib/performanceSimulation.js'
 import { dateInSaoPaulo, yearMonthInSaoPaulo } from '../lib/dates.js'
+import { invalidateUser } from '../lib/userCache.js'
 
 const router = Router()
 
@@ -88,6 +89,7 @@ router.put('/me/profile', requireAuth, async (req, res) => {
 
   if (error) return res.status(400).json({ error: error.message })
   if (!rows || rows.length === 0) return res.status(404).json({ error: 'Perfil não encontrado.' })
+  invalidateUser(req.profile.id)
   return res.json(rows[0])
 })
 
@@ -152,6 +154,7 @@ router.post('/me/profile/avatar', requireAuth, upload.single('image'), async (re
 
     if (error) return res.status(400).json({ error: error.message })
     if (!rows || rows.length === 0) return res.status(404).json({ error: 'Perfil não encontrado.' })
+    invalidateUser(req.profile.id)
     return res.json(rows[0])
   } catch (err) {
     return res.status(400).json({ error: err.message })

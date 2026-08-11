@@ -1,4 +1,5 @@
 import { query, pool } from '../../lib/db.js'
+import { clearUserCache } from '../../lib/userCache.js'
 
 export { query, pool }
 
@@ -12,4 +13,7 @@ export async function resetDb() {
       vacation_requests, notifications
     RESTART IDENTITY CASCADE
   `)
+  // O cache de usuário vive no processo e sobrevive entre testes; sem limpar,
+  // um perfil de um teste anterior poderia vazar pro seguinte.
+  clearUserCache()
 }
