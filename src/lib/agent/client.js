@@ -11,10 +11,36 @@ export const DEFAULT_BASE_URL = 'https://api.deepseek.com'
 export const DEFAULT_MODEL = 'deepseek-v4-flash'
 export const DEFAULT_MAX_RETRIES = 2
 export const DEFAULT_RETRY_BACKOFF_MS = 250
+// Sem `temperature` no corpo o provedor assume o dele — 1.0 nos dois que já
+// usamos, que é temperatura de escrita criativa. Mandamos explícito.
+//
+// 0.7 é escolha de PRODUTO, não medição — está anotado aqui de propósito para
+// ninguém depois ler o número como se fosse resultado de experimento:
+//
+//   - O que se sabe: a 1.0 a escolha de ferramenta oscilou entre execuções (a
+//     mesma pergunta caindo em tools diferentes; num caso o modelo chamou
+//     `propor_encerrar_apontamento` para quem pediu para INICIAR um apontamento).
+//   - O que NÃO se sabe: se 0.7 tem esse problema. Ninguém mediu 0.7 nem 0.2 —
+//     a rodada que mediria isso estava contra um endpoint que devolvia lixo.
+//   - Por que 0.7 mesmo assim: o texto é português para pessoa ler, e temperatura
+//     baixa engessa a redação. O pior caso do lado da ação é limitado por
+//     desenho: toda escrita passa por proposta e confirmação explícita (§16),
+//     então proposta errada é chateação, não estrago.
+//
+// Sinal de que 0.7 foi longe demais: a mesma pergunta escolhendo tools
+// diferentes, ou o laço gastando iteração à toa (o §13 avisa que escolha errada
+// infla o laço e um modelo barato por token sai caro por pergunta). Se aparecer,
+// baixar via AGENT_TEMPERATURE — é env, muda sem deploy. Não descer a 0:
+// decodificação gulosa é causa clássica de loop de repetição.
+//
+// O que temperatura NÃO resolve: a saída degenerada vista em 2026-08-11 (loop de
+// repetição, troca de idioma, `</think>` cru no texto) continuou igual a 0.2.
+// Aquilo tem outra causa provável — ver o TODO no streamOnce.
+export const DEFAULT_TEMPERATURE = 0.7
 
-// Lê inteiro de env respeitando 0 explícito (o `|| default` comum trocaria 0
-// por default, impedindo "desligar o retry").
-function envInt(nome, def) {
+// Lê número de env respeitando 0 explícito (o `|| default` comum trocaria 0 por
+// default, impedindo "desligar o retry" ou "cravar temperatura zero").
+function envNum(nome, def) {
   const v = process.env[nome]
   if (v === undefined || v === '') return def
   const n = Number(v)
@@ -40,6 +66,7 @@ async function streamOnce(openai, { messages, tools, model }, onToken) {
   const resp = await openai.chat.completions.create({
     model: model || process.env.AGENT_MODEL || DEFAULT_MODEL,
     messages, tools, tool_choice: 'auto',
+    temperature: envNum('AGENT_TEMPERATURE', DEFAULT_TEMPERATURE),
     max_tokens: Number(process.env.AGENT_MAX_TOKENS) || 1024,
     stream: true,
     stream_options: { include_usage: true },
@@ -49,6 +76,13 @@ async function streamOnce(openai, { messages, tools, model }, onToken) {
   const toolCalls = [] // acumula deltas por índice
   let usage = { prompt_tokens: 0, completion_tokens: 0 }
 
+  // TODO(2026-08-11): só lemos `delta.content`. A rodada de eval contra a NVIDIA
+  // NIM devolveu `</think>` cru no meio do texto, troca de idioma e loop — sinal
+  // de que aquele endpoint serve o Flash como modelo de raciocínio e inlina o
+  // rascunho no content, em vez de mandá-lo em `reasoning_content` à parte. Com
+  // isso o pensamento entra na resposta visível E no histórico. Antes de tratar,
+  // confirmar em qual campo cada provedor manda — a API oficial da DeepSeek (o
+  // default do código) pode não ter o problema.
   for await (const chunk of resp) {
     if (chunk.usage) usage = chunk.usage
     const delta = chunk.choices?.[0]?.delta
@@ -73,9 +107,9 @@ async function streamOnce(openai, { messages, tools, model }, onToken) {
 //   - nossa (loop abaixo): timeout do withTimeout e o que escapar do SDK, com
 //     backoff crescente — sem retentar 4xx de validação.
 export function makeRealClient(openaiOverride) {
-  const maxRetries = envInt('AGENT_MAX_RETRIES', DEFAULT_MAX_RETRIES)
-  const backoffMs = envInt('AGENT_RETRY_BACKOFF_MS', DEFAULT_RETRY_BACKOFF_MS)
-  const attemptTimeoutMs = envInt('AGENT_ATTEMPT_TIMEOUT_MS', LIMITS.timeoutMs)
+  const maxRetries = envNum('AGENT_MAX_RETRIES', DEFAULT_MAX_RETRIES)
+  const backoffMs = envNum('AGENT_RETRY_BACKOFF_MS', DEFAULT_RETRY_BACKOFF_MS)
+  const attemptTimeoutMs = envNum('AGENT_ATTEMPT_TIMEOUT_MS', LIMITS.timeoutMs)
 
   // Placeholder de chave para a construção não estourar sem AGENT_API_KEY (o SDK
   // v7 exige apiKey já no construtor). Uma chamada real com chave inválida ainda
