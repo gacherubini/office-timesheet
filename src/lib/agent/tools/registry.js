@@ -18,6 +18,7 @@ import despesasDoPeriodo from './read/despesasDoPeriodo.js'
 import apontamentosAbertos from './read/apontamentosAbertos.js'
 import aniversariantes from './read/aniversariantes.js'
 import consultarDados from './sql/consultarDados.js'
+import registrarPedidoNaoAtendido from './meta/registrarPedidoNaoAtendido.js'
 
 const TODAS = [
   listarEquipe, proporEncerrarApontamento, proporCriarApontamento, proporCriarTask,
@@ -26,6 +27,7 @@ const TODAS = [
   simulacaoPerformance, statusProjeto, andamentoDeProjeto,
   despesasDoPeriodo, apontamentosAbertos, aniversariantes,
   consultarDados,
+  registrarPedidoNaoAtendido,
 ]
 
 export function buildRegistry(profile) {
