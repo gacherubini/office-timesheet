@@ -11,6 +11,7 @@ import {
   Receipt,
   Plane,
   History,
+  Wallet,
 } from 'lucide-react'
 
 // Ferramentas de admin, aninhadas sob Performance.
@@ -19,6 +20,7 @@ const ADMIN_TOOLS = [
   { to: '/admin/time-entries', label: 'Apontamentos', icon: FileText },
   { to: '/admin/manage-bonuses', label: 'Bônus', icon: Gift },
   { to: '/admin/manage-expenses', label: 'Despesas', icon: Receipt },
+  { to: '/admin/costs-requests', label: 'Custos & Pedidos', icon: Wallet },
 ]
 
 // Solicitações próprias de férias (pedir / apagar) — todos os papéis.

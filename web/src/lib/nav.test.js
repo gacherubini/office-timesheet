@@ -12,7 +12,7 @@ describe('buildNav', () => {
     expect(labels(nav.find((i) => i.label === 'Agenda').children)).toEqual(['Minhas férias'])
   })
 
-  it('manda o admin para /admin/dashboard e aninha as quatro ferramentas', () => {
+  it('manda o admin para /admin/dashboard e aninha as cinco ferramentas', () => {
     const nav = buildNav({ isAdmin: true })
     expect(nav[0].to).toBe('/admin/dashboard')
     expect(labels(nav)).not.toContain('Histórico')
@@ -21,6 +21,7 @@ describe('buildNav', () => {
       'Apontamentos',
       'Bônus',
       'Despesas',
+      'Custos & Pedidos',
     ])
     expect(labels(nav.find((i) => i.label === 'Agenda').children)).toEqual(['Minhas férias'])
   })
