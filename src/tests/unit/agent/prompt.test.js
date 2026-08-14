@@ -124,3 +124,10 @@ describe('prompt — identidade de quem está falando (§5)', () => {
     expect(buildSystemPrompt({ role: 'admin' })).not.toMatch(/Quem está falando com você/i)
   })
 })
+
+describe('system prompt', () => {
+  it('instrui a registrar pedido não atendido antes de recusar', () => {
+    const p = buildSystemPrompt({ role: 'employee' })
+    expect(p).toContain('registrar_pedido_nao_atendido')
+  })
+})
