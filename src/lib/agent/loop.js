@@ -4,6 +4,7 @@
 import { buildRegistry } from './tools/registry.js'
 import { createProposal } from './proposals.js'
 import { auditAgentRead, logUsage } from './audit.js'
+import * as usageRepo from './usageRepo.js'
 import { LIMITS, withTimeout } from './guards.js'
 
 function parseArgs(raw) {
@@ -52,6 +53,7 @@ export async function runAgentTurn({ client, profile, model, messages, emit, con
       // evento de falha e repropaga (a rota emite o erro ao cliente).
       const status = /timeout/i.test(err?.message || '') ? 'timeout' : 'error'
       logUsage({ profile, model, status, erro: err?.message })
+      await usageRepo.insert({ profile, model, status })
       throw err
     }
     const cached = usage?.prompt_tokens_details?.cached_tokens || 0
@@ -59,6 +61,7 @@ export async function runAgentTurn({ client, profile, model, messages, emit, con
     usageTotal.tokensOut += usage?.completion_tokens || 0
     usageTotal.cached += cached
     logUsage({ profile, model, tokensIn: usage?.prompt_tokens || 0, tokensOut: usage?.completion_tokens || 0, cached })
+    await usageRepo.insert({ profile, model, tokensIn: usage?.prompt_tokens || 0, tokensOut: usage?.completion_tokens || 0, cached })
 
     messages.push(message)
     const calls = message.tool_calls || []

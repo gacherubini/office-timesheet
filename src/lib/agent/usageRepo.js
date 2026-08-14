@@ -7,10 +7,13 @@ import { custoDeUso } from './audit.js'
 
 export async function insert({ profile, model, tokensIn = 0, tokensOut = 0, cached = 0, status = 'ok' }) {
   const custo = custoDeUso({ tokensIn, tokensOut, cached })
+  // users.id é uuid. Testes unitários do loop usam { id: 1 }; um número aqui
+  // quebraria o INSERT e, pior, o turno do agente. Sem string, user_id fica null.
+  const userId = typeof profile?.id === 'string' ? profile.id : null
   await query(
     `INSERT INTO agent_usage (user_id, model, tokens_in, tokens_out, tokens_cached, custo_usd, status)
      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-    [profile?.id ?? null, model ?? null, tokensIn, tokensOut, cached, custo, status],
+    [userId, model ?? null, tokensIn, tokensOut, cached, custo, status],
   )
 }
 
