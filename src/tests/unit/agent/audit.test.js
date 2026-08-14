@@ -54,3 +54,23 @@ describe('audit', () => {
     expect(log.custo).toBeCloseTo(0.14, 5)
   })
 })
+
+import { custoDeUso, precosConfigurados } from '../../../lib/agent/audit.js'
+
+describe('custoDeUso / precosConfigurados', () => {
+  it('sem preços, custo é null e precosConfigurados é false', () => {
+    const antes = { ...process.env }
+    delete process.env.AGENT_PRICE_IN; delete process.env.AGENT_PRICE_OUT; delete process.env.AGENT_PRICE_CACHED
+    expect(precosConfigurados()).toBe(false)
+    expect(custoDeUso({ tokensIn: 1_000_000, tokensOut: 1_000_000, cached: 0 })).toBeNull()
+    process.env = antes
+  })
+  it('com preço, calcula em USD (cacheado a preço de cache)', () => {
+    const antes = { ...process.env }
+    process.env.AGENT_PRICE_IN = '0.14'; process.env.AGENT_PRICE_OUT = '0.28'; process.env.AGENT_PRICE_CACHED = '0.014'
+    expect(precosConfigurados()).toBe(true)
+    // 500k não-cacheado * 0.14 + 500k cacheado * 0.014 + 0 saída = 0.07 + 0.007
+    expect(custoDeUso({ tokensIn: 1_000_000, tokensOut: 0, cached: 500_000 })).toBeCloseTo(0.077, 6)
+    process.env = antes
+  })
+})
