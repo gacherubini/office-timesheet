@@ -11,12 +11,13 @@ export async function makeUser({
   email,
   is_active = true,
   monthly_income_goal = 0,
+  birth_date = null,
 } = {}) {
   const { rows } = await query(
-    `INSERT INTO users (email, password_hash, name, role, hourly_rate, is_active, monthly_income_goal)
-     VALUES ($1, 'x', $2, $3, $4, $5, $6)
-     RETURNING id, email, name, role, hourly_rate, is_active, monthly_income_goal`,
-    [email || `user-${uniq()}@test.com`, name, role, hourly_rate, is_active, monthly_income_goal],
+    `INSERT INTO users (email, password_hash, name, role, hourly_rate, is_active, monthly_income_goal, birth_date)
+     VALUES ($1, 'x', $2, $3, $4, $5, $6, $7)
+     RETURNING id, email, name, role, hourly_rate, is_active, monthly_income_goal, birth_date`,
+    [email || `user-${uniq()}@test.com`, name, role, hourly_rate, is_active, monthly_income_goal, birth_date],
   )
   return rows[0]
 }

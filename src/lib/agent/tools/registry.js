@@ -16,6 +16,7 @@ import statusProjeto from './read/statusProjeto.js'
 import andamentoDeProjeto from './read/andamentoDeProjeto.js'
 import despesasDoPeriodo from './read/despesasDoPeriodo.js'
 import apontamentosAbertos from './read/apontamentosAbertos.js'
+import aniversariantes from './read/aniversariantes.js'
 import consultarDados from './sql/consultarDados.js'
 
 const TODAS = [
@@ -23,7 +24,7 @@ const TODAS = [
   proporPedirFerias,
   custoPorProjeto, cargaEquipe, quemNaoApontou, tasksTravadas, feriasEConflitos,
   simulacaoPerformance, statusProjeto, andamentoDeProjeto,
-  despesasDoPeriodo, apontamentosAbertos,
+  despesasDoPeriodo, apontamentosAbertos, aniversariantes,
   consultarDados,
 ]
 

@@ -4,16 +4,12 @@
 // agente. Duas cópias divergiriam, e o agente afirmaria número errado.
 //   config = {
 //     target_amount: number>=0,             // meta de ganho do mês (R$)
-//     include_weekends: boolean,            // considerar sáb/dom como hora extra
-//     weekend_default_minutes: int 0..1440, // horas padrão por dia de FDS
-//     overrides: { 'YYYY-MM-DD': minutos }  // ajustes manuais de FDS, só isso
+//     overrides: { 'YYYY-MM-DD': minutos }  // horas extras lançadas à mão em FDS
 //   }
 // ATENÇÃO: `overrides` NÃO são as horas planejadas do mês. As horas dos dias
 // úteis não ficam salvas — são derivadas da meta (ver planejamentoDoMes).
 export const DEFAULT_SIM_CONFIG = {
   target_amount: 0,
-  include_weekends: false,
-  weekend_default_minutes: 240,
   overrides: {},
 }
 
@@ -26,13 +22,6 @@ export function normalizeSimConfig(raw) {
       typeof c.target_amount === 'number' && Number.isFinite(c.target_amount) && c.target_amount >= 0
         ? c.target_amount
         : 0,
-    include_weekends: c.include_weekends === true,
-    weekend_default_minutes:
-      Number.isInteger(c.weekend_default_minutes) &&
-      c.weekend_default_minutes >= 0 &&
-      c.weekend_default_minutes <= 1440
-        ? c.weekend_default_minutes
-        : 240,
     overrides:
       c.overrides && typeof c.overrides === 'object' && !Array.isArray(c.overrides)
         ? c.overrides
@@ -44,7 +33,7 @@ export function normalizeSimConfig(raw) {
 // que o usuário enxerga como "horas planejadas":
 //   total = horas já feitas
 //         + horas que faltam para a meta, espalhadas nos dias úteis restantes
-//         + horas de fim de semana futuras (override do dia, ou o padrão)
+//         + horas de fim de semana futuras lançadas à mão (override do dia)
 // A tela ainda tira feriados dos dias úteis restantes; isso só muda o resultado
 // no caso extremo de TODOS os dias úteis que sobram serem feriado, e buscar o
 // calendário aqui custaria uma chamada externa por pergunta.
@@ -64,9 +53,7 @@ export function planejamentoDoMes({ mes, hoje, config, horasRealizadas, valorHor
       continue
     }
     const override = config.overrides?.[data]
-    minutosFimDeSemana += Number.isFinite(override)
-      ? override
-      : (config.include_weekends ? config.weekend_default_minutes : 0)
+    minutosFimDeSemana += Number.isFinite(override) ? override : 0
   }
 
   const valorRealizado = horasRealizadas * valorHora

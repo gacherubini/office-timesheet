@@ -8,8 +8,6 @@ const WEEKDAY_LABELS = ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom']
 
 const DEFAULT_CONFIG = {
   target_amount: 0,
-  include_weekends: false,
-  weekend_default_minutes: 240,
   overrides: {},
 }
 
@@ -50,7 +48,6 @@ export function PerformanceSimulator({ stats, cursor }) {
 
   const [config, setConfig] = useState(DEFAULT_CONFIG)
   const [targetDraft, setTargetDraft] = useState('') // texto exato do campo de meta
-  const [weekendDraft, setWeekendDraft] = useState('') // texto do "padrão por dia de FDS"
   const [overrideDrafts, setOverrideDrafts] = useState({}) // date -> texto do input daquele FDS
   const [holidays, setHolidays] = useState(new Set())
   const [saveState, setSaveState] = useState('idle') // idle | saving | saved
@@ -79,14 +76,12 @@ export function PerformanceSimulator({ stats, cursor }) {
         const c = { ...DEFAULT_CONFIG, ...(data.config || {}) }
         setConfig(c)
         setTargetDraft(c.target_amount ? String(c.target_amount) : '')
-        setWeekendDraft(String((c.weekend_default_minutes || 0) / 60))
         setOverrideDrafts({})
       })
       .catch(() => {
         if (!alive) return
         setConfig(DEFAULT_CONFIG)
         setTargetDraft('')
-        setWeekendDraft('4')
         setOverrideDrafts({})
       })
     return () => { alive = false }
@@ -148,7 +143,7 @@ export function PerformanceSimulator({ stats, cursor }) {
 
     function weekendHours(date) {
       if (date in config.overrides) return config.overrides[date] / 60
-      return config.include_weekends ? config.weekend_default_minutes / 60 : 0
+      return 0
     }
 
     const weekdayHours = perWeekday * futureWeekdays.length
@@ -209,7 +204,7 @@ export function PerformanceSimulator({ stats, cursor }) {
       </div>
       <p className="text-[13px] text-text-secondary mb-4">
         Diga quanto quer ganhar no mês e o calendário se preenche sozinho nos dias úteis que faltam.
-        Ative os fins de semana para lançar hora extra.
+        Lance hora extra direto em qualquer sábado ou domingo.
       </p>
 
       {/* Painel-meta: o coração do simulador. */}
@@ -256,37 +251,6 @@ export function PerformanceSimulator({ stats, cursor }) {
               <span>Sem dias úteis restantes no mês para distribuir.</span>
             )}
           </div>
-        </div>
-
-        <div
-          className="mt-4 flex flex-wrap items-center gap-4 border-t pt-3"
-          style={{ borderColor: 'color-mix(in srgb, var(--color-accent) 15%, transparent)' }}
-        >
-          <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-text-primary">
-            <input
-              type="checkbox"
-              checked={config.include_weekends}
-              onChange={(e) => updateConfig({ include_weekends: e.target.checked })}
-              className="h-4 w-4 border-border-subtle accent-[color:var(--color-brown)]"
-            />
-            Incluir fins de semana <span className="text-text-secondary">(hora extra)</span>
-          </label>
-          {config.include_weekends && (
-            <label className="inline-flex items-center gap-2 text-sm text-text-secondary">
-              Padrão por sáb/dom
-              <input
-                inputMode="decimal"
-                value={weekendDraft}
-                onChange={(e) => {
-                  setWeekendDraft(e.target.value)
-                  updateConfig({ weekend_default_minutes: Math.round(parseHours(e.target.value) * 60) })
-                }}
-                aria-label="Horas padrão por dia de fim de semana"
-                className="w-14 border border-border-subtle bg-surface px-2 py-1 text-right text-sm text-text-primary tabular-nums outline-none focus:border-[color:var(--color-brown)]"
-              />
-              h
-            </label>
-          )}
         </div>
       </div>
 
@@ -360,7 +324,7 @@ export function PerformanceSimulator({ stats, cursor }) {
               </span>
             )
           } else if (weekend) {
-            const active = config.include_weekends || date in config.overrides
+            const active = date in config.overrides
             const draft = date in overrideDrafts ? overrideDrafts[date] : null
             const effective = model.weekendHoursFor(date)
             const shown = draft != null ? draft : effective > 0 ? String(effective) : ''
