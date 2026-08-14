@@ -17,6 +17,7 @@ export function asUser(user) {
     get: (url) => auth(request.get(url)),
     post: (url) => auth(request.post(url)),
     put: (url) => auth(request.put(url)),
+    patch: (url) => auth(request.patch(url)),
     delete: (url) => auth(request.delete(url)),
   }
 }

@@ -7,6 +7,7 @@ import { requireAdmin } from '../middleware/requireAdmin.js'
 import { resumoDoMes } from '../lib/agent/usageRepo.js'
 import { getBalance, BalanceIndisponivel } from '../lib/agent/deepseekBalance.js'
 import { precosConfigurados } from '../lib/agent/audit.js'
+import { listar, atualizarStatus, STATUS_VALIDOS } from '../lib/agent/featureRequestsRepo.js'
 
 const router = Router()
 
@@ -26,6 +27,28 @@ router.get('/agent/costs', requireAuth, requireAdmin, async (req, res) => {
       saldoIndisponivel,
       gasto: { moeda: 'USD', totalUsd: resumo.totalUsd, porDia: resumo.porDia, precosConfigurados: precosConfigurados() },
     })
+  } catch (err) {
+    return res.status(400).json({ error: err.message })
+  }
+})
+
+router.get('/agent/feature-requests', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    return res.json(await listar())
+  } catch (err) {
+    return res.status(400).json({ error: err.message })
+  }
+})
+
+router.patch('/agent/feature-requests/:id', requireAuth, requireAdmin, async (req, res) => {
+  const { status } = req.body || {}
+  if (!STATUS_VALIDOS.includes(status)) {
+    return res.status(400).json({ error: `status inválido; use um de: ${STATUS_VALIDOS.join(', ')}` })
+  }
+  try {
+    const row = await atualizarStatus(req.params.id, status)
+    if (!row) return res.status(404).json({ error: 'pedido não encontrado' })
+    return res.json(row)
   } catch (err) {
     return res.status(400).json({ error: err.message })
   }
