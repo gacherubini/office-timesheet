@@ -100,6 +100,15 @@ export async function runAgentTurn({ client, profile, model, messages, emit, con
           // Ex.: "nenhum apontamento aberto" — devolve ao modelo como erro de tool.
           messages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify({ error: err.message }) })
         }
+      } else if (tool.kind === 'meta') {
+        // Captura interna (ex.: registrar_pedido_nao_atendido): roda inline como
+        // leitura, mas não é agent_read nem pausa pra proposta.
+        try {
+          const result = await tool.run(profile, args)
+          messages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(result) })
+        } catch (err) {
+          messages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify({ error: err.message }) })
+        }
       } else {
         try {
           const result = await tool.run(profile, args)

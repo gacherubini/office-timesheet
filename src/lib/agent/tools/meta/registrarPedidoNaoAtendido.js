@@ -34,6 +34,8 @@ async function run(profile, args) {
 
 export default {
   kind: 'meta',
+  // espelha:null — não há endpoint equivalente; a captura é só via tool.
+  espelha: null,
   roles: ['admin', 'administrative_intern', 'project_manager', 'employee'],
   definition,
   run,

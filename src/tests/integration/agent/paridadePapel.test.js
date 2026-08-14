@@ -96,8 +96,10 @@ describe('paridade de papel: tool ↔ endpoint espelhado (§18)', () => {
     // O admin enxerga o catálogo inteiro, então é a régua da cobertura.
     const todas = buildRegistry({ role: 'admin' }).definitions.map((d) => d.function.name)
     const naTabela = new Set(CASOS.map((c) => c.tool.definition.function.name))
-    // consultar_dados tem espelha:null de propósito (§8.2) — não entra.
-    const faltando = todas.filter((n) => n !== 'consultar_dados' && !naTabela.has(n))
+    // consultar_dados e registrar_pedido_nao_atendido têm espelha:null de
+    // propósito — não há endpoint espelhado.
+    const semEspelho = new Set(['consultar_dados', 'registrar_pedido_nao_atendido'])
+    const faltando = todas.filter((n) => !semEspelho.has(n) && !naTabela.has(n))
     expect(faltando).toEqual([])
   })
 })
