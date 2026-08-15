@@ -25,14 +25,28 @@ export function truncarResultado(json, limite = Number(process.env.AGENT_MAX_TOO
   return `${json.slice(0, limite)}\n[…resultado cortado: ${json.length} caracteres no total, ${limite} entregues. Diga isso a quem perguntou e ofereça refinar o período ou os filtros para ver o resto.]`
 }
 
-export async function runAgentTurn({ client, profile, model, messages, emit, conversationId = null, signal }) {
+// Fallbacks legíveis para os dois becos sem-saída do turno. Ambos deixam o
+// histórico limpo (sem push de assistant vazio) — reenviar vazio faria o provedor
+// recusar a conversa inteira com 400. `now` é injetável para o teste do orçamento.
+const FALLBACK_VAZIO = 'Não consegui gerar uma resposta agora. Pode reformular a pergunta ou tentar de novo?'
+const FALLBACK_ORCAMENTO = 'Isso está levando mais tempo do que o esperado. Tenta de novo ou refina a pergunta (por exemplo, um período específico).'
+
+export async function runAgentTurn({ client, profile, model, messages, emit, conversationId = null, signal, now = Date.now }) {
   const registry = buildRegistry(profile)
   const usageTotal = { tokensIn: 0, tokensOut: 0, cached: 0 }
+  const inicio = now()
 
   for (let i = 0; i < LIMITS.maxIterations; i++) {
     // §2 desconexão: se o cliente sumiu (req.on('close')), para ANTES de gastar
     // outra chamada ao modelo — e nada é emitido para um socket já morto.
     if (signal?.aborted) return { status: 'aborted', messages, usage: usageTotal }
+
+    // §orçamento: estoura o relógio do turno inteiro antes de gastar mais uma
+    // chamada ao modelo. Responde o fallback e sai — histórico limpo, sem 400.
+    if (now() - inicio > LIMITS.turnBudgetMs) {
+      emit({ type: 'answer', text: FALLBACK_ORCAMENTO })
+      return { status: 'done', messages, usage: usageTotal }
+    }
 
     let message, usage
     try {
@@ -76,7 +90,7 @@ export async function runAgentTurn({ client, profile, model, messages, emit, con
       // responde com um fallback legível e deixa o histórico limpo (sem push).
       const conteudo = message.content || ''
       if (!conteudo) {
-        emit({ type: 'answer', text: 'Não consegui gerar uma resposta agora. Pode reformular a pergunta ou tentar de novo?' })
+        emit({ type: 'answer', text: FALLBACK_VAZIO })
         return { status: 'done', messages, usage: usageTotal }
       }
       messages.push(message)

@@ -64,9 +64,14 @@ function blocoIdentidade(profile) {
 Você está atendendo **${profile.name}**${cargo} (${papel}). A identidade já foi resolvida pelo login: as ferramentas de dado próprio (seus apontamentos, sua simulação de performance, suas férias) já se referem a esta pessoa. Quando ela disser "eu", "meu", "minhas horas", "lancei", é sempre ela mesma. NUNCA pergunte "quem é você" nem peça e-mail/usuário para identificá-la, e nunca liste o time só para descobrir quem está falando — isso já está resolvido.`
 }
 
-export function buildSystemPrompt(profile, now = new Date()) {
+// `esquema` é o mapa de tabelas/colunas do banco (schemaContext.esquemaAdmin) —
+// injetado, não importado, para o prompt seguir síncrono e puro e não acoplar ao
+// banco quem só quer montar texto. Só entra para admin: é a única fatia que
+// enxerga `consultar_dados` (§8.2). A rota busca e passa; testes passam direto.
+export function buildSystemPrompt(profile, now = new Date(), esquema = '') {
   const fatia = FATIA_POR_PAPEL[profile?.role] || 'employee'
   const identidade = blocoIdentidade(profile)
   const cabecalho = identidade ? `${identidade}\n\n` : ''
-  return `${cabecalho}${blocoData(now)}\n\n${REGRAS}\n\n${slice('core')}\n\n${slice(fatia)}`
+  const blocoEsquema = profile?.role === 'admin' && esquema ? `\n\n${esquema}` : ''
+  return `${cabecalho}${blocoData(now)}\n\n${REGRAS}\n\n${slice('core')}\n\n${slice(fatia)}${blocoEsquema}`
 }

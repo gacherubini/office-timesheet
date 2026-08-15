@@ -24,13 +24,17 @@ const definition = {
   },
 }
 
-// O erro do Postgres é detalhado demais para entrar na conversa: mensagem de
-// "column x does not exist ... perhaps you meant users.salary" transforma o chat
-// num oráculo de schema (§17). Fica no log; o modelo recebe o gênero do erro.
+// Erro do Postgres volta AO MODELO (não ao usuário) quando é recuperável — coluna
+// ou tabela errada, sintaxe: com o detalhe cru ("column x does not exist") o modelo
+// reescreve o SQL em vez de chutar de novo. Isto NÃO é o oráculo de schema do §17:
+// o modelo já recebe o esquema inteiro no prompt (schemaContext) e a tool é
+// admin-only; resultado de tool nunca chega ao usuário e as REGRAS proíbem repetir
+// SQL/coluna a ele. Permissão e timeout ficam genéricos — o texto cru não ajudaria
+// o modelo a se corrigir.
 function mensagemCurta(err) {
   if (err?.code === '57014') return 'a consulta demorou demais e foi cancelada; restrinja o período ou os filtros'
   if (err?.code === '42501') return 'sem permissão de leitura nessa tabela'
-  if (err?.code?.startsWith?.('42')) return 'a consulta não é válida para este banco; revise colunas e nomes de tabela'
+  if (err?.code?.startsWith?.('42') && err?.message) return err.message
   return 'não consegui executar a consulta'
 }
 

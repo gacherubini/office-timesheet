@@ -56,6 +56,13 @@ describe('prompt — regras + domínio fatiado', () => {
     expect(p).toMatch(/somente leitura|só leitura|SELECT/i)
   })
 
+  it('domínio do admin manda usar o esquema e ITERAR quando o SQL falha (antes de registrar pedido)', () => {
+    const p = buildSystemPrompt({ role: 'admin' })
+    expect(p).toMatch(/esquema real do banco/i)
+    expect(p).toMatch(/leia o erro e conserte|tente de novo|não desista no primeiro erro/i)
+    expect(p).toMatch(/registrar_pedido_nao_atendido/i) // o SQL vem ANTES de registrar
+  })
+
   it('domínio do colaborador NÃO menciona a consulta SQL', () => {
     const p = buildSystemPrompt({ role: 'employee' })
     expect(p).not.toMatch(/consultar_dados/i)
@@ -129,5 +136,26 @@ describe('system prompt', () => {
   it('instrui a registrar pedido não atendido antes de recusar', () => {
     const p = buildSystemPrompt({ role: 'employee' })
     expect(p).toContain('registrar_pedido_nao_atendido')
+  })
+})
+
+describe('prompt — injeção do esquema do banco (só admin)', () => {
+  const ESQUEMA = '# Esquema do banco (para consultar_dados)\n- **time_entries**: cost_snapshot numeric'
+
+  it('admin recebe o esquema injetado', () => {
+    const p = buildSystemPrompt({ role: 'admin' }, new Date(), ESQUEMA)
+    expect(p).toContain('cost_snapshot')
+    expect(p).toContain('# Esquema do banco (para consultar_dados)')
+  })
+
+  it('colaborador NÃO recebe o esquema, mesmo se passado', () => {
+    const p = buildSystemPrompt({ role: 'employee' }, new Date(), ESQUEMA)
+    expect(p).not.toContain('cost_snapshot')
+    expect(p).not.toContain('# Esquema do banco')
+  })
+
+  it('sem esquema, o admin prompt não injeta o bloco (compat.)', () => {
+    const p = buildSystemPrompt({ role: 'admin' })
+    expect(p).not.toContain('# Esquema do banco')
   })
 })

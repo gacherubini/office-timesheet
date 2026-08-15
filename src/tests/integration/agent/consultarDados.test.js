@@ -37,12 +37,16 @@ describe('tool consultar_dados (admin, SQL restrito)', () => {
     ).rejects.toThrow(/demorou demais|cancelada/i)
   }, 20000)
 
-  it('erro do banco chega resumido — sem revelar colunas do schema', async () => {
+  it('erro de coluna inexistente devolve o detalhe REAL ao modelo (para ele se corrigir)', async () => {
+    // Decisão revista (era §17 "erro genérico"): o modelo já recebe o esquema
+    // inteiro no prompt e a tool é admin-only, então devolver o erro cru AO MODELO
+    // deixa ele reescrever o SQL. O USUÁRIO nunca vê isto — é resultado de tool, não
+    // resposta, e as REGRAS proíbem repetir SQL/coluna a quem perguntou.
     const erro = await tool.run(admin, { sql: 'SELECT coluna_que_nao_existe FROM users' })
       .then(() => null, (e) => e)
     expect(erro).toBeTruthy()
     expect(erro.message).toMatch(/SQL falhou/i)
-    expect(erro.message).not.toMatch(/does not exist|perhaps you meant|password_hash/i)
+    expect(erro.message).toMatch(/coluna_que_nao_existe|does not exist/i)
   })
 
   it('CTE de leitura funciona ponta a ponta', async () => {

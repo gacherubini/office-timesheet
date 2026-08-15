@@ -4,6 +4,11 @@ export const LIMITS = {
   maxIterations: Number(process.env.AGENT_MAX_ITERATIONS) || 6,
   maxTokens: Number(process.env.AGENT_MAX_TOKENS) || 1024,
   timeoutMs: Number(process.env.AGENT_TIMEOUT_MS) || 30000,
+  // Teto de RELÓGIO do turno inteiro. maxIterations limita o nº de voltas, mas sem
+  // isto o pior caso é maxIterations × timeoutMs (6 × 30s = 180s) preso no usuário.
+  // Ao estourar, o laço para de chamar o modelo e cai num fallback legível. Folgado
+  // pra caber 3-4 correções de SQL (~3s cada) + a resposta; env-overridable.
+  turnBudgetMs: Number(process.env.AGENT_TURN_BUDGET_MS) || 45000,
 }
 
 export function withTimeout(promise, ms) {

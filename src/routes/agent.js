@@ -8,6 +8,7 @@ import { loadSession, saveTurn, appendExecutionNote } from '../lib/agent/session
 import { extractText, MAX_ATTACHMENT_BYTES } from '../lib/agent/attachments/extract.js'
 import { buildUserMessage } from '../lib/agent/attachments/context.js'
 import { buildSystemPrompt } from '../lib/agent/prompt.js'
+import { esquemaAdmin } from '../lib/agent/schemaContext.js'
 import { runAgentTurn } from '../lib/agent/loop.js'
 import { getClient } from '../lib/agent/client.js'
 import { takeProposal } from '../lib/agent/proposals.js'
@@ -157,9 +158,17 @@ router.post('/agent/chat', requireAuth, chatRateLimit, uploadAnexo, async (req, 
   // Monta o contexto: system (não persistido) + histórico do servidor + a msg nova.
   // Com anexo, o conteúdo do turno traz o bloco do arquivo (dado, não instrução)
   // antes da pergunta; sem anexo, é a própria mensagem.
+  // Esquema do banco só para admin (única fatia que vê consultar_dados). Best-
+  // effort: se o catálogo não vier (banco lento/fora), o chat segue sem o esquema
+  // em vez de dar 500 — degrada, não quebra.
+  let esquema = ''
+  if (req.profile.role === 'admin') {
+    esquema = await esquemaAdmin().catch(() => '')
+  }
+
   const novaMsg = { role: 'user', content: buildUserMessage({ message, attachment }) }
   const messages = [
-    { role: 'system', content: buildSystemPrompt(req.profile) },
+    { role: 'system', content: buildSystemPrompt(req.profile, new Date(), esquema) },
     ...session.messages,
     novaMsg,
   ]
