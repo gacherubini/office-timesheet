@@ -12,6 +12,7 @@ import { esquemaAdmin } from '../lib/agent/schemaContext.js'
 import { runAgentTurn } from '../lib/agent/loop.js'
 import { getClient } from '../lib/agent/client.js'
 import { takeProposal } from '../lib/agent/proposals.js'
+import { get as getDownload } from '../lib/agent/downloads.js'
 import { auditAgentAction, auditAgentCancel } from '../lib/agent/audit.js'
 import { logger } from '../lib/logger.js'
 import { rateLimit } from '../lib/rateLimit.js'
@@ -236,6 +237,16 @@ router.post('/agent/actions/:proposalId/cancel', requireAuth, async (req, res) =
   appendExecutionNote(proposal.conversationId, req.profile, nota)
   auditAgentCancel({ profile: req.profile, tool: proposal.kind, params: proposal.payload })
   return res.json({ ok: true })
+})
+
+// Download efêmero do relatório: JWT + dono. Sem kill switch e sem AGENT_API_KEY —
+// o arquivo já foi gerado; a chave do modelo não entra neste GET.
+router.get('/agent/downloads/:token', requireAuth, async (req, res) => {
+  const rec = getDownload(req.params.token, req.profile)
+  if (!rec) return res.status(404).json({ error: 'arquivo expirado ou indisponível' })
+  res.setHeader('Content-Type', rec.mime)
+  res.setHeader('Content-Disposition', `attachment; filename="${rec.filename}"`)
+  return res.send(rec.buffer)
 })
 
 export default router
