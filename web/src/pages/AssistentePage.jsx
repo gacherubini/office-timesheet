@@ -37,6 +37,9 @@ const ROTULOS = {
   reason: 'Motivo',
   motivo: 'Motivo',
   days_count: 'Dias',
+  valor: 'Valor',
+  data: 'Data',
+  comprovante: 'Comprovante',
 }
 const PRIORIDADES = {
   low: 'Baixa', medium: 'Média', normal: 'Normal', high: 'Alta', urgent: 'Urgente',
@@ -49,6 +52,9 @@ function prettify(chave) {
 
 function formatarValor(chave, valor) {
   if (valor == null || valor === '') return '—'
+  if (chave === 'valor' && typeof valor === 'number') {
+    return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+  }
   if (chave === 'prioridade') return PRIORIDADES[String(valor).toLowerCase()] ?? String(valor)
   if (typeof valor === 'string') {
     // Data pura (YYYY-MM-DD): monta local para não escorregar um dia no fuso.

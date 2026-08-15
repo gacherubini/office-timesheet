@@ -92,7 +92,7 @@ const NUDGE_VAZIO = {
 // ele esgota as voltas sem fechar.
 const FALLBACK_SEM_RESPOSTA = 'Não consegui chegar a uma resposta pra isso. Pode reformular com outras palavras — por exemplo, dizendo o período, o projeto ou a pessoa que você tem em mente?'
 
-export async function runAgentTurn({ client, profile, model, messages, emit, conversationId = null, signal, now = Date.now, context = null }) {
+export async function runAgentTurn({ client, profile, model, messages, emit, conversationId = null, signal, now = Date.now, context = null, anexoBruto = null }) {
   const registry = buildRegistry(profile)
   const usageTotal = { tokensIn: 0, tokensOut: 0, cached: 0 }
   const inicio = now()
@@ -203,10 +203,11 @@ export async function runAgentTurn({ client, profile, model, messages, emit, con
       }
       if (tool.kind === 'write') {
         try {
-          const { descricao, dados, kind, payload } = await tool.propose(profile, args)
+          const { descricao, dados, kind, payload, comprovanteBuffer, comprovanteMime, comprovanteNome } = await tool.propose(profile, args, { anexoBruto })
           // Guarda a sessão dona e a descrição na proposta: o execute vai
           // realimentar a sessão com o resultado depois de rodar de fato (§1).
-          const { proposalId } = createProposal({ profile, kind, payload, conversationId, descricao })
+          // Recibo de despesa via irmãos do payload (nunca dentro dele / Axiom).
+          const { proposalId } = createProposal({ profile, kind, payload, conversationId, descricao, comprovanteBuffer, comprovanteMime, comprovanteNome })
           emit({ type: 'proposal', proposalId, descricao, dados })
           // Fecha o histórico ANTES de pausar: todo tool_call do assistant precisa
           // de uma resposta role:'tool', senão o próximo turno reenvia ao provedor

@@ -14,13 +14,14 @@ import { runAgentTurn } from '../lib/agent/loop.js'
 import { getClient } from '../lib/agent/client.js'
 import { takeProposal } from '../lib/agent/proposals.js'
 import { get as getDownload } from '../lib/agent/downloads.js'
-import { auditAgentAction, auditAgentCancel } from '../lib/agent/audit.js'
+import { auditAgentAction, auditAgentCancel, sanitizarParamsAudit } from '../lib/agent/audit.js'
 import { logger } from '../lib/logger.js'
 import { rateLimit } from '../lib/rateLimit.js'
 import proporEncerrarApontamento from '../lib/agent/tools/write/proporEncerrarApontamento.js'
 import proporCriarApontamento from '../lib/agent/tools/write/proporCriarApontamento.js'
 import proporCriarTask from '../lib/agent/tools/write/proporCriarTask.js'
 import proporPedirFerias from '../lib/agent/tools/write/proporPedirFerias.js'
+import proporLancarDespesa from '../lib/agent/tools/write/proporLancarDespesa.js'
 import { coletarLinks } from '../lib/agent/coletarLinks.js'
 
 const router = Router()
@@ -31,6 +32,7 @@ const WRITE_TOOLS = {
   criar_apontamento: proporCriarApontamento,
   criar_task: proporCriarTask,
   pedir_ferias: proporPedirFerias,
+  lancar_despesa: proporLancarDespesa,
 }
 
 // §4 kill switch: desliga o agente por env, sem deploy. Default LIGADO — só
@@ -202,6 +204,7 @@ router.post('/agent/chat', requireAuth, chatRateLimit, uploadAnexo, async (req, 
     const { status, messages: full } = await runAgentTurn({
       client: getClient(), profile: req.profile, model: process.env.AGENT_MODEL, messages, emit,
       conversationId: session.id, signal: ac.signal, context: ctxTela,
+      anexoBruto: req.file ? { buffer: req.file.buffer, mimetype: req.file.mimetype, filename: req.file.originalname } : null,
     })
     // Persiste os turnos novos: tudo depois de system + histórico anterior.
     // Abort ≠ erro: emite aborted e nunca error. Bloco sujo não entra na sessão.
@@ -239,8 +242,18 @@ router.post('/agent/actions/:proposalId/execute', requireAuth, async (req, res) 
   if (!tool) return res.status(400).json({ error: 'Tipo de proposta desconhecido.' })
 
   try {
-    const { before, after } = await tool.execute(req.profile, proposal.payload)
-    auditAgentAction({ profile: req.profile, tool: proposal.kind, params: proposal.payload, before, after })
+    const { before, after } = await tool.execute(req.profile, proposal.payload, {
+      comprovanteBuffer: proposal.comprovanteBuffer,
+      comprovanteMime: proposal.comprovanteMime,
+    })
+    auditAgentAction({
+      profile: req.profile, tool: proposal.kind,
+      params: sanitizarParamsAudit(proposal.payload, {
+        comprovanteBuffer: proposal.comprovanteBuffer,
+        comprovanteNome: proposal.comprovanteNome,
+      }),
+      before, after,
+    })
     // §1/§10: SÓ AGORA, após a execução real, realimenta a sessão dona com uma
     // nota do que foi feito — para o próximo turno o modelo saber. No-op se a
     // sessão já expirou/sumiu.
@@ -265,7 +278,13 @@ router.post('/agent/actions/:proposalId/cancel', requireAuth, async (req, res) =
 
   const nota = `✗ Cancelado pelo usuário: ${proposal.descricao || 'ação proposta'}`
   appendExecutionNote(proposal.conversationId, req.profile, nota)
-  auditAgentCancel({ profile: req.profile, tool: proposal.kind, params: proposal.payload })
+  auditAgentCancel({
+    profile: req.profile, tool: proposal.kind,
+    params: sanitizarParamsAudit(proposal.payload, {
+      comprovanteBuffer: proposal.comprovanteBuffer,
+      comprovanteNome: proposal.comprovanteNome,
+    }),
+  })
   return res.json({ ok: true })
 })
 

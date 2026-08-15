@@ -53,4 +53,24 @@ describe('proposals — pendências em memória, uso único, TTL', () => {
     })
     expect(takeProposal(proposalId, { id: 1, role: 'admin' })).toMatchObject({ kind: 'criar_task' })
   })
+
+  it('guarda buffer como irmão; payload não tem comprovante; take devolve o mesmo Buffer', () => {
+    const buf = Buffer.from('%PDF-1.4')
+    const { proposalId } = createProposal({
+      profile: emp, kind: 'lancar_despesa',
+      payload: { title: 'Uber', amount: 10, expense_date: '2026-08-14', description: null },
+      comprovanteBuffer: buf, comprovanteMime: 'application/pdf', comprovanteNome: 'r.pdf',
+    })
+    const p = takeProposal(proposalId, emp)
+    expect(p.comprovanteBuffer).toBe(buf)
+    expect(p.comprovanteNome).toBe('r.pdf')
+    expect(p.payload.comprovanteBuffer).toBeUndefined()
+    expect(p.payload).not.toHaveProperty('comprovante')
+  })
+
+  it('sem buffer, os três vêm undefined', () => {
+    const { proposalId } = createProposal({ profile: emp, kind: 'lancar_despesa', payload: { title: 'x' } })
+    const p = takeProposal(proposalId, emp)
+    expect(p.comprovanteBuffer).toBeUndefined()
+  })
 })

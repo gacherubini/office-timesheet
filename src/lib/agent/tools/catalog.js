@@ -5,6 +5,7 @@ import proporEncerrarApontamento from './write/proporEncerrarApontamento.js'
 import proporCriarApontamento from './write/proporCriarApontamento.js'
 import proporCriarTask from './write/proporCriarTask.js'
 import proporPedirFerias from './write/proporPedirFerias.js'
+import proporLancarDespesa from './write/proporLancarDespesa.js'
 import custoPorProjeto from './read/custoPorProjeto.js'
 import cargaEquipe from './read/cargaEquipe.js'
 import quemNaoApontou from './read/quemNaoApontou.js'
@@ -24,7 +25,7 @@ import registrarPedidoNaoAtendido from './meta/registrarPedidoNaoAtendido.js'
 
 export const TODAS = [
   listarEquipe, proporEncerrarApontamento, proporCriarApontamento, proporCriarTask,
-  proporPedirFerias,
+  proporPedirFerias, proporLancarDespesa,
   custoPorProjeto, cargaEquipe, quemNaoApontou, tasksTravadas, feriasEConflitos,
   simulacaoPerformance, statusProjeto, andamentoDeProjeto,
   despesasDoPeriodo, apontamentosAbertos, aniversariantes,

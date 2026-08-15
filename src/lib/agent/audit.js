@@ -3,6 +3,21 @@
 // Axiom, e cada escrita deixa rastro de antes/depois.
 import { logger } from '../logger.js'
 
+// Recusa Buffer no payload (não vai pro Axiom) e troca o recibo por metadado.
+export function sanitizarParamsAudit(payload = {}, extras = {}) {
+  const limpo = {}
+  const fonte = payload && typeof payload === 'object' && !Buffer.isBuffer(payload) ? payload : {}
+  for (const [k, v] of Object.entries(fonte)) {
+    if (Buffer.isBuffer(v)) continue
+    limpo[k] = v
+  }
+  return {
+    ...limpo,
+    comprovante: !!extras.comprovanteBuffer,
+    comprovante_nome: extras.comprovanteNome,
+  }
+}
+
 export function auditAgentRead({ profile, tool, params, count }) {
   logger.info({ evt: 'agent_read', user_id: profile?.id, role: profile?.role, tool, params, count })
 }

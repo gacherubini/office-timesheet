@@ -27,6 +27,7 @@ import aniversariantes from '../../../lib/agent/tools/read/aniversariantes.js'
 import agendaDoPeriodo from '../../../lib/agent/tools/read/agendaDoPeriodo.js'
 import proporPedirFerias from '../../../lib/agent/tools/write/proporPedirFerias.js'
 import aprovacoesPendentes from '../../../lib/agent/tools/read/aprovacoesPendentes.js'
+import proporLancarDespesa from '../../../lib/agent/tools/write/proporLancarDespesa.js'
 
 const PAPEIS = ['admin', 'administrative_intern', 'project_manager', 'employee']
 
@@ -73,6 +74,10 @@ const CASOS = [
       asUser(u).get('/admin/expense-requests?status=pending'),
       asUser(u).get('/admin/vacation-requests?status=pending'),
     ],
+  },
+  {
+    tool: proporLancarDespesa,
+    chamar: (u) => [asUser(u).post('/me/expense-requests').send({ title: 'x', amount: 10, expense_date: '2026-08-14' })],
   },
 ]
 

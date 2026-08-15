@@ -5,6 +5,7 @@ import { requireAdmin } from '../middleware/requireAdmin.js'
 import { requireApprover } from '../middleware/requireApprover.js'
 import { query } from '../lib/db.js'
 import { uploadFile, deleteFile, extractKeyFromUrl } from '../lib/storage.js'
+import { parseExpensePayload } from '../lib/expenseRequests.js'
 
 const router = Router()
 
@@ -17,34 +18,6 @@ const upload = multer({
     else cb(new Error('Comprovante deve ser imagem ou PDF.'))
   },
 })
-
-function parseExpensePayload(body) {
-  const title = body.title?.trim()
-  const description = body.description?.trim() || null
-  const amount = Number(body.amount)
-  const expenseDate = body.expense_date
-
-  if (!title) {
-    return { error: 'Título é obrigatório.' }
-  }
-
-  if (!Number.isFinite(amount) || amount <= 0) {
-    return { error: 'Valor da despesa deve ser maior que zero.' }
-  }
-
-  if (!expenseDate || Number.isNaN(new Date(`${expenseDate}T00:00:00`).getTime())) {
-    return { error: 'Data da despesa inválida.' }
-  }
-
-  return {
-    data: {
-      title,
-      description,
-      amount: Number(amount.toFixed(2)),
-      expense_date: expenseDate,
-    },
-  }
-}
 
 async function enrichExpenseRequests(expenses) {
   const rows = expenses || []

@@ -6,3 +6,6 @@ Não há informação financeira disponível para você.
 
 Você pode consultar **tarefas travadas** (o que está preso no fluxo) e **férias**
 (quem está fora e conflitos de data). Não há informação financeira nem de custo.
+
+Você pode **propor lançar uma despesa sua** (valor, data, título; comprovante PDF
+opcional no mesmo turno). Sem comprovante é válido.
