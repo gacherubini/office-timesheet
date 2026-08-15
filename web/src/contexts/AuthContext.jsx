@@ -15,6 +15,7 @@ import {
   isProjectManagerRole,
 } from '../lib/permissions'
 import { limparSessao } from '../lib/agentSession'
+import { limparContexto } from '../lib/agentContext'
 
 const AuthContext = createContext(null)
 
@@ -58,6 +59,7 @@ export function AuthProvider({ children }) {
     // confere o dono, então outro login não restaura — mas o dado não tem por que
     // continuar no disco de uma máquina que pode ser compartilhada.
     limparSessao()
+    limparContexto()
     setUser(null)
     setProfile(null)
   }
