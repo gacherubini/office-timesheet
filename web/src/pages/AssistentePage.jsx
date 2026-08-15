@@ -6,17 +6,13 @@ import { streamChat, executeProposal, cancelProposal, downloadAgentFile } from '
 import { lerSessao, salvarSessao, limparSessao } from '../lib/agentSession'
 import { arquivosDaMensagem, anexarArquivo } from '../lib/agentFiles'
 import { hrefPermitido } from '../lib/agentLinks'
+import { aberturaDoPapel } from '../lib/agentOpening'
 import { BolhaMarkdown } from '../components/assistente/BolhaMarkdown'
 
 // ── Página do Assistente (tela cheia) ──────────────────────────────────────
 // Aposenta o widget flutuante: coluna central única, sem sidebar/histórico, a
 // conversa vive só na sessão atual. A lógica de streaming e do fluxo de
 // proposta (aprovar/cancelar) é a mesma que rodava no widget.
-const SUGESTOES = [
-  'Quantas horas lancei este mês?',
-  'Quais projetos estão ativos?',
-  'Quero pedir férias',
-]
 
 // Anexos que o bot sabe ler (texto puro). Imagem/escaneado fica de fora — é visão.
 const TIPOS_ACEITOS = [
@@ -164,6 +160,8 @@ export function AssistentePage() {
   const [ocupado, setOcupado] = useState(false)
   const [arquivo, setArquivo] = useState(null) // File anexado, ainda não enviado
   const [anexoErro, setAnexoErro] = useState(null)
+  const [sugestoes, setSugestoes] = useState([])
+  const abertura = aberturaDoPapel(profile?.role)
 
   const textareaRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -251,6 +249,7 @@ export function AssistentePage() {
           i === idxBot ? { ...msg, erro: e.error || 'Não consegui responder agora.' } : msg
         )))
       }
+      if (e.type === 'suggestions' && Array.isArray(e.items)) setSugestoes(e.items)
       if (deveRolar) requestAnimationFrame(rolarParaFim)
     }
   }
@@ -301,6 +300,7 @@ export function AssistentePage() {
     setInput('')
     setArquivo(null)
     setAnexoErro(null)
+    setSugestoes([])
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
     const ac = new AbortController()
     abortRef.current = ac
@@ -380,6 +380,7 @@ export function AssistentePage() {
     setInput('')
     setArquivo(null)
     setAnexoErro(null)
+    setSugestoes([])
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
     textareaRef.current?.focus()
   }
@@ -498,18 +499,19 @@ export function AssistentePage() {
               )}
             </h2>
             <p className="mt-3 text-base leading-relaxed text-text-secondary">
-              Como posso ajudar? Toda alteração passa por você antes de valer.
+              {abertura.subtitulo}
             </p>
 
             <div className="mt-8 text-left">{renderComposer()}</div>
 
             <div className="mt-5 flex flex-wrap justify-center gap-2.5">
-              {SUGESTOES.map((s) => (
+              {abertura.chips.map((s) => (
                 <button
                   key={s}
                   type="button"
                   onClick={() => enviar(s)}
-                  className="rounded-full border border-border-subtle bg-surface px-4 py-2 text-[13px] text-text-primary transition-colors hover:bg-surface-alt"
+                  disabled={ocupado}
+                  className="rounded-full border border-border-subtle bg-surface px-4 py-2 text-[13px] text-text-primary transition-colors hover:bg-surface-alt disabled:opacity-40"
                 >
                   {s}
                 </button>
@@ -696,6 +698,20 @@ export function AssistentePage() {
           {/* Composer fixo no rodapé */}
           <div className="flex-none border-t border-border-subtle bg-surface">
             <div className="mx-auto w-full max-w-[46rem] px-4 py-4 md:px-6">
+              {sugestoes.length > 0 && !ocupado && (
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {sugestoes.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => enviar(s)}
+                      className="rounded-full border border-border-subtle bg-surface px-3 py-1.5 text-[13px] text-text-primary transition-colors hover:bg-surface-alt"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
               {renderComposer()}
             </div>
           </div>

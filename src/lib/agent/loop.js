@@ -7,6 +7,49 @@ import { auditAgentRead, logUsage, logTokenRevoke, logTurnAborted } from './audi
 import * as usageRepo from './usageRepo.js'
 import { LIMITS, withTimeout } from './guards.js'
 import { isAbortError } from './client.js'
+import { sugerirProximos } from './suggestions.js'
+
+function lastToolsDesteTurno(messages) {
+  let lastUser = -1
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === 'user') {
+      lastUser = i
+      break
+    }
+  }
+  let names = []
+  for (let i = lastUser + 1; i < messages.length; i++) {
+    const calls = messages[i]?.tool_calls
+    if (messages[i]?.role === 'assistant' && Array.isArray(calls) && calls.length) {
+      names = calls.map((c) => c.function?.name).filter(Boolean)
+    }
+  }
+  return names
+}
+
+function ultimaMensagemUsuarioDe(messages) {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role !== 'user') continue
+    const c = String(messages[i].content || '')
+    if (!c.includes('<<<ANEXO>>>')) return c.trim()
+    const fim = c.lastIndexOf('<<<FIM ANEXO>>>')
+    const visivel = fim >= 0 ? c.slice(fim + '<<<FIM ANEXO>>>'.length) : c
+    return visivel.replace(/^\s+/, '').trim()
+  }
+  return ''
+}
+
+function emitirAnswer(emit, text, { profile, messages }) {
+  emit({ type: 'answer', text })
+  const items = sugerirProximos({
+    profile,
+    context: null,
+    lastTools: lastToolsDesteTurno(messages),
+    lastKind: 'answer',
+    ultimaMensagemUsuario: ultimaMensagemUsuarioDe(messages),
+  })
+  if (items.length) emit({ type: 'suggestions', items })
+}
 
 function parseArgs(raw) {
   try { return raw ? JSON.parse(raw) : {} } catch { return {} }
@@ -64,7 +107,7 @@ export async function runAgentTurn({ client, profile, model, messages, emit, con
     // §orçamento: estoura o relógio do turno inteiro antes de gastar mais uma
     // chamada ao modelo. Responde o fallback e sai — histórico limpo, sem 400.
     if (now() - inicio > LIMITS.turnBudgetMs) {
-      emit({ type: 'answer', text: FALLBACK_ORCAMENTO })
+      emitirAnswer(emit, FALLBACK_ORCAMENTO, { profile, messages })
       return { status: 'done', messages, usage: usageTotal }
     }
 
@@ -142,11 +185,11 @@ export async function runAgentTurn({ client, profile, model, messages, emit, con
           incluirNudge = true
           continue
         }
-        emit({ type: 'answer', text: FALLBACK_VAZIO })
+        emitirAnswer(emit, FALLBACK_VAZIO, { profile, messages })
         return { status: 'done', messages, usage: usageTotal }
       }
       messages.push(message)
-      emit({ type: 'answer', text: conteudo })
+      emitirAnswer(emit, conteudo, { profile, messages })
       return { status: 'done', messages, usage: usageTotal }
     }
     messages.push(message)
@@ -215,6 +258,6 @@ export async function runAgentTurn({ client, profile, model, messages, emit, con
   // Esgotou as voltas sem uma resposta final: degrada para um convite a
   // reformular em vez de lançar erro cru. Histórico já está bem-formado (cada
   // volta fechou seus tool_calls), então é reenviável sem 400.
-  emit({ type: 'answer', text: FALLBACK_SEM_RESPOSTA })
+  emitirAnswer(emit, FALLBACK_SEM_RESPOSTA, { profile, messages })
   return { status: 'done', messages, usage: usageTotal }
 }
