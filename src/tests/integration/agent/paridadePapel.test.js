@@ -100,7 +100,7 @@ describe('paridade de papel: tool ↔ endpoint espelhado (§18)', () => {
     const naTabela = new Set(CASOS.map((c) => c.tool.definition.function.name))
     // consultar_dados e registrar_pedido_nao_atendido têm espelha:null de
     // propósito — não há endpoint espelhado.
-    const semEspelho = new Set(['consultar_dados', 'registrar_pedido_nao_atendido'])
+    const semEspelho = new Set(['consultar_dados', 'registrar_pedido_nao_atendido', 'gerar_relatorio'])
     const faltando = todas.filter((n) => !semEspelho.has(n) && !naTabela.has(n))
     expect(faltando).toEqual([])
   })

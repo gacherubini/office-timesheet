@@ -50,3 +50,11 @@ export function logUsage({ profile, model, tokensIn = 0, tokensOut = 0, cached =
     status, ...(erro ? { erro } : {}),
   })
 }
+
+// Só metadado do arquivo gerado — sem buffer, sem conteúdo.
+export function logReportGenerated({ profile, formato, fontes, bytes, filename }) {
+  logger.info({
+    evt: 'agent_report_generated',
+    user_id: profile?.id, formato, fontes, bytes, filename,
+  })
+}

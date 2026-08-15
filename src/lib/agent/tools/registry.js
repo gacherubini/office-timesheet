@@ -1,36 +1,7 @@
 // Catálogo de tools filtrado por papel ANTES de montar o prompt (§8). O
 // colaborador não recebe nem a definição da tool que não pode usar — assim o
 // modelo não tenta, não falha e não revela o mapa.
-import listarEquipe from './read/listarEquipe.js'
-import proporEncerrarApontamento from './write/proporEncerrarApontamento.js'
-import proporCriarApontamento from './write/proporCriarApontamento.js'
-import proporCriarTask from './write/proporCriarTask.js'
-import proporPedirFerias from './write/proporPedirFerias.js'
-import custoPorProjeto from './read/custoPorProjeto.js'
-import cargaEquipe from './read/cargaEquipe.js'
-import quemNaoApontou from './read/quemNaoApontou.js'
-import tasksTravadas from './read/tasksTravadas.js'
-import feriasEConflitos from './read/feriasEConflitos.js'
-import simulacaoPerformance from './read/simulacaoPerformance.js'
-import statusProjeto from './read/statusProjeto.js'
-import andamentoDeProjeto from './read/andamentoDeProjeto.js'
-import despesasDoPeriodo from './read/despesasDoPeriodo.js'
-import apontamentosAbertos from './read/apontamentosAbertos.js'
-import aniversariantes from './read/aniversariantes.js'
-import agendaDoPeriodo from './read/agendaDoPeriodo.js'
-import consultarDados from './sql/consultarDados.js'
-import registrarPedidoNaoAtendido from './meta/registrarPedidoNaoAtendido.js'
-
-const TODAS = [
-  listarEquipe, proporEncerrarApontamento, proporCriarApontamento, proporCriarTask,
-  proporPedirFerias,
-  custoPorProjeto, cargaEquipe, quemNaoApontou, tasksTravadas, feriasEConflitos,
-  simulacaoPerformance, statusProjeto, andamentoDeProjeto,
-  despesasDoPeriodo, apontamentosAbertos, aniversariantes,
-  agendaDoPeriodo,
-  consultarDados,
-  registrarPedidoNaoAtendido,
-]
+import { TODAS } from './catalog.js'
 
 export function buildRegistry(profile) {
   const disponiveis = TODAS.filter((t) => t.roles.includes(profile.role))

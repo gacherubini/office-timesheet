@@ -75,6 +75,20 @@ describe('registry — consultar_dados é admin-only (M5)', () => {
   })
 })
 
+describe('registry — gerar_relatorio é admin-only', () => {
+  it('admin recebe gerar_relatorio', () => {
+    const nomes = buildRegistry({ role: 'admin' }).definitions.map((d) => d.function.name)
+    expect(nomes).toContain('gerar_relatorio')
+  })
+
+  it('nenhum papel não-admin recebe gerar_relatorio', () => {
+    for (const role of ['employee', 'project_manager', 'administrative_intern']) {
+      const nomes = buildRegistry({ role }).definitions.map((d) => d.function.name)
+      expect(nomes).not.toContain('gerar_relatorio')
+    }
+  })
+})
+
 describe('registry — despesas_do_periodo (admin + estagiário)', () => {
   it('admin e estagiário recebem; gestor e colaborador não', () => {
     for (const role of ['admin', 'administrative_intern']) {

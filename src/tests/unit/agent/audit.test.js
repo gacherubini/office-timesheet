@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { auditAgentAction, logUsage } from '../../../lib/agent/audit.js'
+import { auditAgentAction, logUsage, logReportGenerated } from '../../../lib/agent/audit.js'
 import { testSink, clearTestSink } from '../../../lib/logger.js'
 
 const find = (evt) => [...testSink].reverse().find((l) => l.evt === evt)
@@ -43,6 +43,24 @@ describe('audit', () => {
     const log = find('agent_usage')
     expect(log.tokens_in).toBe(1_000_000)
     expect(log.custo).toBeNull()
+  })
+
+  it('logReportGenerated registra metadado sem o buffer', () => {
+    logReportGenerated({
+      profile: { id: 9, role: 'admin' },
+      formato: 'xlsx',
+      fontes: ['quem_nao_apontou'],
+      bytes: 1234,
+      filename: 'semana-2026-08-15.xlsx',
+    })
+    const log = find('agent_report_generated')
+    expect(log).toBeDefined()
+    expect(log.user_id).toBe(9)
+    expect(log.formato).toBe('xlsx')
+    expect(log.fontes).toEqual(['quem_nao_apontou'])
+    expect(log.bytes).toBe(1234)
+    expect(log.filename).toBe('semana-2026-08-15.xlsx')
+    expect(log.buffer).toBeUndefined()
   })
 
   it('preço parcial já basta para calcular (o que falta conta como zero)', () => {
