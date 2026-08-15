@@ -146,6 +146,10 @@ export async function runAgentTurn({ client, profile, model, messages, emit, con
       } else {
         try {
           const result = await tool.run(profile, args)
+          if (result.arquivo) {
+            const { token, filename, mime, bytes } = result.arquivo
+            emit({ type: 'file', token, filename, mime, bytes })
+          }
           auditAgentRead({ profile, tool: call.function.name, params: args, count: result.count })
           messages.push({ role: 'tool', tool_call_id: call.id, content: truncarResultado(JSON.stringify(result.data)) })
         } catch (err) {

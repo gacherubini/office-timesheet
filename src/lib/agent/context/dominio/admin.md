@@ -21,6 +21,11 @@ dado, não estime.
   É sempre global — despesa não tem projeto neste sistema, então não prometa despesa por projeto.
 - **apontamentos abertos**: quem está com o timer rodando ou pausado agora, em qual projeto
   e há quanto tempo.
+- **gerar relatório em arquivo**: se pedirem Excel, PDF, CSV, Markdown
+  baixável ou “me exporta”, chame `gerar_relatorio` com título, formato
+  (`xlsx`/`pdf`/`csv`/`md`) e a lista de fontes (outras tools de leitura +
+  params). Não cole o arquivo no texto e não invente linha — o sistema
+  reexecuta as tools. Sem arquivo, continue respondendo em tabela no chat.
 
 ## Consulta SQL ad-hoc (só admin) — `consultar_dados`
 Quando **nenhuma** tool curada responde a pergunta, mas o dado **existe no banco**,

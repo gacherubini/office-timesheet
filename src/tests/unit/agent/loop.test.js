@@ -99,4 +99,29 @@ describe('loop — tool-calling agnóstico', () => {
     expect(prop.descricao).toMatch(/Encerrar apontamento/)
     spy.mockRestore()
   })
+
+  it('tool de leitura com arquivo emite evento file e não coloca o token no histórico do modelo', async () => {
+    const rel = await import('../../../lib/agent/tools/read/gerarRelatorio.js')
+    const spy = vi.spyOn(rel.default, 'run').mockResolvedValue({
+      data: { ok: true, filename: 'x.csv', formato: 'csv', secoes: [{ fonte: 'quem_nao_apontou', linhas: 1 }] },
+      count: 1,
+      arquivo: { token: 'tok-secreto', filename: 'x.csv', mime: 'text/csv', bytes: 12 },
+    })
+    const eventos = []
+    const client = fakeClient([
+      { message: { role: 'assistant', tool_calls: [{ id: 'c1', type: 'function', function: { name: 'gerar_relatorio', arguments: '{"titulo":"X","formato":"csv","fontes":[{"tool":"quem_nao_apontou","params":{"periodo":"hoje"}}]}' } }] } },
+      { message: { role: 'assistant', content: 'gerei o csv' } },
+    ])
+    const { messages } = await runAgentTurn({
+      client, profile: admin, model: 'x',
+      messages: [{ role: 'user', content: 'me tira um csv' }],
+      emit: (e) => eventos.push(e),
+    })
+    const fileEvt = eventos.find((e) => e.type === 'file')
+    expect(fileEvt).toMatchObject({ token: 'tok-secreto', filename: 'x.csv', mime: 'text/csv', bytes: 12 })
+    const toolMsg = messages.find((m) => m.role === 'tool')
+    expect(toolMsg.content).not.toContain('tok-secreto')
+    expect(toolMsg.content).toContain('x.csv')
+    spy.mockRestore()
+  })
 })
