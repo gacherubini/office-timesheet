@@ -150,8 +150,14 @@ export async function runAgentTurn({ client, profile, model, messages, emit, con
             const { token, filename, mime, bytes } = result.arquivo
             emit({ type: 'file', token, filename, mime, bytes })
           }
+          const payload = { data: result.data }
+          if (result.conectado !== undefined) payload.conectado = result.conectado
+          if (result.calendar_error !== undefined) payload.calendar_error = result.calendar_error
           auditAgentRead({ profile, tool: call.function.name, params: args, count: result.count })
-          messages.push({ role: 'tool', tool_call_id: call.id, content: truncarResultado(JSON.stringify(result.data)) })
+          const body = (result.conectado !== undefined || result.calendar_error !== undefined)
+            ? payload
+            : result.data
+          messages.push({ role: 'tool', tool_call_id: call.id, content: truncarResultado(JSON.stringify(body)) })
         } catch (err) {
           messages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify({ error: err.message }) })
         }

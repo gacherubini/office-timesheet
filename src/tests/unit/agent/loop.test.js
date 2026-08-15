@@ -124,4 +124,27 @@ describe('loop — tool-calling agnóstico', () => {
     expect(toolMsg.content).toContain('x.csv')
     spy.mockRestore()
   })
+
+  it('agenda_do_periodo envia conectado e calendar_error no role tool sem arquivo', async () => {
+    const agenda = await import('../../../lib/agent/tools/read/agendaDoPeriodo.js')
+    const spy = vi.spyOn(agenda.default, 'run').mockResolvedValue({
+      data: [], count: 0, conectado: false, calendar_error: true,
+    })
+    const eventos = []
+    const client = fakeClient([
+      { message: { role: 'assistant', tool_calls: [{ id: 'c1', type: 'function', function: { name: 'agenda_do_periodo', arguments: '{}' } }] } },
+      { message: { role: 'assistant', content: 'sua agenda não está ligada' } },
+    ])
+    const { messages } = await runAgentTurn({
+      client, profile: admin, model: 'x',
+      messages: [{ role: 'user', content: 'o que tenho hoje?' }],
+      emit: (e) => eventos.push(e),
+    })
+    const toolMsg = messages.find((m) => m.role === 'tool')
+    expect(toolMsg.content).toContain('"conectado":false')
+    expect(toolMsg.content).toContain('"calendar_error":true')
+    expect(toolMsg.content).not.toContain('arquivo')
+    expect(eventos.some((e) => e.type === 'file')).toBe(false)
+    spy.mockRestore()
+  })
 })
