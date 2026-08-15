@@ -136,8 +136,14 @@ O cérebro do bot. Onde mora o risco e o valor. Detalhe técnico no arquivo de d
   leitura); se precisar escrever, **enfileira uma proposta** para aprovação posterior. Só no
   site.
 - **Google Calendar**: agendar reuniões (OAuth próprio, projeto no Google Cloud).
+  *(2026-08-15: a primeira fatia implementada é **leitura** do iCal já ligado
+  no perfil — paridade com a Agenda — em
+  `2026-08-15-agente-calendar-e-relatorios-design.md`. OAuth/escrever reunião
+  continua backlog.)*
 - **Relatórios**: geração a partir do que o bot descobrir → markdown no chat, depois PDF no
   Tigris.
+  *(2026-08-15: a primeira fatia é arquivo temporário no chat — CSV/XLSX/PDF/MD,
+  sem Tigris — no mesmo spec acima.)*
 - **Alertas proativos**: "apontamento aberto há 12h", "3 projetos no vermelho".
 - Provisão de bônus, leitura de briefings em PDF, memória de preferências, exportações.
 - **Conversas persistidas, "como o ChatGPT"** *(2026-08-08)*: lista de conversas anteriores,
@@ -411,7 +417,9 @@ coerente com a política de privacidade atual (identificação por `user_id`).
 - [x] ~~Margem na Fase 1~~ — **decidido em 2026-08-08**: receita e margem saem da fase;
       entra custo por projeto (§4).
 - [x] ~~Teto de gasto por usuário~~ — **decidido em 2026-08-08**: sem trava; consumo no log
-      e alertas no Axiom (§11 e §19.1 do design).
+      e alertas no Axiom (§11 e §19.1 do design). *(2026-08-14: a seção admin de custo/crédito
+      e a tabela `agent_usage` persistida — observabilidade para o dono, não bloqueio — estão
+      em `2026-08-14-agente-custos-e-pedidos-design.md`.)*
 - [x] ~~Escolha do modelo~~ — **decidido em 2026-08-08**: DeepSeek V4 Pro, modelo único,
       roteamento fora da Fase 1 (§5 e §4.1 do design).
 
@@ -428,7 +436,10 @@ coerente com a política de privacidade atual (identificação por `user_id`).
       streaming direto do `POST /agent/chat` (§14), propostas em `Map` com TTL (§16) e
       primeira fatia em **esqueleto andante** (vertical fino ponta a ponta).
 - [ ] Gerar o **plano de implementação da Fase 1** (skill writing-plans) — *em andamento*.
-- [ ] Fases 2 e 3 ganham spec + plano próprios quando chegarmos nelas (evitar planejar
-      cedo demais — dependem do aprendizado do núcleo).
+- [x] Primeira fatia da Fase 2 (Calendar leitura + relatório em arquivo) — spec em
+      `2026-08-15-agente-calendar-e-relatorios-design.md` (2026-08-15).
+- [ ] Resto da Fase 2 (OAuth/escrever no Calendar, rotinas, alertas, conversas
+      persistidas, Tigris) e Fase 3 (WhatsApp) ganham spec + plano próprios quando
+      chegarmos nelas.
 - [ ] Confirmar linha a linha o recorte de `expenses`, mapeado só pelo guard do endpoint
       (§2.1), quando a tool correspondente for escrita.
