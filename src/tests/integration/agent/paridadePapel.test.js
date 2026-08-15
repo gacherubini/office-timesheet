@@ -24,6 +24,7 @@ import proporCriarTask from '../../../lib/agent/tools/write/proporCriarTask.js'
 import despesasDoPeriodo from '../../../lib/agent/tools/read/despesasDoPeriodo.js'
 import apontamentosAbertos from '../../../lib/agent/tools/read/apontamentosAbertos.js'
 import aniversariantes from '../../../lib/agent/tools/read/aniversariantes.js'
+import agendaDoPeriodo from '../../../lib/agent/tools/read/agendaDoPeriodo.js'
 import proporPedirFerias from '../../../lib/agent/tools/write/proporPedirFerias.js'
 
 const PAPEIS = ['admin', 'administrative_intern', 'project_manager', 'employee']
@@ -60,6 +61,7 @@ const CASOS = [
   { tool: despesasDoPeriodo, chamar: (u) => [asUser(u).get('/admin/expense-requests')] },
   { tool: apontamentosAbertos, chamar: (u) => [asUser(u).get('/admin/live')] },
   { tool: aniversariantes, chamar: (u) => [asUser(u).get('/me/team-birthdays')] },
+  { tool: agendaDoPeriodo, chamar: (u) => [asUser(u).get('/me/calendar/events?start=2026-08-01&end=2026-08-07')] },
   {
     tool: proporPedirFerias,
     chamar: (u) => [asUser(u).post('/me/vacation-requests').send({ start_date: '2030-01-10', end_date: '2030-01-12' })],
