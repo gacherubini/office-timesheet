@@ -51,6 +51,14 @@ export function logUsage({ profile, model, tokensIn = 0, tokensOut = 0, cached =
   })
 }
 
+export function logTokenRevoke({ profile, conversationId }) {
+  logger.info({ evt: 'agent_token_revoke', user_id: profile?.id, conversation_id: conversationId })
+}
+
+export function logTurnAborted({ profile, conversationId, tinhaResposta }) {
+  logger.info({ evt: 'agent_turn_aborted', user_id: profile?.id, conversation_id: conversationId, tinha_resposta: !!tinhaResposta })
+}
+
 // Só metadado do arquivo gerado — sem buffer, sem conteúdo.
 export function logReportGenerated({ profile, formato, fontes, bytes, filename }) {
   logger.info({

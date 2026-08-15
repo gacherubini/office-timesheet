@@ -3,12 +3,17 @@
 // executa tools de leitura e PAUSA numa tool de escrita, emitindo a proposta.
 import { buildRegistry } from './tools/registry.js'
 import { createProposal } from './proposals.js'
-import { auditAgentRead, logUsage } from './audit.js'
+import { auditAgentRead, logUsage, logTokenRevoke, logTurnAborted } from './audit.js'
 import * as usageRepo from './usageRepo.js'
 import { LIMITS, withTimeout } from './guards.js'
+import { isAbortError } from './client.js'
 
 function parseArgs(raw) {
   try { return raw ? JSON.parse(raw) : {} } catch { return {} }
+}
+
+function pinturaLigada() {
+  return (process.env.AGENT_STREAM_PAINT || 'false') === 'true'
 }
 
 // Teto de tamanho do resultado de tool que entra no histórico. MAX_TURNS conta
@@ -66,19 +71,41 @@ export async function runAgentTurn({ client, profile, model, messages, emit, con
     let message, usage
     const paraModelo = incluirNudge ? [...messages, NUDGE_VAZIO] : messages
     incluirNudge = false
+    let modo = null // null | 'tools' | 'answer'
+    const onDelta = (d) => {
+      if (!d || d.reasoning) return
+      if (d.toolCall) {
+        if (modo === 'answer') {
+          emit({ type: 'token_revoke' })
+          logTokenRevoke({ profile, conversationId })
+        }
+        modo = 'tools'
+        return
+      }
+      if (d.content) {
+        if (modo === 'tools') return
+        if (!modo) modo = 'answer'
+        if (modo === 'answer' && pinturaLigada()) emit({ type: 'token', text: d.content })
+      }
+    }
     try {
+      // Classificador de delta (§6.1): reasoning ignora; o primeiro delta útil
+      // trava o modo em 'answer' ou 'tools'; content depois de tools é silêncio;
+      // toolCall depois de answer emite token_revoke. A pintura (evento `token`)
+      // fica atrás de AGENT_STREAM_PAINT — default off — porque o primeiro delta
+      // PODE não delatar (raciocínio misturado em content; tool_calls só no fim).
+      // `answer` da iteração sem tool_calls continua canônico.
       ;({ message, usage } = await withTimeout(
-        // O raciocínio que o modelo escreve junto das tool calls NÃO vai pro
-        // cliente. Streamamos para dentro (o cliente acumula em message.content),
-        // mas só a resposta final — a iteração SEM tool_calls — é emitida, como um
-        // evento 'answer' inteiro (mais abaixo). Com este modelo é impossível saber,
-        // no meio do stream, se o texto que chega é raciocínio ou resposta (o sinal
-        // tool_calls só aparece no fim da iteração); por isso a resposta não sai
-        // token-a-token e o indicador "Pensando…" cobre toda a espera.
-        client.stream({ messages: paraModelo, tools: registry.definitions, model }, () => {}),
+        client.stream({ messages: paraModelo, tools: registry.definitions, model }, onDelta, { signal }),
         LIMITS.timeoutMs,
       ))
     } catch (err) {
+      if (isAbortError(err, signal)) {
+        logUsage({ profile, model, status: 'aborted', erro: err?.message })
+        await usageRepo.insert({ profile, model, status: 'aborted' })
+        logTurnAborted({ profile, conversationId, tinhaResposta: false })
+        return { status: 'aborted', messages, usage: usageTotal }
+      }
       // §18/§19.1: custo e tentativa precisam aparecer no log inclusive quando a
       // chamada estoura timeout ou erra — não só no caminho feliz. Registra o
       // evento de falha e repropaga (a rota emite o erro ao cliente).
