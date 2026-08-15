@@ -178,7 +178,10 @@ router.post('/agent/chat', requireAuth, chatRateLimit, uploadAnexo, async (req, 
   }
   const project_id = rawCtx?.project_id || req.body?.project_id
   const task_id = rawCtx?.task_id || req.body?.task_id
+  // Best-effort: lookup depois do SSE aberto. Se o banco cair, segue cego —
+  // mesmo espírito do esquemaAdmin().catch, sem 500 no stream.
   const ctxTela = await validarContexto(req.profile, { project_id, task_id })
+    .catch(() => ({ projeto: null, tarefa: null }))
 
   const novaMsg = { role: 'user', content: buildUserMessage({ message, attachment }) }
   const messages = [
