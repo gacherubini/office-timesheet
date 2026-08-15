@@ -169,4 +169,27 @@ describe('POST /agent/chat + execute', () => {
     expect(exec.status).toBe(200)
     expect(exec.body.resultado.status).toBe('pending')
   })
+
+  it('AbortError no create: SSE tem aborted, não tem error, sessão sem bloco órfão', async () => {
+    const err = new Error('aborted')
+    err.name = 'AbortError'
+    setClient({ async stream() { throw err } })
+    const res = await asUser(emp).post('/agent/chat').send({ message: 'oi' })
+    const eventos = await readSse(res)
+    expect(eventos.some((e) => e.type === 'aborted')).toBe(true)
+    expect(eventos.some((e) => e.type === 'error')).toBe(false)
+    const sid = eventos.find((e) => e.type === 'session').conversation_id
+    // segundo turno com client ok: o histórico reenviado NÃO tem tool_calls órfãos
+    setClient(fakeClientOnce({ role: 'assistant', content: 'ok' }))
+    const res2 = await asUser(emp).post('/agent/chat').send({ message: 'de novo', conversation_id: sid })
+    expect(res2.status).toBe(200)
+  })
+
+  it('paint off: turno sem tools emite answer e zero token', async () => {
+    delete process.env.AGENT_STREAM_PAINT
+    setClient(fakeClientOnce({ role: 'assistant', content: 'Olá!' }, 'Olá!'))
+    const eventos = await readSse(await asUser(emp).post('/agent/chat').send({ message: 'oi' }))
+    expect(eventos.filter((e) => e.type === 'token')).toEqual([])
+    expect(eventos.some((e) => e.type === 'answer' && e.text.includes('Olá'))).toBe(true)
+  })
 })

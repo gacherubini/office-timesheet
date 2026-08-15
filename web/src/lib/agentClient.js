@@ -44,10 +44,10 @@ export async function readErrorMessage(res, fallback = 'Falha ao falar com o age
   return fallback
 }
 
-export async function streamChat({ message, conversationId, file, onEvent }) {
+export async function streamChat({ message, conversationId, file, signal, onEvent }) {
   const token = localStorage.getItem('access_token')
   const { headers, body } = buildChatRequest({ message, conversationId, file, token })
-  const res = await fetch(`${BASE_URL}/agent/chat`, { method: 'POST', headers, body })
+  const res = await fetch(`${BASE_URL}/agent/chat`, { method: 'POST', headers, body, signal })
   if (!res.ok || !res.body) throw new Error(await readErrorMessage(res))
 
   const reader = res.body.getReader()

@@ -4,7 +4,7 @@
 import { Router } from 'express'
 import multer from 'multer'
 import { requireAuth } from '../middleware/auth.js'
-import { loadSession, saveTurn, appendExecutionNote } from '../lib/agent/session.js'
+import { loadSession, saveTurn, appendExecutionNote, turnoPersistivel } from '../lib/agent/session.js'
 import { extractText, MAX_ATTACHMENT_BYTES } from '../lib/agent/attachments/extract.js'
 import { buildUserMessage } from '../lib/agent/attachments/context.js'
 import { buildSystemPrompt } from '../lib/agent/prompt.js'
@@ -180,9 +180,15 @@ router.post('/agent/chat', requireAuth, chatRateLimit, uploadAnexo, async (req, 
       conversationId: session.id, signal: ac.signal,
     })
     // Persiste os turnos novos: tudo depois de system + histórico anterior.
+    // Abort ≠ erro: emite aborted e nunca error. Bloco sujo não entra na sessão.
     const novos = full.slice(1 + session.messages.length)
-    saveTurn(session.id, req.profile, novos)
-    emit({ type: 'done', status })
+    if (status === 'aborted') {
+      if (turnoPersistivel(novos)) saveTurn(session.id, req.profile, novos)
+      emit({ type: 'aborted' })
+    } else {
+      if (turnoPersistivel(novos)) saveTurn(session.id, req.profile, novos)
+      emit({ type: 'done', status })
+    }
   } catch (err) {
     // §17: só chega aqui falha de infra (provedor caiu, timeout, payload 400).
     // O jargão cru ("…após 3 tentativa(s): 400 Invalid assistant message…")

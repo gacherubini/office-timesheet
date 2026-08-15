@@ -14,6 +14,18 @@ describe('parseSseBuffer', () => {
     expect(eventos).toEqual([])
     expect(resto).toBe('data: {"type":"to')
   })
+
+  it('parseia token, token_revoke, suggestions, aborted', () => {
+    const buf = [
+      'data: {"type":"token","text":"Oi"}',
+      'data: {"type":"token_revoke"}',
+      'data: {"type":"suggestions","items":["a","b"]}',
+      'data: {"type":"aborted"}',
+      '',
+    ].join('\n\n') + '\n\n'
+    const { eventos } = parseSseBuffer(buf)
+    expect(eventos.map((e) => e.type)).toEqual(['token', 'token_revoke', 'suggestions', 'aborted'])
+  })
 })
 
 describe('buildChatRequest', () => {

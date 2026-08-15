@@ -51,6 +51,16 @@ export function saveTurn(id, profile, novasMensagens, now = Date.now()) {
   s.updatedAt = now
 }
 
+// Bloco sujo (tool_calls sem role:tool, ou leitura sem answer) não entra na
+// sessão — senão o próximo turno reenvia histórico órfão e o provedor recusa.
+export function turnoPersistivel(novos = []) {
+  const calls = novos.flatMap((m) => (m.role === 'assistant' && m.tool_calls) ? m.tool_calls : [])
+  const fechado = calls.every((c) => novos.some((m) => m.role === 'tool' && m.tool_call_id === c.id))
+  const temAnswer = novos.some((m) => m.role === 'assistant' && m.content)
+  const temProposta = novos.some((m) => m.role === 'tool' && /proposta_emitida/.test(m.content || ''))
+  return fechado && (temAnswer || temProposta)
+}
+
 // Observabilidade/teste: quantas sessões há em memória agora (§11).
 export function sessionCount() {
   return sessions.size

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { loadSession, saveTurn, sessionCount, MAX_TURNS, SESSION_TTL_MS } from '../../../lib/agent/session.js'
+import { loadSession, saveTurn, sessionCount, MAX_TURNS, SESSION_TTL_MS, turnoPersistivel } from '../../../lib/agent/session.js'
 
 const emp = { id: 1, role: 'employee' }
 
@@ -99,5 +99,34 @@ describe('session — memória efêmera com TTL e carimbo de papel', () => {
     saveTurn(viva.id, emp, [{ role: 'user', content: 'oi' }], futuro)
     // As duas velhas venceram e sumiram; só a viva permanece.
     expect(sessionCount()).toBe(1)
+  })
+})
+
+describe('turnoPersistivel', () => {
+  it('user + assistant com content é persistível', () => {
+    expect(turnoPersistivel([
+      { role: 'user', content: 'oi' },
+      { role: 'assistant', content: 'olá' },
+    ])).toBe(true)
+  })
+  it('assistant com tool_calls sem role:tool NÃO é persistível', () => {
+    expect(turnoPersistivel([
+      { role: 'user', content: 'oi' },
+      { role: 'assistant', content: null, tool_calls: [{ id: 'c1', function: { name: 'x', arguments: '{}' } }] },
+    ])).toBe(false)
+  })
+  it('proposta_emitida (bloco fechado de escrita) é persistível', () => {
+    expect(turnoPersistivel([
+      { role: 'user', content: 'cria' },
+      { role: 'assistant', content: null, tool_calls: [{ id: 'c1', function: { name: 'propor_criar_task', arguments: '{}' } }] },
+      { role: 'tool', tool_call_id: 'c1', content: JSON.stringify({ status: 'proposta_emitida' }) },
+    ])).toBe(true)
+  })
+  it('tool de leitura sem answer ainda NÃO é persistível', () => {
+    expect(turnoPersistivel([
+      { role: 'user', content: 'oi' },
+      { role: 'assistant', content: null, tool_calls: [{ id: 'c1', function: { name: 'listar_equipe', arguments: '{}' } }] },
+      { role: 'tool', tool_call_id: 'c1', content: '{}' },
+    ])).toBe(false)
   })
 })

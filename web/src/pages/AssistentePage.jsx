@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, RotateCcw, AlertCircle, Check, Plus, Sparkles, Loader2, Paperclip, X } from 'lucide-react'
+import { Send, Square, RotateCcw, AlertCircle, Check, Plus, Sparkles, Loader2, Paperclip, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { streamChat, executeProposal, cancelProposal, downloadAgentFile } from '../lib/agentClient'
 import { lerSessao, salvarSessao, limparSessao } from '../lib/agentSession'
@@ -119,7 +119,9 @@ export function AssistentePage() {
 
   const textareaRef = useRef(null)
   const fileInputRef = useRef(null)
-  const fimRef = useRef(null)
+  const listaRef = useRef(null)
+  const abortRef = useRef(null)
+  const pertoDoFundoRef = useRef(true)
   const restauradoRef = useRef(false)
 
   const estaVazio = mensagens.length === 0
@@ -150,10 +152,18 @@ export function AssistentePage() {
     textareaRef.current?.focus()
   }, [estaVazio])
 
-  // Rola para o fim a cada token / mensagem nova.
-  useEffect(() => {
-    fimRef.current?.scrollIntoView({ block: 'end' })
-  }, [mensagens])
+  function atualizarPertoDoFundo() {
+    const el = listaRef.current
+    if (!el) return
+    pertoDoFundoRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80
+  }
+
+  function rolarParaFim() {
+    const el = listaRef.current
+    if (!el) return
+    el.scrollTop = el.scrollHeight
+    pertoDoFundoRef.current = true
+  }
 
   function ajustarAltura() {
     const el = textareaRef.current
@@ -166,6 +176,9 @@ export function AssistentePage() {
   function receber(idxBot) {
     return (e) => {
       if (e.type === 'session') setConversa(e.conversation_id)
+      // Scroll grudento: só acompanha se já estava perto do fundo ANTES do update.
+      const deveRolar = (e.type === 'token' || e.type === 'answer' || e.type === 'file' || e.type === 'proposal')
+        && pertoDoFundoRef.current
       // Só a resposta final chega (o raciocínio fica escondido atrás do "Pensando…").
       // Vem inteira num único evento, então define o texto de uma vez.
       if (e.type === 'answer') {
@@ -188,17 +201,29 @@ export function AssistentePage() {
           i === idxBot ? { ...msg, erro: e.error || 'Não consegui responder agora.' } : msg
         )))
       }
+      if (deveRolar) requestAnimationFrame(rolarParaFim)
     }
   }
 
-  async function correr(idxBot, texto, file) {
+  async function correr(idxBot, texto, file, signal) {
     setOcupado(true)
     try {
-      await streamChat({ message: texto, conversationId: conversa, file, onEvent: receber(idxBot) })
+      await streamChat({ message: texto, conversationId: conversa, file, signal, onEvent: receber(idxBot) })
     } catch (err) {
-      setMensagens((m) => m.map((msg, i) => (
-        i === idxBot ? { ...msg, erro: err.message || 'Não consegui responder agora.' } : msg
-      )))
+      // Abort local é a verdade da UI — não pinta erro, não espera o SSE aborted.
+      if (err?.name === 'AbortError' || signal?.aborted) {
+        setMensagens((m) => {
+          const bot = m[idxBot]
+          if (bot?.texto) {
+            return m.map((msg, i) => (i === idxBot ? { ...msg, texto: `${msg.texto}\n\nInterrompido` } : msg))
+          }
+          return m.filter((_, i) => i !== idxBot)
+        })
+      } else {
+        setMensagens((m) => m.map((msg, i) => (
+          i === idxBot ? { ...msg, erro: err.message || 'Não consegui responder agora.' } : msg
+        )))
+      }
     } finally {
       setOcupado(false)
     }
@@ -227,13 +252,16 @@ export function AssistentePage() {
     setArquivo(null)
     setAnexoErro(null)
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
+    const ac = new AbortController()
+    abortRef.current = ac
     const idxBot = mensagens.length + 1
     setMensagens((m) => [
       ...m,
       { autor: 'user', texto, anexo: fileToSend?.name || null, arquivoObj: fileToSend || null },
       { autor: 'bot', texto: '' },
     ])
-    await correr(idxBot, texto, fileToSend)
+    requestAnimationFrame(rolarParaFim)
+    await correr(idxBot, texto, fileToSend, ac.signal)
   }
 
   // Reenvia a pergunta na mesma bolha (erro de resposta). O anexo vai junto: um
@@ -244,8 +272,10 @@ export function AssistentePage() {
   async function tentarStream(idxBot) {
     const userMsg = mensagens[idxBot - 1]
     if (!userMsg || userMsg.autor !== 'user' || ocupado) return
+    const ac = new AbortController()
+    abortRef.current = ac
     setMensagens((m) => m.map((msg, i) => (i === idxBot ? { ...msg, texto: '', erro: null } : msg)))
-    await correr(idxBot, userMsg.texto, userMsg.arquivoObj || undefined)
+    await correr(idxBot, userMsg.texto, userMsg.arquivoObj || undefined, ac.signal)
   }
 
   async function aprovar(idx) {
@@ -362,15 +392,26 @@ export function AssistentePage() {
             aria-label="Mensagem para o Assistente"
             className="form-control max-h-[200px] flex-1 resize-none rounded-md border px-3 py-2.5 text-sm outline-none"
           />
-          <button
-            type="button"
-            onClick={() => enviar()}
-            disabled={ocupado || (!input.trim() && !arquivo)}
-            aria-label="Enviar"
-            className="inline-flex h-11 w-11 flex-none items-center justify-center rounded-md bg-accent text-white transition-opacity hover:opacity-90 disabled:opacity-40"
-          >
-            <Send size={16} />
-          </button>
+          {ocupado ? (
+            <button
+              type="button"
+              onClick={() => abortRef.current?.abort()}
+              aria-label="Parar"
+              className="inline-flex h-11 w-11 flex-none items-center justify-center rounded-md bg-accent text-white transition-opacity hover:opacity-90"
+            >
+              <Square size={16} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => enviar()}
+              disabled={!input.trim() && !arquivo}
+              aria-label="Enviar"
+              className="inline-flex h-11 w-11 flex-none items-center justify-center rounded-md bg-accent text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+            >
+              <Send size={16} />
+            </button>
+          )}
         </div>
       </div>
     )
@@ -430,6 +471,8 @@ export function AssistentePage() {
         // ── Conversa ativa: lista rola, composer gruda no rodapé ──
         <>
           <div
+            ref={listaRef}
+            onScroll={atualizarPertoDoFundo}
             role="log"
             aria-live="polite"
             aria-relevant="additions text"
@@ -591,7 +634,6 @@ export function AssistentePage() {
                   </div>
                 )
               })}
-              <div ref={fimRef} />
             </div>
           </div>
 
