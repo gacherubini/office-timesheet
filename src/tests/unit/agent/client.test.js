@@ -13,15 +13,15 @@ describe('client — injeção e contrato', () => {
 
   it('setClient troca o cliente ativo (para testes/roteirização)', async () => {
     const fake = {
-      async stream(_params, onToken) {
-        onToken('oi')
+      async stream(_params, onDelta) {
+        onDelta({ content: 'oi' })
         return { message: { role: 'assistant', content: 'oi' }, usage: { prompt_tokens: 1, completion_tokens: 1 } }
       },
     }
     setClient(fake)
     const tokens = []
     const { message } = await getClient().stream({ messages: [], tools: [], model: 'x' }, (t) => tokens.push(t))
-    expect(tokens).toEqual(['oi'])
+    expect(tokens).toEqual([{ content: 'oi' }])
     expect(message.content).toBe('oi')
   })
 })
@@ -73,5 +73,51 @@ describe('client — temperatura', () => {
     const params = {}
     await makeRealClient(fakeOpenAICapturando(params)).stream({ messages: [], tools: [], model: 'x' }, () => {})
     expect(params.temperature).toBe(0)
+  })
+})
+
+describe('client — signal, max_tokens e onDelta estruturado', () => {
+  it('create recebe signal e max_tokens vem de LIMITS.maxTokens', async () => {
+    const { LIMITS } = await import('../../../lib/agent/guards.js')
+    const ac = new AbortController()
+    const capturado = {}
+    const openai = {
+      chat: { completions: { create: async (params) => {
+        Object.assign(capturado, params)
+        return (async function* () { yield { choices: [{ delta: { content: 'ok' } }] } })()
+      } } },
+    }
+    const deltas = []
+    await makeRealClient(openai).stream({ messages: [], tools: [], model: 'x' }, (d) => deltas.push(d), { signal: ac.signal })
+    expect(capturado.signal).toBe(ac.signal)
+    expect(capturado.max_tokens).toBe(LIMITS.maxTokens)
+    expect(deltas).toEqual([{ content: 'ok' }])
+  })
+
+  it('delta.reasoning_content não vira content nem onDelta de texto', async () => {
+    const openai = {
+      chat: { completions: { create: async () => (async function* () {
+        yield { choices: [{ delta: { reasoning_content: 'penso' } }] }
+        yield { choices: [{ delta: { content: 'resposta' } }] }
+      })() } },
+    }
+    const deltas = []
+    const { message } = await makeRealClient(openai).stream({ messages: [], tools: [], model: 'x' }, (d) => deltas.push(d))
+    expect(message.content).toBe('resposta')
+    // reasoning notifica o cano mas nunca vira texto em content
+    expect(deltas).toEqual([{ reasoning: true }, { content: 'resposta' }])
+  })
+
+  it('primeiro delta de tool_calls notifica toolCall:true e não soma em content', async () => {
+    const openai = {
+      chat: { completions: { create: async () => (async function* () {
+        yield { choices: [{ delta: { tool_calls: [{ index: 0, id: 'c1', function: { name: 'listar_equipe', arguments: '{}' } }] } }] }
+      })() } },
+    }
+    const deltas = []
+    const { message } = await makeRealClient(openai).stream({ messages: [], tools: [], model: 'x' }, (d) => deltas.push(d))
+    expect(deltas).toEqual([{ toolCall: true }])
+    expect(message.content).toBeNull()
+    expect(message.tool_calls[0].function.name).toBe('listar_equipe')
   })
 })
