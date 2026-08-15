@@ -70,3 +70,24 @@ export function executeProposal(proposalId) {
 export function cancelProposal(proposalId) {
   return api.post(`/agent/actions/${proposalId}/cancel`, {})
 }
+
+// GET /agent/downloads/:token com Bearer. O <a href> não leva JWT, então o
+// chat faz fetch, vira blob e dispara o download. 404 = TTL / outro user /
+// sumiu — mensagem genérica, sem distinguir o motivo.
+export async function downloadAgentFile(token) {
+  const auth = localStorage.getItem('access_token')
+  const res = await fetch(`${BASE_URL}/agent/downloads/${encodeURIComponent(token)}`, {
+    headers: auth ? { Authorization: `Bearer ${auth}` } : {},
+  })
+  if (!res.ok) throw new Error(await readErrorMessage(res, 'arquivo expirado ou indisponível'))
+  const blob = await res.blob()
+  const disp = res.headers.get('Content-Disposition') || ''
+  const m = /filename="([^"]+)"/.exec(disp)
+  const name = m?.[1] || 'relatorio'
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = name
+  a.click()
+  URL.revokeObjectURL(url)
+}

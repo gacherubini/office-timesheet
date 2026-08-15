@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Send, RotateCcw, AlertCircle, Check, Plus, Sparkles, Loader2, Paperclip, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { streamChat, executeProposal, cancelProposal } from '../lib/agentClient'
+import { streamChat, executeProposal, cancelProposal, downloadAgentFile } from '../lib/agentClient'
 import { lerSessao, salvarSessao, limparSessao } from '../lib/agentSession'
 
 // ── Página do Assistente (tela cheia) ──────────────────────────────────────
@@ -175,6 +175,11 @@ export function AssistentePage() {
           i === idxBot ? { ...msg, proposta: { proposalId: e.proposalId, descricao: e.descricao, dados: e.dados } } : msg
         )))
       }
+      if (e.type === 'file') {
+        setMensagens((m) => m.map((msg, i) => (
+          i === idxBot ? { ...msg, arquivo: { token: e.token, filename: e.filename, mime: e.mime, bytes: e.bytes } } : msg
+        )))
+      }
       if (e.type === 'error') {
         setMensagens((m) => m.map((msg, i) => (
           i === idxBot ? { ...msg, erro: e.error || 'Não consegui responder agora.' } : msg
@@ -250,6 +255,22 @@ export function AssistentePage() {
     } catch (err) {
       setMensagens((m) => m.map((x, i) => (
         i === idx ? { ...x, erro: err.message || 'Não consegui concluir a ação.', executando: false } : x
+      )))
+    }
+  }
+
+  async function baixar(idx) {
+    const msg = mensagens[idx]
+    if (!msg?.arquivo?.token) return
+    try {
+      await downloadAgentFile(msg.arquivo.token)
+      setMensagens((m) => m.map((x, i) => (i === idx ? { ...x, arquivoErro: null } : x)))
+    } catch (err) {
+      const expirado = /expirado/i.test(err.message || '')
+      setMensagens((m) => m.map((x, i) => (
+        i === idx
+          ? { ...x, arquivoErro: expirado ? 'esse arquivo expirou, pede de novo' : (err.message || 'Não consegui baixar o arquivo.') }
+          : x
       )))
     }
   }
@@ -445,6 +466,22 @@ export function AssistentePage() {
                           {m.texto}
                         </p>
                       ) : null}
+
+                      {/* Arquivo gerado — download efêmero (TTL 5 min no servidor) */}
+                      {m.arquivo && (
+                        <div className="space-y-2">
+                          <button
+                            type="button"
+                            onClick={() => baixar(i)}
+                            className="rounded-md border border-border-subtle bg-surface px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-surface-alt"
+                          >
+                            Baixar {m.arquivo.filename}
+                          </button>
+                          {m.arquivoErro && (
+                            <p className="state-danger-soft max-w-[33rem] px-2.5 py-1.5 text-xs">{m.arquivoErro}</p>
+                          )}
+                        </div>
+                      )}
 
                       {/* Proposta pendente — requer confirmação */}
                       {m.proposta && !m.aprovado && !m.cancelado && (

@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { parseSseBuffer, buildChatRequest, readErrorMessage } from './agentClient.js'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { parseSseBuffer, buildChatRequest, readErrorMessage, downloadAgentFile } from './agentClient.js'
 
 describe('parseSseBuffer', () => {
   it('extrai frames completos e guarda o resto parcial', () => {
@@ -51,5 +51,68 @@ describe('readErrorMessage', () => {
   it('cai no fallback quando o corpo não é JSON', async () => {
     const msg = await readErrorMessage({ json: async () => { throw new Error('sem json') } })
     expect(msg).toMatch(/falha/i)
+  })
+})
+
+describe('downloadAgentFile', () => {
+  const origFetch = globalThis.fetch
+  const origCreateObjectURL = URL.createObjectURL
+  const origRevokeObjectURL = URL.revokeObjectURL
+
+  beforeEach(() => {
+    const store = new Map()
+    globalThis.localStorage = {
+      getItem: (k) => (store.has(k) ? store.get(k) : null),
+      setItem: (k, v) => store.set(k, String(v)),
+      removeItem: (k) => store.delete(k),
+    }
+    if (typeof document === 'undefined') {
+      globalThis.document = {
+        createElement(tag) {
+          return { tagName: tag, href: '', download: '', click() {} }
+        },
+      }
+    }
+    URL.createObjectURL = () => 'blob:fake'
+    URL.revokeObjectURL = () => {}
+  })
+
+  afterEach(() => {
+    globalThis.fetch = origFetch
+    URL.createObjectURL = origCreateObjectURL
+    URL.revokeObjectURL = origRevokeObjectURL
+  })
+
+  it('downloadAgentFile manda Bearer e dispara o blob', async () => {
+    const clicks = []
+    const origCreate = document.createElement.bind(document)
+    vi.spyOn(document, 'createElement').mockImplementation((tag) => {
+      const el = origCreate(tag)
+      if (tag === 'a') el.click = () => clicks.push(el.download)
+      return el
+    })
+    const origFetchInner = globalThis.fetch
+    globalThis.fetch = vi.fn(async () => new Response(new Blob(['abc']), {
+      status: 200,
+      headers: { 'Content-Disposition': 'attachment; filename="r.csv"', 'Content-Type': 'text/csv' },
+    }))
+    localStorage.setItem('access_token', 'tok')
+    await downloadAgentFile('abc-token')
+    expect(globalThis.fetch).toHaveBeenCalled()
+    const [url, opts] = globalThis.fetch.mock.calls[0]
+    expect(url).toMatch(/\/agent\/downloads\/abc-token$/)
+    expect(opts.headers.Authorization).toBe('Bearer tok')
+    expect(clicks).toContain('r.csv')
+    globalThis.fetch = origFetchInner
+  })
+
+  it('downloadAgentFile em 404 lança a mensagem genérica', async () => {
+    const origFetchInner = globalThis.fetch
+    globalThis.fetch = vi.fn(async () => new Response(JSON.stringify({ error: 'arquivo expirado ou indisponível' }), {
+      status: 404, headers: { 'Content-Type': 'application/json' },
+    }))
+    localStorage.setItem('access_token', 'tok')
+    await expect(downloadAgentFile('x')).rejects.toThrow(/expirado/i)
+    globalThis.fetch = origFetchInner
   })
 })

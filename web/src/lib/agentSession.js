@@ -25,6 +25,8 @@ function storage() {
 //  - `arquivoObj`: o File do anexo. JSON.stringify o serializa como {}, e um {}
 //    truthy no lugar de um File faria o reenvio mandar "[object Object]" como
 //    arquivo. O nome fica em `anexo`, que é o que a bolha exibe.
+//  - NÃO tira `arquivo` (token/filename/mime/bytes): é JSON-safe. O botão
+//    Baixar reaparece após reload; o 404 do GET cobre o TTL do servidor.
 function limparNaoSerializaveis(mensagens) {
   return mensagens.map((m) => {
     if (!m.executando && !m.arquivoObj) return m
