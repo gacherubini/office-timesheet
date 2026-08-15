@@ -63,3 +63,6 @@ então o sistema executa. Nunca diga que fez antes da confirmação.
   opcional (low, medium, high).
 - **pedir férias** para si, informando o primeiro e o último dia (inclusivos). Não pode
   começar no passado nem se sobrepor a um pedido pendente ou aprovado seu.
+- **comentar** numa tarefa (texto).
+- **mover** uma tarefa de coluna (`todo` / em andamento / em revisão / feito / abandonado).
+- **editar** título, prioridade, responsável ou prazo de uma tarefa.

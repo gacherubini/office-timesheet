@@ -32,6 +32,9 @@ import proporAprovarDespesa from '../../../lib/agent/tools/write/proporAprovarDe
 import proporRejeitarDespesa from '../../../lib/agent/tools/write/proporRejeitarDespesa.js'
 import proporAprovarFerias from '../../../lib/agent/tools/write/proporAprovarFerias.js'
 import proporRejeitarFerias from '../../../lib/agent/tools/write/proporRejeitarFerias.js'
+import proporComentarTask from '../../../lib/agent/tools/write/proporComentarTask.js'
+import proporMoverTask from '../../../lib/agent/tools/write/proporMoverTask.js'
+import proporEditarTask from '../../../lib/agent/tools/write/proporEditarTask.js'
 
 const PAPEIS = ['admin', 'administrative_intern', 'project_manager', 'employee']
 
@@ -87,6 +90,9 @@ const CASOS = [
   { tool: proporRejeitarDespesa, chamar: (u, ctx) => [asUser(u).post(`/admin/expense-requests/${ctx.despesa.id}/reject`).send({})] },
   { tool: proporAprovarFerias, chamar: (u, ctx) => [asUser(u).post(`/admin/vacation-requests/${ctx.ferias.id}/approve`).send({})] },
   { tool: proporRejeitarFerias, chamar: (u, ctx) => [asUser(u).post(`/admin/vacation-requests/${ctx.ferias.id}/reject`).send({})] },
+  { tool: proporComentarTask, chamar: (u, ctx) => [asUser(u).post(`/tasks/${ctx.task.id}/comments`).send({ body: 'oi' })] },
+  { tool: proporMoverTask, chamar: (u, ctx) => [asUser(u).put(`/tasks/${ctx.task.id}/status`).send({ status: 'in_progress' })] },
+  { tool: proporEditarTask, chamar: (u, ctx) => [asUser(u).put(`/tasks/${ctx.task.id}`).send({ title: 'novo' })] },
 ]
 
 describe('paridade de papel: tool ↔ endpoint espelhado (§18)', () => {
@@ -108,8 +114,14 @@ describe('paridade de papel: tool ↔ endpoint espelhado (§18)', () => {
        VALUES ($1, CURRENT_DATE, CURRENT_DATE + 2, 3, 'pending') RETURNING id`,
       [emp.id],
     )
+    const projeto = await makeProject({ name: 'Paridade' })
+    const { rows: taskRows } = await query(
+      `INSERT INTO tasks (project_id, title, status, position) VALUES ($1,'Paridade','todo',0) RETURNING id`,
+      [projeto.id],
+    )
     ctx = {
-      projeto: await makeProject({ name: 'Paridade' }),
+      projeto,
+      task: taskRows[0],
       despesa: desp[0],
       ferias: fer[0],
     }

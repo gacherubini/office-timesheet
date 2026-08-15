@@ -4,6 +4,7 @@ import { isAdmin, canManageProjects } from '../lib/permissions.js'
 import { query } from '../lib/db.js'
 import { createNotification } from '../lib/notificationsHub.js'
 import { logActivity } from '../lib/taskActivity.js'
+import { aplicarEdicaoTask } from '../lib/taskEdits.js'
 
 const router = Router()
 
@@ -242,78 +243,16 @@ router.get('/tasks/:id', requireAuth, async (req, res) => {
   }
 })
 
-// Edição completa de tarefa (admin ou líder do projeto)
+// Edição completa de tarefa. Liberado a qualquer usuário logado (como criar/mover).
+// Só excluir (DELETE) exige admin/líder. O UPDATE vive em aplicarEdicaoTask.
 router.put('/tasks/:id', requireAuth, async (req, res) => {
-  const { id } = req.params
-  const { title, description, assignee_id, due_date, priority, task_type } = req.body
-  const VALID_PRIORITY = ['low', 'medium', 'high']
   try {
-    const { rows: taskRows } = await query(
-      'SELECT project_id, title, assignee_id, priority FROM tasks WHERE id = $1',
-      [id]
-    )
-    if (taskRows.length === 0) return res.status(404).json({ error: 'Tarefa não encontrada.' })
-    const before = taskRows[0]
-
-    // Editar é liberado a qualquer usuário logado (como criar/mover).
-    // Só excluir (DELETE) exige admin/líder.
-
-    const updates = []
-    const params = []
-    if (title !== undefined) {
-      if (!title.trim()) return res.status(400).json({ error: 'title não pode ser vazio.' })
-      params.push(title.trim()); updates.push(`title = $${params.length}`)
-    }
-    if (description !== undefined) {
-      params.push(description?.trim() || null); updates.push(`description = $${params.length}`)
-    }
-    if (assignee_id !== undefined) {
-      params.push(assignee_id || null); updates.push(`assignee_id = $${params.length}`)
-    }
-    if (due_date !== undefined) {
-      params.push(due_date || null); updates.push(`due_date = $${params.length}`)
-    }
-    if (priority !== undefined) {
-      if (!VALID_PRIORITY.includes(priority)) {
-        return res.status(400).json({ error: 'priority inválida. Use low, medium ou high.' })
-      }
-      params.push(priority); updates.push(`priority = $${params.length}::task_priority`)
-    }
-    if (task_type !== undefined) {
-      params.push(task_type?.trim() || null); updates.push(`task_type = $${params.length}`)
-    }
-    if (updates.length === 0) return res.status(400).json({ error: 'Nenhum campo para atualizar.' })
-
-    params.push(id)
-    const { rows } = await query(
-      `UPDATE tasks SET ${updates.join(', ')} WHERE id = $${params.length}
-       RETURNING id, project_id, title, description, status, assignee_id, due_date, position, priority, task_type, completed_at, created_at, updated_at`,
-      params
-    )
-    const after = rows[0]
-
-    // Histórico de atividade
-    if (title !== undefined && title.trim() !== before.title) {
-      await logActivity(id, req.profile.id, 'title_changed', { from: before.title, to: after.title })
-    }
-    if (priority !== undefined && priority !== before.priority) {
-      await logActivity(id, req.profile.id, 'priority_changed', { from: before.priority, to: after.priority })
-    }
-    if (assignee_id !== undefined && (after.assignee_id || null) !== (before.assignee_id || null)) {
-      await logActivity(id, req.profile.id, 'assignee_changed', { to: after.assignee_id })
-      // Notifica o novo responsável
-      if (after.assignee_id) {
-        await createNotification({
-          userId: after.assignee_id,
-          type: 'task_assigned',
-          taskId: id,
-          actorId: req.profile.id,
-        })
-      }
-    }
-
+    const after = await aplicarEdicaoTask(req.params.id, req.body, req.profile.id)
     return res.json(after)
   } catch (err) {
+    if (err.message === 'Tarefa não encontrada.') {
+      return res.status(404).json({ error: err.message })
+    }
     return res.status(400).json({ error: err.message })
   }
 })

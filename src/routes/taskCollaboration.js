@@ -4,8 +4,8 @@ import { requireAuth } from '../middleware/auth.js'
 import { isAdmin, isProjectManager } from '../lib/permissions.js'
 import { query } from '../lib/db.js'
 import { uploadFile, deleteFile, extractKeyFromUrl } from '../lib/storage.js'
-import { createNotification } from '../lib/notificationsHub.js'
 import { logActivity } from '../lib/taskActivity.js'
+import { inserirComentario } from '../lib/taskComments.js'
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -51,68 +51,23 @@ router.get('/tasks/:id/comments', requireAuth, async (req, res) => {
 })
 
 router.post('/tasks/:id/comments', requireAuth, async (req, res) => {
-  const taskId = req.params.id
   const { body, mentioned_user_ids } = req.body
   // Corpo pode vir vazio quando o comentário é só anexo; o front garante que
   // não envia comentário totalmente vazio (sem texto e sem arquivo).
   const text = typeof body === 'string' ? body.trim() : ''
 
   try {
-    const { rows: taskRows } = await query(
-      'SELECT id, assignee_id FROM tasks WHERE id = $1',
-      [taskId]
-    )
-    if (taskRows.length === 0) return res.status(404).json({ error: 'Tarefa não encontrada.' })
-    const task = taskRows[0]
-
-    const { rows } = await query(
-      `INSERT INTO task_comments (task_id, author_id, body)
-       VALUES ($1, $2, $3)
-       RETURNING id, task_id, author_id, body, created_at`,
-      [taskId, req.profile.id, text]
-    )
-    const comment = rows[0]
-
-    // Menções (dedupe + sem o próprio autor)
-    const mentioned = [...new Set(
-      Array.isArray(mentioned_user_ids) ? mentioned_user_ids.filter(Boolean) : []
-    )].filter((uid) => uid !== req.profile.id)
-
-    for (const uid of mentioned) {
-      await query(
-        `INSERT INTO task_comment_mentions (comment_id, user_id)
-         VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-        [comment.id, uid]
-      )
-    }
-
-    await logActivity(taskId, req.profile.id, 'comment_added', null)
-
-    // Notificações de menção
-    const mentionedSet = new Set(mentioned)
-    for (const uid of mentioned) {
-      await createNotification({
-        userId: uid,
-        type: 'mention',
-        taskId,
-        commentId: comment.id,
-        actorId: req.profile.id,
-      })
-    }
-
-    // Notificação de comentário pro responsável (se não for autor nem já mencionado)
-    if (task.assignee_id && task.assignee_id !== req.profile.id && !mentionedSet.has(task.assignee_id)) {
-      await createNotification({
-        userId: task.assignee_id,
-        type: 'task_comment',
-        taskId,
-        commentId: comment.id,
-        actorId: req.profile.id,
-      })
-    }
-
+    const { comment, mentioned } = await inserirComentario({
+      taskId: req.params.id,
+      authorId: req.profile.id,
+      body: text,
+      mentionedUserIds: mentioned_user_ids,
+    })
     return res.status(201).json({ ...comment, mentioned_user_ids: mentioned })
   } catch (err) {
+    if (err.message === 'Tarefa não encontrada.') {
+      return res.status(404).json({ error: err.message })
+    }
     return res.status(400).json({ error: err.message })
   }
 })

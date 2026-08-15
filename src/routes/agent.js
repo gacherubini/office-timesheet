@@ -20,6 +20,9 @@ import { rateLimit } from '../lib/rateLimit.js'
 import proporEncerrarApontamento from '../lib/agent/tools/write/proporEncerrarApontamento.js'
 import proporCriarApontamento from '../lib/agent/tools/write/proporCriarApontamento.js'
 import proporCriarTask from '../lib/agent/tools/write/proporCriarTask.js'
+import proporComentarTask from '../lib/agent/tools/write/proporComentarTask.js'
+import proporMoverTask from '../lib/agent/tools/write/proporMoverTask.js'
+import proporEditarTask from '../lib/agent/tools/write/proporEditarTask.js'
 import proporPedirFerias from '../lib/agent/tools/write/proporPedirFerias.js'
 import proporLancarDespesa from '../lib/agent/tools/write/proporLancarDespesa.js'
 import proporAprovarDespesa from '../lib/agent/tools/write/proporAprovarDespesa.js'
@@ -35,6 +38,9 @@ const WRITE_TOOLS = {
   encerrar_apontamento: proporEncerrarApontamento,
   criar_apontamento: proporCriarApontamento,
   criar_task: proporCriarTask,
+  comentar_task: proporComentarTask,
+  mover_task: proporMoverTask,
+  editar_task: proporEditarTask,
   pedir_ferias: proporPedirFerias,
   lancar_despesa: proporLancarDespesa,
   aprovar_despesa: proporAprovarDespesa,

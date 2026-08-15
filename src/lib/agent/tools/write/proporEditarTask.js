@@ -1,0 +1,97 @@
+// Espelha PUT /tasks/:id (requireAuth, qualquer logado), recorte fino: título,
+// prioridade, responsável ou prazo. Sem description/task_type. Responsável
+// vazio ou "ninguém" desatribui. Pelo menos um campo de mudança.
+import { resolverTarefa } from '../tarefas.js'
+import { resolverPessoa } from '../pessoas.js'
+import { aplicarEdicaoTask, VALID_PRIORITY } from '../../../taskEdits.js'
+import { formatDateBR } from '../../format.js'
+
+const definition = {
+  type: 'function',
+  function: {
+    name: 'propor_editar_task',
+    description: 'Propõe editar título, prioridade, responsável ou prazo de uma tarefa. Requer confirmação. Responsável vazio ou "ninguém" desatribui.',
+    parameters: {
+      type: 'object',
+      properties: {
+        projeto: { type: 'string', description: 'nome do projeto (opcional, para desambiguar a tarefa)' },
+        tarefa: { type: 'string', description: 'título da tarefa' },
+        titulo: { type: 'string', description: 'novo título' },
+        prioridade: { type: 'string', enum: VALID_PRIORITY, description: 'low, medium ou high' },
+        responsavel: { type: 'string', description: 'nome da pessoa; vazio ou "ninguém" desatribui' },
+        prazo: { type: 'string', description: 'prazo YYYY-MM-DD; vazio limpa o prazo' },
+      },
+      required: ['tarefa'],
+      additionalProperties: false,
+    },
+  },
+}
+
+function desatribui(nome) {
+  const t = (nome ?? '').trim()
+  return t === '' || /^ningu[eé]m$/i.test(t)
+}
+
+async function propose(_profile, args) {
+  const temTitulo = args?.titulo !== undefined
+  const temPrioridade = args?.prioridade !== undefined
+  const temResponsavel = args?.responsavel !== undefined
+  const temPrazo = args?.prazo !== undefined
+  if (!temTitulo && !temPrioridade && !temResponsavel && !temPrazo) {
+    throw new Error('Informe ao menos um campo para alterar (título, prioridade, responsável ou prazo).')
+  }
+  if (temTitulo && !(args.titulo || '').trim()) {
+    throw new Error('O título não pode ser vazio.')
+  }
+  if (temPrioridade && !VALID_PRIORITY.includes(args.prioridade)) {
+    throw new Error('Prioridade inválida. Use low, medium ou high.')
+  }
+
+  const tarefa = await resolverTarefa(args?.tarefa, { projeto: args?.projeto, acao: 'editar a tarefa' })
+  const patch = {}
+  const dados = { projeto: tarefa.project_name, tarefa: tarefa.title }
+
+  if (temTitulo) {
+    patch.title = args.titulo.trim()
+    dados.titulo = patch.title
+  }
+  if (temPrioridade) {
+    patch.priority = args.prioridade
+    dados.prioridade = args.prioridade
+  }
+  if (temResponsavel) {
+    if (desatribui(args.responsavel)) {
+      patch.assignee_id = null
+      dados.responsável = 'ninguém'
+    } else {
+      const pessoa = await resolverPessoa(args.responsavel, { acao: 'atribuir a tarefa' })
+      patch.assignee_id = pessoa.id
+      dados.responsável = pessoa.name
+    }
+  }
+  if (temPrazo) {
+    const raw = args.prazo == null ? '' : String(args.prazo).trim()
+    patch.due_date = raw || null
+    dados.prazo = patch.due_date ? formatDateBR(patch.due_date) : 'sem prazo'
+  }
+
+  return {
+    kind: 'editar_task',
+    payload: { task_id: tarefa.id, ...patch },
+    descricao: `Editar a tarefa "${tarefa.title}" do projeto "${tarefa.project_name}".`,
+    dados,
+  }
+}
+
+async function execute(profile, payload) {
+  const { task_id: taskId, ...patch } = payload
+  const after = await aplicarEdicaoTask(taskId, patch, profile.id)
+  return { before: { id: taskId }, after }
+}
+
+export default {
+  kind: 'write',
+  espelha: 'PUT /tasks/:id',
+  roles: ['admin', 'administrative_intern', 'project_manager', 'employee'],
+  definition, propose, execute,
+}
