@@ -22,6 +22,10 @@ import proporCriarApontamento from '../lib/agent/tools/write/proporCriarApontame
 import proporCriarTask from '../lib/agent/tools/write/proporCriarTask.js'
 import proporPedirFerias from '../lib/agent/tools/write/proporPedirFerias.js'
 import proporLancarDespesa from '../lib/agent/tools/write/proporLancarDespesa.js'
+import proporAprovarDespesa from '../lib/agent/tools/write/proporAprovarDespesa.js'
+import proporRejeitarDespesa from '../lib/agent/tools/write/proporRejeitarDespesa.js'
+import proporAprovarFerias from '../lib/agent/tools/write/proporAprovarFerias.js'
+import proporRejeitarFerias from '../lib/agent/tools/write/proporRejeitarFerias.js'
 import { coletarLinks } from '../lib/agent/coletarLinks.js'
 
 const router = Router()
@@ -33,6 +37,10 @@ const WRITE_TOOLS = {
   criar_task: proporCriarTask,
   pedir_ferias: proporPedirFerias,
   lancar_despesa: proporLancarDespesa,
+  aprovar_despesa: proporAprovarDespesa,
+  rejeitar_despesa: proporRejeitarDespesa,
+  aprovar_ferias: proporAprovarFerias,
+  rejeitar_ferias: proporRejeitarFerias,
 }
 
 // §4 kill switch: desliga o agente por env, sem deploy. Default LIGADO — só

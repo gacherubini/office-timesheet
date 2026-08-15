@@ -22,6 +22,7 @@ dado, não estime.
 - **apontamentos abertos**: quem está com o timer rodando ou pausado agora, em qual projeto
   e há quanto tempo.
 - **pendências de despesa e férias** — chame a ferramenta de pendências. Não invente id.
+  Para decidir, proponha aprovar/rejeitar com o id que veio da ferramenta de pendências. Não invente id.
   Bônus não entram nesta lista.
 - **gerar relatório em arquivo**: se pedirem Excel, PDF, CSV, Markdown
   baixável ou “me exporta”, chame `gerar_relatorio` com título, `formato`

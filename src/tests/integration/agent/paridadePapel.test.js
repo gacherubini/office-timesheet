@@ -4,7 +4,7 @@
 // endpoint espelhado aceita? Se a tool aceitar um papel a mais, o agente virou
 // porta lateral para uma rota fechada.
 import { describe, it, expect, beforeEach } from 'vitest'
-import { resetDb } from '../../helpers/db.js'
+import { resetDb, query } from '../../helpers/db.js'
 import { asUser } from '../../helpers/api.js'
 import { makeUser, makeProject } from '../../helpers/factories.js'
 import { buildRegistry } from '../../../lib/agent/tools/registry.js'
@@ -28,6 +28,10 @@ import agendaDoPeriodo from '../../../lib/agent/tools/read/agendaDoPeriodo.js'
 import proporPedirFerias from '../../../lib/agent/tools/write/proporPedirFerias.js'
 import aprovacoesPendentes from '../../../lib/agent/tools/read/aprovacoesPendentes.js'
 import proporLancarDespesa from '../../../lib/agent/tools/write/proporLancarDespesa.js'
+import proporAprovarDespesa from '../../../lib/agent/tools/write/proporAprovarDespesa.js'
+import proporRejeitarDespesa from '../../../lib/agent/tools/write/proporRejeitarDespesa.js'
+import proporAprovarFerias from '../../../lib/agent/tools/write/proporAprovarFerias.js'
+import proporRejeitarFerias from '../../../lib/agent/tools/write/proporRejeitarFerias.js'
 
 const PAPEIS = ['admin', 'administrative_intern', 'project_manager', 'employee']
 
@@ -79,6 +83,10 @@ const CASOS = [
     tool: proporLancarDespesa,
     chamar: (u) => [asUser(u).post('/me/expense-requests').send({ title: 'x', amount: 10, expense_date: '2026-08-14' })],
   },
+  { tool: proporAprovarDespesa, chamar: (u, ctx) => [asUser(u).post(`/admin/expense-requests/${ctx.despesa.id}/approve`).send({})] },
+  { tool: proporRejeitarDespesa, chamar: (u, ctx) => [asUser(u).post(`/admin/expense-requests/${ctx.despesa.id}/reject`).send({})] },
+  { tool: proporAprovarFerias, chamar: (u, ctx) => [asUser(u).post(`/admin/vacation-requests/${ctx.ferias.id}/approve`).send({})] },
+  { tool: proporRejeitarFerias, chamar: (u, ctx) => [asUser(u).post(`/admin/vacation-requests/${ctx.ferias.id}/reject`).send({})] },
 ]
 
 describe('paridade de papel: tool ↔ endpoint espelhado (§18)', () => {
@@ -89,7 +97,22 @@ describe('paridade de papel: tool ↔ endpoint espelhado (§18)', () => {
     for (const papel of PAPEIS) {
       usuarios[papel] = await makeUser({ role: papel, name: `Papel ${papel}` })
     }
-    ctx = { projeto: await makeProject({ name: 'Paridade' }) }
+    const emp = usuarios.employee
+    const { rows: desp } = await query(
+      `INSERT INTO expense_requests (user_id, title, amount, expense_date, status)
+       VALUES ($1,'Uber',10,'2026-08-14','pending') RETURNING id`,
+      [emp.id],
+    )
+    const { rows: fer } = await query(
+      `INSERT INTO vacation_requests (user_id, start_date, end_date, days_count, status)
+       VALUES ($1, CURRENT_DATE, CURRENT_DATE + 2, 3, 'pending') RETURNING id`,
+      [emp.id],
+    )
+    ctx = {
+      projeto: await makeProject({ name: 'Paridade' }),
+      despesa: desp[0],
+      ferias: fer[0],
+    }
   })
 
   for (const caso of CASOS) {
