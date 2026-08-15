@@ -63,14 +63,27 @@ export async function runAgentTurn({ client, profile, model, messages, emit, con
     logUsage({ profile, model, tokensIn: usage?.prompt_tokens || 0, tokensOut: usage?.completion_tokens || 0, cached })
     await usageRepo.insert({ profile, model, tokensIn: usage?.prompt_tokens || 0, tokensOut: usage?.completion_tokens || 0, cached })
 
-    messages.push(message)
     const calls = message.tool_calls || []
     if (calls.length === 0) {
       // Iteração sem tool_calls = resposta final. Só agora o conteúdo é a
       // resposta ao usuário (não raciocínio), então emite-o de uma vez.
-      emit({ type: 'answer', text: message.content || '' })
+      //
+      // Guarda contra resposta DEGENERADA: a DeepSeek às vezes devolve um turno
+      // vazio (sem content E sem tool_calls — ex.: cortou no meio do raciocínio).
+      // Um assistant assim NÃO pode entrar no histórico: reenviá-lo no turno
+      // seguinte faz o provedor recusar a conversa INTEIRA com 400 "content or
+      // tool_calls must be set", travando tudo até a sessão expirar. Então
+      // responde com um fallback legível e deixa o histórico limpo (sem push).
+      const conteudo = message.content || ''
+      if (!conteudo) {
+        emit({ type: 'answer', text: 'Não consegui gerar uma resposta agora. Pode reformular a pergunta ou tentar de novo?' })
+        return { status: 'done', messages, usage: usageTotal }
+      }
+      messages.push(message)
+      emit({ type: 'answer', text: conteudo })
       return { status: 'done', messages, usage: usageTotal }
     }
+    messages.push(message)
 
     for (const call of calls) {
       const tool = registry.get(call.function.name)
