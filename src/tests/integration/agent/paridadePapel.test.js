@@ -26,6 +26,7 @@ import apontamentosAbertos from '../../../lib/agent/tools/read/apontamentosAbert
 import aniversariantes from '../../../lib/agent/tools/read/aniversariantes.js'
 import agendaDoPeriodo from '../../../lib/agent/tools/read/agendaDoPeriodo.js'
 import proporPedirFerias from '../../../lib/agent/tools/write/proporPedirFerias.js'
+import aprovacoesPendentes from '../../../lib/agent/tools/read/aprovacoesPendentes.js'
 
 const PAPEIS = ['admin', 'administrative_intern', 'project_manager', 'employee']
 
@@ -65,6 +66,13 @@ const CASOS = [
   {
     tool: proporPedirFerias,
     chamar: (u) => [asUser(u).post('/me/vacation-requests').send({ start_date: '2030-01-10', end_date: '2030-01-12' })],
+  },
+  {
+    tool: aprovacoesPendentes,
+    chamar: (u) => [
+      asUser(u).get('/admin/expense-requests?status=pending'),
+      asUser(u).get('/admin/vacation-requests?status=pending'),
+    ],
   },
 ]
 

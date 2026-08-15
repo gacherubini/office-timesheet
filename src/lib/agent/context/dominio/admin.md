@@ -21,6 +21,8 @@ dado, não estime.
   É sempre global — despesa não tem projeto neste sistema, então não prometa despesa por projeto.
 - **apontamentos abertos**: quem está com o timer rodando ou pausado agora, em qual projeto
   e há quanto tempo.
+- **pendências de despesa e férias** — chame a ferramenta de pendências. Não invente id.
+  Bônus não entram nesta lista.
 - **gerar relatório em arquivo**: se pedirem Excel, PDF, CSV, Markdown
   baixável ou “me exporta”, chame `gerar_relatorio` com título, `formato`
   (um) ou `formatos` (vários de uma vez: `xlsx`/`pdf`/`csv`/`md`) e a lista

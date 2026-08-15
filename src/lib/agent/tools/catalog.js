@@ -17,6 +17,7 @@ import despesasDoPeriodo from './read/despesasDoPeriodo.js'
 import apontamentosAbertos from './read/apontamentosAbertos.js'
 import aniversariantes from './read/aniversariantes.js'
 import agendaDoPeriodo from './read/agendaDoPeriodo.js'
+import aprovacoesPendentes from './read/aprovacoesPendentes.js'
 import gerarRelatorio from './read/gerarRelatorio.js'
 import consultarDados from './sql/consultarDados.js'
 import registrarPedidoNaoAtendido from './meta/registrarPedidoNaoAtendido.js'
@@ -28,6 +29,7 @@ export const TODAS = [
   simulacaoPerformance, statusProjeto, andamentoDeProjeto,
   despesasDoPeriodo, apontamentosAbertos, aniversariantes,
   agendaDoPeriodo,
+  aprovacoesPendentes,
   gerarRelatorio,
   consultarDados,
   registrarPedidoNaoAtendido,

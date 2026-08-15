@@ -1,4 +1,4 @@
-// Chips de abertura por papel (§6.7), antes da Task 8 (sem chips de pendentes).
+// Chips de abertura por papel (§6.7).
 // Canônico no servidor. espelho; mudar nos dois (web/src/lib/agentOpening.js).
 
 const POR_PAPEL = {
@@ -7,13 +7,13 @@ const POR_PAPEL = {
     chips: [
       'Quem não apontou esta semana?',
       'Lançar um bônus',
-      'Quem está apontando agora?',
+      'Quais aprovações estão pendentes?',
     ],
   },
   administrative_intern: {
     subtitulo: 'Posso te ajudar com aprovações e o dia a dia da equipe. Toda alteração passa por você.',
     chips: [
-      'Quais despesas foram aprovadas este mês?',
+      'O que está pendente de aprovação?',
       'Quem está apontando agora?',
       'Quem está de férias esta semana?',
     ],
