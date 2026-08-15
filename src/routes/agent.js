@@ -183,7 +183,12 @@ router.post('/agent/chat', requireAuth, chatRateLimit, uploadAnexo, async (req, 
     saveTurn(session.id, req.profile, novos)
     emit({ type: 'done', status })
   } catch (err) {
-    emit({ type: 'error', error: err.message })
+    // §17: só chega aqui falha de infra (provedor caiu, timeout, payload 400).
+    // O jargão cru ("…após 3 tentativa(s): 400 Invalid assistant message…")
+    // NUNCA vai pro usuário — vira mensagem amigável com "Tentar de novo". O
+    // motivo real fica alto no log de quem opera.
+    logger.error({ evt: 'agent_turn_error', err: err?.message, conversation_id: session.id }, 'turno do agente falhou')
+    emit({ type: 'error', error: 'Tive um problema para responder agora. Pode tentar de novo?' })
   } finally {
     const restante = (chatEmVoo.get(userId) || 1) - 1
     if (restante <= 0) chatEmVoo.delete(userId)

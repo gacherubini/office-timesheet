@@ -30,6 +30,13 @@ export function truncarResultado(json, limite = Number(process.env.AGENT_MAX_TOO
 // recusar a conversa inteira com 400. `now` é injetável para o teste do orçamento.
 const FALLBACK_VAZIO = 'Não consegui gerar uma resposta agora. Pode reformular a pergunta ou tentar de novo?'
 const FALLBACK_ORCAMENTO = 'Isso está levando mais tempo do que o esperado. Tenta de novo ou refina a pergunta (por exemplo, um período específico).'
+// Teto de iterações estourado = o agente tentou e não convergiu. NÃO é erro cru
+// pro usuário ("limite de iterações do agente atingido" é jargão interno): vira
+// um convite a reformular, com histórico limpo e bem-formado (sem 400 no próximo
+// turno). O esclarecimento sob medida ("você quis dizer X?") é papel do modelo,
+// nas iterações que ele TEM (ver REGRAS no prompt); isto aqui é só a rede quando
+// ele esgota as voltas sem fechar.
+const FALLBACK_SEM_RESPOSTA = 'Não consegui chegar a uma resposta pra isso. Pode reformular com outras palavras — por exemplo, dizendo o período, o projeto ou a pessoa que você tem em mente?'
 
 export async function runAgentTurn({ client, profile, model, messages, emit, conversationId = null, signal, now = Date.now }) {
   const registry = buildRegistry(profile)
@@ -147,5 +154,9 @@ export async function runAgentTurn({ client, profile, model, messages, emit, con
       }
     }
   }
-  throw new Error('limite de iterações do agente atingido')
+  // Esgotou as voltas sem uma resposta final: degrada para um convite a
+  // reformular em vez de lançar erro cru. Histórico já está bem-formado (cada
+  // volta fechou seus tool_calls), então é reenviável sem 400.
+  emit({ type: 'answer', text: FALLBACK_SEM_RESPOSTA })
+  return { status: 'done', messages, usage: usageTotal }
 }

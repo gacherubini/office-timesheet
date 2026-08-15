@@ -56,6 +56,15 @@ describe('prompt — regras + domínio fatiado', () => {
     expect(p).toMatch(/somente leitura|só leitura|SELECT/i)
   })
 
+  it('manda oferecer um palpite/esclarecimento em vez de desistir ou devolver erro quando não acha', () => {
+    for (const role of ['admin', 'employee']) {
+      const p = buildSystemPrompt({ role })
+      // Um beco (não achou / não casou) vira pergunta de esclarecimento, nunca erro.
+      expect(p).toMatch(/quis dizer|palpite|reformul/i)
+      expect(p).toMatch(/pergunt|esclarec/i)
+    }
+  })
+
   it('domínio do admin manda usar o esquema e ITERAR quando o SQL falha (antes de registrar pedido)', () => {
     const p = buildSystemPrompt({ role: 'admin' })
     expect(p).toMatch(/esquema real do banco/i)
