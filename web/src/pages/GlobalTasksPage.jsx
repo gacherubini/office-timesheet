@@ -12,6 +12,7 @@ import { KanbanBoard } from './projectBoard/KanbanBoard'
 import { TaskDetailModal } from './projectBoard/TaskDetailModal'
 import { NewTaskModal } from './projectBoard/NewTaskModal'
 import { COLUMNS, urgency, urgencyClasses, formatShortDate, formatMinutes, formatClock } from './projectBoard/helpers'
+import { carimbarContexto } from '../lib/agentContext'
 
 // Board GLOBAL de tarefas: reúne todas as tarefas de todos os projetos, com
 // filtros por projeto / responsável / "só minhas" e alternância Board / Lista.
@@ -84,6 +85,17 @@ export function GlobalTasksPage() {
     else api.get(`/tasks/${taskId}`).then((t) => setDrawer(t)).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, tasks, searchParams])
+
+  // Chip do assistente: drawer aberto (?task= ou clique) com projeto conhecido.
+  useEffect(() => {
+    if (!drawer?.project_id || !drawer?.project_name) return
+    carimbarContexto({
+      projectId: drawer.project_id,
+      projectName: drawer.project_name,
+      taskId: drawer.id,
+      taskTitle: drawer.title,
+    })
+  }, [drawer])
 
   function closeDrawer() {
     setDrawer(null)

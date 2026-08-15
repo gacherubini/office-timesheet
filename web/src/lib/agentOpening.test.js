@@ -57,4 +57,10 @@ describe('aberturaDoPapel', () => {
       expect(aberturaDoPapel(role)).toEqual(ESPERADO[role])
     })
   }
+
+  it('com contexto, a primeira chip vira âncora com o nome do projeto', () => {
+    const a = aberturaDoPapel('employee', { projectName: 'Acme' })
+    expect(a.chips[0]).toBe('Como está o Acme?')
+    expect(a.chips.slice(1)).toEqual(ESPERADO.employee.chips.slice(1))
+  })
 })

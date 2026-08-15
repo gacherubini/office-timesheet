@@ -14,6 +14,7 @@ import { NewTaskModal } from './projectBoard/NewTaskModal'
 import { ProjectCatalog } from './projectBoard/ProjectCatalog'
 import { ProjectPage } from './projectBoard/ProjectPage'
 import { TemplateManager } from './projectBoard/TemplateManager'
+import { carimbarContexto } from '../lib/agentContext'
 
 export function ProjectBoardPage() {
   const { profile, isAdmin, isAdministrativeIntern, canManageProjects } = useAuth()
@@ -356,6 +357,21 @@ export function ProjectBoardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, tasks, searchParams])
 
+  // Carimbo do assistente quando o board resolve um projeto (URL ou clique)
+  // e, se o drawer estiver aberto, inclui a tarefa. Não carimba o catálogo.
+  useEffect(() => {
+    if (!projectFilter) return
+    const project = projects.find((p) => p.id === projectFilter)
+    if (!project?.name) return
+    const counts = taskCounts.find((c) => c.project_id === project.id)
+    carimbarContexto({
+      projectId: project.id,
+      projectName: project.name,
+      taskCount: counts?.total,
+      ...(drawer ? { taskId: drawer.id, taskTitle: drawer.title } : {}),
+    })
+  }, [projectFilter, projects, drawer, taskCounts])
+
   // Mantém a tarefa aberta no drawer sincronizada com a lista recém-carregada
   // (ex.: play/stop no card do kanban reflete no cronômetro de dentro da tarefa).
   useEffect(() => {
@@ -383,6 +399,12 @@ export function ProjectBoardPage() {
     next.set('project', project.id)
     setSearchParams(next) // push: mantém histórico p/ o botão voltar
     setProjectFilter(project.id)
+    const counts = taskCounts.find((c) => c.project_id === project.id)
+    carimbarContexto({
+      projectId: project.id,
+      projectName: project.name,
+      taskCount: counts?.total,
+    })
   }
 
   function backToCatalog() {

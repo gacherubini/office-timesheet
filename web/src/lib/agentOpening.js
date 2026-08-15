@@ -36,7 +36,10 @@ const POR_PAPEL = {
   },
 }
 
-export function aberturaDoPapel(role) {
+export function aberturaDoPapel(role, contexto) {
   const a = POR_PAPEL[role] || POR_PAPEL.employee
-  return { subtitulo: a.subtitulo, chips: [...a.chips] }
+  const chips = [...a.chips]
+  const nome = contexto?.projectName
+  if (nome) chips[0] = `Como está o ${nome}?`
+  return { subtitulo: a.subtitulo, chips }
 }

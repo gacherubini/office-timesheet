@@ -20,18 +20,34 @@ export function parseSseBuffer(buffer) {
 // Monta headers + body do POST. Com arquivo, vira multipart (FormData) e o
 // Content-Type fica por conta do browser (que precisa cravar o boundary); sem
 // arquivo, é o JSON de sempre. Função pura pra ser testável sem fetch.
-export function buildChatRequest({ message, conversationId, file, token }) {
+function idsDeContexto(context) {
+  if (!context) return null
+  const project_id = context.projectId || context.project_id
+  const task_id = context.taskId || context.task_id
+  if (!project_id && !task_id) return null
+  const ids = {}
+  if (project_id) ids.project_id = project_id
+  if (task_id) ids.task_id = task_id
+  return ids
+}
+
+export function buildChatRequest({ message, conversationId, file, token, context }) {
   const headers = {}
   if (token) headers.Authorization = `Bearer ${token}`
+  const ids = idsDeContexto(context)
   if (file) {
     const fd = new FormData()
     fd.append('message', message ?? '')
     if (conversationId) fd.append('conversation_id', conversationId)
+    if (ids?.project_id) fd.append('project_id', ids.project_id)
+    if (ids?.task_id) fd.append('task_id', ids.task_id)
     fd.append('file', file)
     return { headers, body: fd }
   }
   headers['Content-Type'] = 'application/json'
-  return { headers, body: JSON.stringify({ message, conversation_id: conversationId }) }
+  const payload = { message, conversation_id: conversationId }
+  if (ids) payload.context = ids
+  return { headers, body: JSON.stringify(payload) }
 }
 
 // Extrai a mensagem de erro do corpo (a rota manda { error } em 400/413) pra não
@@ -44,9 +60,9 @@ export async function readErrorMessage(res, fallback = 'Falha ao falar com o age
   return fallback
 }
 
-export async function streamChat({ message, conversationId, file, signal, onEvent }) {
+export async function streamChat({ message, conversationId, file, signal, onEvent, context }) {
   const token = localStorage.getItem('access_token')
-  const { headers, body } = buildChatRequest({ message, conversationId, file, token })
+  const { headers, body } = buildChatRequest({ message, conversationId, file, token, context })
   const res = await fetch(`${BASE_URL}/agent/chat`, { method: 'POST', headers, body, signal })
   if (!res.ok || !res.body) throw new Error(await readErrorMessage(res))
 

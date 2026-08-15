@@ -7,6 +7,7 @@ import { lerSessao, salvarSessao, limparSessao } from '../lib/agentSession'
 import { arquivosDaMensagem, anexarArquivo } from '../lib/agentFiles'
 import { hrefPermitido } from '../lib/agentLinks'
 import { aberturaDoPapel } from '../lib/agentOpening'
+import { lerContexto, dispensarContexto } from '../lib/agentContext'
 import { BolhaMarkdown } from '../components/assistente/BolhaMarkdown'
 
 // ── Página do Assistente (tela cheia) ──────────────────────────────────────
@@ -135,6 +136,24 @@ function BotaoCopiar({ texto }) {
   )
 }
 
+function textoDoChip(ctx) {
+  const nome = ctx?.projectName || ''
+  if (ctx?.taskTitle) return nome ? `${nome} · ${ctx.taskTitle}` : ctx.taskTitle
+  if (ctx?.taskCount != null && ctx.taskCount !== '') {
+    const n = Number(ctx.taskCount)
+    if (Number.isFinite(n)) {
+      return `${nome} · ${n} ${n === 1 ? 'tarefa' : 'tarefas'}`
+    }
+  }
+  return nome
+}
+
+function hrefDoChip(ctx) {
+  if (ctx?.taskId) return `/tarefas?task=${ctx.taskId}`
+  if (ctx?.projectId) return `/projetos?project=${ctx.projectId}`
+  return '/projetos'
+}
+
 function ChipsLinks({ links }) {
   const visiveis = (links || []).filter((l) => l?.href && hrefPermitido(l.href))
   if (!visiveis.length) return null
@@ -161,7 +180,8 @@ export function AssistentePage() {
   const [arquivo, setArquivo] = useState(null) // File anexado, ainda não enviado
   const [anexoErro, setAnexoErro] = useState(null)
   const [sugestoes, setSugestoes] = useState([])
-  const abertura = aberturaDoPapel(profile?.role)
+  const [contextoAtivo, setContextoAtivo] = useState(null)
+  const abertura = aberturaDoPapel(profile?.role, contextoAtivo)
 
   const textareaRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -169,6 +189,7 @@ export function AssistentePage() {
   const abortRef = useRef(null)
   const pertoDoFundoRef = useRef(true)
   const restauradoRef = useRef(false)
+  const contextoLidoRef = useRef(false)
 
   const estaVazio = mensagens.length === 0
   const primeiroNome = (profile?.name || '').trim().split(' ')[0]
@@ -185,6 +206,14 @@ export function AssistentePage() {
     }
     restauradoRef.current = true
   }, [profile?.id])
+
+  // Chip de contexto: lê o carimbo da aba uma vez. Dismiss vive no
+  // sessionStorage — remount de /assistente não ressuscita o chip.
+  useEffect(() => {
+    if (contextoLidoRef.current) return
+    setContextoAtivo(lerContexto())
+    contextoLidoRef.current = true
+  }, [])
 
   // Persiste a cada mudança — mas só DEPOIS de restaurar, para o render inicial
   // (vazio) não sobrescrever o que já estava salvo.
@@ -257,7 +286,14 @@ export function AssistentePage() {
   async function correr(idxBot, texto, file, signal) {
     setOcupado(true)
     try {
-      await streamChat({ message: texto, conversationId: conversa, file, signal, onEvent: receber(idxBot) })
+      await streamChat({
+        message: texto,
+        conversationId: conversa,
+        file,
+        signal,
+        onEvent: receber(idxBot),
+        context: contextoAtivo,
+      })
     } catch (err) {
       // Abort local é a verdade da UI — não pinta erro, não espera o SSE aborted.
       if (err?.name === 'AbortError' || signal?.aborted) {
@@ -389,9 +425,27 @@ export function AssistentePage() {
   function renderComposer() {
     return (
       <div className="space-y-2">
-        {/* Chip do anexo pendente (ou erro de anexo) acima da linha de digitação */}
-        {(arquivo || anexoErro) && (
+        {/* Chip do contexto ativo + anexo pendente (ou erro) acima da digitação */}
+        {(contextoAtivo || arquivo || anexoErro) && (
           <div className="flex flex-wrap items-center gap-2">
+            {contextoAtivo && (
+              <span className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-border-subtle bg-surface-alt px-2.5 py-1.5 text-xs text-text-primary">
+                <Link
+                  to={hrefDoChip(contextoAtivo)}
+                  className="max-w-[16rem] truncate hover:underline"
+                >
+                  {textoDoChip(contextoAtivo)}
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => { dispensarContexto(); setContextoAtivo(null) }}
+                  aria-label="Esquecer este contexto"
+                  className="flex-none text-text-secondary transition-colors hover:text-text-primary"
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            )}
             {arquivo && (
               <span className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-border-subtle bg-surface-alt px-2.5 py-1.5 text-xs text-text-primary">
                 <Paperclip size={12} className="flex-none text-accent" />

@@ -52,6 +52,25 @@ describe('buildChatRequest', () => {
     expect(headers['Content-Type']).toBeUndefined()
     expect(headers.Authorization).toBe('Bearer t')
   })
+
+  it('JSON inclui context.project_id/task_id e ignora nome', () => {
+    const { body } = buildChatRequest({
+      message: 'isso',
+      conversationId: 'c1',
+      context: { projectId: 'p1', taskId: 't1', projectName: 'NÃO' },
+      token: 't',
+    })
+    expect(JSON.parse(body).context).toEqual({ project_id: 'p1', task_id: 't1' })
+  })
+  it('FormData manda project_id e task_id, não o nome', () => {
+    const file = new File(['x'], 'a.pdf', { type: 'application/pdf' })
+    const { body } = buildChatRequest({
+      message: 'lê', file,
+      context: { projectId: 'p1', taskId: 't1' },
+    })
+    expect(body.get('project_id')).toBe('p1')
+    expect(body.get('task_id')).toBe('t1')
+  })
 })
 
 describe('readErrorMessage', () => {
