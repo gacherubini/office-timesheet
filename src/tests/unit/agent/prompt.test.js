@@ -185,3 +185,22 @@ describe('prompt — injeção do esquema do banco (só admin)', () => {
     expect(p).not.toContain('# Esquema do banco')
   })
 })
+
+describe('prompt — contexto da tela (§7.6)', () => {
+  it('sem contexto → bloco ausente', () => {
+    const p = buildSystemPrompt({ role: 'employee', name: 'Ana' })
+    expect(p).not.toMatch(/# Contexto da tela/)
+  })
+  it('com projeto → contém o nome do banco, não um nome forjado pelo cliente', () => {
+    const p = buildSystemPrompt(
+      { role: 'employee', name: 'Ana' },
+      new Date(),
+      '',
+      { projeto: { id: '11111111-1111-4111-8111-111111111111', name: 'Acme' }, tarefa: null },
+    )
+    expect(p).toMatch(/# Contexto da tela/)
+    expect(p).toMatch(/Acme/)
+    expect(p).not.toMatch(/EvilCorp/)
+    expect(p).toMatch(/ids internos/)
+  })
+})

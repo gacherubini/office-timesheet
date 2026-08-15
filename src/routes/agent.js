@@ -9,6 +9,7 @@ import { extractText, MAX_ATTACHMENT_BYTES } from '../lib/agent/attachments/extr
 import { buildUserMessage } from '../lib/agent/attachments/context.js'
 import { buildSystemPrompt } from '../lib/agent/prompt.js'
 import { esquemaAdmin } from '../lib/agent/schemaContext.js'
+import { validarContexto } from '../lib/agent/contextoTela.js'
 import { runAgentTurn } from '../lib/agent/loop.js'
 import { getClient } from '../lib/agent/client.js'
 import { takeProposal } from '../lib/agent/proposals.js'
@@ -168,9 +169,20 @@ router.post('/agent/chat', requireAuth, chatRateLimit, uploadAnexo, async (req, 
     esquema = await esquemaAdmin().catch(() => '')
   }
 
+  // Contexto da tela: só UUIDs. JSON `{ context }` ou fields multipart
+  // `project_id`/`task_id`. Se `context` vier string (FormData), parse best-effort.
+  // Nunca leia project_name / task_title — nomes saem do banco.
+  let rawCtx = req.body?.context
+  if (typeof rawCtx === 'string') {
+    try { rawCtx = JSON.parse(rawCtx) } catch { rawCtx = null }
+  }
+  const project_id = rawCtx?.project_id || req.body?.project_id
+  const task_id = rawCtx?.task_id || req.body?.task_id
+  const ctxTela = await validarContexto(req.profile, { project_id, task_id })
+
   const novaMsg = { role: 'user', content: buildUserMessage({ message, attachment }) }
   const messages = [
-    { role: 'system', content: buildSystemPrompt(req.profile, new Date(), esquema) },
+    { role: 'system', content: buildSystemPrompt(req.profile, new Date(), esquema, ctxTela) },
     ...session.messages,
     novaMsg,
   ]
@@ -186,7 +198,7 @@ router.post('/agent/chat', requireAuth, chatRateLimit, uploadAnexo, async (req, 
   try {
     const { status, messages: full } = await runAgentTurn({
       client: getClient(), profile: req.profile, model: process.env.AGENT_MODEL, messages, emit,
-      conversationId: session.id, signal: ac.signal,
+      conversationId: session.id, signal: ac.signal, context: ctxTela,
     })
     // Persiste os turnos novos: tudo depois de system + histórico anterior.
     // Abort ≠ erro: emite aborted e nunca error. Bloco sujo não entra na sessão.

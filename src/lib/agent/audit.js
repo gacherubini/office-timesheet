@@ -59,6 +59,12 @@ export function logTurnAborted({ profile, conversationId, tinhaResposta }) {
   logger.info({ evt: 'agent_turn_aborted', user_id: profile?.id, conversation_id: conversationId, tinha_resposta: !!tinhaResposta })
 }
 
+// Cliente mandou um id de contexto que caiu (malformado / inexistente / deletado).
+// Sem o uuid no log: o id inválido não é dado útil e não deve ir pro Axiom.
+export function logContextInvalid({ profile, campo }) {
+  logger.info({ evt: 'agent_context_invalid', user_id: profile?.id, role: profile?.role, campo })
+}
+
 // Só metadado do arquivo gerado — sem buffer, sem conteúdo.
 export function logReportGenerated({ profile, formato, fontes, bytes, filename }) {
   logger.info({

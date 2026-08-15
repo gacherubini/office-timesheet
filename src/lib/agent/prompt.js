@@ -66,14 +66,38 @@ function blocoIdentidade(profile) {
 Você está atendendo **${profile.name}**${cargo} (${papel}). A identidade já foi resolvida pelo login: as ferramentas de dado próprio (seus apontamentos, sua simulação de performance, suas férias) já se referem a esta pessoa. Quando ela disser "eu", "meu", "minhas horas", "lancei", é sempre ela mesma. NUNCA pergunte "quem é você" nem peça e-mail/usuário para identificá-la, e nunca liste o time só para descobrir quem está falando — isso já está resolvido.`
 }
 
+// Contexto da tela (§7.6). Só entra se houver projeto (nome do banco, nunca
+// o que o cliente tentou mandar). "isso/aqui" resolve para este nome; ids
+// internos são dado para deep link, não parâmetro de tool.
+export function blocoContextoTela(ctx) {
+  const projeto = ctx?.projeto
+  if (!projeto?.name) return ''
+  const linhas = [
+    '# Contexto da tela',
+    `A pessoa está falando do projeto **${projeto.name}**.`,
+  ]
+  if (ctx.tarefa?.title) {
+    linhas.push(`Há também a tarefa **${ctx.tarefa.title}** desse projeto.`)
+  }
+  linhas.push(
+    'Quando ela disser "isso", "aqui", "esse projeto", "essa tarefa", é isto.',
+    'Não pergunte o nome de novo. Use o nome acima nas tools (projeto entra por NOME, como sempre). Se ela mudar de assunto, siga o assunto novo.',
+    '',
+    `ids internos (não cite ao usuário; não passe como parâmetro de tool): projeto=${projeto.id} tarefa=${ctx.tarefa?.id || ''}`,
+  )
+  return linhas.join('\n')
+}
+
 // `esquema` é o mapa de tabelas/colunas do banco (schemaContext.esquemaAdmin) —
 // injetado, não importado, para o prompt seguir síncrono e puro e não acoplar ao
 // banco quem só quer montar texto. Só entra para admin: é a única fatia que
 // enxerga `consultar_dados` (§8.2). A rota busca e passa; testes passam direto.
-export function buildSystemPrompt(profile, now = new Date(), esquema = '') {
+// `ctxTela` é o retorno de validarContexto — bloco depois das regras, antes do domínio.
+export function buildSystemPrompt(profile, now = new Date(), esquema = '', ctxTela = null) {
   const fatia = FATIA_POR_PAPEL[profile?.role] || 'employee'
   const identidade = blocoIdentidade(profile)
   const cabecalho = identidade ? `${identidade}\n\n` : ''
   const blocoEsquema = profile?.role === 'admin' && esquema ? `\n\n${esquema}` : ''
-  return `${cabecalho}${blocoData(now)}\n\n${REGRAS}\n\n${slice('core')}\n\n${slice(fatia)}${blocoEsquema}`
+  const blocoTela = blocoContextoTela(ctxTela)
+  return `${cabecalho}${blocoData(now)}\n\n${REGRAS}${blocoTela ? `\n\n${blocoTela}` : ''}\n\n${slice('core')}\n\n${slice(fatia)}${blocoEsquema}`
 }

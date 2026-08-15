@@ -39,11 +39,11 @@ function ultimaMensagemUsuarioDe(messages) {
   return ''
 }
 
-function emitirAnswer(emit, text, { profile, messages }) {
+function emitirAnswer(emit, text, { profile, messages, context }) {
   emit({ type: 'answer', text })
   const items = sugerirProximos({
     profile,
-    context: null,
+    context,
     lastTools: lastToolsDesteTurno(messages),
     lastKind: 'answer',
     ultimaMensagemUsuario: ultimaMensagemUsuarioDe(messages),
@@ -92,7 +92,7 @@ const NUDGE_VAZIO = {
 // ele esgota as voltas sem fechar.
 const FALLBACK_SEM_RESPOSTA = 'Não consegui chegar a uma resposta pra isso. Pode reformular com outras palavras — por exemplo, dizendo o período, o projeto ou a pessoa que você tem em mente?'
 
-export async function runAgentTurn({ client, profile, model, messages, emit, conversationId = null, signal, now = Date.now }) {
+export async function runAgentTurn({ client, profile, model, messages, emit, conversationId = null, signal, now = Date.now, context = null }) {
   const registry = buildRegistry(profile)
   const usageTotal = { tokensIn: 0, tokensOut: 0, cached: 0 }
   const inicio = now()
@@ -107,7 +107,7 @@ export async function runAgentTurn({ client, profile, model, messages, emit, con
     // §orçamento: estoura o relógio do turno inteiro antes de gastar mais uma
     // chamada ao modelo. Responde o fallback e sai — histórico limpo, sem 400.
     if (now() - inicio > LIMITS.turnBudgetMs) {
-      emitirAnswer(emit, FALLBACK_ORCAMENTO, { profile, messages })
+      emitirAnswer(emit, FALLBACK_ORCAMENTO, { profile, messages, context })
       return { status: 'done', messages, usage: usageTotal }
     }
 
@@ -185,11 +185,11 @@ export async function runAgentTurn({ client, profile, model, messages, emit, con
           incluirNudge = true
           continue
         }
-        emitirAnswer(emit, FALLBACK_VAZIO, { profile, messages })
+        emitirAnswer(emit, FALLBACK_VAZIO, { profile, messages, context })
         return { status: 'done', messages, usage: usageTotal }
       }
       messages.push(message)
-      emitirAnswer(emit, conteudo, { profile, messages })
+      emitirAnswer(emit, conteudo, { profile, messages, context })
       return { status: 'done', messages, usage: usageTotal }
     }
     messages.push(message)
@@ -258,6 +258,6 @@ export async function runAgentTurn({ client, profile, model, messages, emit, con
   // Esgotou as voltas sem uma resposta final: degrada para um convite a
   // reformular em vez de lançar erro cru. Histórico já está bem-formado (cada
   // volta fechou seus tool_calls), então é reenviável sem 400.
-  emitirAnswer(emit, FALLBACK_SEM_RESPOSTA, { profile, messages })
+  emitirAnswer(emit, FALLBACK_SEM_RESPOSTA, { profile, messages, context })
   return { status: 'done', messages, usage: usageTotal }
 }
