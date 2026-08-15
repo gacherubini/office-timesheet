@@ -2,7 +2,7 @@
 // isolada; o gasto agregado é observado, não bloqueado (§19.1).
 export const LIMITS = {
   maxIterations: Number(process.env.AGENT_MAX_ITERATIONS) || 6,
-  maxTokens: Number(process.env.AGENT_MAX_TOKENS) || 1024,
+  maxTokens: Number(process.env.AGENT_MAX_TOKENS) || 2048,
   timeoutMs: Number(process.env.AGENT_TIMEOUT_MS) || 30000,
   // Teto de RELÓGIO do turno inteiro. maxIterations limita o nº de voltas, mas sem
   // isto o pior caso é maxIterations × timeoutMs (6 × 30s = 180s) preso no usuário.

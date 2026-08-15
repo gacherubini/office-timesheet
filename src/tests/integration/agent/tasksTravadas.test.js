@@ -39,4 +39,11 @@ describe('tool tasks_travadas (todos os papéis)', () => {
     expect(comString.data.map((t) => t.titulo).sort())
       .toEqual(comNumero.data.map((t) => t.titulo).sort())
   })
+
+  it('traz tarefa_id e projeto_id (additive)', async () => {
+    const { data } = await tool.run(emp, { dias: 3 })
+    const velha = data.find((t) => t.titulo === 'Revisão velha')
+    expect(velha.tarefa_id).toBeTruthy()
+    expect(velha.projeto_id).toBe(proj.id)
+  })
 })

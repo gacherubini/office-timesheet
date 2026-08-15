@@ -1,9 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, Square, RotateCcw, AlertCircle, Check, Plus, Sparkles, Loader2, Paperclip, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Send, Square, RotateCcw, AlertCircle, Check, Plus, Sparkles, Loader2, Paperclip, X, Copy } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { streamChat, executeProposal, cancelProposal, downloadAgentFile } from '../lib/agentClient'
 import { lerSessao, salvarSessao, limparSessao } from '../lib/agentSession'
 import { arquivosDaMensagem, anexarArquivo } from '../lib/agentFiles'
+import { hrefPermitido } from '../lib/agentLinks'
+import { BolhaMarkdown } from '../components/assistente/BolhaMarkdown'
 
 // ── Página do Assistente (tela cheia) ──────────────────────────────────────
 // Aposenta o widget flutuante: coluna central única, sem sidebar/histórico, a
@@ -108,6 +111,51 @@ function Pensando() {
   )
 }
 
+function BotaoCopiar({ texto }) {
+  const [ok, setOk] = useState(false)
+  const t = useRef(null)
+  useEffect(() => () => clearTimeout(t.current), [])
+
+  async function copiar() {
+    try {
+      await navigator.clipboard.writeText(texto)
+    } catch {
+      return
+    }
+    setOk(true)
+    clearTimeout(t.current)
+    t.current = setTimeout(() => setOk(false), 1500)
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={copiar}
+      aria-label={ok ? 'Copiado' : 'Copiar'}
+      className="inline-flex text-text-secondary transition-colors hover:text-text-primary"
+    >
+      {ok ? <Check size={14} /> : <Copy size={14} />}
+    </button>
+  )
+}
+
+function ChipsLinks({ links }) {
+  const visiveis = (links || []).filter((l) => l?.href && hrefPermitido(l.href))
+  if (!visiveis.length) return null
+  const chip = 'inline-flex items-center border border-border-subtle bg-surface px-2.5 py-1 text-xs text-text-primary transition-colors hover:bg-surface-alt'
+  return (
+    <div className="flex flex-wrap gap-2">
+      {visiveis.map((l) => (
+        l.href.startsWith('/') ? (
+          <Link key={l.href} to={l.href} className={chip}>{l.label}</Link>
+        ) : (
+          <a key={l.href} href={l.href} target="_blank" rel="noopener noreferrer" className={chip}>{l.label}</a>
+        )
+      ))}
+    </div>
+  )
+}
+
 export function AssistentePage() {
   const { profile } = useAuth()
   const [mensagens, setMensagens] = useState([]) // { autor, texto, proposta?, aprovado?, cancelado?, erro?, executando? }
@@ -182,7 +230,9 @@ export function AssistentePage() {
       // Só a resposta final chega (o raciocínio fica escondido atrás do "Pensando…").
       // Vem inteira num único evento, então define o texto de uma vez.
       if (e.type === 'answer') {
-        setMensagens((m) => m.map((msg, i) => (i === idxBot ? { ...msg, texto: e.text } : msg)))
+        setMensagens((m) => m.map((msg, i) => (
+          i === idxBot ? { ...msg, texto: e.text, links: e.links } : msg
+        )))
       }
       if (e.type === 'proposal') {
         setMensagens((m) => m.map((msg, i) => (
@@ -510,9 +560,15 @@ export function AssistentePage() {
                       {digitando ? (
                         <Pensando />
                       ) : m.texto ? (
-                        <p className="max-w-[46ch] whitespace-pre-wrap break-words leading-relaxed text-text-primary">
-                          {m.texto}
-                        </p>
+                        <div className="space-y-2">
+                          <div className="relative">
+                            <BolhaMarkdown texto={m.texto} />
+                            <div className="mt-1">
+                              <BotaoCopiar texto={m.texto} />
+                            </div>
+                          </div>
+                          <ChipsLinks links={m.links} />
+                        </div>
                       ) : null}
 
                       {/* Arquivos gerados — um botão por arquivo (TTL 5 min no servidor) */}

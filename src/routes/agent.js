@@ -20,6 +20,7 @@ import proporEncerrarApontamento from '../lib/agent/tools/write/proporEncerrarAp
 import proporCriarApontamento from '../lib/agent/tools/write/proporCriarApontamento.js'
 import proporCriarTask from '../lib/agent/tools/write/proporCriarTask.js'
 import proporPedirFerias from '../lib/agent/tools/write/proporPedirFerias.js'
+import { coletarLinks } from '../lib/agent/coletarLinks.js'
 
 const router = Router()
 
@@ -148,13 +149,13 @@ router.post('/agent/chat', requireAuth, chatRateLimit, uploadAnexo, async (req, 
     fechado = true
     ac.abort()
   })
-  const emit = (evento) => {
+  const writeSse = (evento) => {
     if (fechado || res.writableEnded) return
     res.write(`data: ${JSON.stringify(evento)}\n\n`)
   }
 
   const session = loadSession(conversation_id, req.profile)
-  emit({ type: 'session', conversation_id: session.id })
+  writeSse({ type: 'session', conversation_id: session.id })
 
   // Monta o contexto: system (não persistido) + histórico do servidor + a msg nova.
   // Com anexo, o conteúdo do turno traz o bloco do arquivo (dado, não instrução)
@@ -173,6 +174,14 @@ router.post('/agent/chat', requireAuth, chatRateLimit, uploadAnexo, async (req, 
     ...session.messages,
     novaMsg,
   ]
+
+  const emit = (evento) => {
+    if (evento?.type === 'answer') {
+      writeSse({ ...evento, links: coletarLinks(messages) })
+      return
+    }
+    writeSse(evento)
+  }
 
   try {
     const { status, messages: full } = await runAgentTurn({

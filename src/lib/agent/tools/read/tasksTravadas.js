@@ -22,7 +22,8 @@ async function run(_profile, args) {
   const n = Number(args?.dias)
   const dias = Number.isFinite(n) && n > 0 ? Math.floor(n) : 3
   const { rows } = await query(
-    `SELECT t.title AS titulo, p.name AS projeto, t.status,
+    `SELECT t.id AS tarefa_id, p.id AS projeto_id,
+            t.title AS titulo, p.name AS projeto, t.status,
             EXTRACT(DAY FROM now() - t.updated_at)::int AS dias_parada
        FROM tasks t JOIN projects p ON p.id = t.project_id
       WHERE t.status = 'abandoned'
