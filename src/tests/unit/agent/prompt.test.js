@@ -50,6 +50,14 @@ describe('prompt — regras + domínio fatiado', () => {
     }
   })
 
+  it('domínio do admin: arquivo vira botão no chat, nunca outra tela, e formatos saem juntos', () => {
+    const p = buildSystemPrompt({ role: 'admin' })
+    expect(p).toMatch(/botão|Baixar/i)
+    expect(p).toMatch(/formatos/i)
+    expect(p).toMatch(/regerar|gere de novo|gera de novo/i)
+    expect(p).not.toMatch(/área de downloads|área de relatórios/i)
+  })
+
   it('domínio do admin descreve a consulta SQL ad-hoc e seus limites', () => {
     const p = buildSystemPrompt({ role: 'admin' })
     expect(p).toMatch(/consultar_dados|consulta ad-hoc|SQL/i)
@@ -62,6 +70,15 @@ describe('prompt — regras + domínio fatiado', () => {
       // Um beco (não achou / não casou) vira pergunta de esclarecimento, nunca erro.
       expect(p).toMatch(/quis dizer|palpite|reformul/i)
       expect(p).toMatch(/pergunt|esclarec/i)
+    }
+  })
+
+  it('manda interpretar typo e continuação ("e outro") e perguntar "você não quis dizer"', () => {
+    for (const role of ['admin', 'employee']) {
+      const p = buildSystemPrompt({ role })
+      expect(p).toMatch(/você não quis dizer|quis dizer/i)
+      expect(p).toMatch(/digitação|typo|ilegív|torto/i)
+      expect(p).toMatch(/e outro|continuação/i)
     }
   })
 

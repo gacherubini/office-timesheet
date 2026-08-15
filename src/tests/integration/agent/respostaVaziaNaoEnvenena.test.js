@@ -50,7 +50,7 @@ describe('resposta vazia do modelo não envenena a conversa', () => {
 
     // O que foi enviado ao provedor no turno 2 NÃO pode conter um assistant sem
     // content e sem tool_calls — é exatamente o que a DeepSeek recusa com 400.
-    const msgsTurno2 = capturas[1]
+    const msgsTurno2 = capturas[capturas.length - 1]
     const malformada = msgsTurno2.find((m) => m.role === 'assistant' && !m.content && !(m.tool_calls?.length))
     expect(malformada).toBeUndefined()
   })

@@ -28,8 +28,14 @@ export function truncarResultado(json, limite = Number(process.env.AGENT_MAX_TOO
 // Fallbacks legíveis para os dois becos sem-saída do turno. Ambos deixam o
 // histórico limpo (sem push de assistant vazio) — reenviar vazio faria o provedor
 // recusar a conversa inteira com 400. `now` é injetável para o teste do orçamento.
-const FALLBACK_VAZIO = 'Não consegui gerar uma resposta agora. Pode reformular a pergunta ou tentar de novo?'
+const FALLBACK_VAZIO = 'Não entendi essa última mensagem. Era para continuar o que a gente estava fazendo? Confirma em uma frase.'
 const FALLBACK_ORCAMENTO = 'Isso está levando mais tempo do que o esperado. Tenta de novo ou refina a pergunta (por exemplo, um período específico).'
+// Empurrão de uma volta só, quando o modelo devolve turno vazio. Não entra no
+// histórico persistido — só na chamada imediata de retry.
+const NUDGE_VAZIO = {
+  role: 'system',
+  content: 'A última mensagem do usuário pode ter erro de digitação ou estar incompleta. Interprete pelo histórico da conversa e pergunte "Você não quis dizer X?" com o palpite mais provável. Não fique em silêncio e não chame ferramenta até a pessoa confirmar.',
+}
 // Teto de iterações estourado = o agente tentou e não convergiu. NÃO é erro cru
 // pro usuário ("limite de iterações do agente atingido" é jargão interno): vira
 // um convite a reformular, com histórico limpo e bem-formado (sem 400 no próximo
@@ -42,6 +48,8 @@ export async function runAgentTurn({ client, profile, model, messages, emit, con
   const registry = buildRegistry(profile)
   const usageTotal = { tokensIn: 0, tokensOut: 0, cached: 0 }
   const inicio = now()
+  let retryVazio = false
+  let incluirNudge = false
 
   for (let i = 0; i < LIMITS.maxIterations; i++) {
     // §2 desconexão: se o cliente sumiu (req.on('close')), para ANTES de gastar
@@ -56,6 +64,8 @@ export async function runAgentTurn({ client, profile, model, messages, emit, con
     }
 
     let message, usage
+    const paraModelo = incluirNudge ? [...messages, NUDGE_VAZIO] : messages
+    incluirNudge = false
     try {
       ;({ message, usage } = await withTimeout(
         // O raciocínio que o modelo escreve junto das tool calls NÃO vai pro
@@ -65,7 +75,7 @@ export async function runAgentTurn({ client, profile, model, messages, emit, con
         // no meio do stream, se o texto que chega é raciocínio ou resposta (o sinal
         // tool_calls só aparece no fim da iteração); por isso a resposta não sai
         // token-a-token e o indicador "Pensando…" cobre toda a espera.
-        client.stream({ messages, tools: registry.definitions, model }, () => {}),
+        client.stream({ messages: paraModelo, tools: registry.definitions, model }, () => {}),
         LIMITS.timeoutMs,
       ))
     } catch (err) {
@@ -93,10 +103,18 @@ export async function runAgentTurn({ client, profile, model, messages, emit, con
       // vazio (sem content E sem tool_calls — ex.: cortou no meio do raciocínio).
       // Um assistant assim NÃO pode entrar no histórico: reenviá-lo no turno
       // seguinte faz o provedor recusar a conversa INTEIRA com 400 "content or
-      // tool_calls must be set", travando tudo até a sessão expirar. Então
-      // responde com um fallback legível e deixa o histórico limpo (sem push).
+      // tool_calls must be set". Primeiro tenta de novo com um empurrão; se
+      // vier vazio de novo, cai no fallback e deixa o histórico limpo.
       const conteudo = message.content || ''
       if (!conteudo) {
+        // Uma segunda chamada no mesmo turno, com o empurrão — o modelo às vezes
+        // corta no meio do raciocínio diante de typo. O nudge não entra em
+        // `messages`, então a sessão não herda essa muleta.
+        if (!retryVazio) {
+          retryVazio = true
+          incluirNudge = true
+          continue
+        }
         emit({ type: 'answer', text: FALLBACK_VAZIO })
         return { status: 'done', messages, usage: usageTotal }
       }
@@ -146,8 +164,11 @@ export async function runAgentTurn({ client, profile, model, messages, emit, con
       } else {
         try {
           const result = await tool.run(profile, args)
-          if (result.arquivo) {
-            const { token, filename, mime, bytes } = result.arquivo
+          const arquivos = Array.isArray(result.arquivos) && result.arquivos.length
+            ? result.arquivos
+            : (result.arquivo ? [result.arquivo] : [])
+          for (const arq of arquivos) {
+            const { token, filename, mime, bytes } = arq
             emit({ type: 'file', token, filename, mime, bytes })
           }
           const payload = { data: result.data }

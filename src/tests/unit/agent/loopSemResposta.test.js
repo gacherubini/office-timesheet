@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { runAgentTurn } from '../../../lib/agent/loop.js'
+import * as usageRepo from '../../../lib/agent/usageRepo.js'
 
 // Cliente preso: pede sempre uma tool inexistente, então o loop empurra
 // "indisponível" e segue até esgotar maxIterations SEM nunca convergir numa
@@ -19,6 +20,9 @@ const clientePreso = {
 }
 
 describe('teto de iterações → esclarecimento gracioso (nunca erro cru)', () => {
+  beforeEach(() => { vi.spyOn(usageRepo, 'insert').mockResolvedValue() })
+  afterEach(() => vi.restoreAllMocks())
+
   it('esgota as iterações e emite um answer amigável em vez de lançar erro', async () => {
     const eventos = []
     const r = await runAgentTurn({

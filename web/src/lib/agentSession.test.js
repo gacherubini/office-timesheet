@@ -65,6 +65,21 @@ describe('agentSession — persistência local da conversa do Assistente', () =>
     expect(lerSessao('u-1').mensagens[0].arquivo.filename).toBe('r.csv')
   })
 
+  it('persiste vários arquivos da bolha', () => {
+    const mensagens = [
+      {
+        autor: 'bot',
+        texto: 'gerei',
+        arquivos: [
+          { token: 't1', filename: 'a.csv', mime: 'text/csv', bytes: 2 },
+          { token: 't2', filename: 'a.pdf', mime: 'application/pdf', bytes: 4 },
+        ],
+      },
+    ]
+    salvarSessao('u-1', { conversationId: 'c', mensagens })
+    expect(lerSessao('u-1').mensagens[0].arquivos.map((a) => a.filename)).toEqual(['a.csv', 'a.pdf'])
+  })
+
   it('não persiste o File do anexo — JSON.stringify o viraria {} e quebraria o reenvio', () => {
     // Stand-in do File: o ambiente de teste é Node, sem File nativo. O que
     // importa é que a chave seja descartada na serialização.

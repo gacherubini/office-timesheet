@@ -3,6 +3,7 @@ import { Send, RotateCcw, AlertCircle, Check, Plus, Sparkles, Loader2, Paperclip
 import { useAuth } from '../contexts/AuthContext'
 import { streamChat, executeProposal, cancelProposal, downloadAgentFile } from '../lib/agentClient'
 import { lerSessao, salvarSessao, limparSessao } from '../lib/agentSession'
+import { arquivosDaMensagem, anexarArquivo } from '../lib/agentFiles'
 
 // ── Página do Assistente (tela cheia) ──────────────────────────────────────
 // Aposenta o widget flutuante: coluna central única, sem sidebar/histórico, a
@@ -177,7 +178,9 @@ export function AssistentePage() {
       }
       if (e.type === 'file') {
         setMensagens((m) => m.map((msg, i) => (
-          i === idxBot ? { ...msg, arquivo: { token: e.token, filename: e.filename, mime: e.mime, bytes: e.bytes } } : msg
+          i === idxBot
+            ? anexarArquivo(msg, { token: e.token, filename: e.filename, mime: e.mime, bytes: e.bytes })
+            : msg
         )))
       }
       if (e.type === 'error') {
@@ -259,11 +262,12 @@ export function AssistentePage() {
     }
   }
 
-  async function baixar(idx) {
-    const msg = mensagens[idx]
-    if (!msg?.arquivo?.token) return
+  async function baixar(idx, token) {
+    const alvo = arquivosDaMensagem(mensagens[idx]).find((a) => a.token === token)
+      || arquivosDaMensagem(mensagens[idx])[0]
+    if (!alvo?.token) return
     try {
-      await downloadAgentFile(msg.arquivo.token)
+      await downloadAgentFile(alvo.token)
       setMensagens((m) => m.map((x, i) => (i === idx ? { ...x, arquivoErro: null } : x)))
     } catch (err) {
       const expirado = /expirado/i.test(err.message || '')
@@ -454,6 +458,7 @@ export function AssistentePage() {
                 const streaming = ocupado && i === mensagens.length - 1 && !m.proposta && !m.erro
                 const digitando = streaming && !m.texto
                 const linhas = m.proposta ? linhasDados(m.proposta.dados) : []
+                const arquivos = arquivosDaMensagem(m)
 
                 return (
                   <div key={i} className="flex gap-3">
@@ -467,16 +472,19 @@ export function AssistentePage() {
                         </p>
                       ) : null}
 
-                      {/* Arquivo gerado — download efêmero (TTL 5 min no servidor) */}
-                      {m.arquivo && (
+                      {/* Arquivos gerados — um botão por arquivo (TTL 5 min no servidor) */}
+                      {arquivos.length > 0 && (
                         <div className="space-y-2">
-                          <button
-                            type="button"
-                            onClick={() => baixar(i)}
-                            className="rounded-md border border-border-subtle bg-surface px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-surface-alt"
-                          >
-                            Baixar {m.arquivo.filename}
-                          </button>
+                          {arquivos.map((arq) => (
+                            <button
+                              key={arq.token}
+                              type="button"
+                              onClick={() => baixar(i, arq.token)}
+                              className="block rounded-md border border-border-subtle bg-surface px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-surface-alt"
+                            >
+                              Baixar {arq.filename}
+                            </button>
+                          ))}
                           {m.arquivoErro && (
                             <p className="state-danger-soft max-w-[33rem] px-2.5 py-1.5 text-xs">{m.arquivoErro}</p>
                           )}

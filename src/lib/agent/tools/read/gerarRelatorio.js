@@ -21,12 +21,17 @@ const definition = {
   function: {
     name: 'gerar_relatorio',
     description:
-      'Gera um arquivo (md, csv, xlsx ou pdf) a partir de tools de leitura. Escolha as fontes e os params; o servidor reexecuta e monta o arquivo. Não invente linhas. Só use quando pedirem arquivo, Excel, PDF, CSV ou exportar.',
+      'Gera um ou mais arquivos (md, csv, xlsx ou pdf) a partir de tools de leitura. Use formato para um, ou formatos para vários de uma vez (mesmo conteúdo). Escolha as fontes e os params; o servidor reexecuta e monta o arquivo. Não invente linhas. Só use quando pedirem arquivo, Excel, PDF, CSV ou exportar.',
     parameters: {
       type: 'object',
       properties: {
         titulo: { type: 'string', description: 'título do relatório e base do nome do arquivo' },
         formato: { type: 'string', enum: ['md', 'csv', 'xlsx', 'pdf'] },
+        formatos: {
+          type: 'array',
+          items: { type: 'string', enum: ['md', 'csv', 'xlsx', 'pdf'] },
+          description: 'vários formatos de uma vez. Prefira isto a chamar a tool N vezes.',
+        },
         fontes: {
           type: 'array',
           description: '1 a 6 fontes de leitura (tool + params)',
@@ -41,7 +46,7 @@ const definition = {
           },
         },
       },
-      required: ['titulo', 'formato', 'fontes'],
+      required: ['titulo', 'fontes'],
       additionalProperties: false,
     },
   },
@@ -64,6 +69,18 @@ function tituloSecao(fonte) {
   return fonte.titulo || String(fonte.tool || '').replace(/_/g, ' ')
 }
 
+function resolverFormatos(args) {
+  const lista = []
+  if (args?.formato) lista.push(args.formato)
+  if (Array.isArray(args?.formatos)) lista.push(...args.formatos)
+  const unicos = [...new Set(lista)]
+  if (unicos.length === 0) throw new Error('formato é obrigatório')
+  for (const f of unicos) {
+    if (!MIME[f]) throw new Error('formato desconhecido')
+  }
+  return unicos
+}
+
 function normalizarRows(data) {
   if (Array.isArray(data)) {
     if (data.length === 0) return { rows: [], total: 0 }
@@ -81,8 +98,7 @@ function normalizarRows(data) {
 async function run(profile, args) {
   const titulo = String(args?.titulo ?? '').trim()
   if (!titulo) throw new Error('titulo é obrigatório')
-  const formato = args?.formato
-  if (!MIME[formato]) throw new Error('formato desconhecido')
+  const formatos = resolverFormatos(args)
   const fontes = args?.fontes
   if (!Array.isArray(fontes) || fontes.length < 1 || fontes.length > 6) {
     throw new Error('informe entre 1 e 6 fontes')
@@ -117,32 +133,44 @@ async function run(profile, args) {
     throw new Error('não consegui montar o relatório; refine as fontes')
   }
 
-  const filename = slugArquivo(titulo, dateInSaoPaulo(), formato)
   const geradoEm = new Intl.DateTimeFormat('pt-BR', {
     timeZone: APP_TZ,
     dateStyle: 'short',
     timeStyle: 'short',
   }).format(new Date())
-  const mime = MIME[formato]
-  const buffer = await renderRelatorio({ titulo, formato, secoes, geradoEm })
 
-  if (buffer.length > DOWNLOAD_MAX_BYTES) {
-    throw new Error('arquivo grande demais; refine as fontes ou o período')
+  const arquivos = []
+  const metaArquivos = []
+  for (const formato of formatos) {
+    const filename = slugArquivo(titulo, dateInSaoPaulo(), formato)
+    const mime = MIME[formato]
+    const buffer = await renderRelatorio({ titulo, formato, secoes, geradoEm })
+    if (buffer.length > DOWNLOAD_MAX_BYTES) {
+      throw new Error('arquivo grande demais; refine as fontes ou o período')
+    }
+    const { token } = remember({ profile, buffer, filename, mime })
+    logReportGenerated({
+      profile,
+      formato,
+      fontes: fontes.map((f) => f.tool),
+      bytes: buffer.length,
+      filename,
+    })
+    arquivos.push({ token, filename, mime, bytes: buffer.length })
+    metaArquivos.push({ filename, formato })
   }
 
-  const { token } = remember({ profile, buffer, filename, mime })
-  logReportGenerated({
-    profile,
-    formato,
-    fontes: fontes.map((f) => f.tool),
-    bytes: buffer.length,
-    filename,
-  })
-
   return {
-    data: { ok: true, filename, formato, secoes: meta },
+    data: {
+      ok: true,
+      filename: arquivos[0].filename,
+      formato: formatos[0],
+      secoes: meta,
+      arquivos: metaArquivos,
+    },
     count: meta.length,
-    arquivo: { token, filename, mime, bytes: buffer.length },
+    arquivo: arquivos[0],
+    arquivos,
   }
 }
 
