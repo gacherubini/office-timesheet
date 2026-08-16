@@ -1,0 +1,90 @@
+# Evals do agente contra o modelo REAL, uma vez por dia.
+#
+# Por que agendado e não no push: cada rodada gasta tokens de verdade (é uma
+# chamada ao provedor por caso, até 3 turnos cada). Rodar a cada push
+# transformaria o eval numa conta mensal e num incentivo a ignorá-lo. Rodar
+# nunca foi o que deixou a NVIDIA NIM sobreviver meses em produção devolvendo
+# HTML de 404, `</think>` cru e trechos em chinês — nenhum teste automatizado
+# pegava. Uma vez por dia é o meio-termo: pega regressão de provedor/modelo em
+# menos de 24h, e custa uma rodada.
+#
+# NÃO mexa no ci-cd.yml por causa disto: aquele é o deploy de produção.
+name: Evals do agente
+
+on:
+  schedule:
+    # 09:10 UTC ≈ 06:10 em São Paulo — o resultado já está pronto quando o time
+    # começa o dia. Minuto quebrado de propósito: a hora cheia é a janela mais
+    # concorrida do agendador do GitHub e atrasa mais.
+    - cron: '10 9 * * *'
+  workflow_dispatch:
+    inputs:
+      modelo:
+        description: 'AGENT_MODEL para esta rodada (vazio = o default do código)'
+        required: false
+        type: string
+      base_url:
+        description: 'AGENT_PROVIDER_BASE_URL para esta rodada (vazio = default)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+# Duas rodadas simultâneas só gastariam o dobro para responder a mesma coisa.
+concurrency:
+  group: agent-evals
+  cancel-in-progress: false
+
+jobs:
+  evals:
+    name: Evals contra o modelo real
+    runs-on: ubuntu-latest
+    # Rodada normal leva poucos minutos; o teto existe para o caso de o provedor
+    # pendurar a conexão em vez de errar.
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/package-lock.json
+
+      - name: Install dependencies
+        working-directory: src
+        run: npm ci
+
+      # Falha cedo e com mensagem clara: sem a chave, o runner sairia com
+      # "nenhum caso avaliado" e alguém perderia tempo procurando bug no agente.
+      - name: Conferir a chave do provedor
+        env:
+          AGENT_API_KEY: ${{ secrets.AGENT_API_KEY }}
+        run: |
+          if [ -z "$AGENT_API_KEY" ]; then
+            echo "::error::secret AGENT_API_KEY não configurado — os evals não têm como falar com o provedor."
+            exit 1
+          fi
+
+      - name: Rodar evals
+        working-directory: src
+        env:
+          AGENT_API_KEY: ${{ secrets.AGENT_API_KEY }}
+          # Vazios caem no default do código (DeepSeek oficial + V4 Flash), que é
+          # o que roda em produção. O input do workflow_dispatch permite apontar
+          # para outro provedor ANTES de virar a chave em produção — que é
+          # exatamente o passo que faltou na troca de 2026-08-11.
+          AGENT_MODEL: ${{ inputs.modelo || secrets.AGENT_MODEL }}
+          AGENT_PROVIDER_BASE_URL: ${{ inputs.base_url || secrets.AGENT_PROVIDER_BASE_URL }}
+          # Evals não tocam o banco: as tools são respondidas com resultado
+          # vazio pelo runner. A variável existe só porque lib/db.js exige uma
+          # na importação do módulo.
+          DATABASE_URL: 'postgres://naousado:naousado@localhost:1/naousado'
+        # O runner sai com código 1 quando algum caso reprova, quando nada foi
+        # avaliado ou quando erro de rede passa do limiar. É o que faz este
+        # workflow ser um alerta em vez de decoração.
+        run: npm run test:evals
