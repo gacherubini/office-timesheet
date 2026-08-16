@@ -77,6 +77,13 @@ export function logTokenRevoke({ profile, conversationId }) {
   logger.info({ evt: 'agent_token_revoke', user_id: profile?.id, conversation_id: conversationId })
 }
 
+// Argumento de tool recusado pelo schema. Sobe como warn, não info: é o sinal
+// de que ou o modelo está inventando parâmetro, ou alguém tentou carregar carga
+// extra numa chamada — os dois merecem olho de quem opera.
+export function logArgsRecusados({ profile, tool, motivo }) {
+  logger.warn({ evt: 'agent_args_rejected', user_id: profile?.id, tool, motivo })
+}
+
 export function logTurnAborted({ profile, conversationId, tinhaResposta }) {
   logger.info({ evt: 'agent_turn_aborted', user_id: profile?.id, conversation_id: conversationId, tinha_resposta: !!tinhaResposta })
 }

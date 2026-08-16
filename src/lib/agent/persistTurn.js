@@ -26,7 +26,7 @@ export function toPersistedRows({
   const proposal = [...eventos].reverse().find((e) => e.type === 'proposal')
   if (proposal) {
     const alvo = [...rows].reverse().find((r) => r.role === 'assistant' && r.tool_calls)
-    if (alvo) alvo.ui = { proposta: { descricao: proposal.descricao, dados: proposal.dados } }
+    if (alvo) alvo.ui = { proposta: { descricao: proposal.descricao, dados: proposal.dados, comAnexo: !!proposal.comAnexo } }
   }
 
   const arquivos = eventos

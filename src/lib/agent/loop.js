@@ -3,12 +3,13 @@
 // executa tools de leitura e PAUSA numa tool de escrita, emitindo a proposta.
 import { buildRegistry } from './tools/registry.js'
 import { createProposal } from './proposals.js'
-import { auditAgentRead, logUsage, logTokenRevoke, logTurnAborted } from './audit.js'
+import { auditAgentRead, logUsage, logTokenRevoke, logTurnAborted, logArgsRecusados } from './audit.js'
 import * as usageRepo from './usageRepo.js'
 import { LIMITS, withTimeout } from './guards.js'
 import { isAbortError } from './client.js'
 import { sugerirProximos } from './suggestions.js'
 import { descreverFonte } from './fontes.js'
+import { validarArgs } from './tools/validarArgs.js'
 
 function lastToolsDesteTurno(messages) {
   let lastUser = -1
@@ -227,6 +228,17 @@ export async function runAgentTurn({ client, profile, model, messages, emit, con
         messages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify({ error: 'ferramenta indisponível' }) })
         continue
       }
+      // Defesa em profundidade contra injeção: o que o modelo mandou tem que
+      // caber no que a tool declarou. Vale para leitura e, sobretudo, para
+      // escrita — é no propose que uma chamada sequestrada causaria estrago, e
+      // ela não chega lá. O erro volta como resultado de tool porque o
+      // destinatário é o modelo: ele consegue corrigir e tentar de novo.
+      const veredito = validarArgs(tool.definition?.function?.parameters, args)
+      if (!veredito.ok) {
+        logArgsRecusados({ profile, tool: call.function.name, motivo: veredito.erro })
+        messages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify({ error: veredito.erro }) })
+        continue
+      }
       if (tool.kind === 'write') {
         try {
           const { descricao, dados, kind, payload, comprovanteBuffer, comprovanteMime, comprovanteNome } = await tool.propose(profile, args, { anexoBruto })
@@ -234,7 +246,10 @@ export async function runAgentTurn({ client, profile, model, messages, emit, con
           // realimentar a sessão com o resultado depois de rodar de fato (§1).
           // Recibo de despesa via irmãos do payload (nunca dentro dele / Axiom).
           const { proposalId } = createProposal({ profile, kind, payload, conversationId, descricao, comprovanteBuffer, comprovanteMime, comprovanteNome })
-          emit({ type: 'proposal', proposalId, descricao, dados })
+          // Turno que carregou arquivo de terceiro: quem confirma merece saber.
+          // Não é acusação de injeção — é o fato verificável de que havia
+          // conteúdo externo no contexto quando esta escrita foi proposta.
+          emit({ type: 'proposal', proposalId, descricao, dados, comAnexo: !!anexoBruto })
           // Fecha o histórico ANTES de pausar: todo tool_call do assistant precisa
           // de uma resposta role:'tool', senão o próximo turno reenvia ao provedor
           // um histórico malformado (400). A resposta sinaliza PROPOSTA, nunca

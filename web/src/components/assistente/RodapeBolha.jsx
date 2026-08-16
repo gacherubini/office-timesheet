@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Check, Copy, ThumbsUp, ThumbsDown } from 'lucide-react'
+import { Check, Copy, ThumbsUp, ThumbsDown, RotateCcw } from 'lucide-react'
 import { textoDaFonte, resumoDasFontes } from '../../lib/agentFontes'
 import { avaliarResposta } from '../../lib/agentClient'
 import { useClickOutside } from '../../hooks/useClickOutside'
@@ -127,7 +127,7 @@ function Avaliacao({ messageId }) {
 // rodapé, e esconder no hover anularia o ponto. As ações é que só aparecem
 // quando o cursor chega — e reagem ao `group/bolha` da resposta inteira, não a
 // esta faixa fina (no celular ficam sempre, porque não há hover).
-export function RodapeBolha({ texto, fontes, messageId }) {
+export function RodapeBolha({ texto, fontes, messageId, onRefazer }) {
   const [aberto, setAberto] = useState(false)
   const items = (fontes || []).filter((f) => f?.rotulo)
   const varias = items.length > 1
@@ -161,6 +161,16 @@ export function RodapeBolha({ texto, fontes, messageId }) {
       </div>
       <div className="relative flex flex-none items-center gap-2.5 transition-opacity md:opacity-0 md:focus-within:opacity-100 md:group-hover/bolha:opacity-100">
         <Avaliacao messageId={messageId} />
+        {onRefazer && (
+          <button
+            type="button"
+            onClick={onRefazer}
+            aria-label="Refazer a resposta"
+            className="inline-flex text-text-secondary transition-colors hover:text-text-primary"
+          >
+            <RotateCcw size={14} />
+          </button>
+        )}
         <BotaoCopiar texto={texto} />
       </div>
     </div>

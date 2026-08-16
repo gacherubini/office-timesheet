@@ -53,7 +53,7 @@ describe('toPersistedRows + messagesToUi (§8.4)', () => {
       eventos: [{ type: 'proposal', descricao: 'Criar X', dados: { titulo: 'X' } }],
       lastAnswer: null,
     })
-    expect(rows[1].ui.proposta).toEqual({ descricao: 'Criar X', dados: { titulo: 'X' } })
+    expect(rows[1].ui.proposta).toEqual({ descricao: 'Criar X', dados: { titulo: 'X' }, comAnexo: false })
     expect(rows[1].ui.proposta.proposalId).toBeUndefined()
   })
 
@@ -114,7 +114,7 @@ describe('toPersistedRows + messagesToUi (§8.4)', () => {
     })
     const ui = messagesToUi(rows)
     expect(ui.map((m) => m.autor)).toEqual(['user', 'bot'])
-    expect(ui[1].proposta).toEqual({ descricao: 'Criar X', dados: { titulo: 'X' }, expirado: true })
+    expect(ui[1].proposta).toEqual({ descricao: 'Criar X', dados: { titulo: 'X' }, comAnexo: false, expirado: true })
     expect(ui[1].texto).toBe('')
   })
 
@@ -194,5 +194,37 @@ describe('id da mensagem chega ao cliente (para avaliar)', () => {
     const ui = messagesToUi([{ role: 'assistant', content: 'olá', ui: null }])
     expect(ui[0].texto).toBe('olá')
     expect(ui[0].id).toBeUndefined()
+  })
+})
+
+describe('sinal de anexo sobrevive ao reload da proposta', () => {
+  it('proposta nascida com anexo continua avisando depois de recarregar', () => {
+    const rows = toPersistedRows({
+      novos: [
+        { role: 'user', content: 'cria a tarefa do brief' },
+        { role: 'assistant', content: null, tool_calls: [{ id: 'c1', function: { name: 'propor_criar_task', arguments: '{}' } }] },
+        { role: 'tool', tool_call_id: 'c1', content: '{"status":"proposta_emitida"}' },
+      ],
+      textoDigitado: 'cria a tarefa do brief', anexoNome: 'brief.txt',
+      eventos: [{ type: 'proposal', proposalId: 'p1', descricao: 'Criar tarefa X', dados: {}, comAnexo: true }],
+      lastAnswer: null,
+    })
+    const alvo = rows.find((r) => r.ui?.proposta)
+    expect(alvo.ui.proposta.comAnexo).toBe(true)
+    expect(messagesToUi([{ role: 'assistant', content: null, ui: alvo.ui }])[0].proposta.comAnexo).toBe(true)
+  })
+
+  it('sem anexo o sinal fica falso, não ausente — a UI não precisa adivinhar', () => {
+    const rows = toPersistedRows({
+      novos: [
+        { role: 'user', content: 'cria a tarefa' },
+        { role: 'assistant', content: null, tool_calls: [{ id: 'c1', function: { name: 'propor_criar_task', arguments: '{}' } }] },
+        { role: 'tool', tool_call_id: 'c1', content: '{}' },
+      ],
+      textoDigitado: 'cria a tarefa', anexoNome: null,
+      eventos: [{ type: 'proposal', proposalId: 'p1', descricao: 'Criar tarefa X', dados: {} }],
+      lastAnswer: null,
+    })
+    expect(rows.find((r) => r.ui?.proposta).ui.proposta.comAnexo).toBe(false)
   })
 })

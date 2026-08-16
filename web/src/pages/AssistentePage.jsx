@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Send, Square, RotateCcw, AlertCircle, Info, Plus, Sparkles, Loader2, Paperclip, X } from 'lucide-react'
+import { Send, Square, RotateCcw, AlertCircle, Info, Plus, Sparkles, Loader2, Paperclip, X, Pencil } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { streamChat, executeProposal, cancelProposal, downloadAgentFile, listConversations, getConversation, renameConversation, deleteConversation } from '../lib/agentClient'
 import { lerSessao, salvarSessao, limparSessao } from '../lib/agentSession'
@@ -12,6 +12,7 @@ import { lerContexto, dispensarContexto } from '../lib/agentContext'
 import { BolhaMarkdown } from '../components/assistente/BolhaMarkdown'
 import { criarPincel } from '../lib/agentPincel'
 import { RodapeBolha } from '../components/assistente/RodapeBolha'
+import { podeRefazer, podeEditar, limparParaRefazer } from '../lib/agentAcoes'
 
 // ── Página do Assistente (tela cheia) ──────────────────────────────────────
 // Lista à esquerda (md+); mobile abre o mesmo conteúdo full-height. Sem
@@ -259,7 +260,7 @@ export function AssistentePage() {
       const deveRolar = (e.type === 'file' || e.type === 'proposal') && pertoDoFundoRef.current
       if (e.type === 'proposal') {
         setMensagens((m) => m.map((msg, i) => (
-          i === idxBot ? { ...msg, proposta: { proposalId: e.proposalId, descricao: e.descricao, dados: e.dados } } : msg
+          i === idxBot ? { ...msg, proposta: { proposalId: e.proposalId, descricao: e.descricao, dados: e.dados, comAnexo: e.comAnexo } } : msg
         )))
       }
       if (e.type === 'file') {
@@ -400,8 +401,44 @@ export function AssistentePage() {
     if (!userMsg || userMsg.autor !== 'user' || ocupado) return
     const ac = new AbortController()
     abortRef.current = ac
-    setMensagens((m) => m.map((msg, i) => (i === idxBot ? { ...msg, texto: '', erro: null } : msg)))
+    setMensagens((m) => m.map((msg, i) => (i === idxBot ? limparParaRefazer(msg) : msg)))
     await correr(idxBot, userMsg.texto, userMsg.arquivoObj || undefined, ac.signal)
+  }
+
+  // Refazer a última resposta sem redigitar a pergunta. É o mesmo gesto do
+  // "Tentar de novo", disponível quando deu certo mas a resposta não serviu.
+  //
+  // Diferença que importa: um turno que FALHOU nunca foi salvo, mas este deu
+  // certo e já está no histórico do servidor. Então isto não apaga a resposta
+  // anterior de lá — pergunta de novo. O modelo vê a repetição, e é o melhor
+  // possível sem um endpoint que remova o turno.
+  async function refazer(idxBot) {
+    const userMsg = mensagens[idxBot - 1]
+    if (!userMsg || userMsg.autor !== 'user' || ocupado) return
+    const ac = new AbortController()
+    abortRef.current = ac
+    setMensagens((m) => m.map((msg, i) => (i === idxBot ? limparParaRefazer(msg) : msg)))
+    await correr(idxBot, userMsg.texto, userMsg.arquivoObj || undefined, ac.signal)
+  }
+
+  // Devolve a pergunta ao composer para ajustar e mandar de novo.
+  //
+  // NÃO remove o par do transcript de propósito: o histórico do servidor é a
+  // fonte da verdade e não tem delete de mensagem, então some da tela mas
+  // voltaria no próximo reload — e, pior, o modelo continuaria enxergando o que
+  // a tela diz que não existe. Aqui a pergunta antiga fica visível e a nova
+  // entra embaixo; nada é prometido que não se cumpra.
+  function editarPergunta(idx) {
+    const msg = mensagens[idx]
+    if (!msg || ocupado) return
+    setInput(msg.texto || '')
+    requestAnimationFrame(() => {
+      const el = textareaRef.current
+      if (!el) return
+      el.focus()
+      el.setSelectionRange(el.value.length, el.value.length)
+      ajustarAltura()
+    })
   }
 
   async function aprovar(idx) {
@@ -691,7 +728,17 @@ export function AssistentePage() {
               {mensagens.map((m, i) => {
                 if (m.autor === 'user') {
                   return (
-                    <div key={i} className="flex justify-end">
+                    <div key={i} className="group/user flex items-start justify-end gap-2">
+                      {podeEditar(mensagens, i) && !ocupado && (
+                        <button
+                          type="button"
+                          onClick={() => editarPergunta(i)}
+                          aria-label="Editar esta pergunta"
+                          className="mt-2 inline-flex flex-none text-text-secondary transition-opacity hover:text-text-primary md:opacity-0 md:focus-visible:opacity-100 md:group-hover/user:opacity-100"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                      )}
                       <div className="max-w-[80%] rounded-md border border-border-subtle bg-surface-alt px-4 py-2.5 text-text-primary">
                         {m.anexo && (
                           <div className={`flex items-center gap-1.5 text-xs text-text-secondary ${m.texto ? 'mb-1.5' : ''}`}>
@@ -724,7 +771,14 @@ export function AssistentePage() {
                               QUALQUER lugar da resposta, não só na faixa fina. */}
                           <div className="group/bolha relative">
                             <BolhaMarkdown texto={m.texto} cursor={streaming} />
-                            {!streaming && <RodapeBolha texto={m.texto} fontes={m.fontes} messageId={m.id} />}
+                            {!streaming && (
+                              <RodapeBolha
+                                texto={m.texto}
+                                fontes={m.fontes}
+                                messageId={m.id}
+                                onRefazer={podeRefazer(mensagens, i) && !ocupado ? () => refazer(i) : undefined}
+                              />
+                            )}
                           </div>
                           {!streaming && <ChipsLinks links={m.links} />}
                         </div>
@@ -767,6 +821,16 @@ export function AssistentePage() {
                               Requer confirmação
                             </p>
                             <p className="mt-2 text-text-primary">{m.proposta.descricao}</p>
+
+                            {/* Fato verificável, não acusação: havia arquivo de
+                                terceiro no contexto quando esta escrita foi
+                                proposta. Quem confirma decide sabendo disso. */}
+                            {m.proposta.comAnexo && (
+                              <p className="mt-2 flex items-start gap-1.5 text-xs text-text-secondary">
+                                <Info size={13} className="mt-0.5 flex-none text-orange" aria-hidden />
+                                <span>Proposta a partir de um arquivo que você enviou. Confira se é o que você pediu.</span>
+                              </p>
+                            )}
 
                             {linhas.length > 0 && (
                               <dl className="mt-3 divide-y divide-border-subtle border-t border-border-subtle">
