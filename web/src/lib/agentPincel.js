@@ -4,8 +4,8 @@
 
 export const RITMO_PADRAO = {
   charsPerTick: 2,
-  tickMs: 60,
-  pausaPontuacaoMs: 200,
+  tickMs: 48,
+  pausaPontuacaoMs: 160,
 }
 
 const PONTUACAO = /[.!?…\n]$/
