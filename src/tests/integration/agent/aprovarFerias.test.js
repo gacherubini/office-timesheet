@@ -14,13 +14,25 @@ describe('propor_aprovar_ferias', () => {
     emp = await makeUser({ role: 'employee', name: 'Ana' })
     const a = await query(
       `INSERT INTO vacation_requests (user_id, start_date, end_date, days_count, status)
-       VALUES ($1, CURRENT_DATE, CURRENT_DATE + 5, 6, 'pending') RETURNING id`,
+       VALUES (
+         $1,
+         (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date,
+         (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date + 5,
+         6,
+         'pending'
+       ) RETURNING id`,
       [intern2.id],
     )
     feriasIntern2 = a.rows[0].id
     const b = await query(
       `INSERT INTO vacation_requests (user_id, start_date, end_date, days_count, status)
-       VALUES ($1, CURRENT_DATE, CURRENT_DATE + 2, 3, 'pending') RETURNING id`,
+       VALUES (
+         $1,
+         (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date,
+         (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date + 2,
+         3,
+         'pending'
+       ) RETURNING id`,
       [emp.id],
     )
     feriasEmp = b.rows[0].id
