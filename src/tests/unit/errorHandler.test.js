@@ -49,6 +49,17 @@ describe('errorHandler — o que vai pro log', () => {
     expect(JSON.stringify(logger.linhas)).not.toContain('eyJ')
   })
 
+  it('responde 413 quando o body estourou o limite do express.json', () => {
+    const logger = fakeLogger()
+    const err = Object.assign(new Error('too large'), { status: 413, type: 'entity.too.large' })
+    const res = fakeRes()
+    makeErrorHandler(logger)(err, req, res, () => {})
+
+    expect(res.statusCode).toBe(413)
+    expect(res.body.error).toMatch(/grande demais/i)
+    expect(res.body.req_id).toBe('req-1')
+  })
+
   it('responde 500 com req_id e registra status_original', () => {
     const logger = fakeLogger()
     const err = Object.assign(new Error('json ruim'), { status: 400 })

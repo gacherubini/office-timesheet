@@ -18,8 +18,8 @@ Sistema web para controle de horas, apontamentos por projeto e acompanhamento de
 ## Stack
 
 - **Frontend:** React 19, Vite, Tailwind CSS, React Router, Lucide React.
-- **Backend:** Node.js 20, Express 5, node-postgres (`pg`), bcryptjs, jsonwebtoken, Multer.
-- **Banco:** PostgreSQL 16 (local via Docker Compose, prod no Fly.io).
+- **Backend:** Node.js 20 (Docker) / 22 (CI), Express 5, node-postgres (`pg`), bcryptjs, jsonwebtoken, Multer.
+- **Banco:** PostgreSQL 16 local (Docker Compose); produção é Fly Postgres Flex 18.1 (`office-timesheet-db-iad`).
 - **Storage:** Tigris (S3-compatible) via AWS SDK.
 - **Email:** Resend (reset de senha).
 - **Infra:** Fly.io (3 apps: API, banco, frontend estático com Caddy).
@@ -36,7 +36,7 @@ Sistema web para controle de horas, apontamentos por projeto e acompanhamento de
 │   ├── routes/
 │   ├── middleware/
 │   ├── lib/
-│   ├── migrations/          # SQL files (001..010)
+│   ├── migrations/          # SQL files (001..037+)
 │   ├── scripts/migrate.js
 │   ├── Dockerfile
 │   ├── fly.toml
@@ -130,8 +130,9 @@ responde 503 e registra `evt: agent_misconfig`.
 - **SQL ad-hoc (admin):** exige `AGENT_READONLY_DATABASE_URL` apontando para a role
   `agent_readonly` (migrations 030 e 031). Sem isso, só a tool `consultar_dados` falha.
 - **Custo:** cada chamada emite `evt: agent_usage` com `tokens_in`, `tokens_out`,
-  `tokens_cached` e `custo` em USD. `custo` é `null` quando os `AGENT_PRICE_*` não estão
-  configurados.
+  `tokens_cached` e `custo` em USD. Em produção os `AGENT_PRICE_*` estão setados
+  (DeepSeek V4 Flash off-peak: 0.22 / 0.66 / 0.007). Sem eles o `custo` sai `null`.
+  A tela admin `/admin` → Custos & Pedidos mostra gasto do mês, preços vigentes e tokens.
 - **Temperatura:** `AGENT_TEMPERATURE` (default 0.7 no código). Sem o campo o provedor
   assume 1.0, que é solto demais para escolher ferramenta. Se a mesma pergunta começar a
   cair em tools diferentes, baixe para 0.3–0.4. O código respeita o `0` explícito.
@@ -166,21 +167,19 @@ Depois de trocar, nesta ordem:
 
 ### Pendências de produção
 
-Itens que exigem credencial ou verificação manual e não dão para fechar por código:
-
-- [ ] **Role somente-leitura** (migrations 030/031): confirmar que o Postgres gerenciado do
-      Fly aceita `CREATE ROLE`, definir a senha de `agent_readonly` e setar
-      `AGENT_READONLY_DATABASE_URL`. Enquanto não existir, `consultar_dados` falha para o
-      admin — é a pergunta ad-hoc, o diferencial do papel dele.
-- [ ] **Preços** `AGENT_PRICE_IN` / `_OUT` / `_CACHED` com os valores reais da fatura. Sem
-      eles o `custo` sai `null` em toda linha `agent_usage` e não há como alertar sobre
-      gasto.
+- [x] **Role somente-leitura** + `AGENT_READONLY_DATABASE_URL` no Fly (2026-08-16).
+- [x] **Preços** `AGENT_PRICE_*` no Fly (off-peak Flash: 0.22 / 0.66 / 0.007).
+- [x] **Backup WAL** (`fly pg backup enable` + `go-live-inicial`).
+- [x] **Alertas:** UptimeRobot (API `/health` + `gestaovoid.com.br`) e Axiom
+      (`api-500`, `api-error`, `agente-falhou`, `agente-tokens-dia`).
+- [ ] **`RESEND_FROM`** — domínio Verified no Resend + secret. Sem isso o
+      “esqueci a senha” devolve 500. Ver o passo a passo da conversa de go-live.
+- [ ] **Wipe dos dados de teste + seed do admin** — runbook em
+      `docs/superpowers/specs/2026-08-16-wipe-e-seed-producao-design.md`. Não rodar sozinho.
 - [ ] **Verificação no browser** de cancelar proposta, "tentar de novo" com anexo, e logout
-      limpando a conversa. O front não tem teste de página; esses três caminhos foram
-      verificados só por leitura de código.
-- [ ] **`reasoning_content`**: `streamOnce` só lê `delta.content`. Se o provedor servir o
-      modelo como raciocínio e inlinar o rascunho no content, o pensamento entra na resposta
-      visível e no histórico. Ver o TODO em `src/lib/agent/client.js`.
+      limpando a conversa.
+- [ ] **`reasoning_content`**: `streamOnce` só lê `delta.content`. Ver o TODO em
+      `src/lib/agent/client.js`.
 
 ## Observabilidade
 
@@ -323,6 +322,8 @@ API (`src/.env`):
 | `AWS_REGION` | Region (Tigris usa `auto`). |
 | `BUCKET_NAME` | Nome do bucket. |
 | `RESEND_API_KEY` | API key do Resend. Vazio = link de reset aparece no terminal (só fora de produção). |
+| `RESEND_FROM` | Remetente (só o e-mail, domínio Verified). Obrigatório em produção. Sem isso o forgot-password dá 500. |
+| `PG_POOL_MAX` | Teto de conexões do pool. Produção: `8`. |
 | `LOG_LEVEL` | Nível do logger. Padrão: `info` em produção, `debug` fora dela. Ver [Observabilidade](#observabilidade). |
 | `AXIOM_TOKEN` | Token de ingest do Axiom (`xaat-...`). Vazio = logs só no stdout. |
 | `AXIOM_DATASET` | Nome do dataset no Axiom. |
@@ -337,11 +338,25 @@ Frontend:
 
 ## Deploy (Fly.io)
 
-Três apps separados: `office-timesheet-db` (Postgres), `office-timesheet-api` (Node) e `office-timesheet-web` (Caddy estático). O passo-a-passo completo está em `MIGRATION_README.md` (Fase 5).
+Três apps, org **personal**, região **iad**:
+
+| App | O que é | Tamanho atual |
+|---|---|---|
+| `office-timesheet-api` | Node, `min_machines=1` | shared-cpu-1x **512 MB** |
+| `office-timesheet-web` | Caddy estático, `auto_stop=off`, `min=1` | shared-cpu-1x **256 MB** |
+| `office-timesheet-db-iad` | Postgres Flex 18.1 | shared-cpu-1x **1024 MB**, volume **5 GB** |
+
+Frontend em produção: `https://gestaovoid.com.br` (certificado Fly). API: `https://office-timesheet-api.fly.dev`.
+
+O diretório `db/` (`office-timesheet-db` em `gru`) **não** é o cluster vivo. Não dê `fly deploy` de lá.
+
+Push em `main` dispara o workflow `.github/workflows/ci-cd.yml`: check + testes da API, build + testes do web, depois `flyctl deploy` da API e do web. Secrets do GitHub: `FLY_API_TOKEN_API` e `FLY_API_TOKEN_WEB`. Não há webhook de deploy.
+
+Backup WAL: `fly postgres backup list -a office-timesheet-db-iad`. Restore sobe um cluster **novo**.
 
 ## CI/CD
 
-O workflow em `.github/workflows/ci-cd.yml` roda em pull requests e pushes para `main`. Executa `npm ci` e `npm run check` na API, `npm ci` e `npm run build` no frontend. No push para `main`, o job de deploy pode disparar webhooks configurados como secrets do GitHub (`API_DEPLOY_WEBHOOK_URL`, `WEB_DEPLOY_WEBHOOK_URL`). Se os secrets não estiverem configurados, o deploy é pulado.
+Um único workflow (`.github/workflows/ci-cd.yml`). Jobs: lint/syntax da API, build do web, testes do web, testes da API (Postgres de serviço), deploy API, deploy web. Nada além disso — não apague o workflow: é o que publica produção.
 
 ## Problemas conhecidos
 
@@ -352,7 +367,7 @@ A suíte de integração (`npm test` na API) falha em ~10-15% das execuções do
 
 - `src/tests/integration/timer.test.js` → "resume é bloqueado durante férias" (`pause` volta 404)
 - `src/tests/integration/costSnapshot.test.js` → "usuário com valor/hora 0" (`project-earnings` vazio)
-- `src/tests/integration/vacationRequests.test.js` → "dono cancela a própria férias"
+- `src/tests/integration/vacationRequests.test.js` → overlap / delete de férias
 
 Sintoma sempre igual: **uma linha recém-criada/commitada por uma request não é
 encontrada pela request seguinte**. Como o CI (`ci-cd.yml`) roda `npm test`,

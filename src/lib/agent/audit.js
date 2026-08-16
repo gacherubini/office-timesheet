@@ -46,6 +46,13 @@ export function precosConfigurados() {
   return precos().some((p) => p > 0)
 }
 
+// Números que a tela admin mostra (USD / 1M tokens). Sem preço → null, não 0.
+export function precosAtivos() {
+  if (!precosConfigurados()) return null
+  const [priceIn, priceOut, priceCached] = precos()
+  return { in: priceIn, out: priceOut, cached: priceCached }
+}
+
 // SEM nenhum preço configurado devolve `null`, não `0`: zero é valor de verdade
 // e faria toda média mentir para baixo. Com pelo menos um preço, calcula.
 export function custoDeUso({ tokensIn = 0, tokensOut = 0, cached = 0 }) {

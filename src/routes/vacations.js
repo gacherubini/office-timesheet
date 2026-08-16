@@ -165,23 +165,26 @@ router.delete('/me/vacation-requests/:id', requireAuth, async (req, res) => {
   }
 
   try {
-    // O dono cancela a PRÓPRIA férias em qualquer status (pendente ou aprovada) —
-    // self-service. Como é DELETE físico, a linha some e o EXCLUDE de overlap
-    // (§032, conta pending+approved) libera o período na hora. O `user_id = $2`
-    // garante que só apaga o que é dele; férias de terceiros passam pelo fluxo
-    // admin (DELETE /admin/vacation-requests/:id).
+    // O dono cancela só a PRÓPRIA férias pendente. Aprovada/recusada fica no
+    // histórico; o admin apaga pelo DELETE /admin se precisar. O EXCLUDE de
+    // overlap (§032) continua cobrindo pending+approved.
     const { rows } = await query(
       `DELETE FROM vacation_requests
-       WHERE id = $1 AND user_id = $2
+       WHERE id = $1 AND user_id = $2 AND status = 'pending'
        RETURNING id, user_id, start_date, end_date, days_count, reason, status, admin_note, decided_at, created_at, updated_at`,
       [req.params.id, req.profile.id]
     )
 
-    if (!rows || rows.length === 0) {
-      return res.status(404).json({ error: 'Solicitação de férias não encontrada.' })
-    }
+    if (rows && rows.length > 0) return res.json(rows[0])
 
-    return res.json(rows[0])
+    const { rows: existing } = await query(
+      `SELECT id FROM vacation_requests WHERE id = $1 AND user_id = $2`,
+      [req.params.id, req.profile.id],
+    )
+    if (existing.length > 0) {
+      return res.status(409).json({ error: 'Só é possível cancelar solicitação pendente.' })
+    }
+    return res.status(404).json({ error: 'Solicitação de férias não encontrada.' })
   } catch (err) {
     return res.status(400).json({ error: err.message })
   }

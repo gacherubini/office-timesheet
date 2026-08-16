@@ -77,27 +77,25 @@ describe('POST /me/vacation-requests — regras de validação', () => {
     expect(res.body.error).toMatch(/já existe/i)
   })
 
-  it('o dono cancela a própria férias em qualquer status (pendente ou aprovada)', async () => {
-    // Pendente: cancela.
+  it('o dono cancela só férias pendente; aprovada fica no banco', async () => {
     const pending = await asUser(emp).post('/me/vacation-requests')
       .send({ start_date: daquiA(20), end_date: daquiA(22) })
     expect(pending.status).toBe(201)
     const delPending = await asUser(emp).delete(`/me/vacation-requests/${pending.body.id}`)
     expect(delPending.status).toBe(200)
 
-    // Aprovada do próprio employee (inserida direto): também cancela — self-service.
     const { rows } = await query(
       `INSERT INTO vacation_requests (user_id, start_date, end_date, days_count, status)
        VALUES ($1, $2, $3, 3, 'approved') RETURNING id`,
       [emp.id, daquiA(30), daquiA(32)],
     )
     const delApproved = await asUser(emp).delete(`/me/vacation-requests/${rows[0].id}`)
-    expect(delApproved.status).toBe(200)
-    expect(delApproved.body.status).toBe('approved')
+    expect(delApproved.status).toBe(409)
+    expect(delApproved.body.error).toMatch(/pendente/i)
 
-    // Some do banco (DELETE físico) → o período fica livre de novo.
-    const { rows: check } = await query('SELECT id FROM vacation_requests WHERE id = $1', [rows[0].id])
-    expect(check).toHaveLength(0)
+    const { rows: check } = await query('SELECT id, status FROM vacation_requests WHERE id = $1', [rows[0].id])
+    expect(check).toHaveLength(1)
+    expect(check[0].status).toBe('approved')
   })
 
   it('o próprio DELETE não apaga férias de outra pessoa (404)', async () => {

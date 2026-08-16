@@ -37,7 +37,7 @@ export function AdminCostsRequestsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Custos & Pedidos" subtitle="Gasto do agente, saldo de créditos e o que os usuários pediram e ainda não fazemos." />
+      <PageHeader title="Custos & Pedidos" subtitle="Gasto estimado do assistente (DeepSeek) e pedidos que o agente ainda não atende." />
       <Tabs value={tab} onChange={setTab} items={[{ value: 'custos', label: 'Custos' }, { value: 'pedidos', label: 'Pedidos' }]} />
 
       {loading && <Card>Carregando…</Card>}
@@ -51,7 +51,9 @@ export function AdminCostsRequestsPage() {
               sublabel={costs.saldoIndisponivel ? 'saldo indisponível neste provedor' : `concedido ${money(costs.saldo?.concedido, costs.saldo?.moeda)} · recarga ${money(costs.saldo?.recarga, costs.saldo?.moeda)}`} />
             <MetricCard label="Gasto do mês" icon={Wallet}
               value={costs.gasto.precosConfigurados ? money(costs.gasto.totalUsd, 'USD') : '—'}
-              sublabel={costs.gasto.precosConfigurados ? 'em USD (preços configurados)' : 'configure AGENT_PRICE_* para ver em dinheiro'} />
+              sublabel={costs.gasto.precosConfigurados && costs.gasto.precos
+                ? `USD / 1M tok · in ${costs.gasto.precos.in} · out ${costs.gasto.precos.out} · cache ${costs.gasto.precos.cached}`
+                : 'configure AGENT_PRICE_* para ver em dinheiro'} />
             <MetricCard label="Dias com uso" icon={Inbox} value={costs.gasto.porDia.length} sublabel="no mês corrente" />
           </div>
 
@@ -65,11 +67,18 @@ export function AdminCostsRequestsPage() {
                   <div className="flex-1 bg-surface-alt rounded h-3 overflow-hidden">
                     <div className="h-full bg-accent" style={{ width: maxDia ? `${((d.custoUsd || 0) / maxDia) * 100}%` : '0%' }} />
                   </div>
-                  <span className="w-20 text-right tabular-nums">{costs.gasto.precosConfigurados ? money(d.custoUsd, 'USD') : `${d.tokensIn + d.tokensOut} tok`}</span>
+                  <span className="w-36 text-right tabular-nums">
+                    {costs.gasto.precosConfigurados ? money(d.custoUsd, 'USD') : '—'}
+                    <span className="ml-2 text-text-secondary">{(d.tokensIn + d.tokensOut).toLocaleString('pt-BR')} tok</span>
+                  </span>
                 </div>
               ))}
             </div>
-            <p className="text-xs text-text-secondary mt-3">O saldo é a verdade do provedor; o gasto aqui é estimado pelos preços configurados. Podem não bater ao centavo, e podem estar em moedas diferentes.</p>
+            <p className="text-xs text-text-secondary mt-3">
+              O gasto é estimado pelos preços do Fly (`AGENT_PRICE_*`, off-peak DeepSeek V4 Flash).
+              Linhas gravadas antes dos preços terem `custo` nulo e não entram na soma em USD.
+              O saldo, quando o provedor expõe, é a fatura dele — pode não bater ao centavo.
+            </p>
           </Card>
         </div>
       )}

@@ -292,15 +292,17 @@ export function VacationsPage() {
                   )}
                 </div>
                 <span className="sm:w-28 sm:flex-none sm:text-right">
-                  <button
-                    type="button"
-                    onClick={() => setVacationToDelete(vacation)}
-                    disabled={deletingId === vacation.id}
-                    className="inline-flex items-center justify-center gap-1.5 border border-border-subtle px-3 py-1.5 text-xs font-medium text-text-primary hover:bg-surface-alt disabled:opacity-60 transition-colors"
-                  >
-                    <Trash2 size={13} />
-                    Apagar
-                  </button>
+                  {vacation.status === 'pending' && (
+                    <button
+                      type="button"
+                      onClick={() => setVacationToDelete(vacation)}
+                      disabled={deletingId === vacation.id}
+                      className="inline-flex items-center justify-center gap-1.5 border border-border-subtle px-3 py-1.5 text-xs font-medium text-text-primary hover:bg-surface-alt disabled:opacity-60 transition-colors"
+                    >
+                      <Trash2 size={13} />
+                      Apagar
+                    </button>
+                  )}
                 </span>
               </div>
             ))

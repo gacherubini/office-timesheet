@@ -1,3 +1,5 @@
+# Único workflow do repo. PR e push em main: check + testes.
+# Push em main: deploy da API e do web no Fly. Sem webhooks.
 name: CI/CD
 
 on:

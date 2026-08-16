@@ -27,6 +27,15 @@ export function makeErrorHandler(logger) {
 
     if (res.headersSent) return
 
+    // express.json() estoura com status 413 (entity.too.large). Não é bug da
+    // rota — é recusa de payload. Devolver 500 mentiria "erro interno".
+    if (err.status === 413 || err.statusCode === 413 || err.type === 'entity.too.large') {
+      return res.status(413).json({
+        error: 'Corpo da requisição grande demais.',
+        req_id: req.req_id,
+      })
+    }
+
     // Sempre 500: chegar aqui significa que ninguém tratou o erro. As rotas que
     // sabem responder outro status já respondem sozinhas (os ~130 catch). O
     // status original do erro fica registrado no log como `status_original`.

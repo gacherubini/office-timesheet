@@ -33,6 +33,7 @@ describe('GET /admin/agent/costs', () => {
     expect(res.body.saldoIndisponivel).toBe(false)
     expect(res.body.gasto.moeda).toBe('USD')
     expect(res.body.gasto.precosConfigurados).toBe(true)
+    expect(res.body.gasto.precos).toEqual({ in: 0.14, out: 0.28, cached: 0.014 })
     expect(res.body.gasto.porDia).toHaveLength(1)
   })
 

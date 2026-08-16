@@ -6,7 +6,7 @@ import { requireAuth } from '../middleware/auth.js'
 import { requireAdmin } from '../middleware/requireAdmin.js'
 import { resumoDoMes } from '../lib/agent/usageRepo.js'
 import { getBalance, BalanceIndisponivel } from '../lib/agent/deepseekBalance.js'
-import { precosConfigurados } from '../lib/agent/audit.js'
+import { precosAtivos, precosConfigurados } from '../lib/agent/audit.js'
 import { listar, atualizarStatus, STATUS_VALIDOS } from '../lib/agent/featureRequestsRepo.js'
 
 const router = Router()
@@ -25,7 +25,13 @@ router.get('/agent/costs', requireAuth, requireAdmin, async (req, res) => {
     return res.json({
       saldo,
       saldoIndisponivel,
-      gasto: { moeda: 'USD', totalUsd: resumo.totalUsd, porDia: resumo.porDia, precosConfigurados: precosConfigurados() },
+      gasto: {
+        moeda: 'USD',
+        totalUsd: resumo.totalUsd,
+        porDia: resumo.porDia,
+        precosConfigurados: precosConfigurados(),
+        precos: precosAtivos(),
+      },
     })
   } catch (err) {
     return res.status(400).json({ error: err.message })

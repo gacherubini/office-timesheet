@@ -48,7 +48,10 @@ app.use(cors({
   // Sem isso o browser não deixa o frontend ler o x-request-id da resposta.
   exposedHeaders: ['x-request-id'],
 }))
-app.use(express.json())
+// Teto explícito: o default do Express (100kb) já recusa, mas sem o número
+// no código ninguém sabe o limite. 256kb cobre formulários e payloads do
+// agente; anexo grande entra por multipart (Multer), não por aqui.
+app.use(express.json({ limit: '256kb' }))
 
 // Fallback local de storage (só dev; produção usa BUCKET_NAME S3/Tigris).
 // Coerente com a decisão harden-only (§5.2): os objetos são públicos por URL,

@@ -1,3 +1,6 @@
+# NÃO é o banco de produção. O cluster vivo é o Fly Postgres Flex
+# `office-timesheet-db-iad` (região iad, 1024 MB, volume 5 GB).
+# `fly deploy` a partir desta pasta criaria um app errado. Não use.
 app = "office-timesheet-db"
 primary_region = "gru"
 
