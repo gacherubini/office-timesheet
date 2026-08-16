@@ -89,6 +89,18 @@ export async function purgeExpiredConversations(now = Date.now()) {
   return rowCount
 }
 
+export async function loadMessagesWithUi(conversationId) {
+  if (!isUuid(conversationId)) return []
+  const { rows } = await query(
+    `SELECT role, content, tool_calls, tool_call_id, ui
+       FROM agent_messages
+      WHERE conversation_id = $1
+      ORDER BY seq ASC`,
+    [conversationId],
+  )
+  return rows
+}
+
 export async function loadMessagesForModel(conversationId) {
   if (!isUuid(conversationId)) return []
   const { rows } = await query(

@@ -1,16 +1,11 @@
-// Persistência local da conversa do Assistente.
+// Persistência local da última conversa persistida do Assistente.
 //
-// A sessão do servidor é efêmera (30 min, em memória, keyed por conversationId —
-// ver src/lib/agent/session.js) e a página guardava conversationId + mensagens só
-// em useState. Resultado: navegar na navbar desmontava a página e perdia tudo,
-// abrindo uma sessão nova no backend no envio seguinte. Aqui espelhamos o MESMO
-// TTL no localStorage, com escopo por usuário, para a conversa sobreviver à
-// navegação e ao reload — resetando só (a) após 30 min de inatividade ou (b) no
-// "Nova conversa". `agora` é injetável para o teste ser determinístico, igual ao
-// `now` do session.js do servidor.
+// v2 guarda só o id (o transcript vive no Postgres). v1 com mensagens[] some
+// no primeiro lerSessao. TTL 30 dias casa com a retenção do servidor. Só o
+// AssistentePage escreve o id depois de um turno que não abortou.
 
 const CHAVE = 'assistente:sessao'
-export const TTL_MS = 30 * 60 * 1000
+export const TTL_MS = 30 * 24 * 60 * 60 * 1000
 
 function storage() {
   try {
@@ -20,21 +15,6 @@ function storage() {
   }
 }
 
-// Tira o que não faz sentido (ou não pode) atravessar o localStorage:
-//  - `executando`: um "Aprovando…" congelado de uma execução que já terminou.
-//  - `arquivoObj`: o File do anexo. JSON.stringify o serializa como {}, e um {}
-//    truthy no lugar de um File faria o reenvio mandar "[object Object]" como
-//    arquivo. O nome fica em `anexo`, que é o que a bolha exibe.
-//  - NÃO tira `arquivo`/`arquivos` (token/filename/mime/bytes): é JSON-safe.
-//    Os botões Baixar reaparecem após reload; o 404 do GET cobre o TTL.
-function limparNaoSerializaveis(mensagens) {
-  return mensagens.map((m) => {
-    if (!m.executando && !m.arquivoObj) return m
-    const { arquivoObj: _descartado, ...resto } = m
-    return m.executando ? { ...resto, executando: false } : resto
-  })
-}
-
 export function lerSessao(userId, agora = Date.now()) {
   const st = storage()
   if (!st || !userId) return null
@@ -42,32 +22,33 @@ export function lerSessao(userId, agora = Date.now()) {
     const raw = st.getItem(CHAVE)
     if (!raw) return null
     const s = JSON.parse(raw)
-    // Escopo por dono: a conversa de outro login nunca é restaurada aqui.
-    if (s.userId !== userId || !Array.isArray(s.mensagens)) return null
+    // v1 (mensagens[]) some aqui. Escopo por dono: outro login não restaura.
+    if (s.v !== 2 || s.userId !== userId) {
+      st.removeItem(CHAVE)
+      return null
+    }
     if (agora - s.updatedAt > TTL_MS) {
       st.removeItem(CHAVE)
       return null
     }
-    return { conversationId: s.conversationId ?? null, mensagens: s.mensagens }
+    return { conversationId: s.conversationId ?? null }
   } catch {
     return null // JSON corrompido: trata como se não houvesse conversa
   }
 }
 
-export function salvarSessao(userId, { conversationId, mensagens }, agora = Date.now()) {
+export function salvarSessao(userId, { conversationId }, agora = Date.now()) {
   const st = storage()
   if (!st || !userId) return
   try {
-    // Conversa vazia e sem id: nada a guardar — limpa em vez de deixar lixo.
-    if (!mensagens?.length && !conversationId) {
+    if (!conversationId) {
       st.removeItem(CHAVE)
       return
     }
     st.setItem(CHAVE, JSON.stringify({
-      v: 1,
+      v: 2,
       userId,
-      conversationId: conversationId ?? null,
-      mensagens: limparNaoSerializaveis(mensagens || []),
+      conversationId,
       updatedAt: agora,
     }))
   } catch {

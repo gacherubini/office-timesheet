@@ -87,6 +87,11 @@ export function cancelProposal(proposalId) {
   return api.post(`/agent/actions/${proposalId}/cancel`, {})
 }
 
+export function listConversations() { return api.get('/agent/conversations') }
+export function getConversation(id) { return api.get(`/agent/conversations/${id}`) }
+export function renameConversation(id, title) { return api.patch(`/agent/conversations/${id}`, { title }) }
+export function deleteConversation(id) { return api.delete(`/agent/conversations/${id}`) }
+
 // GET /agent/downloads/:token com Bearer. O <a href> não leva JWT, então o
 // chat faz fetch, vira blob e dispara o download. 404 = TTL / outro user /
 // sumiu — mensagem genérica, sem distinguir o motivo.

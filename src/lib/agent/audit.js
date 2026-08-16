@@ -95,6 +95,14 @@ export function logConversationPurged({ count }) {
   logger.info({ evt: 'agent_conversation_purged', count })
 }
 
+export function logConversationRenamed({ profile, conversationId }) {
+  logger.info({ evt: 'agent_conversation_renamed', user_id: profile?.id, conversation_id: conversationId })
+}
+
+export function logConversationDeleted({ profile, conversationId }) {
+  logger.info({ evt: 'agent_conversation_deleted', user_id: profile?.id, conversation_id: conversationId })
+}
+
 // Só metadado do arquivo gerado — sem buffer, sem conteúdo.
 export function logReportGenerated({ profile, formato, fontes, bytes, filename }) {
   logger.info({

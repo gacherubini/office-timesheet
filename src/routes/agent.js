@@ -4,7 +4,9 @@
 import { Router } from 'express'
 import multer from 'multer'
 import { requireAuth } from '../middleware/auth.js'
-import { loadSession, saveTurn, appendExecutionNote, turnoPersistivel } from '../lib/agent/session.js'
+import { loadSession, appendExecutionNote, turnoPersistivel } from '../lib/agent/session.js'
+import { insertTurn, listForOwner, getForOwner, rename, remove, loadMessagesWithUi } from '../lib/agent/conversationsRepo.js'
+import { toPersistedRows, messagesToUi } from '../lib/agent/persistTurn.js'
 import { extractText, MAX_ATTACHMENT_BYTES } from '../lib/agent/attachments/extract.js'
 import { buildUserMessage } from '../lib/agent/attachments/context.js'
 import { buildSystemPrompt } from '../lib/agent/prompt.js'
@@ -14,7 +16,7 @@ import { runAgentTurn } from '../lib/agent/loop.js'
 import { getClient } from '../lib/agent/client.js'
 import { takeProposal } from '../lib/agent/proposals.js'
 import { get as getDownload } from '../lib/agent/downloads.js'
-import { auditAgentAction, auditAgentCancel, sanitizarParamsAudit } from '../lib/agent/audit.js'
+import { auditAgentAction, auditAgentCancel, sanitizarParamsAudit, logConversationRenamed, logConversationDeleted } from '../lib/agent/audit.js'
 import { logger } from '../lib/logger.js'
 import { rateLimit } from '../lib/rateLimit.js'
 import proporEncerrarApontamento from '../lib/agent/tools/write/proporEncerrarApontamento.js'
@@ -212,7 +214,15 @@ router.post('/agent/chat', requireAuth, chatRateLimit, uploadAnexo, async (req, 
     novaMsg,
   ]
 
+  // Wrapper coleta proposal/file/answer para toPersistedRows. lastAnswer cobre
+  // o fallback do laço (novos sem assistant.content).
+  const eventos = []
+  let lastAnswer = null
   const emit = (evento) => {
+    if (evento?.type === 'proposal' || evento?.type === 'file' || evento?.type === 'answer') {
+      eventos.push(evento)
+    }
+    if (evento?.type === 'answer') lastAnswer = evento.text || null
     if (evento?.type === 'answer') {
       writeSse({ ...evento, links: coletarLinks(messages) })
       return
@@ -226,16 +236,20 @@ router.post('/agent/chat', requireAuth, chatRateLimit, uploadAnexo, async (req, 
       conversationId: session.id, signal: ac.signal, context: ctxTela,
       anexoBruto: req.file ? { buffer: req.file.buffer, mimetype: req.file.mimetype, filename: req.file.originalname } : null,
     })
-    // Persiste os turnos novos: tudo depois de system + histórico anterior.
-    // Abort ≠ erro: emite aborted e nunca error. Bloco sujo não entra na sessão.
+    // Persiste via toPersistedRows + insertTurn (saveTurn fica para testes).
+    // Abort sujo sem lastAnswer → rows sem fecho → não chama insertTurn.
     const novos = full.slice(1 + session.messages.length)
-    if (status === 'aborted') {
-      if (turnoPersistivel(novos)) await saveTurn(session.id, req.profile, novos)
-      emit({ type: 'aborted' })
-    } else {
-      if (turnoPersistivel(novos)) await saveTurn(session.id, req.profile, novos)
-      emit({ type: 'done', status })
-    }
+    const rows = toPersistedRows({
+      novos,
+      textoDigitado: typeof message === 'string' ? message : '',
+      anexoNome: req.file?.originalname || null,
+      eventos,
+      lastAnswer,
+    })
+    const persistir = rows.length > 0 && (turnoPersistivel(novos) || !!lastAnswer)
+    if (persistir) await insertTurn(session.id, req.profile, rows)
+    if (status === 'aborted') emit({ type: 'aborted' })
+    else emit({ type: 'done', status })
   } catch (err) {
     // §17: só chega aqui falha de infra (provedor caiu, timeout, payload 400).
     // O jargão cru ("…após 3 tentativa(s): 400 Invalid assistant message…")
@@ -316,6 +330,49 @@ router.get('/agent/downloads/:token', requireAuth, async (req, res) => {
   res.setHeader('Content-Type', rec.mime)
   res.setHeader('Content-Disposition', `attachment; filename="${rec.filename}"`)
   return res.send(rec.buffer)
+})
+
+function recusarDesligado(res) {
+  return res.status(503).json({ error: 'Assistente temporariamente desativado.' })
+}
+
+router.get('/agent/conversations', requireAuth, async (req, res) => {
+  if (agenteDesligado()) return recusarDesligado(res)
+  const items = await listForOwner(req.profile.id, req.profile.role)
+  return res.json({ items })
+})
+
+router.get('/agent/conversations/:id', requireAuth, async (req, res) => {
+  if (agenteDesligado()) return recusarDesligado(res)
+  const conv = await getForOwner(req.params.id, req.profile.id, req.profile.role)
+  if (!conv) return res.status(404).json({ error: 'Conversa não encontrada.' })
+  const rows = await loadMessagesWithUi(conv.id)
+  return res.json({
+    id: conv.id,
+    title: conv.title,
+    role: conv.role,
+    messages: messagesToUi(rows),
+  })
+})
+
+router.patch('/agent/conversations/:id', requireAuth, async (req, res) => {
+  if (agenteDesligado()) return recusarDesligado(res)
+  // getForOwner filtra user_id E role — rename do repo só filtra dono.
+  const conv = await getForOwner(req.params.id, req.profile.id, req.profile.role)
+  if (!conv) return res.status(404).json({ error: 'Conversa não encontrada.' })
+  const title = String(req.body?.title ?? '').trim()
+  if (!title) return res.status(400).json({ error: 'title é obrigatório.' })
+  const updated = await rename(conv.id, req.profile.id, title.slice(0, 80))
+  if (!updated) return res.status(404).json({ error: 'Conversa não encontrada.' })
+  logConversationRenamed({ profile: req.profile, conversationId: conv.id })
+  return res.json({ title: updated.title })
+})
+
+router.delete('/agent/conversations/:id', requireAuth, async (req, res) => {
+  const ok = await remove(req.params.id, req.profile.id)
+  if (!ok) return res.status(404).json({ error: 'Conversa não encontrada.' })
+  logConversationDeleted({ profile: req.profile, conversationId: req.params.id })
+  return res.status(204).end()
 })
 
 export default router

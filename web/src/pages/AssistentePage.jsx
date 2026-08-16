@@ -2,8 +2,9 @@ import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Send, Square, RotateCcw, AlertCircle, Check, Plus, Sparkles, Loader2, Paperclip, X, Copy } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { streamChat, executeProposal, cancelProposal, downloadAgentFile } from '../lib/agentClient'
+import { streamChat, executeProposal, cancelProposal, downloadAgentFile, listConversations, getConversation, renameConversation, deleteConversation } from '../lib/agentClient'
 import { lerSessao, salvarSessao, limparSessao } from '../lib/agentSession'
+import { ListaConversas } from '../components/assistente/ListaConversas'
 import { arquivosDaMensagem, anexarArquivo } from '../lib/agentFiles'
 import { hrefPermitido } from '../lib/agentLinks'
 import { aberturaDoPapel } from '../lib/agentOpening'
@@ -11,9 +12,8 @@ import { lerContexto, dispensarContexto } from '../lib/agentContext'
 import { BolhaMarkdown } from '../components/assistente/BolhaMarkdown'
 
 // ── Página do Assistente (tela cheia) ──────────────────────────────────────
-// Aposenta o widget flutuante: coluna central única, sem sidebar/histórico, a
-// conversa vive só na sessão atual. A lógica de streaming e do fluxo de
-// proposta (aprovar/cancelar) é a mesma que rodava no widget.
+// Lista à esquerda (md+); mobile abre o mesmo conteúdo full-height. Sem
+// sidebar no Layout. Transcript no servidor; localStorage v2 só guarda o id.
 
 // Anexos que o bot sabe ler (texto puro). Imagem/escaneado fica de fora — é visão.
 const TIPOS_ACEITOS = [
@@ -200,6 +200,8 @@ export function AssistentePage() {
   const [anexoErro, setAnexoErro] = useState(null)
   const [sugestoes, setSugestoes] = useState([])
   const [contextoAtivo, setContextoAtivo] = useState(null)
+  const [itens, setItens] = useState([])
+  const [painelAberto, setPainelAberto] = useState(false)
   const abertura = aberturaDoPapel(profile?.role, contextoAtivo)
 
   const textareaRef = useRef(null)
@@ -213,17 +215,31 @@ export function AssistentePage() {
   const estaVazio = mensagens.length === 0
   const primeiroNome = (profile?.name || '').trim().split(' ')[0]
 
-  // Restaura a conversa salva (localStorage, 30 min, por usuário) assim que o
-  // profile existe — uma vez só. Sem isto, navegar na navbar desmonta a página e
-  // zera o useState, perdendo a conversa mesmo com a sessão do servidor viva.
+  async function recarregarLista() {
+    try {
+      const data = await listConversations()
+      setItens(data?.items || [])
+    } catch {
+      setItens([])
+    }
+  }
+
+  // Restaura só o id (v2). O transcript vem do GET — propostas já nascem
+  // expiradas. Lista carrega junto. 404 some o id; 503 (kill switch) não.
   useEffect(() => {
     if (restauradoRef.current || !profile?.id) return
-    const salvo = lerSessao(profile.id)
-    if (salvo) {
-      setMensagens(salvo.mensagens)
-      setConversa(salvo.conversationId)
-    }
     restauradoRef.current = true
+    recarregarLista()
+    const salvo = lerSessao(profile.id)
+    if (!salvo?.conversationId) return
+    getConversation(salvo.conversationId)
+      .then((c) => {
+        setMensagens(c.messages || [])
+        setConversa(c.id)
+      })
+      .catch((err) => {
+        if (/não encontrad/i.test(err?.message || '')) limparSessao()
+      })
   }, [profile?.id])
 
   // Chip de contexto: lê o carimbo da aba uma vez. Dismiss vive no
@@ -233,13 +249,6 @@ export function AssistentePage() {
     setContextoAtivo(lerContexto())
     contextoLidoRef.current = true
   }, [])
-
-  // Persiste a cada mudança — mas só DEPOIS de restaurar, para o render inicial
-  // (vazio) não sobrescrever o que já estava salvo.
-  useEffect(() => {
-    if (!restauradoRef.current || !profile?.id) return
-    salvarSessao(profile.id, { conversationId: conversa, mensagens })
-  }, [mensagens, conversa, profile?.id])
 
   // Foco no campo ao montar e a cada troca entre vazio ↔ conversa.
   useEffect(() => {
@@ -304,15 +313,26 @@ export function AssistentePage() {
 
   async function correr(idxBot, texto, file, signal) {
     setOcupado(true)
+    let abortou = false
+    let convId = conversa
     try {
       await streamChat({
         message: texto,
         conversationId: conversa,
         file,
         signal,
-        onEvent: receber(idxBot),
+        onEvent: (e) => {
+          if (e.type === 'session') convId = e.conversation_id
+          if (e.type === 'aborted') abortou = true
+          receber(idxBot)(e)
+        },
         context: contextoAtivo,
       })
+      // Só grava o id depois de um turno que não abortou.
+      if (!abortou && convId && profile?.id) {
+        salvarSessao(profile.id, { conversationId: convId })
+        recarregarLista()
+      }
     } catch (err) {
       // Abort local é a verdade da UI — não pinta erro, não espera o SSE aborted.
       if (err?.name === 'AbortError' || signal?.aborted) {
@@ -429,6 +449,7 @@ export function AssistentePage() {
   }
 
   function novaConversa() {
+    // Não DELETE — a conversa persistida permanece na lista.
     limparSessao()
     setMensagens([])
     setConversa(null)
@@ -436,8 +457,43 @@ export function AssistentePage() {
     setArquivo(null)
     setAnexoErro(null)
     setSugestoes([])
+    setPainelAberto(false)
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
     textareaRef.current?.focus()
+  }
+
+  async function selecionarConversa(id) {
+    if (!id || id === conversa || ocupado) return
+    try {
+      const c = await getConversation(id)
+      setMensagens(c.messages || [])
+      setConversa(c.id)
+      setSugestoes([])
+      if (profile?.id) salvarSessao(profile.id, { conversationId: c.id })
+      setPainelAberto(false)
+    } catch {
+      recarregarLista()
+    }
+  }
+
+  async function renomearConversa(id, title) {
+    try {
+      const r = await renameConversation(id, title)
+      setItens((xs) => xs.map((x) => (x.id === id ? { ...x, title: r.title } : x)))
+    } catch { /* ignore */ }
+  }
+
+  async function apagarConversa(id) {
+    try {
+      await deleteConversation(id)
+    } catch { /* 404 = já não era dele */ }
+    if (conversa === id) {
+      limparSessao()
+      setMensagens([])
+      setConversa(null)
+      setSugestoes([])
+    }
+    recarregarLista()
   }
 
   // Composer compartilhado: centralizado no vazio, fixo no rodapé na conversa.
@@ -541,11 +597,35 @@ export function AssistentePage() {
     )
   }
 
+  function renderLista() {
+    return (
+      <ListaConversas
+        items={itens}
+        ativaId={conversa}
+        onSelect={selecionarConversa}
+        onRename={renomearConversa}
+        onDelete={apagarConversa}
+        disabled={ocupado}
+      />
+    )
+  }
+
   return (
     // Neutraliza o padding do <main> para colar o chat na viewport (Topbar = h-14).
-    <div className="-mx-4 -my-6 flex h-[calc(100dvh-3.5rem)] flex-col bg-surface md:-mx-8 md:-my-8">
+    <div className="-mx-4 -my-6 flex h-[calc(100dvh-3.5rem)] bg-surface md:-mx-8 md:-my-8">
+      <aside className="hidden w-64 flex-none flex-col border-r border-border-subtle md:flex">
+        {renderLista()}
+      </aside>
+      <div className="flex min-w-0 flex-1 flex-col">
       {/* Topo fino — a marca já vive na Topbar, então aqui é só um rótulo discreto. */}
       <header className="flex h-14 flex-none items-center gap-3 border-b border-border-subtle px-4 md:px-6">
+        <button
+          type="button"
+          onClick={() => setPainelAberto(true)}
+          className="inline-flex items-center rounded-md border border-border-subtle px-3 py-1.5 text-[13px] text-text-primary transition-colors hover:bg-surface-alt md:hidden"
+        >
+          Conversas
+        </button>
         <MarcaAssistente box={24} icon={13} />
         <span className="text-sm font-medium tracking-wide text-text-primary">Assistente</span>
         <button
@@ -665,8 +745,16 @@ export function AssistentePage() {
                         </div>
                       )}
 
+                      {/* Resume: proposta persistida já nasce expirada — sem Aprovar. */}
+                      {m.proposta?.expirado && (
+                        <div className="max-w-[33rem] rounded-md border border-border-subtle bg-surface px-3 py-2.5">
+                          <p className="text-[10px] uppercase tracking-wider text-text-secondary">Proposta expirada</p>
+                          <p className="mt-0.5 text-text-secondary">{m.proposta.descricao}</p>
+                        </div>
+                      )}
+
                       {/* Proposta pendente — requer confirmação */}
-                      {m.proposta && !m.aprovado && !m.cancelado && (
+                      {m.proposta && !m.proposta.expirado && !m.aprovado && !m.cancelado && (
                         <div className="max-w-[33rem] overflow-hidden rounded-md border border-border-subtle bg-surface">
                           <div aria-hidden style={{ height: '2px', background: 'var(--color-orange)' }} />
                           <div className="p-4">
@@ -789,6 +877,23 @@ export function AssistentePage() {
             </div>
           </div>
         </>
+      )}
+      </div>
+
+      {painelAberto && (
+        <div className="fixed inset-0 z-40 flex flex-col bg-surface md:hidden">
+          <header className="flex h-14 flex-none items-center gap-3 border-b border-border-subtle px-4">
+            <span className="text-sm font-medium text-text-primary">Conversas</span>
+            <button
+              type="button"
+              onClick={() => setPainelAberto(false)}
+              className="ml-auto inline-flex items-center rounded-md border border-border-subtle px-3 py-1.5 text-[13px] text-text-primary transition-colors hover:bg-surface-alt"
+            >
+              Fechar
+            </button>
+          </header>
+          {renderLista()}
+        </div>
       )}
     </div>
   )
