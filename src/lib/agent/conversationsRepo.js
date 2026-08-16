@@ -92,7 +92,7 @@ export async function purgeExpiredConversations(now = Date.now()) {
 export async function loadMessagesWithUi(conversationId) {
   if (!isUuid(conversationId)) return []
   const { rows } = await query(
-    `SELECT role, content, tool_calls, tool_call_id, ui
+    `SELECT id, role, content, tool_calls, tool_call_id, ui
        FROM agent_messages
       WHERE conversation_id = $1
       ORDER BY seq ASC`,
@@ -121,9 +121,9 @@ export async function loadMessagesForModel(conversationId) {
 
 export async function insertTurn(id, profile, rows, now = Date.now()) {
   await purgeExpiredConversations(now)
-  if (!rows?.length) return
+  if (!rows?.length) return []
   const at = new Date(now)
-  await withTransaction(async (client) => {
+  return withTransaction(async (client) => {
     const existing = await client.query(
       `SELECT id FROM agent_conversations WHERE id = $1 AND user_id = $2 AND role = $3`,
       [id, profile.id, profile.role],
@@ -141,11 +141,15 @@ export async function insertTurn(id, profile, rows, now = Date.now()) {
       [id],
     )
     let seq = seqRows[0].max
+    // Devolve os ids gravados: a avaliação da resposta precisa apontar para uma
+    // mensagem concreta, e o cliente só descobre qual depois que ela existe.
+    const gravadas = []
     for (const r of rows) {
       seq += 1
-      await client.query(
+      const { rows: out } = await client.query(
         `INSERT INTO agent_messages (conversation_id, seq, role, content, tool_calls, tool_call_id, ui)
-         VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7::jsonb)`,
+         VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7::jsonb)
+         RETURNING id, role, seq`,
         [
           id, seq, r.role, r.content ?? null,
           r.tool_calls != null ? JSON.stringify(r.tool_calls) : null,
@@ -153,10 +157,12 @@ export async function insertTurn(id, profile, rows, now = Date.now()) {
           r.ui != null ? JSON.stringify(r.ui) : null,
         ],
       )
+      gravadas.push(out[0])
     }
     await client.query(
       `UPDATE agent_conversations SET last_message_at = $2 WHERE id = $1`,
       [id, at],
     )
+    return gravadas
   })
 }

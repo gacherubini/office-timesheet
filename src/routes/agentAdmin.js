@@ -8,6 +8,7 @@ import { resumoDoMes } from '../lib/agent/usageRepo.js'
 import { getBalance, BalanceIndisponivel } from '../lib/agent/deepseekBalance.js'
 import { precosAtivos, precosConfigurados } from '../lib/agent/audit.js'
 import { listar, atualizarStatus, STATUS_VALIDOS } from '../lib/agent/featureRequestsRepo.js'
+import { resumo as resumoFeedback, listarNegativos } from '../lib/agent/feedbackRepo.js'
 
 const router = Router()
 
@@ -58,6 +59,13 @@ router.patch('/agent/feature-requests/:id', requireAuth, requireAdmin, async (re
   } catch (err) {
     return res.status(400).json({ error: err.message })
   }
+})
+
+// Qualidade percebida: quantos aprovaram, quantos reprovaram e por quê. A fila
+// de negativos vem com pergunta e resposta para triar sem abrir a conversa.
+router.get('/agent/feedback', requireAuth, requireAdmin, async (_req, res) => {
+  const [resumo, negativos] = await Promise.all([resumoFeedback(), listarNegativos()])
+  return res.json({ resumo, negativos })
 })
 
 export default router

@@ -180,3 +180,19 @@ describe('procedência sobrevive ao reload', () => {
     expect(alvo.ui.arquivos).toHaveLength(1)
   })
 })
+
+describe('id da mensagem chega ao cliente (para avaliar)', () => {
+  it('messagesToUi carrega o id da bolha do bot', () => {
+    const ui = messagesToUi([
+      { id: 'u1', role: 'user', content: 'oi', ui: { texto_visivel: 'oi' } },
+      { id: 'a1', role: 'assistant', content: 'olá', ui: null },
+    ])
+    expect(ui[1].id).toBe('a1')
+  })
+
+  it('sem id no banco a bolha continua renderizável — só não dá pra avaliar', () => {
+    const ui = messagesToUi([{ role: 'assistant', content: 'olá', ui: null }])
+    expect(ui[0].texto).toBe('olá')
+    expect(ui[0].id).toBeUndefined()
+  })
+})

@@ -7,6 +7,7 @@ import { requireAuth } from '../middleware/auth.js'
 import { loadSession, appendExecutionNote, turnoPersistivel } from '../lib/agent/session.js'
 import { insertTurn, listForOwner, getForOwner, rename, remove, loadMessagesWithUi } from '../lib/agent/conversationsRepo.js'
 import { toPersistedRows, messagesToUi } from '../lib/agent/persistTurn.js'
+import { registrar as registrarFeedback, messageIdDoUsuario, MOTIVOS } from '../lib/agent/feedbackRepo.js'
 import { extractText, MAX_ATTACHMENT_BYTES } from '../lib/agent/attachments/extract.js'
 import { buildUserMessage } from '../lib/agent/attachments/context.js'
 import { buildSystemPrompt } from '../lib/agent/prompt.js'
@@ -247,7 +248,16 @@ router.post('/agent/chat', requireAuth, chatRateLimit, uploadAnexo, async (req, 
       lastAnswer,
     })
     const persistir = rows.length > 0 && (turnoPersistivel(novos) || !!lastAnswer)
-    if (persistir) await insertTurn(session.id, req.profile, rows)
+    if (persistir) {
+      const gravadas = await insertTurn(session.id, req.profile, rows)
+      // `gravadas` sai na mesma ordem de `rows`, então o índice serve de par.
+      // O cliente só pode avaliar a resposta depois que ela existe no banco —
+      // é este evento que entrega o id para o polegar do rodapé.
+      const idx = rows.map((r, i) => ({ r, i })).reverse()
+        .find(({ r }) => r.role === 'assistant' && r.content)?.i
+      const alvo = idx !== undefined ? gravadas[idx] : null
+      if (alvo) emit({ type: 'saved', message_id: alvo.id })
+    }
     if (status === 'aborted') emit({ type: 'aborted' })
     else emit({ type: 'done', status })
   } catch (err) {
@@ -381,6 +391,30 @@ router.delete('/agent/conversations/:id', requireAuth, async (req, res) => {
   const ok = await remove(req.params.id, req.profile.id)
   if (!ok) return res.status(404).json({ error: 'Conversa não encontrada.' })
   logConversationDeleted({ profile: req.profile, conversationId: req.params.id })
+  return res.status(204).end()
+})
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+// Avaliação de uma resposta. Não passa por agenteDesligado: opinar sobre o que
+// já foi respondido continua valendo mesmo com o agente fora do ar.
+router.post('/agent/feedback', requireAuth, async (req, res) => {
+  const { message_id: messageId, rating, motivo } = req.body || {}
+  if (!messageId || !UUID_RE.test(String(messageId))) {
+    return res.status(400).json({ error: 'message_id inválido.' })
+  }
+  if (rating !== 'up' && rating !== 'down') {
+    return res.status(400).json({ error: 'rating deve ser "up" ou "down".' })
+  }
+  if (rating === 'down' && motivo && !MOTIVOS.includes(motivo)) {
+    return res.status(400).json({ error: 'motivo fora da lista.' })
+  }
+  // A mensagem tem que ser de uma conversa do próprio usuário — senão qualquer
+  // uuid vira alvo. 404 (e não 403) para não confirmar que o id existe.
+  const alvo = await messageIdDoUsuario(messageId, req.profile.id)
+  if (!alvo) return res.status(404).json({ error: 'Resposta não encontrada.' })
+
+  await registrarFeedback({ messageId: alvo, userId: req.profile.id, rating, motivo })
   return res.status(204).end()
 })
 

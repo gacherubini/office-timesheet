@@ -1,12 +1,22 @@
 import { useState, useEffect } from 'react'
 import { api } from '../../lib/api'
-import { Wallet, Inbox } from 'lucide-react'
+import { Wallet, Inbox, ThumbsUp, ThumbsDown } from 'lucide-react'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { MetricCard } from '../../components/ui/MetricCard'
 import { Tabs } from '../../components/ui/Tabs'
 
 const STATUS = ['novo', 'triado', 'feito', 'descartado']
+
+// Espelha a lista fechada da migração 038 (e a do rodapé da bolha).
+const MOTIVOS = {
+  incorreto: 'Incorreto',
+  nao_era_o_que_pedi: 'Não era o que pedi',
+  tom: 'Tom ou estilo',
+  lento: 'Lento',
+  seguranca: 'Preocupação de segurança',
+  outro: 'Outro',
+}
 
 function money(v, moeda) {
   if (v === null || v === undefined) return '—'
@@ -17,13 +27,18 @@ export function AdminCostsRequestsPage() {
   const [tab, setTab] = useState('custos')
   const [costs, setCosts] = useState(null)
   const [pedidos, setPedidos] = useState([])
+  const [feedback, setFeedback] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
     setLoading(true)
-    Promise.all([api.get('/admin/agent/costs'), api.get('/admin/agent/feature-requests')])
-      .then(([c, p]) => { setCosts(c); setPedidos(p) })
+    Promise.all([
+      api.get('/admin/agent/costs'),
+      api.get('/admin/agent/feature-requests'),
+      api.get('/admin/agent/feedback'),
+    ])
+      .then(([c, p, f]) => { setCosts(c); setPedidos(p); setFeedback(f) })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
   }, [])
@@ -37,8 +52,8 @@ export function AdminCostsRequestsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Custos & Pedidos" subtitle="Gasto estimado do assistente (DeepSeek) e pedidos que o agente ainda não atende." />
-      <Tabs value={tab} onChange={setTab} items={[{ value: 'custos', label: 'Custos' }, { value: 'pedidos', label: 'Pedidos' }]} />
+      <PageHeader title="Custos & Pedidos" subtitle="Gasto estimado do assistente, o que ele ainda não atende e como as respostas foram avaliadas." />
+      <Tabs value={tab} onChange={setTab} items={[{ value: 'custos', label: 'Custos' }, { value: 'pedidos', label: 'Pedidos' }, { value: 'avaliacoes', label: 'Avaliações' }]} />
 
       {loading && <Card>Carregando…</Card>}
       {error && <Card className="state-danger-soft">{error}</Card>}
@@ -114,6 +129,48 @@ export function AdminCostsRequestsPage() {
             </table>
           )}
         </Card>
+      )}
+
+      {!loading && !error && tab === 'avaliacoes' && feedback && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <MetricCard label="Aprovadas" icon={ThumbsUp} value={feedback.resumo.up} sublabel="polegar para cima" />
+            <MetricCard label="Reprovadas" icon={ThumbsDown} value={feedback.resumo.down} sublabel="polegar para baixo" />
+            <MetricCard
+              label="Motivo mais comum"
+              icon={Inbox}
+              value={feedback.resumo.motivos[0] ? MOTIVOS[feedback.resumo.motivos[0].motivo] : '—'}
+              sublabel={feedback.resumo.motivos[0] ? `${feedback.resumo.motivos[0].total} vez(es)` : 'nenhum motivo registrado'}
+            />
+          </div>
+
+          <Card padded={false}>
+            {feedback.negativos.length === 0 ? (
+              <p className="p-5 text-sm text-text-secondary">
+                Nenhuma resposta reprovada ainda. Quando alguém marcar o polegar para baixo, a pergunta e a
+                resposta aparecem aqui para virar caso de eval.
+              </p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border-subtle text-left text-text-secondary">
+                    <th className="p-3">Pergunta</th><th className="p-3">Resposta reprovada</th><th className="p-3">Motivo</th><th className="p-3">Quando</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {feedback.negativos.map((n) => (
+                    <tr key={n.id} className="border-b border-border-subtle align-top">
+                      <td className="max-w-[18rem] p-3">{n.pergunta || '—'}</td>
+                      <td className="max-w-[24rem] p-3 text-text-secondary">{n.resposta}</td>
+                      <td className="p-3">{MOTIVOS[n.motivo] || '—'}</td>
+                      <td className="p-3 tabular-nums text-text-secondary">{new Date(n.created_at).toLocaleDateString('pt-BR')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </Card>
+        </div>
       )}
     </div>
   )

@@ -79,6 +79,8 @@ export function messagesToUi(rows = []) {
     if (r.role === 'assistant') {
       out.push({
         autor: 'bot',
+        // id da linha: é por ele que a avaliação aponta para esta resposta.
+        id: r.id,
         texto: r.content || '',
         proposta: ui.proposta ? { ...ui.proposta, expirado: true } : undefined,
         arquivos: ui.arquivos,

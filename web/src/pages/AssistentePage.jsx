@@ -274,6 +274,11 @@ export function AssistentePage() {
       if (e.type === 'sources') {
         setMensagens((m) => m.map((msg, i) => (i === idxBot ? { ...msg, fontes: e.items } : msg)))
       }
+      // `saved` fecha o turno com o id da linha gravada — é por ele que a
+      // avaliação aponta. Só depois disso os polegares fazem sentido.
+      if (e.type === 'saved') {
+        setMensagens((m) => m.map((msg, i) => (i === idxBot ? { ...msg, id: e.message_id } : msg)))
+      }
       if (e.type === 'error') {
         setMensagens((m) => m.map((msg, i) => (
           i === idxBot ? { ...msg, erro: e.error || 'Não consegui responder agora.' } : msg
@@ -713,7 +718,7 @@ export function AssistentePage() {
                               QUALQUER lugar da resposta, não só na faixa fina. */}
                           <div className="group/bolha relative">
                             <BolhaMarkdown texto={m.texto} cursor={streaming} />
-                            {!streaming && <RodapeBolha texto={m.texto} fontes={m.fontes} />}
+                            {!streaming && <RodapeBolha texto={m.texto} fontes={m.fontes} messageId={m.id} />}
                           </div>
                           {!streaming && <ChipsLinks links={m.links} />}
                         </div>
