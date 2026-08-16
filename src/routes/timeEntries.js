@@ -6,7 +6,31 @@ import { requireOperationalAccess } from '../middleware/requireOperationalAccess
 import { canAccessMoney } from '../lib/permissions.js'
 import { query, withTransaction } from '../lib/db.js'
 import { notifyAdmins } from '../lib/notificationsHub.js'
-import { calculateDurationMinutes, calculateCostSnapshot } from '../lib/timeMath.js'
+import { stopRunningEntry } from '../lib/stopTimer.js'
+import {
+  calculateDurationMinutes,
+  calculateCostSnapshot,
+  netDurationMinutes,
+  rateFromSnapshot,
+  sameInstant,
+} from '../lib/timeMath.js'
+
+const MAX_ENTRY_MINUTES = 24 * 60
+
+async function overlappingCompleted(clientOrQuery, userId, start, end, exceptId = null) {
+  const run = clientOrQuery.query ? clientOrQuery.query.bind(clientOrQuery) : clientOrQuery
+  const params = [userId, start, end]
+  let sql = `SELECT id FROM time_entries
+              WHERE user_id = $1 AND status = 'completed'
+                AND started_at < $3 AND ended_at > $2`
+  if (exceptId) {
+    params.push(exceptId)
+    sql += ` AND id <> $4`
+  }
+  sql += ' LIMIT 1'
+  const { rows } = await run(sql, params)
+  return rows[0] || null
+}
 
 const router = Router()
 
@@ -215,65 +239,7 @@ router.post('/time-entries/resume', requireAuth, blockTimerDuringVacation, async
 // UPDATE com AND status='running' mata double-stop (double-click / retry).
 router.post('/time-entries/stop', requireAuth, async (req, res) => {
   try {
-    const result = await withTransaction(async (client) => {
-      const { rows: openEntries } = await client.query(
-        `SELECT te.id, te.started_at, te.project_id, u.hourly_rate
-         FROM time_entries te
-         JOIN users u ON u.id = te.user_id
-         WHERE te.user_id = $1 AND te.status = 'running'
-         FOR UPDATE OF te
-         LIMIT 1`,
-        [req.profile.id]
-      )
-
-      if (!openEntries.length) return { notFound: true }
-
-      const entry = openEntries[0]
-      const { rows: nowRows } = await client.query('SELECT now() AS stop_ts')
-      const stopTs = nowRows[0].stop_ts
-
-      // Fecha pausa aberta no mesmo instante do stop (evita resumed_at null).
-      await client.query(
-        `UPDATE time_entry_pauses
-         SET resumed_at = $1
-         WHERE time_entry_id = $2 AND resumed_at IS NULL`,
-        [stopTs, entry.id]
-      )
-
-      const { rows: pausesData } = await client.query(
-        `SELECT paused_at, resumed_at FROM time_entry_pauses
-         WHERE time_entry_id = $1
-         ORDER BY paused_at`,
-        [entry.id]
-      )
-
-      const startDate = new Date(entry.started_at)
-      const endDate = new Date(stopTs)
-      let totalPausedMs = 0
-      for (const pause of pausesData) {
-        const pausedTime = new Date(pause.paused_at)
-        const resumedTime = pause.resumed_at ? new Date(pause.resumed_at) : endDate
-        totalPausedMs += Math.max(0, resumedTime.getTime() - pausedTime.getTime())
-      }
-
-      const durationMs = endDate.getTime() - startDate.getTime() - totalPausedMs
-      const durationMinutes = calculateDurationMinutes(new Date(0), new Date(durationMs))
-      const costSnapshot = calculateCostSnapshot(durationMinutes, entry.hourly_rate)
-
-      const { rows } = await client.query(
-        `UPDATE time_entries
-         SET status = 'completed',
-             ended_at = $1,
-             duration_minutes = $2,
-             cost_snapshot = $3
-         WHERE id = $4 AND status = 'running'
-         RETURNING *`,
-        [stopTs, durationMinutes, costSnapshot, entry.id]
-      )
-
-      if (!rows.length) return { notFound: true }
-      return { entry: rows[0], projectId: entry.project_id }
-    })
+    const result = await stopRunningEntry(req.profile.id)
 
     if (result.notFound) {
       return res.status(404).json({ error: 'Nenhum apontamento aberto.' })
@@ -341,13 +307,15 @@ router.post('/admin/time-entry-change-requests/:id/approve', requireAuth, requir
 
     // Valida se a entry pertence ao usuário
     const { rows: entryRows } = await query(
-      `SELECT id FROM time_entries WHERE id = $1 AND user_id = $2`,
+      `SELECT id, started_at, ended_at, duration_minutes, cost_snapshot
+         FROM time_entries WHERE id = $1 AND user_id = $2`,
       [time_entry_id, user_id]
     )
 
     if (!entryRows || entryRows.length === 0) {
       return res.status(404).json({ error: 'Apontamento não encontrado.' })
     }
+    const current = entryRows[0]
 
     // Atualiza com transaction; claim atômico do pending evita double-approve.
     await withTransaction(async (client) => {
@@ -368,12 +336,26 @@ router.post('/admin/time-entry-change-requests/:id/approve', requireAuth, requir
         'SELECT hourly_rate FROM users WHERE id = $1',
         [user_id]
       )
+      const { rows: pauses } = await client.query(
+        'SELECT paused_at, resumed_at FROM time_entry_pauses WHERE time_entry_id = $1',
+        [time_entry_id]
+      )
 
-      const rate = userRates?.[0]?.hourly_rate || 0
-      const startDate = new Date(requested_started_at)
-      const endDate = new Date(requested_ended_at)
-      const durationMinutes = calculateDurationMinutes(startDate, endDate)
-      const costSnapshot = calculateCostSnapshot(durationMinutes, rate)
+      const fallbackRate = userRates?.[0]?.hourly_rate || 0
+      const timesIguais =
+        sameInstant(requested_started_at, current.started_at)
+        && sameInstant(requested_ended_at, current.ended_at)
+
+      let durationMinutes
+      let costSnapshot
+      if (timesIguais) {
+        durationMinutes = current.duration_minutes
+        costSnapshot = current.cost_snapshot
+      } else {
+        const rate = rateFromSnapshot(current.duration_minutes, current.cost_snapshot, fallbackRate)
+        durationMinutes = netDurationMinutes(requested_started_at, requested_ended_at, pauses)
+        costSnapshot = calculateCostSnapshot(durationMinutes, rate)
+      }
 
       await client.query(
         `UPDATE time_entries
@@ -458,15 +440,30 @@ router.post('/admin/time-entries', requireAuth, requireAdmin, async (req, res) =
       return res.status(400).json({ error: 'A saída deve ser posterior ao início.' })
     }
 
+    if (endDate.getTime() > Date.now()) {
+      return res.status(400).json({ error: 'A saída não pode ser no futuro.' })
+    }
+
     const durationMinutes = calculateDurationMinutes(startDate, endDate)
+    if (durationMinutes > MAX_ENTRY_MINUTES) {
+      return res.status(400).json({ error: 'Apontamento não pode passar de 24 horas.' })
+    }
 
     const { rows: userRates } = await query(
-      'SELECT hourly_rate FROM users WHERE id = $1',
+      'SELECT hourly_rate, role FROM users WHERE id = $1',
       [user_id]
     )
 
     const userRate = userRates?.[0]?.hourly_rate
     const rate = userRate || 0
+    if (rate <= 0 && userRates?.[0]?.role !== 'administrative_intern') {
+      return res.status(400).json({ error: 'Colaborador sem valor por hora cadastrado.' })
+    }
+
+    if (await overlappingCompleted(query, user_id, startDate, endDate)) {
+      return res.status(409).json({ error: 'Já existe apontamento nesse horário.' })
+    }
+
     const costSnapshot = calculateCostSnapshot(durationMinutes, rate)
 
     const { rows } = await query(
@@ -489,7 +486,7 @@ router.put('/admin/time-entries/:id', requireAuth, requireAdmin, async (req, res
 
   try {
     const { rows: entryRows } = await query(
-      'SELECT id, user_id, project_id, started_at, ended_at, status FROM time_entries WHERE id = $1',
+      'SELECT id, user_id, project_id, started_at, ended_at, status, duration_minutes, cost_snapshot FROM time_entries WHERE id = $1',
       [id]
     )
 
@@ -548,7 +545,9 @@ router.put('/admin/time-entries/:id', requireAuth, requireAdmin, async (req, res
     paramIdx++
     updates.edited_at = 'now()'
 
-    // Se atualizou datas, recalcula duração e custo
+    // Se atualizou datas, recalcula duração e custo — mas só se o instante
+    // realmente mudou. O Save da tela sempre reenvia start/end; sem isto um
+    // dia com almoço vira parede-relógio e o salário sobe.
     if (updates.started_at || updates.ended_at) {
       const start = started_at !== undefined ? new Date(started_at) : new Date(current.started_at)
       const end = finalEndedAt ? new Date(finalEndedAt) : null
@@ -561,23 +560,34 @@ router.put('/admin/time-entries/:id', requireAuth, requireAdmin, async (req, res
         return res.status(400).json({ error: 'A saída deve ser posterior ao início.' })
       }
 
-      const durationMinutes = calculateDurationMinutes(start, end)
+      const timesIguais =
+        sameInstant(start, current.started_at) && sameInstant(end, current.ended_at)
 
-      const { rows: userRates } = await query(
-        'SELECT hourly_rate FROM users WHERE id = $1',
-        [current.user_id]
-      )
+      if (!timesIguais) {
+        const { rows: userRates } = await query(
+          'SELECT hourly_rate FROM users WHERE id = $1',
+          [current.user_id]
+        )
+        const { rows: pauses } = await query(
+          'SELECT paused_at, resumed_at FROM time_entry_pauses WHERE time_entry_id = $1',
+          [id]
+        )
+        const rate = rateFromSnapshot(
+          current.duration_minutes,
+          current.cost_snapshot,
+          userRates?.[0]?.hourly_rate || 0,
+        )
+        const durationMinutes = netDurationMinutes(start, end, pauses)
+        const costSnapshot = calculateCostSnapshot(durationMinutes, rate)
 
-      const rate = userRates?.[0]?.hourly_rate || 0
-      const costSnapshot = calculateCostSnapshot(durationMinutes, rate)
+        updates.duration_minutes = `$${paramIdx}`
+        params.push(durationMinutes)
+        paramIdx++
 
-      updates.duration_minutes = `$${paramIdx}`
-      params.push(durationMinutes)
-      paramIdx++
-
-      updates.cost_snapshot = `$${paramIdx}`
-      params.push(costSnapshot)
-      paramIdx++
+        updates.cost_snapshot = `$${paramIdx}`
+        params.push(costSnapshot)
+        paramIdx++
+      }
     }
 
     const setClause = Object.entries(updates).map(([key, val]) => `${key} = ${val}`).join(', ')
@@ -730,9 +740,10 @@ router.get('/admin/time-entries', requireAuth, requireAdmin, async (req, res) =>
     // Summary agregado
     const { rows: aggRows } = await query(
       `SELECT
-         COALESCE(SUM(te.duration_minutes), 0)::int as total_minutes,
-         COALESCE(SUM(te.cost_snapshot), 0)::numeric as total_cost,
-         COUNT(DISTINCT (te.started_at AT TIME ZONE 'America/Sao_Paulo')::date)::int as working_days
+         COALESCE(SUM(te.duration_minutes) FILTER (WHERE te.status = 'completed'), 0)::int as total_minutes,
+         COALESCE(SUM(te.cost_snapshot) FILTER (WHERE te.status = 'completed'), 0)::numeric as total_cost,
+         COUNT(DISTINCT (te.started_at AT TIME ZONE 'America/Sao_Paulo')::date)
+           FILTER (WHERE te.status = 'completed')::int as working_days
        FROM time_entries te
        ${whereClause}`,
       baseParams
@@ -778,6 +789,23 @@ router.get('/admin/time-entries', requireAuth, requireAdmin, async (req, res) =>
       bonusesTotal = Number(bonRows[0]?.total || 0)
     }
 
+    const entryIds = rows.map((r) => r.id)
+    let pausesByEntry = new Map()
+    if (entryIds.length) {
+      const { rows: pauseRows } = await query(
+        `SELECT id, time_entry_id, paused_at, resumed_at
+           FROM time_entry_pauses
+          WHERE time_entry_id = ANY($1)
+          ORDER BY paused_at`,
+        [entryIds],
+      )
+      for (const p of pauseRows) {
+        const list = pausesByEntry.get(p.time_entry_id) || []
+        list.push({ id: p.id, paused_at: p.paused_at, resumed_at: p.resumed_at })
+        pausesByEntry.set(p.time_entry_id, list)
+      }
+    }
+
     return res.json({
       data: rows.map((row) => ({
         id: row.id,
@@ -789,6 +817,7 @@ router.get('/admin/time-entries', requireAuth, requireAdmin, async (req, res) =>
         cost_snapshot: row.cost_snapshot,
         status: row.status,
         created_by_admin: row.created_by_admin,
+        pauses: pausesByEntry.get(row.id) || [],
         profile: { name: row.user_name, position: row.user_position, avatar_url: row.user_avatar_url },
         project: { name: row.project_name, client: row.project_client },
       })),

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { resetDb } from '../helpers/db.js'
+import { resetDb, query } from '../helpers/db.js'
 import { asUser } from '../helpers/api.js'
-import { makeUser, makeAdmin, makeProject, makeRunningEntry } from '../helpers/factories.js'
+import { makeUser, makeAdmin, makeProject, makeRunningEntry, makePause } from '../helpers/factories.js'
 
 const cents = (v) => Math.round(Number(v) * 100)
 const refCost = (min, rate) => Number(((min / 60) * rate).toFixed(2))
@@ -216,5 +216,65 @@ describe('Solicitações de alteração de apontamento', () => {
       .post(`/admin/time-entry-change-requests/${selfReq.body.id}/approve`)
       .send({})
     expect(selfApprove.status).toBe(403)
+  })
+
+  it('troca só de projeto com pausa NÃO paga o almoço', async () => {
+    // 09–18 com 1h de pausa: 8h × 100 = 800. O modal sempre reenvia os horários.
+    const entryId = await completedEntry(
+      admin, employee, projectA,
+      '2026-07-10T09:00:00-03:00', '2026-07-10T18:00:00-03:00',
+    )
+    await query(
+      `UPDATE time_entries SET duration_minutes = 480, cost_snapshot = 800 WHERE id = $1`,
+      [entryId],
+    )
+    await makePause({
+      time_entry_id: entryId,
+      paused_at: '2026-07-10T12:00:00-03:00',
+      resumed_at: '2026-07-10T13:00:00-03:00',
+    })
+
+    const reqRes = await asUser(employee).post('/me/time-entry-change-requests').send({
+      time_entry_id: entryId,
+      requested_project_id: projectB.id,
+      requested_started_at: '2026-07-10T09:00:00-03:00',
+      requested_ended_at: '2026-07-10T18:00:00-03:00',
+      reason: 'Apontou no projeto errado',
+    })
+    expect(reqRes.status).toBe(201)
+
+    const approve = await asUser(admin)
+      .post(`/admin/time-entry-change-requests/${reqRes.body.id}/approve`)
+      .send({ admin_note: 'ok' })
+    expect(approve.status).toBe(200)
+
+    const { rows } = await query(
+      'SELECT duration_minutes, cost_snapshot, project_id FROM time_entries WHERE id = $1',
+      [entryId],
+    )
+    expect(rows[0].project_id).toBe(projectB.id)
+    expect(rows[0].duration_minutes).toBe(480)
+    expect(cents(rows[0].cost_snapshot)).toBe(cents(800))
+  })
+
+  it('mudar horário após aumento de taxa NÃO rebila o dia na taxa nova', async () => {
+    const entryId = await completedEntry(
+      admin, employee, projectA,
+      '2026-07-10T09:00:00-03:00', '2026-07-10T11:00:00-03:00',
+    )
+    await query('UPDATE users SET hourly_rate = 200 WHERE id = $1', [employee.id])
+
+    const reqRes = await asUser(employee).post('/me/time-entry-change-requests').send({
+      time_entry_id: entryId,
+      requested_project_id: projectA.id,
+      requested_started_at: '2026-07-10T09:00:00-03:00',
+      requested_ended_at: '2026-07-10T12:00:00-03:00',
+      reason: 'Saí uma hora depois',
+    })
+    await asUser(admin).post(`/admin/time-entry-change-requests/${reqRes.body.id}/approve`).send({})
+
+    const { rows } = await query('SELECT duration_minutes, cost_snapshot FROM time_entries WHERE id = $1', [entryId])
+    expect(rows[0].duration_minutes).toBe(180)
+    expect(cents(rows[0].cost_snapshot)).toBe(cents(refCost(180, RATE)))
   })
 })

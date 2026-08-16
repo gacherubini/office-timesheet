@@ -65,4 +65,24 @@ describe('tool propor_encerrar_apontamento', () => {
     expect(rows[0].project_id).toBe(project.id)
     expect(rows[0].actor_id).toBe(emp.id)
   })
+
+  it('execute desconta pausa aberta e preenche resumed_at, igual ao POST /stop', async () => {
+    const entryId = await startedMinutesAgo(emp.id, project.id, 60)
+    await query(
+      `INSERT INTO time_entry_pauses (time_entry_id, paused_at, resumed_at)
+       VALUES ($1, now() - interval '20 minutes', NULL)`,
+      [entryId],
+    )
+    const { after } = await tool.execute(emp, { entry_id: entryId })
+    expect(after.status).toBe('completed')
+    expect(after.duration_minutes).toBeGreaterThanOrEqual(38)
+    expect(after.duration_minutes).toBeLessThanOrEqual(42)
+    expect(Number(after.cost_snapshot)).toBe(Number(((after.duration_minutes / 60) * 120).toFixed(2)))
+
+    const { rows } = await query(
+      'SELECT resumed_at FROM time_entry_pauses WHERE time_entry_id = $1',
+      [entryId],
+    )
+    expect(rows[0].resumed_at).toBeTruthy()
+  })
 })

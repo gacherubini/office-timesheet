@@ -91,4 +91,11 @@ describe('tool propor_criar_apontamento', () => {
     expect(rows[0].project_id).toBe(projeto.id)
     expect(rows[0].actor_id).toBe(emp.id)
   })
+
+  it('execute recusa projeto inativo ou removido entre propor e confirmar', async () => {
+    await query(`UPDATE projects SET deleted_at = now() WHERE id = $1`, [projeto.id])
+    await expect(tool.execute(emp, { project_id: projeto.id })).rejects.toThrow(/inválido|inativo|removido/i)
+    const { rows } = await query(`SELECT COUNT(*)::int AS n FROM time_entries WHERE user_id = $1`, [emp.id])
+    expect(rows[0].n).toBe(0)
+  })
 })

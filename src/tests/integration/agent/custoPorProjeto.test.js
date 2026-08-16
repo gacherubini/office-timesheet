@@ -55,6 +55,19 @@ describe('tool custo_por_projeto (admin)', () => {
     expect(alvo.custo_horistas).toBe(77)
   })
 
+  it('apontamento das 22h de ONTEM em SP não entra em hoje', async () => {
+    const projOntem = await makeProject({ name: 'Projeto Ontem' })
+    await query(
+      `INSERT INTO time_entries (user_id, project_id, started_at, ended_at, status, duration_minutes, cost_snapshot)
+       VALUES ($1, $2,
+         ((((now() AT TIME ZONE 'America/Sao_Paulo')::date - interval '1 day') + time '22:00') AT TIME ZONE 'America/Sao_Paulo'),
+         now(), 'completed', 60, 66)`,
+      [emp.id, projOntem.id],
+    )
+    const { data } = await tool.run(admin, { periodo: 'hoje' })
+    expect(data.find((p) => p.projeto === 'Projeto Ontem')).toBeFalsy()
+  })
+
   it('não mescla dois projetos distintos com o mesmo nome e cliente', async () => {
     // projects.name não tem unique constraint; dois projetos podem ter o
     // mesmo nome (e cliente). O GROUP BY precisa incluir p.id pra não

@@ -14,17 +14,13 @@ import { DateField } from '../../components/ui/DateField'
 import { DateRange } from '../../components/ui/DateRange'
 import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
+import { getPeriodRange } from '../../lib/periods'
+import { HORAS_LABEL, NET_LABEL, fixedSalaryNote } from '../../lib/apontamentosSummary'
 
 registerLocale('pt-BR', ptBR)
 
 function getMonthRange() {
-  const now = new Date()
-  const start = new Date(now.getFullYear(), now.getMonth(), 1)
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-  return {
-    start_date: start.toISOString().slice(0, 10),
-    end_date: end.toISOString().slice(0, 10),
-  }
+  return getPeriodRange('month')
 }
 
 function formatDate(iso) {
@@ -309,6 +305,7 @@ export function AdminTimeEntriesPage() {
   }
 
   const selectedUser = users.find((user) => user.id === filters.user_id)
+  const salaryNote = fixedSalaryNote(selectedUser)
   const dailyTotals = (summary?.daily_totals || []).reduce((acc, item) => {
     acc[`${item.user_id}:${item.date}`] = item.minutes
     return acc
@@ -412,14 +409,17 @@ export function AdminTimeEntriesPage() {
           <p className="text-[11px] text-text-secondary truncate">
             {selectedUser?.position || 'Histórico consolidado'}
           </p>
+          {salaryNote && (
+            <p className="text-[12px] text-text-secondary mt-1">{salaryNote}</p>
+          )}
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-7 gap-3 mb-4">
-        <SummaryCard label="Salário Base / Horas" value={formatCurrency(totalCost)} />
+        <SummaryCard label={HORAS_LABEL} value={formatCurrency(totalCost)} />
         <SummaryCard label="Reembolso Despesas" value={formatCurrency(reimbursements)} />
         <SummaryCard label="Adicional Bônus" value={formatCurrency(bonusesTotal)} />
-        <SummaryCard label="Total Líquido" value={formatCurrency(netTotal)} accent />
+        <SummaryCard label={NET_LABEL} value={formatCurrency(netTotal)} accent />
         <SummaryCard label="Horas Totais" value={formatDuration(summary?.total_minutes)} />
         <SummaryCard label="Média de Horas/Dia" value={formatDuration(summary?.average_minutes_per_day)} />
         <SummaryCard label="Dias Trabalhados" value={String(summary?.working_days || 0)} />

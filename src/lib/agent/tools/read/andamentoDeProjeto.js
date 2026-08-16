@@ -34,8 +34,8 @@ async function run(_profile, args) {
   const projeto = await resolverProjeto(args?.projeto, { acao: 'ver o andamento' })
   const { inicio, fim } = resolvePeriodo(args?.periodo || 'semana')
   const params = [projeto.id, inicio, fim]
-  const janela = `AND x.created_at >= ($2::date AT TIME ZONE 'America/Sao_Paulo')
-                  AND x.created_at < (($3::date + interval '1 day') AT TIME ZONE 'America/Sao_Paulo')`
+  const janela = `AND x.created_at >= ($2::timestamp AT TIME ZONE 'America/Sao_Paulo')
+                  AND x.created_at < (($3::date + interval '1 day')::timestamp AT TIME ZONE 'America/Sao_Paulo')`
 
   const comentarios = await query(
     `SELECT COUNT(*)::int AS n FROM task_comments x

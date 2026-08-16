@@ -85,4 +85,18 @@ describe('tool simulacao_performance (todos os papéis, dado próprio)', () => {
     const { data } = await tool.run(ana, {})
     expect(data.meta_ganho).not.toBe(9999)
   })
+
+  it('estagiário não recebe valor_hora nem valor_realizado', async () => {
+    const intern = await makeUser({ role: 'administrative_intern', name: 'Estag', hourly_rate: 0 })
+    await query(
+      `INSERT INTO performance_simulations (user_id, ym, planned)
+       VALUES ($1, $2, $3::jsonb)`,
+      [intern.id, ym, JSON.stringify({ target_amount: 5000 })],
+    )
+    const { data } = await tool.run(intern, {})
+    expect(data).not.toHaveProperty('valor_hora')
+    expect(data).not.toHaveProperty('valor_realizado')
+    expect(data).not.toHaveProperty('meta_ganho')
+    expect(data.horas_realizadas).toBe(0)
+  })
 })

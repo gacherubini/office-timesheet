@@ -7,7 +7,7 @@ const definition = {
   type: 'function',
   function: {
     name: 'listar_equipe',
-    description: 'Lista as pessoas da equipe (nome, papel, cargo e, para quem tem acesso, valor/hora). Use para perguntas sobre quem é quem no time.',
+    description: 'Lista as pessoas da equipe (nome, papel, cargo e situação). Use para perguntas sobre quem é quem no time.',
     parameters: { type: 'object', properties: {}, additionalProperties: false },
   },
 }

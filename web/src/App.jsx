@@ -5,7 +5,7 @@ import { Layout } from './components/Layout'
 import { LoginPage } from './pages/LoginPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
-import { TimerPage } from './pages/TimerPage'
+
 import { HistoryPage } from './pages/HistoryPage'
 import { ProjectBoardPage } from './pages/ProjectBoardPage'
 import { ExpensesPage } from './pages/ExpensesPage'
@@ -56,7 +56,7 @@ export default function App() {
       {/* Rotas do colaborador */}
       <Route path="/" element={<ProtectedRoute><HomeRedirect /></ProtectedRoute>} />
       <Route path="/dashboard" element={<ProtectedRoute disallowAdministrativeIntern><Layout><EmployeeDashboardPage /></Layout></ProtectedRoute>} />
-      <Route path="/timer" element={<ProtectedRoute><Layout><TimerPage /></Layout></ProtectedRoute>} />
+      <Route path="/timer" element={<ProtectedRoute><Navigate to="/projetos" replace /></ProtectedRoute>} />
       <Route path="/financial-perspective" element={<ProtectedRoute disallowAdministrativeIntern><Layout><PerformancePage /></Layout></ProtectedRoute>} />
       <Route path="/history" element={<ProtectedRoute><Layout><HistoryPage /></Layout></ProtectedRoute>} />
       <Route path="/project-board" element={<ProtectedRoute><Layout><ProjectBoardPage /></Layout></ProtectedRoute>} />

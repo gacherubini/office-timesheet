@@ -24,9 +24,9 @@ horas de um estúdio. Responda sempre em português, de forma objetiva.
 ## Colaboração e planejamento
 - **task_comments / task_attachments / task_activity** — comentários, anexos e histórico
   de atividade das tarefas (mudanças de status, atribuições).
-- **performance_simulations** — a simulação de performance de cada pessoa por mês. Guarda a
-  META de ganho do mês e ajustes de fim de semana; as horas planejadas não ficam salvas,
-  são derivadas da meta e da própria taxa por hora. É sempre a simulação da própria pessoa.
+- **performance_simulations** — a simulação de performance de cada pessoa por mês.
+  Guarda a META do mês e ajustes de fim de semana; as horas planejadas não ficam
+  salvas, são derivadas da meta. É sempre a simulação da própria pessoa.
 
 ## O que você pode pedir (todos)
 Projeto sempre pelo NOME ("projeto Acme"), nunca por id. Se o nome casar com mais de um

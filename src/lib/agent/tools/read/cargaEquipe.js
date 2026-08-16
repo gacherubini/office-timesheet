@@ -28,8 +28,8 @@ async function run(_profile, args) {
        FROM users u
        LEFT JOIN time_entries te
          ON te.user_id = u.id AND te.status = 'completed'
-        AND te.started_at >= ($1::date AT TIME ZONE 'America/Sao_Paulo')
-        AND te.started_at < (($2::date + interval '1 day') AT TIME ZONE 'America/Sao_Paulo')
+        AND te.started_at >= ($1::timestamp AT TIME ZONE 'America/Sao_Paulo')
+        AND te.started_at < (($2::date + interval '1 day')::timestamp AT TIME ZONE 'America/Sao_Paulo')
       WHERE u.deleted_at IS NULL AND u.is_active = true
       GROUP BY u.id, u.name
       ORDER BY total_minutes DESC, u.name`,

@@ -21,6 +21,13 @@ describe('gerar_relatorio', () => {
     })).rejects.toThrow()
   })
 
+  it('intern não consegue puxar fonte financeira mesmo chamando run direto', async () => {
+    const tool = (await import('../../../lib/agent/tools/read/gerarRelatorio.js')).default
+    await expect(tool.run({ id: '2', role: 'administrative_intern' }, {
+      titulo: 'X', formato: 'csv', fontes: [{ tool: 'custo_por_projeto', params: {} }],
+    })).rejects.toThrow(/fonte não permitida/i)
+  })
+
   it('recusa fonte de escrita', async () => {
     const tool = (await import('../../../lib/agent/tools/read/gerarRelatorio.js')).default
     await expect(tool.run(admin, {

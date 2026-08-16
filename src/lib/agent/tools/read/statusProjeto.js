@@ -53,8 +53,8 @@ async function run(_profile, args) {
          SELECT COALESCE(SUM(duration_minutes),0)::int AS total_minutes
            FROM time_entries
           WHERE project_id = p.id AND status = 'completed'
-            AND ($2::date IS NULL OR started_at >= ($2::date AT TIME ZONE 'America/Sao_Paulo'))
-            AND ($3::date IS NULL OR started_at < (($3::date + interval '1 day') AT TIME ZONE 'America/Sao_Paulo'))
+            AND ($2::timestamp IS NULL OR started_at >= ($2::timestamp AT TIME ZONE 'America/Sao_Paulo'))
+            AND ($3::date IS NULL OR started_at < (($3::date + interval '1 day')::timestamp AT TIME ZONE 'America/Sao_Paulo'))
        ) hc ON true
       WHERE p.deleted_at IS NULL
         AND ($1::uuid IS NULL OR p.id = $1::uuid)

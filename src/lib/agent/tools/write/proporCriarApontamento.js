@@ -68,6 +68,14 @@ async function execute(profile, payload) {
   if (await deFeriasHoje(profile.id)) {
     throw new Error('Você está de férias aprovadas hoje; o timer fica bloqueado.')
   }
+  const { rows: projetos } = await query(
+    `SELECT id FROM projects
+      WHERE id = $1 AND deleted_at IS NULL AND status = 'active'`,
+    [payload.project_id],
+  )
+  if (projetos.length === 0) {
+    throw new Error('Projeto inválido, inativo ou removido.')
+  }
   try {
     const { rows } = await query(
       `INSERT INTO time_entries (user_id, project_id, started_at, status)

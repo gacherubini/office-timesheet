@@ -274,6 +274,9 @@ router.post('/agent/actions/:proposalId/execute', requireAuth, async (req, res) 
 
   const tool = WRITE_TOOLS[proposal.kind]
   if (!tool) return res.status(400).json({ error: 'Tipo de proposta desconhecido.' })
+  if (!tool.roles.includes(req.profile.role)) {
+    return res.status(403).json({ error: 'Sem permissão para esta ação.' })
+  }
 
   try {
     const { before, after } = await tool.execute(req.profile, proposal.payload, {

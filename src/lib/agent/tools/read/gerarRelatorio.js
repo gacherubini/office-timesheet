@@ -56,11 +56,11 @@ function achar(nome) {
   return TODAS.find((t) => t.definition.function.name === nome)
 }
 
-function permitida(tool) {
+function permitida(tool, profile) {
   return Boolean(
     tool
     && tool.kind === 'read'
-    && tool.roles.includes('admin')
+    && tool.roles.includes(profile?.role)
     && tool.definition.function.name !== 'gerar_relatorio',
   )
 }
@@ -106,7 +106,7 @@ async function run(profile, args) {
 
   const resolvidas = fontes.map((f) => {
     const tool = achar(f.tool)
-    if (!permitida(tool)) throw new Error('fonte não permitida')
+    if (!permitida(tool, profile)) throw new Error('fonte não permitida')
     return { spec: f, tool }
   })
 

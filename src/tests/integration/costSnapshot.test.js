@@ -56,17 +56,17 @@ describe('cost_snapshot — congelado no momento do apontamento', () => {
     expect(res.status).toBe(400)
   })
 
-  it('usuário com valor/hora 0 → custo 0', async () => {
+  it('usuário com valor/hora 0 → admin não consegue lançar (evita mês a R$ 0)', async () => {
     const zero = await makeUser({ role: 'employee', hourly_rate: 0 })
-    await asUser(admin).post('/admin/time-entries').send({
+    const res = await asUser(admin).post('/admin/time-entries').send({
       user_id: zero.id,
       project_id: project.id,
       started_at: '2026-07-10T09:00:00-03:00',
       ended_at: '2026-07-10T12:00:00-03:00',
     })
+    expect(res.status).toBe(400)
     const earn = await asUser(zero).get('/me/project-earnings')
-    expect(earn.body[0].total_minutes).toBe(180)
-    expect(cents(earn.body[0].total_cost)).toBe(0)
+    expect(earn.body).toEqual([])
   })
 
   it('entrada manual exige admin (funcionário → 403)', async () => {

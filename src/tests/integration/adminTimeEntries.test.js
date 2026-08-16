@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { resetDb, query } from '../helpers/db.js'
 import { asUser } from '../helpers/api.js'
-import { makeUser, makeAdmin, makeProject } from '../helpers/factories.js'
+import { makeUser, makeAdmin, makeProject, makePause } from '../helpers/factories.js'
 
 const cents = (v) => Math.round(Number(v) * 100)
 const refCost = (min, rate) => Number(((min / 60) * rate).toFixed(2))
@@ -135,5 +135,126 @@ describe('Admin — editar/excluir apontamentos', () => {
     // timer liberado — usuário consegue abrir outro
     const start = await asUser(employee).post('/time-entries/start').send({ project_id: projectB.id })
     expect(start.status).toBe(200)
+  })
+
+  it('Save que reenvia os horários de um dia com pausa NÃO paga o almoço', async () => {
+    const entry = await completedEntry(
+      admin, employee, projectA,
+      '2026-07-10T09:00:00-03:00', '2026-07-10T18:00:00-03:00',
+    )
+    await query(
+      `UPDATE time_entries SET duration_minutes = 480, cost_snapshot = 800 WHERE id = $1`,
+      [entry.id],
+    )
+    await makePause({
+      time_entry_id: entry.id,
+      paused_at: '2026-07-10T12:00:00-03:00',
+      resumed_at: '2026-07-10T13:00:00-03:00',
+    })
+
+    const res = await asUser(admin).put(`/admin/time-entries/${entry.id}`).send({
+      project_id: projectB.id,
+      started_at: '2026-07-10T09:00:00-03:00',
+      ended_at: '2026-07-10T18:00:00-03:00',
+    })
+    expect(res.status).toBe(200)
+    expect(res.body.project_id).toBe(projectB.id)
+    expect(res.body.duration_minutes).toBe(480)
+    expect(cents(res.body.cost_snapshot)).toBe(cents(800))
+  })
+
+  it('editar horário depois de aumento usa a taxa do snapshot, não a atual', async () => {
+    const entry = await completedEntry(
+      admin, employee, projectA,
+      '2026-07-10T09:00:00-03:00', '2026-07-10T11:00:00-03:00',
+    )
+    await query('UPDATE users SET hourly_rate = 200 WHERE id = $1', [employee.id])
+
+    const res = await asUser(admin).put(`/admin/time-entries/${entry.id}`).send({
+      started_at: '2026-07-10T09:00:00-03:00',
+      ended_at: '2026-07-10T12:00:00-03:00',
+    })
+    expect(res.status).toBe(200)
+    expect(res.body.duration_minutes).toBe(180)
+    expect(cents(res.body.cost_snapshot)).toBe(cents(refCost(180, RATE)))
+  })
+
+  it('criar apontamento sobreposto no mesmo horário → 409', async () => {
+    await completedEntry(
+      admin, employee, projectA,
+      '2026-07-10T09:00:00-03:00', '2026-07-10T12:00:00-03:00',
+    )
+    const res = await asUser(admin).post('/admin/time-entries').send({
+      user_id: employee.id,
+      project_id: projectB.id,
+      started_at: '2026-07-10T11:00:00-03:00',
+      ended_at: '2026-07-10T14:00:00-03:00',
+    })
+    expect(res.status).toBe(409)
+  })
+
+  it('criar apontamento de mais de 24h ou no futuro → 400', async () => {
+    const long = await asUser(admin).post('/admin/time-entries').send({
+      user_id: employee.id,
+      project_id: projectA.id,
+      started_at: '2026-07-10T09:00:00-03:00',
+      ended_at: '2026-07-12T09:00:00-03:00',
+    })
+    expect(long.status).toBe(400)
+
+    const future = await asUser(admin).post('/admin/time-entries').send({
+      user_id: employee.id,
+      project_id: projectA.id,
+      started_at: '2035-07-10T09:00:00-03:00',
+      ended_at: '2035-07-10T11:00:00-03:00',
+    })
+    expect(future.status).toBe(400)
+  })
+
+  it('criar para horista sem valor/hora → 400', async () => {
+    const semTaxa = await makeUser({ role: 'employee', hourly_rate: 0, name: 'Sem taxa' })
+    const res = await asUser(admin).post('/admin/time-entries').send({
+      user_id: semTaxa.id,
+      project_id: projectA.id,
+      started_at: '2026-07-10T09:00:00-03:00',
+      ended_at: '2026-07-10T11:00:00-03:00',
+    })
+    expect(res.status).toBe(400)
+  })
+
+  it('lista inclui as pausas do apontamento', async () => {
+    const entry = await completedEntry(
+      admin, employee, projectA,
+      '2026-08-10T09:00:00-03:00', '2026-08-10T18:00:00-03:00',
+    )
+    await makePause({
+      time_entry_id: entry.id,
+      paused_at: '2026-08-10T12:00:00-03:00',
+      resumed_at: '2026-08-10T13:00:00-03:00',
+    })
+    const res = await asUser(admin).get(
+      '/admin/time-entries?start_date=2026-08-01&end_date=2026-08-31',
+    )
+    const row = res.body.data.find((e) => e.id === entry.id)
+    expect(row.pauses).toHaveLength(1)
+    expect(row.pauses[0].resumed_at).toBeTruthy()
+  })
+
+  it('resumo do mês soma só apontamentos concluídos', async () => {
+    await completedEntry(
+      admin, employee, projectA,
+      '2026-08-10T09:00:00-03:00', '2026-08-10T11:00:00-03:00',
+    )
+    await query(
+      `INSERT INTO time_entries (user_id, project_id, started_at, status, duration_minutes, cost_snapshot)
+       VALUES ($1, $2, '2026-08-11T09:00:00-03:00', 'running', 999, 999)`,
+      [employee.id, projectA.id],
+    )
+    const res = await asUser(admin).get(
+      '/admin/time-entries?start_date=2026-08-01&end_date=2026-08-31',
+    )
+    expect(res.status).toBe(200)
+    expect(res.body.summary.total_minutes).toBe(120)
+    expect(cents(res.body.summary.total_cost)).toBe(cents(refCost(120, RATE)))
   })
 })

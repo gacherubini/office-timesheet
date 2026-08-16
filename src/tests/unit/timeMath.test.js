@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { calculateDurationMinutes, calculateCostSnapshot } from '../../lib/timeMath.js'
+import {
+  calculateDurationMinutes,
+  calculateCostSnapshot,
+  netDurationMinutes,
+  rateFromSnapshot,
+  sameInstant,
+} from '../../lib/timeMath.js'
 
 const at = (ms) => new Date(ms)
 
@@ -52,5 +58,47 @@ describe('calculateCostSnapshot (horas × rate, 2 casas)', () => {
   })
   it('rate string numérica é coerc­ida', () => {
     expect(calculateCostSnapshot(60, '100')).toBe(100)
+  })
+})
+
+describe('netDurationMinutes (parede-relógio menos pausas sobrepostas)', () => {
+  const start = new Date('2026-07-10T09:00:00-03:00')
+  const end = new Date('2026-07-10T18:00:00-03:00')
+
+  it('sem pausa → 9h de parede', () => {
+    expect(netDurationMinutes(start, end, [])).toBe(540)
+  })
+
+  it('1h de almoço → 8h líquidas', () => {
+    expect(netDurationMinutes(start, end, [
+      { paused_at: '2026-07-10T12:00:00-03:00', resumed_at: '2026-07-10T13:00:00-03:00' },
+    ])).toBe(480)
+  })
+
+  it('pausa que sai da janela nova só desconta o overlap', () => {
+    // Janela encolhida pra 09–12; a pausa 12–13 não entra.
+    const noon = new Date('2026-07-10T12:00:00-03:00')
+    expect(netDurationMinutes(start, noon, [
+      { paused_at: '2026-07-10T12:00:00-03:00', resumed_at: '2026-07-10T13:00:00-03:00' },
+    ])).toBe(180)
+  })
+})
+
+describe('rateFromSnapshot (taxa vigente na época, não a de hoje)', () => {
+  it('8h a R$800 → 100/h', () => {
+    expect(rateFromSnapshot(480, 800)).toBe(100)
+  })
+  it('duração 0 ou custo vazio → fallback', () => {
+    expect(rateFromSnapshot(0, 800, 50)).toBe(50)
+    expect(rateFromSnapshot(60, null, 50)).toBe(50)
+  })
+})
+
+describe('sameInstant', () => {
+  it('ISO com fuso diferente, mesmo instante', () => {
+    expect(sameInstant('2026-07-10T09:00:00-03:00', '2026-07-10T12:00:00Z')).toBe(true)
+  })
+  it('instantes distintos', () => {
+    expect(sameInstant('2026-07-10T09:00:00-03:00', '2026-07-10T09:01:00-03:00')).toBe(false)
   })
 })

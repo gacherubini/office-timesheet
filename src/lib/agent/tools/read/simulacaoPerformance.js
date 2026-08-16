@@ -53,8 +53,8 @@ async function run(profile, args) {
     `SELECT COALESCE(SUM(duration_minutes),0)::int AS minutos
        FROM time_entries
       WHERE user_id = $1 AND status = 'completed'
-        AND started_at >= ($2::date AT TIME ZONE 'America/Sao_Paulo')
-        AND started_at < (($3::date + interval '1 day') AT TIME ZONE 'America/Sao_Paulo')`,
+        AND started_at >= ($2::timestamp AT TIME ZONE 'America/Sao_Paulo')
+        AND started_at < (($3::date + interval '1 day')::timestamp AT TIME ZONE 'America/Sao_Paulo')`,
     [profile.id, inicio, fim],
   )
   const horasRealizadas = real.rows[0].minutos / 60
@@ -64,18 +64,20 @@ async function run(profile, args) {
   const data = {
     mes,
     tem_simulacao: temSimulacao,
-    meta_ganho: config.target_amount,
-    valor_hora: valorHora,
     horas_realizadas: h(horasRealizadas),
-    valor_realizado: h(p.valorRealizado),
     horas_para_bater_a_meta: h(p.horasParaMeta),
     horas_extras_de_fim_de_semana: h(p.horasFimDeSemana),
     horas_planejadas: h(p.horasPlanejadas),
   }
-  // Sem valor/hora cadastrado a meta não vira hora nenhuma: avisa em vez de
-  // deixar o modelo apresentar "0h planejadas" como se fosse escolha da pessoa.
-  if (valorHora <= 0) {
-    data.observacao = 'Sem valor por hora cadastrado no perfil, não dá para converter a meta em horas.'
+  // Estagiário não vê /me/stats nem Performance: a tool não pode ser
+  // superconjunto financeiro da rota. Horista e admin veem o próprio valor.
+  if (profile.role !== 'administrative_intern') {
+    data.meta_ganho = config.target_amount
+    data.valor_hora = valorHora
+    data.valor_realizado = h(p.valorRealizado)
+    if (valorHora <= 0) {
+      data.observacao = 'Sem valor por hora cadastrado no perfil, não dá para converter a meta em horas.'
+    }
   }
   return { data, count: 1 }
 }

@@ -10,6 +10,7 @@ import { buildRegistry } from '../../../lib/agent/tools/registry.js'
 
 const SENTINELAS = {
   hourly_rate: 777.77,
+  fixed_salary: 888888,
   cost_snapshot: 999999,
   sale_value: 424242,
   bonus_alheio: 313131,
@@ -32,6 +33,10 @@ const ARGS = {
   quem_nao_apontou: {},
   despesas_do_periodo: {},
   apontamentos_abertos: {},
+  meus_bonus: {},
+  agenda_do_periodo: { periodo: 'semana' },
+  aniversariantes: {},
+  aprovacoes_pendentes: {},
 }
 
 describe('paridade de coluna: valor financeiro não vaza por papel (§18)', () => {
@@ -41,6 +46,7 @@ describe('paridade de coluna: valor financeiro não vaza por papel (§18)', () =
     projeto = await makeProject({ name: 'Sentinela' })
     await query('UPDATE projects SET sale_value = $1 WHERE id = $2', [SENTINELAS.sale_value, projeto.id])
     const dono = await makeUser({ role: 'employee', name: 'Dono', hourly_rate: SENTINELAS.hourly_rate })
+    await query('UPDATE users SET fixed_salary = $1 WHERE id = $2', [SENTINELAS.fixed_salary, dono.id])
     await query(
       `INSERT INTO time_entries (user_id, project_id, started_at, ended_at, status, duration_minutes, cost_snapshot)
        VALUES ($1, $2, now(), now(), 'completed', 60, $3)`,
@@ -71,8 +77,8 @@ describe('paridade de coluna: valor financeiro não vaza por papel (§18)', () =
         let saida
         try {
           saida = await tool.run(perfil, ARGS[nome] ?? {})
-        } catch {
-          continue // erro legível (ex.: projeto ambíguo) não é vazamento
+        } catch (err) {
+          throw new Error(`${nome} falhou para ${papel} (não é vazamento, mas o recorte não foi exercitado): ${err.message}`)
         }
         const json = JSON.stringify(saida.data)
         for (const [coluna, valor] of Object.entries(SENTINELAS)) {
