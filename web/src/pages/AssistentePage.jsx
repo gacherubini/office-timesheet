@@ -628,7 +628,7 @@ export function AssistentePage() {
   return (
     // Neutraliza o padding do <main> para colar o chat na viewport (Topbar = h-14).
     <div className="-mx-4 -my-6 flex h-[calc(100dvh-3.5rem)] bg-surface md:-mx-8 md:-my-8">
-      <aside className="hidden w-64 flex-none flex-col border-r border-border-subtle md:flex">
+      <aside className="hidden w-72 flex-none flex-col border-r border-border-subtle md:flex">
         {renderLista()}
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
