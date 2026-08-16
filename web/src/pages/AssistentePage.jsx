@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Send, Square, RotateCcw, AlertCircle, Check, Plus, Sparkles, Loader2, Paperclip, X, Copy } from 'lucide-react'
+import { Send, Square, RotateCcw, AlertCircle, Plus, Sparkles, Loader2, Paperclip, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { streamChat, executeProposal, cancelProposal, downloadAgentFile, listConversations, getConversation, renameConversation, deleteConversation } from '../lib/agentClient'
 import { lerSessao, salvarSessao, limparSessao } from '../lib/agentSession'
@@ -11,6 +11,7 @@ import { aberturaDoPapel } from '../lib/agentOpening'
 import { lerContexto, dispensarContexto } from '../lib/agentContext'
 import { BolhaMarkdown } from '../components/assistente/BolhaMarkdown'
 import { criarPincel } from '../lib/agentPincel'
+import { RodapeBolha } from '../components/assistente/RodapeBolha'
 
 // ── Página do Assistente (tela cheia) ──────────────────────────────────────
 // Lista à esquerda (md+); mobile abre o mesmo conteúdo full-height. Sem
@@ -125,34 +126,6 @@ function Pensando() {
       <Loader2 size={14} className="animate-spin" aria-hidden />
       <span className="text-sm">Pensando…</span>
     </div>
-  )
-}
-
-function BotaoCopiar({ texto }) {
-  const [ok, setOk] = useState(false)
-  const t = useRef(null)
-  useEffect(() => () => clearTimeout(t.current), [])
-
-  async function copiar() {
-    try {
-      await navigator.clipboard.writeText(texto)
-    } catch {
-      return
-    }
-    setOk(true)
-    clearTimeout(t.current)
-    t.current = setTimeout(() => setOk(false), 1500)
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={copiar}
-      aria-label={ok ? 'Copiado' : 'Copiar'}
-      className="inline-flex text-text-secondary transition-colors hover:text-text-primary"
-    >
-      {ok ? <Check size={14} /> : <Copy size={14} />}
-    </button>
   )
 }
 
@@ -295,6 +268,11 @@ export function AssistentePage() {
             ? anexarArquivo(msg, { token: e.token, filename: e.filename, mime: e.mime, bytes: e.bytes })
             : msg
         )))
+      }
+      // Procedência: chega antes do `answer`, então o rodapé nasce junto com a
+      // bolha. No reload vem pronto no GET, sem passar por aqui.
+      if (e.type === 'sources') {
+        setMensagens((m) => m.map((msg, i) => (i === idxBot ? { ...msg, fontes: e.items } : msg)))
       }
       if (e.type === 'error') {
         setMensagens((m) => m.map((msg, i) => (
@@ -731,13 +709,11 @@ export function AssistentePage() {
                         <Pensando />
                       ) : m.texto ? (
                         <div className="space-y-2">
-                          <div className="relative">
+                          {/* group/bolha: as ações do rodapé reagem ao cursor em
+                              QUALQUER lugar da resposta, não só na faixa fina. */}
+                          <div className="group/bolha relative">
                             <BolhaMarkdown texto={m.texto} cursor={streaming} />
-                            {!streaming && (
-                              <div className="mt-1">
-                                <BotaoCopiar texto={m.texto} />
-                              </div>
-                            )}
+                            {!streaming && <RodapeBolha texto={m.texto} fontes={m.fontes} />}
                           </div>
                           {!streaming && <ChipsLinks links={m.links} />}
                         </div>

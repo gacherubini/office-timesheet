@@ -8,6 +8,7 @@ import * as usageRepo from './usageRepo.js'
 import { LIMITS, withTimeout } from './guards.js'
 import { isAbortError } from './client.js'
 import { sugerirProximos } from './suggestions.js'
+import { descreverFonte } from './fontes.js'
 
 function lastToolsDesteTurno(messages) {
   let lastUser = -1
@@ -39,7 +40,10 @@ function ultimaMensagemUsuarioDe(messages) {
   return ''
 }
 
-function emitirAnswer(emit, text, { profile, messages, context }) {
+function emitirAnswer(emit, text, { profile, messages, context, fontes = [] }) {
+  // Procedência antes da resposta: o rodapé nasce junto com a bolha em vez de
+  // aparecer um instante depois, empurrando o texto que a pessoa já começou a ler.
+  if (fontes.length) emit({ type: 'sources', items: fontes })
   emit({ type: 'answer', text })
   const items = sugerirProximos({
     profile,
@@ -92,12 +96,22 @@ const NUDGE_VAZIO = {
 // ele esgota as voltas sem fechar.
 const FALLBACK_SEM_RESPOSTA = 'Não consegui chegar a uma resposta pra isso. Pode reformular com outras palavras — por exemplo, dizendo o período, o projeto ou a pessoa que você tem em mente?'
 
-export async function runAgentTurn({ client, profile, model, messages, emit, conversationId = null, signal, now = Date.now, context = null, anexoBruto = null }) {
-  const registry = buildRegistry(profile)
+export async function runAgentTurn({ client, profile, model, messages, emit, conversationId = null, signal, now = Date.now, context = null, anexoBruto = null, registry = null }) {
+  const reg = registry || buildRegistry(profile)
   const usageTotal = { tokensIn: 0, tokensOut: 0, cached: 0 }
   const inicio = now()
   let retryVazio = false
   let incluirNudge = false
+  // Procedência do turno: uma entrada por leitura que DEU CERTO, na ordem em
+  // que rodou. Leitura que estourou não entra — dali não saiu dado nenhum.
+  const fontes = []
+  const vistas = new Set()
+  function registrarFonte(tool, params, count) {
+    const chave = `${tool}|${JSON.stringify(params || {})}`
+    if (vistas.has(chave)) return
+    vistas.add(chave)
+    fontes.push(descreverFonte({ tool, params, count }))
+  }
 
   for (let i = 0; i < LIMITS.maxIterations; i++) {
     // §2 desconexão: se o cliente sumiu (req.on('close')), para ANTES de gastar
@@ -107,7 +121,7 @@ export async function runAgentTurn({ client, profile, model, messages, emit, con
     // §orçamento: estoura o relógio do turno inteiro antes de gastar mais uma
     // chamada ao modelo. Responde o fallback e sai — histórico limpo, sem 400.
     if (now() - inicio > LIMITS.turnBudgetMs) {
-      emitirAnswer(emit, FALLBACK_ORCAMENTO, { profile, messages, context })
+      emitirAnswer(emit, FALLBACK_ORCAMENTO, { profile, messages, context, fontes })
       return { status: 'done', messages, usage: usageTotal }
     }
 
@@ -151,7 +165,7 @@ export async function runAgentTurn({ client, profile, model, messages, emit, con
       // no fim) — nesse caso token_revoke apaga a pintura. `answer` da iteração
       // sem tool_calls continua canônico.
       ;({ message, usage } = await withTimeout(
-        client.stream({ messages: paraModelo, tools: registry.definitions, model }, onDelta, { signal }),
+        client.stream({ messages: paraModelo, tools: reg.definitions, model }, onDelta, { signal }),
         LIMITS.timeoutMs,
       ))
     } catch (err) {
@@ -197,17 +211,17 @@ export async function runAgentTurn({ client, profile, model, messages, emit, con
           incluirNudge = true
           continue
         }
-        emitirAnswer(emit, FALLBACK_VAZIO, { profile, messages, context })
+        emitirAnswer(emit, FALLBACK_VAZIO, { profile, messages, context, fontes })
         return { status: 'done', messages, usage: usageTotal }
       }
       messages.push(message)
-      emitirAnswer(emit, conteudo, { profile, messages, context })
+      emitirAnswer(emit, conteudo, { profile, messages, context, fontes })
       return { status: 'done', messages, usage: usageTotal }
     }
     messages.push(message)
 
     for (const call of calls) {
-      const tool = registry.get(call.function.name)
+      const tool = reg.get(call.function.name)
       const args = parseArgs(call.function.arguments)
       if (!tool) {
         messages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify({ error: 'ferramenta indisponível' }) })
@@ -258,6 +272,9 @@ export async function runAgentTurn({ client, profile, model, messages, emit, con
           if (result.conectado !== undefined) payload.conectado = result.conectado
           if (result.calendar_error !== undefined) payload.calendar_error = result.calendar_error
           auditAgentRead({ profile, tool: call.function.name, params: args, count: result.count })
+          // Mesmo trio da auditoria — o que o operador vê no log, o usuário vê
+          // no rodapé. Só chega aqui se o run não estourou.
+          registrarFonte(call.function.name, args, result.count)
           const body = (result.conectado !== undefined || result.calendar_error !== undefined)
             ? payload
             : result.data
@@ -271,6 +288,6 @@ export async function runAgentTurn({ client, profile, model, messages, emit, con
   // Esgotou as voltas sem uma resposta final: degrada para um convite a
   // reformular em vez de lançar erro cru. Histórico já está bem-formado (cada
   // volta fechou seus tool_calls), então é reenviável sem 400.
-  emitirAnswer(emit, FALLBACK_SEM_RESPOSTA, { profile, messages, context })
+  emitirAnswer(emit, FALLBACK_SEM_RESPOSTA, { profile, messages, context, fontes })
   return { status: 'done', messages, usage: usageTotal }
 }

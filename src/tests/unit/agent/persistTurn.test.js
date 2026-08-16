@@ -126,3 +126,57 @@ describe('toPersistedRows + messagesToUi (§8.4)', () => {
     expect(ui[0].autor).toBe('bot')
   })
 })
+
+describe('procedência sobrevive ao reload', () => {
+  const FONTES = [{ rotulo: 'Custo por projeto', detalhe: 'este mês', count: 14 }]
+
+  it('o evento sources gruda no assistant que tem a resposta', () => {
+    const rows = toPersistedRows({
+      novos: [
+        { role: 'user', content: 'quanto custou?' },
+        { role: 'assistant', content: null, tool_calls: [{ id: 'c1', function: { name: 'custo_por_projeto', arguments: '{}' } }] },
+        { role: 'tool', tool_call_id: 'c1', content: '{}' },
+        { role: 'assistant', content: 'R$ 42.310.' },
+      ],
+      textoDigitado: 'quanto custou?', anexoNome: null,
+      eventos: [{ type: 'sources', items: FONTES }, { type: 'answer', text: 'R$ 42.310.' }],
+      lastAnswer: 'R$ 42.310.',
+    })
+    const comResposta = rows.find((r) => r.role === 'assistant' && r.content)
+    expect(comResposta.ui).toEqual({ fontes: FONTES })
+  })
+
+  it('o GET devolve as fontes junto com a bolha', () => {
+    const ui = messagesToUi([
+      { role: 'user', content: 'quanto custou?', ui: { texto_visivel: 'quanto custou?' } },
+      { role: 'assistant', content: 'R$ 42.310.', ui: { fontes: FONTES } },
+    ])
+    expect(ui[1]).toMatchObject({ autor: 'bot', texto: 'R$ 42.310.', fontes: FONTES })
+  })
+
+  it('sem fontes a chave não aparece — nada de rodapé vazio', () => {
+    const rows = toPersistedRows({
+      novos: [{ role: 'user', content: 'oi' }, { role: 'assistant', content: 'olá' }],
+      textoDigitado: 'oi', anexoNome: null,
+      eventos: [{ type: 'answer', text: 'olá' }], lastAnswer: 'olá',
+    })
+    expect(rows.find((r) => r.role === 'assistant').ui).toBeNull()
+    expect(messagesToUi([{ role: 'assistant', content: 'olá', ui: null }])[0].fontes).toBeUndefined()
+  })
+
+  it('fontes convivem com arquivos na mesma bolha', () => {
+    const rows = toPersistedRows({
+      novos: [{ role: 'user', content: 'relatório' }, { role: 'assistant', content: 'Pronto.' }],
+      textoDigitado: 'relatório', anexoNome: null,
+      eventos: [
+        { type: 'sources', items: FONTES },
+        { type: 'file', token: 't1', filename: 'r.pdf', mime: 'application/pdf', bytes: 10 },
+        { type: 'answer', text: 'Pronto.' },
+      ],
+      lastAnswer: 'Pronto.',
+    })
+    const alvo = rows.find((r) => r.role === 'assistant' && r.content)
+    expect(alvo.ui.fontes).toEqual(FONTES)
+    expect(alvo.ui.arquivos).toHaveLength(1)
+  })
+})

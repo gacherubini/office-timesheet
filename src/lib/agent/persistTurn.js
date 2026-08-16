@@ -55,6 +55,14 @@ export function toPersistedRows({
     })
   }
 
+  // Procedência por último: precisa enxergar também a bolha que só existe
+  // porque `lastAnswer` acabou de ser empurrada acima.
+  const sources = [...eventos].reverse().find((e) => e.type === 'sources')
+  if (sources?.items?.length) {
+    const alvo = [...rows].reverse().find((r) => r.role === 'assistant' && r.content)
+    if (alvo) alvo.ui = { ...(alvo.ui || {}), fontes: sources.items }
+  }
+
   return rows
 }
 
@@ -74,6 +82,7 @@ export function messagesToUi(rows = []) {
         texto: r.content || '',
         proposta: ui.proposta ? { ...ui.proposta, expirado: true } : undefined,
         arquivos: ui.arquivos,
+        fontes: ui.fontes,
       })
     }
   }
