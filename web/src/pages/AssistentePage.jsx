@@ -10,7 +10,7 @@ import { hrefPermitido } from '../lib/agentLinks'
 import { aberturaDoPapel } from '../lib/agentOpening'
 import { lerContexto, dispensarContexto } from '../lib/agentContext'
 import { BolhaMarkdown } from '../components/assistente/BolhaMarkdown'
-import { aplicarEventoMensagem } from '../lib/agentBolha'
+import { criarPincel } from '../lib/agentPincel'
 
 // ── Página do Assistente (tela cheia) ──────────────────────────────────────
 // Lista à esquerda (md+); mobile abre o mesmo conteúdo full-height. Sem
@@ -209,9 +209,12 @@ export function AssistentePage() {
   const fileInputRef = useRef(null)
   const listaRef = useRef(null)
   const abortRef = useRef(null)
+  const pincelRef = useRef(null)
   const pertoDoFundoRef = useRef(true)
   const restauradoRef = useRef(false)
   const contextoLidoRef = useRef(false)
+
+  useEffect(() => () => { pincelRef.current?.parar() }, [])
 
   const estaVazio = mensagens.length === 0
   const primeiroNome = (profile?.name || '').trim().split(' ')[0]
@@ -276,18 +279,11 @@ export function AssistentePage() {
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`
   }
 
-  // Handler dos eventos SSE, mirando um índice de bolha específico.
+  // Handler dos eventos SSE que não passam pelo pincel (ritmo da bolha).
   function receber(idxBot) {
     return (e) => {
       if (e.type === 'session') setConversa(e.conversation_id)
-      // Scroll grudento: só acompanha se já estava perto do fundo ANTES do update.
-      const deveRolar = (e.type === 'token' || e.type === 'answer' || e.type === 'file' || e.type === 'proposal')
-        && pertoDoFundoRef.current
-      if (e.type === 'token' || e.type === 'token_revoke' || e.type === 'answer') {
-        setMensagens((m) => m.map((msg, i) => (
-          i === idxBot ? aplicarEventoMensagem(msg, e) : msg
-        )))
-      }
+      const deveRolar = (e.type === 'file' || e.type === 'proposal') && pertoDoFundoRef.current
       if (e.type === 'proposal') {
         setMensagens((m) => m.map((msg, i) => (
           i === idxBot ? { ...msg, proposta: { proposalId: e.proposalId, descricao: e.descricao, dados: e.dados } } : msg
@@ -314,6 +310,13 @@ export function AssistentePage() {
     setOcupado(true)
     let abortou = false
     let convId = conversa
+    const pincel = criarPincel({
+      onPaint({ texto: pintado }) {
+        setMensagens((m) => m.map((msg, i) => (i === idxBot ? { ...msg, texto: pintado } : msg)))
+        if (pertoDoFundoRef.current) requestAnimationFrame(rolarParaFim)
+      },
+    })
+    pincelRef.current = pincel
     try {
       await streamChat({
         message: texto,
@@ -323,16 +326,24 @@ export function AssistentePage() {
         onEvent: (e) => {
           if (e.type === 'session') convId = e.conversation_id
           if (e.type === 'aborted') abortou = true
+          if (e.type === 'token') pincel.empurrar(e.text)
+          else if (e.type === 'token_revoke') pincel.revogar()
+          else if (e.type === 'answer') {
+            pincel.fechar(e.text ?? '')
+            setMensagens((m) => m.map((msg, i) => (i === idxBot ? { ...msg, links: e.links } : msg)))
+          }
           receber(idxBot)(e)
         },
         context: contextoAtivo,
       })
+      await pincel.quandoParar()
       // Só grava o id depois de um turno que não abortou.
       if (!abortou && convId && profile?.id) {
         salvarSessao(profile.id, { conversationId: convId })
         recarregarLista()
       }
     } catch (err) {
+      pincel.parar()
       // Abort local é a verdade da UI — não pinta erro, não espera o SSE aborted.
       if (err?.name === 'AbortError' || signal?.aborted) {
         setMensagens((m) => {
@@ -348,6 +359,8 @@ export function AssistentePage() {
         )))
       }
     } finally {
+      pincel.parar()
+      if (pincelRef.current === pincel) pincelRef.current = null
       setOcupado(false)
     }
   }
@@ -574,7 +587,10 @@ export function AssistentePage() {
           {ocupado ? (
             <button
               type="button"
-              onClick={() => abortRef.current?.abort()}
+              onClick={() => {
+                pincelRef.current?.despejar()
+                abortRef.current?.abort()
+              }}
               aria-label="Parar"
               className="inline-flex h-11 w-11 flex-none items-center justify-center rounded-md bg-accent text-white transition-opacity hover:opacity-90"
             >
