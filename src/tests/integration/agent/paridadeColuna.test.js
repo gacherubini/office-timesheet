@@ -49,6 +49,11 @@ describe('paridade de coluna: valor financeiro não vaza por papel (§18)', () =
       `INSERT INTO tasks (project_id, title, status, position) VALUES ($1, 'T', 'in_review', 0)`,
       [projeto.id],
     )
+    await query(
+      `INSERT INTO bonuses (user_id, title, amount, bonus_date, created_by)
+       VALUES ($1, 'Sentinela alheio', 424242, '2026-08-01', $1)`,
+      [dono.id],
+    )
   })
 
   for (const papel of SEM_DINHEIRO) {

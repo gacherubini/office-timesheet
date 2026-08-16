@@ -35,6 +35,11 @@ import proporRejeitarFerias from '../../../lib/agent/tools/write/proporRejeitarF
 import proporComentarTask from '../../../lib/agent/tools/write/proporComentarTask.js'
 import proporMoverTask from '../../../lib/agent/tools/write/proporMoverTask.js'
 import proporEditarTask from '../../../lib/agent/tools/write/proporEditarTask.js'
+import meusBonus from '../../../lib/agent/tools/read/meusBonus.js'
+import bonusDoPeriodo from '../../../lib/agent/tools/read/bonusDoPeriodo.js'
+import proporLancarBonus from '../../../lib/agent/tools/write/proporLancarBonus.js'
+import proporEditarBonus from '../../../lib/agent/tools/write/proporEditarBonus.js'
+import proporApagarBonus from '../../../lib/agent/tools/write/proporApagarBonus.js'
 
 const PAPEIS = ['admin', 'administrative_intern', 'project_manager', 'employee']
 
@@ -93,6 +98,11 @@ const CASOS = [
   { tool: proporComentarTask, chamar: (u, ctx) => [asUser(u).post(`/tasks/${ctx.task.id}/comments`).send({ body: 'oi' })] },
   { tool: proporMoverTask, chamar: (u, ctx) => [asUser(u).put(`/tasks/${ctx.task.id}/status`).send({ status: 'in_progress' })] },
   { tool: proporEditarTask, chamar: (u, ctx) => [asUser(u).put(`/tasks/${ctx.task.id}`).send({ title: 'novo' })] },
+  { tool: meusBonus, chamar: (u) => [asUser(u).get('/me/bonuses')] },
+  { tool: bonusDoPeriodo, chamar: (u) => [asUser(u).get('/admin/bonuses')] },
+  { tool: proporLancarBonus, chamar: (u, ctx) => [asUser(u).post('/admin/bonuses').send({ user_id: ctx.alvo.id, title: 'x', amount: 10, bonus_date: '2026-08-01' })] },
+  { tool: proporEditarBonus, chamar: (u, ctx) => [asUser(u).put(`/admin/bonuses/${ctx.bonus.id}`).send({ user_id: ctx.alvo.id, title: 'x', amount: 10, bonus_date: '2026-08-01', description: null })] },
+  { tool: proporApagarBonus, chamar: (u, ctx) => [asUser(u).delete(`/admin/bonuses/${ctx.bonus.id}`)] },
 ]
 
 describe('paridade de papel: tool ↔ endpoint espelhado (§18)', () => {
@@ -119,11 +129,18 @@ describe('paridade de papel: tool ↔ endpoint espelhado (§18)', () => {
       `INSERT INTO tasks (project_id, title, status, position) VALUES ($1,'Paridade','todo',0) RETURNING id`,
       [projeto.id],
     )
+    const { rows: bonusRows } = await query(
+      `INSERT INTO bonuses (user_id, title, amount, bonus_date, created_by)
+       VALUES ($1,'Paridade',10,'2026-08-01',$2) RETURNING id`,
+      [emp.id, usuarios.admin.id],
+    )
     ctx = {
       projeto,
       task: taskRows[0],
       despesa: desp[0],
       ferias: fer[0],
+      alvo: emp,
+      bonus: bonusRows[0],
     }
   })
 

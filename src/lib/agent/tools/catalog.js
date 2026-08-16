@@ -26,6 +26,11 @@ import apontamentosAbertos from './read/apontamentosAbertos.js'
 import aniversariantes from './read/aniversariantes.js'
 import agendaDoPeriodo from './read/agendaDoPeriodo.js'
 import aprovacoesPendentes from './read/aprovacoesPendentes.js'
+import meusBonus from './read/meusBonus.js'
+import bonusDoPeriodo from './read/bonusDoPeriodo.js'
+import proporLancarBonus from './write/proporLancarBonus.js'
+import proporEditarBonus from './write/proporEditarBonus.js'
+import proporApagarBonus from './write/proporApagarBonus.js'
 import gerarRelatorio from './read/gerarRelatorio.js'
 import consultarDados from './sql/consultarDados.js'
 import registrarPedidoNaoAtendido from './meta/registrarPedidoNaoAtendido.js'
@@ -40,6 +45,7 @@ export const TODAS = [
   despesasDoPeriodo, apontamentosAbertos, aniversariantes,
   agendaDoPeriodo,
   aprovacoesPendentes,
+  meusBonus, bonusDoPeriodo, proporLancarBonus, proporEditarBonus, proporApagarBonus,
   gerarRelatorio,
   consultarDados,
   registrarPedidoNaoAtendido,
