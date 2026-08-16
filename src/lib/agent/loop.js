@@ -117,6 +117,17 @@ export async function runAgentTurn({ client, profile, model, messages, emit, con
     let modo = null // null | 'tools' | 'answer'
     const onDelta = (d) => {
       if (!d || d.reasoning) return
+      // O client descobriu tarde que o já pintado era rascunho inlinado no
+      // content (`</think>` sem abertura). Apaga a bolha e volta ao estado
+      // neutro — o que vier depois repinta como resposta de verdade.
+      if (d.revoke) {
+        if (modo === 'answer') {
+          emit({ type: 'token_revoke' })
+          logTokenRevoke({ profile, conversationId })
+        }
+        modo = null
+        return
+      }
       if (d.toolCall) {
         if (modo === 'answer') {
           emit({ type: 'token_revoke' })

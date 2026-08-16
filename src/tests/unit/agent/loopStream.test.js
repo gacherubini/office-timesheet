@@ -109,4 +109,26 @@ describe('loop — classificador de delta (paint)', () => {
     expect(eventos.filter((e) => e.type === 'token')).toEqual([])
     expect(eventos.filter((e) => e.type === 'answer').map((e) => e.text)).toEqual(['Olá'])
   })
+
+  it('paint on + revoke → apaga o pintado e repinta o que vem depois', async () => {
+    // O client manda { revoke: true } quando descobre tarde que o texto já
+    // pintado era rascunho (fechamento </think> sem abertura). A bolha precisa
+    // limpar o que estava lá e voltar a pintar a resposta de verdade.
+    process.env.AGENT_STREAM_PAINT = 'true'
+    const eventos = []
+    await runAgentTurn({
+      client: fakeQueEmite(
+        [{ content: 'rascunho' }, { revoke: true }, { content: 'Olá' }],
+        { role: 'assistant', content: 'Olá' },
+      ),
+      profile: admin, model: 'x',
+      messages: [{ role: 'user', content: 'oi' }],
+      emit: (e) => eventos.push(e),
+    })
+    expect(eventos.some((e) => e.type === 'token_revoke')).toBe(true)
+    // depois do revoke a pintura recomeça — 'Olá' não pode ficar mudo
+    const depoisDoRevoke = eventos.slice(eventos.findIndex((e) => e.type === 'token_revoke'))
+    expect(depoisDoRevoke.filter((e) => e.type === 'token').map((e) => e.text)).toEqual(['Olá'])
+    expect(eventos.filter((e) => e.type === 'answer').map((e) => e.text)).toEqual(['Olá'])
+  })
 })

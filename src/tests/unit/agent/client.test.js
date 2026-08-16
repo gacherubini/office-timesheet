@@ -121,3 +121,67 @@ describe('client — signal, max_tokens e onDelta estruturado', () => {
     expect(message.tool_calls[0].function.name).toBe('listar_equipe')
   })
 })
+
+// SDK falso que serve uma lista de pedaços de `content`, um por chunk — para
+// exercitar tag partida entre chunks.
+function fakeOpenAIComContent(pedacos) {
+  return {
+    chat: { completions: { create: async () => (async function* () {
+      for (const p of pedacos) yield { choices: [{ delta: { content: p } }] }
+    })() } },
+  }
+}
+
+// O provedor de referência (DeepSeek oficial) manda o rascunho em
+// `reasoning_content`, e isso já é descartado. Mas há provedores que servem o
+// mesmo peso como modelo de raciocínio e INLINAM o rascunho no `content`, entre
+// <think>…</think> (visto contra a NVIDIA NIM em 2026-08-11). Sem filtrar, o
+// rascunho aparece na bolha E entra no histórico como fala do assistente — o
+// modelo passa a reler o próprio rascunho, o que explica o loop de repetição e a
+// troca de idioma daquela rodada (não era temperatura: seguiu igual a 0.2).
+describe('client — rascunho inlinado no content (<think>)', () => {
+  it('descarta bloco <think>…</think> no início e entrega só a resposta', async () => {
+    const openai = fakeOpenAIComContent(['<think>vou chamar a tool</think>', 'Iniciei seu apontamento.'])
+    const deltas = []
+    const { message } = await makeRealClient(openai).stream({ messages: [], tools: [], model: 'x' }, (d) => deltas.push(d))
+    expect(message.content).toBe('Iniciei seu apontamento.')
+    expect(deltas).toEqual([{ reasoning: true }, { content: 'Iniciei seu apontamento.' }])
+  })
+
+  it('descarta o bloco mesmo com as tags partidas entre chunks', async () => {
+    // O stream quebra onde quiser: `<thi` + `nk>` e `</thi` + `nk>` são um chunk
+    // cada. Um filtro ingênuo por chunk deixaria passar os cacos.
+    const openai = fakeOpenAIComContent(['<thi', 'nk>rascunho', ' continua</thi', 'nk>Pronto.'])
+    const { message } = await makeRealClient(openai).stream({ messages: [], tools: [], model: 'x' }, () => {})
+    expect(message.content).toBe('Pronto.')
+  })
+
+  it('</think> órfão (sem abertura) descarta tudo que veio antes dele', async () => {
+    // Forma exata vista contra a NIM: o provedor come a tag de abertura e o
+    // rascunho chega como content comum, delatado só pelo fechamento.
+    const openai = fakeOpenAIComContent(['o usuário quer X, ', 'vou responder', '</think>', 'Iniciei seu apontamento.'])
+    const deltas = []
+    const { message } = await makeRealClient(openai).stream({ messages: [], tools: [], model: 'x' }, (d) => deltas.push(d))
+    expect(message.content).toBe('Iniciei seu apontamento.')
+    // o que já foi pintado na bolha precisa ser revogado, senão o usuário fica
+    // com o rascunho na tela mesmo com o histórico limpo
+    expect(deltas).toContainEqual({ revoke: true })
+    expect(deltas.filter((d) => d.content).map((d) => d.content).join('')).toContain('Iniciei')
+  })
+
+  it('não engole <think> que aparece no meio de uma resposta já visível', async () => {
+    // Falso positivo a evitar: texto legítimo citando a tag. Só o rascunho no
+    // COMEÇO da resposta é rascunho.
+    const openai = fakeOpenAIComContent(['O modelo emite ', '<think>assim</think>', ' e a gente filtra.'])
+    const { message } = await makeRealClient(openai).stream({ messages: [], tools: [], model: 'x' }, () => {})
+    expect(message.content).toBe('O modelo emite <think>assim</think> e a gente filtra.')
+  })
+
+  it('texto que só parece o começo de uma tag não é engolido no fim do stream', async () => {
+    // O filtro segura pedaço que pode ser prefixo de tag; se o stream acabar
+    // sem completar a tag, aquilo era texto e precisa sair.
+    const openai = fakeOpenAIComContent(['Resposta com um < solto e um <thi'])
+    const { message } = await makeRealClient(openai).stream({ messages: [], tools: [], model: 'x' }, () => {})
+    expect(message.content).toBe('Resposta com um < solto e um <thi')
+  })
+})

@@ -178,8 +178,12 @@ Depois de trocar, nesta ordem:
       `docs/superpowers/specs/2026-08-16-wipe-e-seed-producao-design.md`. Não rodar sozinho.
 - [ ] **Verificação no browser** de cancelar proposta, "tentar de novo" com anexo, e logout
       limpando a conversa.
-- [ ] **`reasoning_content`**: `streamOnce` só lê `delta.content`. Ver o TODO em
-      `src/lib/agent/client.js`.
+- [x] **Rascunho inlinado no `content`** (2026-08-16). `streamOnce` filtra
+      `<think>…</think>` — inclusive com a tag partida entre chunks e com o
+      fechamento órfão que a NIM mandava. O rascunho não entra mais no histórico;
+      quando o fechamento órfão chega tarde, o client emite `revoke` e a bolha
+      repinta. Só o começo da resposta é filtrado: `<think>` citado no meio de um
+      texto já visível passa intacto.
 
 ## Observabilidade
 

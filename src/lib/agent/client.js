@@ -72,9 +72,112 @@ export function isTransient(err, signal) {
   return status >= 500
 }
 
+const TAG_ABRE = '<think>'
+const TAG_FECHA = '</think>'
+
+// Maior sufixo de `texto` que ainda pode virar uma das tags no próximo chunk.
+// Segurar esse pedaço é o que faz o filtro sobreviver a `<thi` + `nk>`.
+function sufixoParcial(texto) {
+  for (let n = Math.min(texto.length, TAG_FECHA.length - 1); n > 0; n--) {
+    const cauda = texto.slice(-n)
+    if (TAG_ABRE.startsWith(cauda) || TAG_FECHA.startsWith(cauda)) return cauda
+  }
+  return ''
+}
+
+// Filtro de rascunho inlinado no `content` (§ ver comentário em streamOnce).
+// `push` devolve { texto, revogar, descartou }: `texto` é o que pode ir pro
+// usuário e pro histórico, `revogar` diz que tudo entregue antes era rascunho, e
+// `descartou` marca que caractere de rascunho foi jogado fora neste chunk.
+export function criarFiltroThinking() {
+  let dentro = false      // dentro de um bloco aberto
+  let viuAbertura = false // já houve <think> honrado neste stream
+  let usouOrfao = false   // o fechamento sem abertura só vale uma vez
+  let citouTag = false    // a resposta visível já citou <think> como texto
+  let visivel = false     // já saiu conteúdo visível
+  let pendente = ''       // cauda segurada entre chunks
+
+  // Fechamento sem abertura: alguns provedores comem a tag de abertura e mandam
+  // o rascunho como content comum. Só vale enquanto ninguém abriu um bloco de
+  // verdade nem citou a tag no texto — depois disso, `</think>` é só texto.
+  const podeOrfao = () => !viuAbertura && !usouOrfao && !citouTag
+
+  function push(entrada) {
+    let buf = pendente + entrada
+    pendente = ''
+    let saida = ''
+    let revogar = false
+    let descartou = false
+
+    while (buf) {
+      if (dentro) {
+        const fim = buf.indexOf(TAG_FECHA)
+        if (fim === -1) {
+          pendente = sufixoParcial(buf)
+          if (buf.length > pendente.length) descartou = true
+          buf = ''
+          break
+        }
+        descartou = true
+        buf = buf.slice(fim + TAG_FECHA.length)
+        dentro = false
+        continue
+      }
+
+      const iAbre = buf.indexOf(TAG_ABRE)
+      const iFecha = podeOrfao() ? buf.indexOf(TAG_FECHA) : -1
+      if (iAbre === -1 && iFecha === -1) {
+        pendente = sufixoParcial(buf)
+        saida += buf.slice(0, buf.length - pendente.length)
+        buf = ''
+        break
+      }
+
+      const abrePrimeiro = iAbre !== -1 && (iFecha === -1 || iAbre < iFecha)
+      const corte = abrePrimeiro ? iAbre : iFecha
+      const prefixo = buf.slice(0, corte)
+
+      if (abrePrimeiro) {
+        // Rascunho é o que vem ANTES de qualquer resposta. Um <think> depois de
+        // texto visível é o modelo citando a tag, não pensando em voz alta.
+        if (!visivel && !prefixo.trim()) {
+          dentro = true
+          viuAbertura = true
+          descartou = true
+          buf = buf.slice(corte + TAG_ABRE.length)
+          continue
+        }
+        saida += prefixo + TAG_ABRE
+        citouTag = true
+        buf = buf.slice(corte + TAG_ABRE.length)
+      } else {
+        usouOrfao = true
+        descartou = true
+        revogar = true
+        saida = '' // o que saiu antes neste chunk também era rascunho
+        buf = buf.slice(corte + TAG_FECHA.length)
+      }
+      if (saida.trim()) visivel = true
+    }
+
+    if (saida.trim()) visivel = true
+    return { texto: saida, revogar, descartou }
+  }
+
+  // Fim do stream: o que ficou segurado nunca virou tag, então era texto. Bloco
+  // aberto e nunca fechado é rascunho inteiro — não vaza.
+  function flush() {
+    const resto = dentro ? '' : pendente
+    pendente = ''
+    return resto
+  }
+
+  return { push, flush }
+}
+
 // Uma tentativa de streaming: dispara o create e acumula deltas de conteúdo e de
 // tool_calls, devolvendo a mensagem assistant montada + usage.
-// onDelta({ content?, toolCall?: true, reasoning?: true }) — não mais string.
+// onDelta({ content?, toolCall?: true, reasoning?: true, revoke?: true }) — não mais string.
 async function streamOnce(openai, { messages, tools, model }, onDelta, { signal } = {}) {
   const resp = await openai.chat.completions.create({
     model: model || process.env.AGENT_MODEL || DEFAULT_MODEL,
@@ -91,14 +194,16 @@ async function streamOnce(openai, { messages, tools, model }, onDelta, { signal 
   let usage = { prompt_tokens: 0, completion_tokens: 0 }
   let toolCallNotified = false
 
-  // TODO(2026-08-11): só lemos `delta.content`. A rodada de eval contra a NVIDIA
-  // NIM devolveu `</think>` cru no meio do texto, troca de idioma e loop — sinal
-  // de que aquele endpoint serve o Flash como modelo de raciocínio e inlina o
-  // rascunho no content, em vez de mandá-lo em `reasoning_content` à parte. Com
-  // isso o pensamento entra na resposta visível E no histórico. Antes de tratar,
-  // confirmar em qual campo cada provedor manda — a API oficial da DeepSeek (o
-  // default do código) pode não ter o problema. Aqui ignoramos reasoning_* no
-  // content e só sinalizamos o cano com onDelta({ reasoning: true }).
+  // Rascunho do modelo chega de duas formas, e as duas são descartadas aqui:
+  //   1. Campo à parte (`reasoning_content`) — o que a API oficial da DeepSeek
+  //      faz. Ignorado; só sinalizamos o cano com onDelta({ reasoning: true }).
+  //   2. Inlinado no `content` entre <think>…</think> — o que a NVIDIA NIM fez
+  //      na eval de 2026-08-11, servindo o Flash como modelo de raciocínio.
+  // A forma (2) é a perigosa: sem filtro o rascunho aparece na bolha E entra no
+  // histórico como fala do assistente, então na iteração seguinte o modelo relê
+  // o próprio rascunho. É a causa provável do loop de repetição e da troca de
+  // idioma daquela rodada — seguiu igual a 0.2, logo não era temperatura.
+  const filtro = criarFiltroThinking()
   for await (const chunk of resp) {
     if (chunk.usage) usage = chunk.usage
     const delta = chunk.choices?.[0]?.delta
@@ -107,8 +212,16 @@ async function streamOnce(openai, { messages, tools, model }, onDelta, { signal 
       onDelta({ reasoning: true })
     }
     if (delta.content) {
-      content += delta.content
-      onDelta({ content: delta.content })
+      const { texto, revogar, descartou } = filtro.push(delta.content)
+      if (revogar) {
+        content = '' // o que já tinha sido acumulado era rascunho
+        onDelta({ revoke: true })
+      }
+      if (descartou) onDelta({ reasoning: true })
+      if (texto) {
+        content += texto
+        onDelta({ content: texto })
+      }
     }
     if (delta.tool_calls?.length) {
       if (!toolCallNotified) {
@@ -122,6 +235,12 @@ async function streamOnce(openai, { messages, tools, model }, onDelta, { signal 
         if (tc.function?.arguments) slot.function.arguments += tc.function.arguments
       }
     }
+  }
+
+  const resto = filtro.flush()
+  if (resto) {
+    content += resto
+    onDelta({ content: resto })
   }
 
   const message = { role: 'assistant', content: content || null }
