@@ -80,6 +80,21 @@ export function logContextInvalid({ profile, campo }) {
   logger.info({ evt: 'agent_context_invalid', user_id: profile?.id, role: profile?.role, campo })
 }
 
+export function logConversationCreated({ profile, conversationId }) {
+  logger.info({
+    evt: 'agent_conversation_created',
+    user_id: profile?.id, role: profile?.role, conversation_id: conversationId,
+  })
+}
+
+export function logConversationResumed({ profile, conversationId }) {
+  logger.info({ evt: 'agent_conversation_resumed', user_id: profile?.id, conversation_id: conversationId })
+}
+
+export function logConversationPurged({ count }) {
+  logger.info({ evt: 'agent_conversation_purged', count })
+}
+
 // Só metadado do arquivo gerado — sem buffer, sem conteúdo.
 export function logReportGenerated({ profile, formato, fontes, bytes, filename }) {
   logger.info({

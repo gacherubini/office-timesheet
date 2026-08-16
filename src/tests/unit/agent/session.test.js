@@ -1,7 +1,7 @@
-import { describe, it, expect } from 'vitest'
-import { loadSession, saveTurn, sessionCount, MAX_TURNS, SESSION_TTL_MS, turnoPersistivel } from '../../../lib/agent/session.js'
-
-const emp = { id: 1, role: 'employee' }
+import { describe, it, expect, beforeEach } from 'vitest'
+import { resetDb } from '../../helpers/db.js'
+import { makeUser } from '../../helpers/factories.js'
+import { loadSession, saveTurn, sessionCount, MAX_TURNS, RETENTION_MS, turnoPersistivel } from '../../../lib/agent/session.js'
 
 // Invariante de boa-formação: todo assistant com tool_calls precisa ter, adiante,
 // uma resposta role:'tool' para CADA tool_call.id. Devolve os órfãos (vazio = ok).
@@ -36,69 +36,88 @@ const turnoComTool = (i) => [
   { role: 'tool', tool_call_id: `tc-${i}-2`, content: '{}' },
 ]
 
-describe('session — memória efêmera com TTL e carimbo de papel', () => {
-  it('sem conversation_id abre sessão nova com id', () => {
-    const s = loadSession(undefined, emp, 1000)
+describe('session — fachada do Postgres (criação preguiçosa, 30 dias)', () => {
+  let emp
+  beforeEach(async () => {
+    await resetDb()
+    emp = await makeUser({ role: 'employee' })
+  })
+
+  it('sem conversation_id abre sessão nova com id, persistido false, sem INSERT', async () => {
+    const before = await sessionCount()
+    const s = await loadSession(undefined, emp)
     expect(s.id).toBeTruthy()
     expect(s.messages).toEqual([])
+    expect(s.persistido).toBe(false)
+    expect(await sessionCount()).toBe(before)
   })
 
-  it('retoma a mesma conversa dentro do TTL', () => {
-    const a = loadSession(undefined, emp, 1000)
-    saveTurn(a.id, emp, [{ role: 'user', content: 'oi' }], 1000)
-    const b = loadSession(a.id, emp, 1000 + SESSION_TTL_MS - 1)
+  it('retoma conversa persistida', async () => {
+    const a = await loadSession(undefined, emp)
+    await saveTurn(a.id, emp, [{ role: 'user', content: 'oi' }])
+    const b = await loadSession(a.id, emp)
     expect(b.id).toBe(a.id)
+    expect(b.persistido).toBe(true)
     expect(b.messages).toHaveLength(1)
+    expect(b.messages[0]).toMatchObject({ role: 'user', content: 'oi' })
+    expect(b.messages[0].ui).toBeUndefined()
   })
 
-  it('expira por inatividade → sessão nova, sem histórico', () => {
-    const a = loadSession(undefined, emp, 1000)
-    saveTurn(a.id, emp, [{ role: 'user', content: 'oi' }], 1000)
-    const b = loadSession(a.id, emp, 1000 + SESSION_TTL_MS + 1)
+  it('descarta a sessão se o papel mudou (id novo, linha antiga intacta)', async () => {
+    const a = await loadSession(undefined, emp)
+    await saveTurn(a.id, emp, [{ role: 'user', content: 'oi' }])
+    const b = await loadSession(a.id, { id: emp.id, role: 'admin' })
     expect(b.id).not.toBe(a.id)
+    expect(b.persistido).toBe(false)
     expect(b.messages).toEqual([])
+    const deNovo = await loadSession(a.id, emp)
+    expect(deNovo.id).toBe(a.id)
+    expect(deNovo.messages).toHaveLength(1)
   })
 
-  it('descarta a sessão se o papel mudou', () => {
-    const a = loadSession(undefined, emp, 1000)
-    saveTurn(a.id, emp, [{ role: 'user', content: 'oi' }], 1000)
-    const b = loadSession(a.id, { id: 1, role: 'admin' }, 1200)
+  it('miss de outro dono devolve UUID novo e não incrementa sessionCount', async () => {
+    const outro = await makeUser({ role: 'employee' })
+    const a = await loadSession(undefined, emp)
+    await saveTurn(a.id, emp, [{ role: 'user', content: 'oi' }])
+    const before = await sessionCount()
+    const b = await loadSession(a.id, outro)
     expect(b.id).not.toBe(a.id)
-    expect(b.messages).toEqual([])
+    expect(b.persistido).toBe(false)
+    expect(await sessionCount()).toBe(before)
   })
 
-  it('apara para as últimas MAX_TURNS*2 mensagens', () => {
-    const a = loadSession(undefined, emp, 1000)
-    for (let i = 0; i < MAX_TURNS * 3; i++) saveTurn(a.id, emp, [{ role: 'user', content: String(i) }], 1000)
-    const b = loadSession(a.id, emp, 1000)
+  it('janela do modelo corta em MAX_TURNS blocos sem apagar o banco', async () => {
+    const a = await loadSession(undefined, emp)
+    for (let i = 0; i < MAX_TURNS * 3; i++) await saveTurn(a.id, emp, [{ role: 'user', content: String(i) }])
+    const b = await loadSession(a.id, emp)
     expect(b.messages.length).toBeLessThanOrEqual(MAX_TURNS * 2)
+    expect(b.messages.filter((m) => m.role === 'user')).toHaveLength(MAX_TURNS)
   })
 
-  it('trunca por BLOCOS de turno: janela retida nunca começa com tool nem deixa tool_calls órfão', () => {
-    const a = loadSession(undefined, emp, 1000)
-    // 3 turnos simples + 1 turno com tool-calling + 9 simples = 13 blocos / 28 msgs.
-    // O corte por CONTAGEM BRUTA (slice(-MAX_TURNS*2)) cairia no meio do bloco com
-    // tool, deixando um role:'tool' órfão na cabeça da janela reenviada ao provedor.
-    for (let i = 0; i < 3; i++) saveTurn(a.id, emp, turnoSimples(i), 1000)
-    saveTurn(a.id, emp, turnoComTool(3), 1000)
-    for (let i = 4; i < 13; i++) saveTurn(a.id, emp, turnoSimples(i), 1000)
+  it('trunca por BLOCOS de turno: janela retida nunca começa com tool nem deixa tool_calls órfão', async () => {
+    const a = await loadSession(undefined, emp)
+    for (let i = 0; i < 3; i++) await saveTurn(a.id, emp, turnoSimples(i))
+    await saveTurn(a.id, emp, turnoComTool(3))
+    for (let i = 4; i < 13; i++) await saveTurn(a.id, emp, turnoSimples(i))
 
-    const b = loadSession(a.id, emp, 1000)
+    const b = await loadSession(a.id, emp)
     expect(b.messages[0].role).not.toBe('tool')
     expect(orfaosDeToolCall(b.messages)).toEqual([])
   })
 
-  it('varre sessões vencidas ao escrever (não vaza memória)', () => {
-    // base bem à frente dos nows dos outros testes: o expurgo daqui não depende
-    // da ordem de execução (qualquer sessão anterior já venceu contra o futuro).
-    const base = 10_000_000
-    loadSession(undefined, emp, base) // duas sessões velhas
-    loadSession(undefined, emp, base)
-    const futuro = base + SESSION_TTL_MS + 1
-    const viva = loadSession(undefined, emp, futuro) // cria uma viva e dispara o expurgo
-    saveTurn(viva.id, emp, [{ role: 'user', content: 'oi' }], futuro)
-    // As duas velhas venceram e sumiram; só a viva permanece.
-    expect(sessionCount()).toBe(1)
+  it('purge de 30 dias ao escrever (last_message_at velho some)', async () => {
+    const t0 = 1_000_000
+    const velha = await loadSession(undefined, emp)
+    await saveTurn(velha.id, emp, [{ role: 'user', content: 'velha' }], t0)
+    const depois = t0 + RETENTION_MS + 1
+    const viva = await loadSession(undefined, emp)
+    await saveTurn(viva.id, emp, [{ role: 'user', content: 'oi' }], depois)
+    expect(await sessionCount()).toBe(1)
+    const retoma = await loadSession(viva.id, emp)
+    expect(retoma.persistido).toBe(true)
+    const morta = await loadSession(velha.id, emp)
+    expect(morta.persistido).toBe(false)
+    expect(morta.id).not.toBe(velha.id)
   })
 })
 

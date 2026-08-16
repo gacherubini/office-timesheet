@@ -177,7 +177,7 @@ router.post('/agent/chat', requireAuth, chatRateLimit, uploadAnexo, async (req, 
     res.write(`data: ${JSON.stringify(evento)}\n\n`)
   }
 
-  const session = loadSession(conversation_id, req.profile)
+  const session = await loadSession(conversation_id, req.profile)
   writeSse({ type: 'session', conversation_id: session.id })
 
   // Monta o contexto: system (não persistido) + histórico do servidor + a msg nova.
@@ -230,10 +230,10 @@ router.post('/agent/chat', requireAuth, chatRateLimit, uploadAnexo, async (req, 
     // Abort ≠ erro: emite aborted e nunca error. Bloco sujo não entra na sessão.
     const novos = full.slice(1 + session.messages.length)
     if (status === 'aborted') {
-      if (turnoPersistivel(novos)) saveTurn(session.id, req.profile, novos)
+      if (turnoPersistivel(novos)) await saveTurn(session.id, req.profile, novos)
       emit({ type: 'aborted' })
     } else {
-      if (turnoPersistivel(novos)) saveTurn(session.id, req.profile, novos)
+      if (turnoPersistivel(novos)) await saveTurn(session.id, req.profile, novos)
       emit({ type: 'done', status })
     }
   } catch (err) {
@@ -278,7 +278,7 @@ router.post('/agent/actions/:proposalId/execute', requireAuth, async (req, res) 
     // nota do que foi feito — para o próximo turno o modelo saber. No-op se a
     // sessão já expirou/sumiu.
     const nota = `✓ Executado: ${proposal.descricao || 'ação confirmada'} ${resumoResultado(after)}`.trim()
-    appendExecutionNote(proposal.conversationId, req.profile, nota)
+    await appendExecutionNote(proposal.conversationId, req.profile, nota)
     return res.json({ ok: true, resultado: after })
   } catch (err) {
     return res.status(409).json({ error: err.message })
@@ -297,7 +297,7 @@ router.post('/agent/actions/:proposalId/cancel', requireAuth, async (req, res) =
   if (!proposal) return res.status(404).json({ error: 'Proposta não encontrada ou expirada.' })
 
   const nota = `✗ Cancelado pelo usuário: ${proposal.descricao || 'ação proposta'}`
-  appendExecutionNote(proposal.conversationId, req.profile, nota)
+  await appendExecutionNote(proposal.conversationId, req.profile, nota)
   auditAgentCancel({
     profile: req.profile, tool: proposal.kind,
     params: sanitizarParamsAudit(proposal.payload, {
