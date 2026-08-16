@@ -8,8 +8,8 @@ import { setClient, resetClient } from '../../../lib/agent/client.js'
 function fakeClientOnce(message, token) {
   let done = false
   return {
-    async stream(_p, onToken) {
-      if (!done && token) onToken(token)
+    async stream(_p, onDelta) {
+      if (!done && token) onDelta({ content: token })
       done = true
       return { message, usage: { prompt_tokens: 5, completion_tokens: 3 } }
     },
@@ -28,7 +28,10 @@ describe('POST /agent/chat + execute', () => {
     emp = await makeUser({ role: 'employee', hourly_rate: 100 })
     project = await makeProject({ name: 'Projeto Y' })
   })
-  afterEach(() => resetClient())
+  afterEach(() => {
+    resetClient()
+    delete process.env.AGENT_STREAM_PAINT
+  })
 
   it('emite resposta de texto (evento answer) e devolve conversation_id', async () => {
     setClient(fakeClientOnce({ role: 'assistant', content: 'Olá!' }, 'Olá!'))
@@ -185,11 +188,25 @@ describe('POST /agent/chat + execute', () => {
     expect(res2.status).toBe(200)
   })
 
-  it('paint off: turno sem tools emite answer e zero token', async () => {
-    delete process.env.AGENT_STREAM_PAINT
+  it('paint off explícito: turno sem tools emite answer e zero token', async () => {
+    process.env.AGENT_STREAM_PAINT = 'false'
     setClient(fakeClientOnce({ role: 'assistant', content: 'Olá!' }, 'Olá!'))
     const eventos = await readSse(await asUser(emp).post('/agent/chat').send({ message: 'oi' }))
     expect(eventos.filter((e) => e.type === 'token')).toEqual([])
+    expect(eventos.some((e) => e.type === 'answer' && e.text.includes('Olá'))).toBe(true)
+  })
+
+  it('paint on (default): turno sem tools emite token e answer canônico', async () => {
+    delete process.env.AGENT_STREAM_PAINT
+    setClient({
+      async stream(_p, onDelta) {
+        onDelta({ content: 'Ol' })
+        onDelta({ content: 'á!' })
+        return { message: { role: 'assistant', content: 'Olá!' }, usage: { prompt_tokens: 5, completion_tokens: 3 } }
+      },
+    })
+    const eventos = await readSse(await asUser(emp).post('/agent/chat').send({ message: 'oi' }))
+    expect(eventos.filter((e) => e.type === 'token').map((e) => e.text)).toEqual(['Ol', 'á!'])
     expect(eventos.some((e) => e.type === 'answer' && e.text.includes('Olá'))).toBe(true)
   })
 })

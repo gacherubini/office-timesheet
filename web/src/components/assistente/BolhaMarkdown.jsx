@@ -23,10 +23,10 @@ function Anchor({ href, children }) {
   return <>{children}</>
 }
 
-export function BolhaMarkdown({ texto }) {
+export function BolhaMarkdown({ texto, cursor = false }) {
   const largo = temTabela(texto)
   return (
-    <div className={`break-words leading-relaxed text-text-primary ${largo ? 'max-w-[46rem]' : 'max-w-[46ch]'}`}>
+    <div className={`break-words leading-relaxed text-text-primary ${cursor ? 'bolha-digitando' : ''} ${largo ? 'max-w-[46rem]' : 'max-w-[46ch]'}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[[rehypeSanitize, schema]]}

@@ -56,7 +56,7 @@ function parseArgs(raw) {
 }
 
 function pinturaLigada() {
-  return (process.env.AGENT_STREAM_PAINT || 'false') === 'true'
+  return (process.env.AGENT_STREAM_PAINT || 'true') === 'true'
 }
 
 // Teto de tamanho do resultado de tool que entra no histórico. MAX_TURNS conta
@@ -135,9 +135,10 @@ export async function runAgentTurn({ client, profile, model, messages, emit, con
       // Classificador de delta (§6.1): reasoning ignora; o primeiro delta útil
       // trava o modo em 'answer' ou 'tools'; content depois de tools é silêncio;
       // toolCall depois de answer emite token_revoke. A pintura (evento `token`)
-      // fica atrás de AGENT_STREAM_PAINT — default off — porque o primeiro delta
-      // PODE não delatar (raciocínio misturado em content; tool_calls só no fim).
-      // `answer` da iteração sem tool_calls continua canônico.
+      // liga por omissão; AGENT_STREAM_PAINT=false volta ao batch. O primeiro
+      // delta PODE não delatar (raciocínio misturado em content; tool_calls só
+      // no fim) — nesse caso token_revoke apaga a pintura. `answer` da iteração
+      // sem tool_calls continua canônico.
       ;({ message, usage } = await withTimeout(
         client.stream({ messages: paraModelo, tools: registry.definitions, model }, onDelta, { signal }),
         LIMITS.timeoutMs,

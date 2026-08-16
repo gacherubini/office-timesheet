@@ -84,8 +84,21 @@ describe('loop — classificador de delta (paint)', () => {
     expect(answers.every((e) => !/penso/i.test(e.text))).toBe(true)
   })
 
-  it('paint off (default): mesmo fake de content NÃO emite token, só answer', async () => {
+  it('paint on (default): mesmo fake de content emite token + answer', async () => {
     delete process.env.AGENT_STREAM_PAINT
+    const eventos = []
+    await runAgentTurn({
+      client: fakeQueEmite([{ content: 'Olá' }], { role: 'assistant', content: 'Olá' }),
+      profile: admin, model: 'x',
+      messages: [{ role: 'user', content: 'oi' }],
+      emit: (e) => eventos.push(e),
+    })
+    expect(eventos.filter((e) => e.type === 'token').map((e) => e.text)).toEqual(['Olá'])
+    expect(eventos.filter((e) => e.type === 'answer').map((e) => e.text)).toEqual(['Olá'])
+  })
+
+  it('paint off explícito: não emite token, só answer', async () => {
+    process.env.AGENT_STREAM_PAINT = 'false'
     const eventos = []
     await runAgentTurn({
       client: fakeQueEmite([{ content: 'Olá' }], { role: 'assistant', content: 'Olá' }),

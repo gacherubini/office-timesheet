@@ -10,6 +10,7 @@ import { hrefPermitido } from '../lib/agentLinks'
 import { aberturaDoPapel } from '../lib/agentOpening'
 import { lerContexto, dispensarContexto } from '../lib/agentContext'
 import { BolhaMarkdown } from '../components/assistente/BolhaMarkdown'
+import { aplicarEventoMensagem } from '../lib/agentBolha'
 
 // ── Página do Assistente (tela cheia) ──────────────────────────────────────
 // Lista à esquerda (md+); mobile abre o mesmo conteúdo full-height. Sem
@@ -115,9 +116,9 @@ function MarcaAssistente({ box = 28, icon = 14 }) {
   )
 }
 
-// Indicador de "pensamento": ícone girando + rótulo, enquanto o agente roda as
-// consultas internas. O raciocínio do modelo não aparece — só este indicador,
-// até a resposta final chegar (evento 'answer') e substituí-lo.
+// Indicador de "pensamento": ícone girando + rótulo, enquanto o agente roda
+// tools ou ainda não emitiu o primeiro token. Some quando a bolha começa a
+// crescer; token_revoke traz de volta.
 function Pensando() {
   return (
     <div className="flex items-center gap-2 py-1 text-text-secondary" role="status" aria-label="Assistente está pensando">
@@ -282,11 +283,9 @@ export function AssistentePage() {
       // Scroll grudento: só acompanha se já estava perto do fundo ANTES do update.
       const deveRolar = (e.type === 'token' || e.type === 'answer' || e.type === 'file' || e.type === 'proposal')
         && pertoDoFundoRef.current
-      // Só a resposta final chega (o raciocínio fica escondido atrás do "Pensando…").
-      // Vem inteira num único evento, então define o texto de uma vez.
-      if (e.type === 'answer') {
+      if (e.type === 'token' || e.type === 'token_revoke' || e.type === 'answer') {
         setMensagens((m) => m.map((msg, i) => (
-          i === idxBot ? { ...msg, texto: e.text, links: e.links } : msg
+          i === idxBot ? aplicarEventoMensagem(msg, e) : msg
         )))
       }
       if (e.type === 'proposal') {
@@ -717,12 +716,14 @@ export function AssistentePage() {
                       ) : m.texto ? (
                         <div className="space-y-2">
                           <div className="relative">
-                            <BolhaMarkdown texto={m.texto} />
-                            <div className="mt-1">
-                              <BotaoCopiar texto={m.texto} />
-                            </div>
+                            <BolhaMarkdown texto={m.texto} cursor={streaming} />
+                            {!streaming && (
+                              <div className="mt-1">
+                                <BotaoCopiar texto={m.texto} />
+                              </div>
+                            )}
                           </div>
-                          <ChipsLinks links={m.links} />
+                          {!streaming && <ChipsLinks links={m.links} />}
                         </div>
                       ) : null}
 
