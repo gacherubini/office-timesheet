@@ -12,6 +12,7 @@ const SENTINELAS = {
   hourly_rate: 777.77,
   cost_snapshot: 999999,
   sale_value: 424242,
+  bonus_alheio: 313131,
 }
 
 // Papéis que NÃO têm acesso a dinheiro (permissions.canAccessMoney = só admin).
@@ -51,8 +52,8 @@ describe('paridade de coluna: valor financeiro não vaza por papel (§18)', () =
     )
     await query(
       `INSERT INTO bonuses (user_id, title, amount, bonus_date, created_by)
-       VALUES ($1, 'Sentinela alheio', 424242, '2026-08-01', $1)`,
-      [dono.id],
+       VALUES ($1, 'Sentinela alheio', $2, '2026-08-01', $1)`,
+      [dono.id, SENTINELAS.bonus_alheio],
     )
   })
 

@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { resetDb } from '../../helpers/db.js'
+import { resetDb, query } from '../../helpers/db.js'
 import { asUser } from '../../helpers/api.js'
-import { makeUser } from '../../helpers/factories.js'
+import { makeUser, makeProject } from '../../helpers/factories.js'
 import { setClient, resetClient } from '../../../lib/agent/client.js'
+import { createProposal } from '../../../lib/agent/proposals.js'
 import { testSink, clearTestSink } from '../../../lib/logger.js'
 
 const readSse = (res) => res.text.split('\n\n').filter(Boolean).map((f) => JSON.parse(f.replace(/^data: /, '')))
@@ -40,5 +41,24 @@ describe('falha de infra não vaza jargão para o usuário', () => {
       (l) => l.evt === 'agent_turn_error' && /assistant message|tentativa/i.test(l.err || ''),
     )
     expect(logado).toBe(true)
+  })
+
+  it('execute: erro de driver (SQLSTATE) não vaza jargão do Postgres', async () => {
+    const proj = await makeProject({ name: 'Acme' })
+    const { rows } = await query(
+      `INSERT INTO tasks (project_id, title, status, position) VALUES ($1,'Logo','todo',0) RETURNING id`,
+      [proj.id],
+    )
+    clearTestSink()
+    const { proposalId } = createProposal({
+      profile: emp,
+      kind: 'editar_task',
+      payload: { task_id: rows[0].id, due_date: 'amanhã' },
+    })
+    const res = await asUser(emp).post(`/agent/actions/${proposalId}/execute`).send({})
+    expect(res.status).toBe(409)
+    expect(res.body.error).toMatch(/não consegui|tentar de novo/i)
+    expect(res.body.error).not.toMatch(/invalid input|syntax|22007|amanhã/i)
+    expect([...testSink].some((l) => l.evt === 'agent_execute_error' && l.code === '22007')).toBe(true)
   })
 })

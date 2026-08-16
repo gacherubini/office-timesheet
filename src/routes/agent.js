@@ -295,6 +295,12 @@ router.post('/agent/actions/:proposalId/execute', requireAuth, async (req, res) 
     await appendExecutionNote(proposal.conversationId, req.profile, nota)
     return res.json({ ok: true, resultado: after })
   } catch (err) {
+    // SQLSTATE do pg (ou código de SDK) = jargão, nunca pro usuário.
+    // Erro autoral da tool não tem .code e a mensagem em português passa.
+    if (err?.code) {
+      logger.error({ evt: 'agent_execute_error', tool: proposal.kind, code: err.code, err: err.message }, 'execute falhou')
+      return res.status(409).json({ error: 'Não consegui concluir essa ação. Pode tentar de novo ou refazer o pedido?' })
+    }
     return res.status(409).json({ error: err.message })
   }
 })

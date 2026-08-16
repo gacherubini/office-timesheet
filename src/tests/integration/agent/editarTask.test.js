@@ -32,4 +32,13 @@ describe('propor_editar_task', () => {
     const { rows: after } = await query('SELECT assignee_id FROM tasks WHERE id = $1', [taskId])
     expect(after[0].assignee_id).toBeNull()
   })
+  it('prazo só aceita YYYY-MM-DD real; vazio limpa', async () => {
+    await expect(tool.propose(emp, { tarefa: 'Logo', prazo: 'amanhã' })).rejects.toThrow(/prazo inválido/i)
+    await expect(tool.propose(emp, { tarefa: 'Logo', prazo: '20/08' })).rejects.toThrow(/prazo inválido/i)
+    await expect(tool.propose(emp, { tarefa: 'Logo', prazo: '2026-02-31' })).rejects.toThrow(/prazo inválido/i)
+    const ok = await tool.propose(emp, { tarefa: 'Logo', prazo: '2026-08-20' })
+    expect(ok.payload.due_date).toBe('2026-08-20')
+    const limpa = await tool.propose(emp, { tarefa: 'Logo', prazo: '' })
+    expect(limpa.payload.due_date).toBeNull()
+  })
 })

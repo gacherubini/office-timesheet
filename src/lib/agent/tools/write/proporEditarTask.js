@@ -32,6 +32,15 @@ function desatribui(nome) {
   return t === '' || /^ningu[eé]m$/i.test(t)
 }
 
+// prazo é YYYY-MM-DD ou vazio (§9.8). Round-trip pelo ISO porque regex sozinha
+// deixa passar 2026-02-31 (o JS rola pra março e o Postgres é que recusa).
+const ISO = /^\d{4}-\d{2}-\d{2}$/
+function dataISOValida(s) {
+  if (!ISO.test(s)) return false
+  const d = new Date(`${s}T00:00:00Z`)
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s
+}
+
 async function propose(_profile, args) {
   const temTitulo = args?.titulo !== undefined
   const temPrioridade = args?.prioridade !== undefined
@@ -71,6 +80,9 @@ async function propose(_profile, args) {
   }
   if (temPrazo) {
     const raw = args.prazo == null ? '' : String(args.prazo).trim()
+    if (raw && !dataISOValida(raw)) {
+      throw new Error('Prazo inválido. Use uma data no formato AAAA-MM-DD, ou deixe vazio para tirar o prazo.')
+    }
     patch.due_date = raw || null
     dados.prazo = patch.due_date ? formatDateBR(patch.due_date) : 'sem prazo'
   }
