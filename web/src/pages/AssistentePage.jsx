@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Send, Square, RotateCcw, AlertCircle, Plus, Sparkles, Loader2, Paperclip, X } from 'lucide-react'
+import { Send, Square, RotateCcw, AlertCircle, Info, Plus, Sparkles, Loader2, Paperclip, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { streamChat, executeProposal, cancelProposal, downloadAgentFile, listConversations, getConversation, renameConversation, deleteConversation } from '../lib/agentClient'
 import { lerSessao, salvarSessao, limparSessao } from '../lib/agentSession'
@@ -338,7 +338,13 @@ export function AssistentePage() {
         })
       } else {
         setMensagens((m) => m.map((msg, i) => (
-          i === idxBot ? { ...msg, erro: err.message || 'Não consegui responder agora.' } : msg
+          i === idxBot
+            // Limite atingido não é falha: não ganha bloco vermelho nem
+            // "tentar de novo", porque tentar de novo não vai adiantar hoje.
+            ? (err.code === 'limite_diario'
+              ? { ...msg, aviso: err.message }
+              : { ...msg, erro: err.message || 'Não consegui responder agora.' })
+            : msg
         )))
       }
     } finally {
@@ -828,6 +834,16 @@ export function AssistentePage() {
                       )}
 
                       {/* Erro de resposta (sem proposta) */}
+                      {m.aviso && (
+                        <div className="max-w-[33rem] overflow-hidden rounded-md border border-border-subtle bg-surface">
+                          <div aria-hidden style={{ height: '2px', background: 'var(--color-orange)' }} />
+                          <div className="flex items-start gap-2.5 p-4">
+                            <Info size={16} className="mt-0.5 flex-none text-orange" />
+                            <p className="min-w-0 text-text-primary">{m.aviso}</p>
+                          </div>
+                        </div>
+                      )}
+
                       {m.erro && !m.proposta && (
                         <div className="max-w-[33rem] overflow-hidden rounded-md border border-border-subtle bg-surface">
                           <div aria-hidden style={{ height: '2px', background: 'var(--state-danger)' }} />

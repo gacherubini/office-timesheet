@@ -8,6 +8,7 @@ import { loadSession, appendExecutionNote, turnoPersistivel } from '../lib/agent
 import { insertTurn, listForOwner, getForOwner, rename, remove, loadMessagesWithUi } from '../lib/agent/conversationsRepo.js'
 import { toPersistedRows, messagesToUi } from '../lib/agent/persistTurn.js'
 import { registrar as registrarFeedback, messageIdDoUsuario, MOTIVOS } from '../lib/agent/feedbackRepo.js'
+import { estourouOrcamento } from '../lib/agent/orcamento.js'
 import { extractText, MAX_ATTACHMENT_BYTES } from '../lib/agent/attachments/extract.js'
 import { buildUserMessage } from '../lib/agent/attachments/context.js'
 import { buildSystemPrompt } from '../lib/agent/prompt.js'
@@ -123,6 +124,21 @@ function uploadAnexo(req, res, next) {
 router.post('/agent/chat', requireAuth, chatRateLimit, uploadAnexo, async (req, res) => {
   if (agenteDesligado()) return res.status(503).json({ error: 'Assistente temporariamente desativado.' })
   if (agenteSemChave()) return recusarSemChave(res)
+
+  // Teto de gasto por pessoa, antes de qualquer trabalho: extrair anexo e abrir
+  // stream custam, e quem já estourou não vai chegar ao modelo mesmo. Limite
+  // atingido é informação, não falha — o cliente distingue pelo `code`.
+  const orcamento = await estourouOrcamento(req.profile.id)
+  if (orcamento.estourou) {
+    logger.warn(
+      { evt: 'agent_budget_exceeded', user_id: req.profile.id, gasto: orcamento.gasto, teto: orcamento.teto },
+      'usuário atingiu o teto diário do agente',
+    )
+    return res.status(429).json({
+      error: 'Você atingiu o limite de uso do assistente por hoje. Ele volta amanhã.',
+      code: 'limite_diario',
+    })
+  }
 
   const { message, conversation_id } = req.body || {}
   const temArquivo = !!req.file

@@ -133,6 +133,17 @@ responde 503 e registra `evt: agent_misconfig`.
   `tokens_cached` e `custo` em USD. Em produção os `AGENT_PRICE_*` estão setados
   (DeepSeek V4 Flash off-peak: 0.22 / 0.66 / 0.007). Sem eles o `custo` sai `null`.
   A tela admin `/admin` → Custos & Pedidos mostra gasto do mês, preços vigentes e tokens.
+- **Teto de gasto por pessoa:** `AGENT_DAILY_BUDGET_USD`, default **US$ 1,00/dia**. O teto
+  vale por omissão — para desligar é preciso dizer `off` em voz alta. Quem estoura recebe
+  429 com `code: limite_diario` **antes** da chamada ao modelo, e a interface mostra isso
+  como aviso (laranja), não como erro: tentar de novo não adianta hoje. Sem `AGENT_PRICE_*`
+  o custo é `null` e o teto não trava — falha aberto de propósito.
+- **Avaliação das respostas:** polegar no rodapé de cada bolha; o negativo pede motivo de
+  lista fechada (migration 038). `/admin` → Custos & Pedidos → Avaliações mostra o resumo e
+  a fila de reprovadas com pergunta e resposta, para virar caso de eval.
+- **Procedência:** cada resposta declara no rodapé quais leituras a produziram
+  (`Custo por projeto · este mês · 14 linhas`), do mesmo trio que alimenta o
+  `auditAgentRead` — o que o operador vê no log e o usuário vê na tela não divergem.
 - **Temperatura:** `AGENT_TEMPERATURE` (default 0.7 no código). Sem o campo o provedor
   assume 1.0, que é solto demais para escolher ferramenta. Se a mesma pergunta começar a
   cair em tools diferentes, baixe para 0.3–0.4. O código respeita o `0` explícito.

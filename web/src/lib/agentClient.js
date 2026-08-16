@@ -60,11 +60,21 @@ export async function readErrorMessage(res, fallback = 'Falha ao falar com o age
   return fallback
 }
 
+// Erro com `code`: nem toda recusa é falha. Limite diário atingido é
+// informação, e a interface precisa distinguir uma coisa da outra.
+async function erroDaResposta(res, fallback) {
+  let corpo = null
+  try { corpo = await res.json() } catch { /* não-JSON */ }
+  const err = new Error(corpo?.error || fallback || 'Falha ao falar com o agente.')
+  if (corpo?.code) err.code = corpo.code
+  return err
+}
+
 export async function streamChat({ message, conversationId, file, signal, onEvent, context }) {
   const token = localStorage.getItem('access_token')
   const { headers, body } = buildChatRequest({ message, conversationId, file, token, context })
   const res = await fetch(`${BASE_URL}/agent/chat`, { method: 'POST', headers, body, signal })
-  if (!res.ok || !res.body) throw new Error(await readErrorMessage(res))
+  if (!res.ok || !res.body) throw await erroDaResposta(res)
 
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
