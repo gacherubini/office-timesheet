@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Send, Square, RotateCcw, AlertCircle, Info, Plus, Sparkles, Loader2, Paperclip, X, Pencil } from 'lucide-react'
+import { Send, Square, RotateCcw, AlertCircle, Info, Plus, Sparkles, Loader2, Paperclip, X, Pencil, Check } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { streamChat, executeProposal, cancelProposal, downloadAgentFile, listConversations, getConversation, renameConversation, deleteConversation } from '../lib/agentClient'
 import { lerSessao, salvarSessao, limparSessao } from '../lib/agentSession'
