@@ -28,6 +28,16 @@ describe('writes de bônus', () => {
     await expect(lancar.propose(admin, { pessoa: 'Ana', titulo: '  ', valor: 10, data: '2026-08-01' }))
       .rejects.toThrow('Título é obrigatório.')
   })
+  // O card de confirmação é a última chance de pegar competência errada. Em
+  // ISO (`2026-08-01`) ninguém confere de relance; a data tem que estar no
+  // formato que a pessoa lê no resto do sistema.
+  it('a proposta mostra a data em DD/MM/AAAA, não em ISO', async () => {
+    const p = await lancar.propose(admin, { pessoa: 'Ana', titulo: 'Extra', valor: 800, data: '2026-08-01' })
+    expect(p.descricao).toContain('01/08/2026')
+    expect(p.descricao).not.toContain('2026-08-01')
+    // O payload que vai pro banco continua ISO — só a vitrine muda.
+    expect(p.payload.bonus_date).toBe('2026-08-01')
+  })
   it('execute insere created_by = profile.id; editar id inexistente; delete some', async () => {
     const { payload } = await lancar.propose(admin, { pessoa: 'Ana', titulo: 'Extra', valor: 800, data: '2026-08-01' })
     const { after } = await lancar.execute(admin, payload)
