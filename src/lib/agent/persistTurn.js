@@ -26,7 +26,19 @@ export function toPersistedRows({
   const proposal = [...eventos].reverse().find((e) => e.type === 'proposal')
   if (proposal) {
     const alvo = [...rows].reverse().find((r) => r.role === 'assistant' && r.tool_calls)
-    if (alvo) alvo.ui = { proposta: { descricao: proposal.descricao, dados: proposal.dados, comAnexo: !!proposal.comAnexo } }
+    // O proposalId é a identidade da linha: sem ele, o execute/cancel não tem
+    // como voltar aqui e marcar o desfecho, e toda proposta recarregada teria
+    // de nascer "expirada" — inclusive as que foram executadas.
+    if (alvo) {
+      alvo.ui = {
+        proposta: {
+          descricao: proposal.descricao,
+          dados: proposal.dados,
+          comAnexo: !!proposal.comAnexo,
+          ...(proposal.proposalId ? { proposalId: proposal.proposalId } : {}),
+        },
+      }
+    }
   }
 
   const arquivos = eventos
@@ -71,18 +83,31 @@ export function messagesToUi(rows = []) {
   for (const r of rows) {
     if (r.role === 'tool') continue
     const ui = r.ui || {}
+    // A nota "✓ Executado"/"✗ Cancelado" existe para o MODELO saber no turno
+    // seguinte o que aconteceu. Quem está olhando a tela já vê o desfecho no
+    // próprio card — repetir vira a duplicata que fazia a conversa parecer
+    // contraditória.
+    if (ui.nota_execucao) continue
     if (r.role === 'assistant' && !r.content && !ui.proposta && !ui.arquivos && !ui.erro) continue
     if (r.role === 'user') {
       out.push({ autor: 'user', texto: ui.texto_visivel, anexo: ui.anexo })
       continue
     }
     if (r.role === 'assistant') {
+      // Sem desfecho gravado a proposta nasce expirada: o id em memória some em
+      // 5 min (e no restart), então o botão Aprovar não teria o que acionar.
+      // Com desfecho, ela volta como o que de fato foi — concluída ou recusada.
+      const desfecho = ui.proposta?.desfecho
       out.push({
         autor: 'bot',
         // id da linha: é por ele que a avaliação aponta para esta resposta.
         id: r.id,
         texto: r.content || '',
-        proposta: ui.proposta ? { ...ui.proposta, expirado: true } : undefined,
+        proposta: ui.proposta
+          ? { ...ui.proposta, expirado: !desfecho }
+          : undefined,
+        aprovado: desfecho === 'executado' || undefined,
+        cancelado: desfecho === 'cancelado' || undefined,
         arquivos: ui.arquivos,
         fontes: ui.fontes,
       })

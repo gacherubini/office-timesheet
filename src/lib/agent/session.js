@@ -55,11 +55,32 @@ export async function sessionCount() {
 
 // Anexa uma nota TEXTUAL de execução. No-op se a conversa não existe ou
 // não é do par (user, role) — nunca cria linha fantasma.
+// A nota é para o MODELO saber, no próximo turno, o que foi feito. A marca
+// `nota_execucao` no ui existe para a tela NÃO repetir isso como bolha: quem
+// está olhando já vê o desfecho no card da proposta.
 export async function appendExecutionNote(conversationId, profile, texto, now = Date.now()) {
   if (!conversationId) return
   const hit = await getForOwner(conversationId, profile.id, profile.role)
   if (!hit) return
   return insertTurn(conversationId, profile, [{
-    role: 'assistant', content: texto, tool_calls: null, tool_call_id: null, ui: null,
+    role: 'assistant', content: texto, tool_calls: null, tool_call_id: null,
+    ui: { nota_execucao: true },
   }], now)
+}
+
+// Carimba o desfecho na proposta já persistida, para ela não voltar do banco
+// como "expirada" depois de ter sido executada ou recusada. No-op silencioso
+// se a linha não existe: o desfecho é enfeite de tela, nunca pode derrubar uma
+// escrita que já aconteceu no banco.
+export async function marcarDesfechoDaProposta(conversationId, profile, proposalId, desfecho) {
+  if (!conversationId || !proposalId) return
+  const hit = await getForOwner(conversationId, profile.id, profile.role)
+  if (!hit) return
+  await query(
+    `UPDATE agent_messages
+        SET ui = jsonb_set(ui, '{proposta,desfecho}', to_jsonb($3::text))
+      WHERE conversation_id = $1
+        AND ui -> 'proposta' ->> 'proposalId' = $2`,
+    [conversationId, proposalId, desfecho],
+  )
 }

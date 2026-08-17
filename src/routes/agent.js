@@ -4,7 +4,7 @@
 import { Router } from 'express'
 import multer from 'multer'
 import { requireAuth } from '../middleware/auth.js'
-import { loadSession, appendExecutionNote, turnoPersistivel } from '../lib/agent/session.js'
+import { loadSession, appendExecutionNote, marcarDesfechoDaProposta, turnoPersistivel } from '../lib/agent/session.js'
 import { insertTurn, listForOwner, getForOwner, rename, remove, loadMessagesWithUi } from '../lib/agent/conversationsRepo.js'
 import { toPersistedRows, messagesToUi } from '../lib/agent/persistTurn.js'
 import { registrar as registrarFeedback, messageIdDoUsuario, MOTIVOS } from '../lib/agent/feedbackRepo.js'
@@ -322,6 +322,9 @@ router.post('/agent/actions/:proposalId/execute', requireAuth, async (req, res) 
     // sessão já expirou/sumiu.
     const nota = `✓ Executado: ${proposal.descricao || 'ação confirmada'} ${resumoResultado(after)}`.trim()
     await appendExecutionNote(proposal.conversationId, req.profile, nota)
+    // Depois da nota: a proposta persistida deixa de voltar como "expirada" no
+    // reload e passa a mostrar que foi concluída.
+    await marcarDesfechoDaProposta(proposal.conversationId, req.profile, req.params.proposalId, 'executado')
     return res.json({ ok: true, resultado: after })
   } catch (err) {
     // SQLSTATE do pg (ou código de SDK) = jargão, nunca pro usuário.
@@ -347,6 +350,7 @@ router.post('/agent/actions/:proposalId/cancel', requireAuth, async (req, res) =
 
   const nota = `✗ Cancelado pelo usuário: ${proposal.descricao || 'ação proposta'}`
   await appendExecutionNote(proposal.conversationId, req.profile, nota)
+  await marcarDesfechoDaProposta(proposal.conversationId, req.profile, req.params.proposalId, 'cancelado')
   auditAgentCancel({
     profile: req.profile, tool: proposal.kind,
     params: sanitizarParamsAudit(proposal.payload, {

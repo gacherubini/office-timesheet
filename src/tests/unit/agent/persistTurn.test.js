@@ -127,6 +127,65 @@ describe('toPersistedRows + messagesToUi (§8.4)', () => {
   })
 })
 
+// A proposta persistida nascia SEMPRE expirada, sem olhar o desfecho. Depois de
+// aprovar e recarregar, a tela mostrava o card cinza "PROPOSTA EXPIRADA" e, logo
+// abaixo, a nota "✓ Executado" — expirada e executada ao mesmo tempo. A ação
+// tinha funcionado; só a tela mentia.
+describe('desfecho da proposta sobrevive ao reload', () => {
+  const rowsCom = (proposta) => [
+    { role: 'user', content: 'lança', ui: { texto_visivel: 'lança' } },
+    { role: 'assistant', content: null, tool_calls: [{ id: 'c1' }], ui: { proposta } },
+  ]
+  const base = { descricao: 'Lançar bônus', dados: {}, comAnexo: false, proposalId: 'p-1' }
+
+  it('toPersistedRows guarda o proposalId — sem identidade não há como marcar desfecho', () => {
+    const rows = toPersistedRows({
+      novos: [
+        { role: 'user', content: 'lança' },
+        { role: 'assistant', content: null, tool_calls: [{ id: 'c1', function: { name: 'propor_lancar_bonus', arguments: '{}' } }] },
+        { role: 'tool', tool_call_id: 'c1', content: '{}' },
+      ],
+      textoDigitado: 'lança', anexoNome: null,
+      eventos: [{ type: 'proposal', proposalId: 'p-1', descricao: 'Lançar bônus', dados: {} }],
+      lastAnswer: null,
+    })
+    const comProposta = rows.find((r) => r.ui?.proposta)
+    expect(comProposta.ui.proposta.proposalId).toBe('p-1')
+  })
+
+  it('executada volta como concluída, NÃO como expirada', () => {
+    const ui = messagesToUi(rowsCom({ ...base, desfecho: 'executado' }))
+    expect(ui[1].aprovado).toBe(true)
+    expect(ui[1].proposta.expirado).toBeFalsy()
+    expect(ui[1].cancelado).toBeFalsy()
+  })
+
+  it('cancelada volta como cancelada, NÃO como expirada', () => {
+    const ui = messagesToUi(rowsCom({ ...base, desfecho: 'cancelado' }))
+    expect(ui[1].cancelado).toBe(true)
+    expect(ui[1].proposta.expirado).toBeFalsy()
+    expect(ui[1].aprovado).toBeFalsy()
+  })
+
+  it('sem desfecho continua expirada — abandonada de fato não pode virar botão vivo', () => {
+    const ui = messagesToUi(rowsCom(base))
+    expect(ui[1].proposta.expirado).toBe(true)
+    expect(ui[1].aprovado).toBeFalsy()
+    expect(ui[1].cancelado).toBeFalsy()
+  })
+
+  it('a nota "✓ Executado" não vira bolha: o card já diz o desfecho', () => {
+    const ui = messagesToUi([
+      { role: 'assistant', content: null, tool_calls: [{ id: 'c1' }], ui: { proposta: { ...base, desfecho: 'executado' } } },
+      { role: 'assistant', content: '✓ Executado: Lançar bônus', ui: { nota_execucao: true } },
+    ])
+    // A nota continua no banco para o modelo saber o que foi feito no próximo
+    // turno — ela só não é repetida para quem já está vendo o card.
+    expect(ui).toHaveLength(1)
+    expect(ui[0].aprovado).toBe(true)
+  })
+})
+
 describe('procedência sobrevive ao reload', () => {
   const FONTES = [{ rotulo: 'Custo por projeto', detalhe: 'este mês', count: 14 }]
 

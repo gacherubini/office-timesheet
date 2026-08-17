@@ -803,8 +803,11 @@ export function AssistentePage() {
                         </div>
                       )}
 
-                      {/* Resume: proposta persistida já nasce expirada — sem Aprovar. */}
-                      {m.proposta?.expirado && (
+                      {/* Resume: proposta sem desfecho volta expirada — sem Aprovar.
+                          O !aprovado/!cancelado é cinto e suspensório: o servidor
+                          já não marca expirado quando houve desfecho, mas os dois
+                          cards juntos era exatamente o bug ("EXPIRADA" + "Executado"). */}
+                      {m.proposta?.expirado && !m.aprovado && !m.cancelado && (
                         <div className="max-w-[33rem] rounded-md border border-border-subtle bg-surface px-3 py-2.5">
                           <p className="text-[10px] uppercase tracking-wider text-text-secondary">Proposta expirada</p>
                           <p className="mt-0.5 text-text-secondary">{m.proposta.descricao}</p>
