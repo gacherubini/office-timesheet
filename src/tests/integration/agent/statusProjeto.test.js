@@ -38,7 +38,10 @@ describe('tool status_projeto (todos os papéis)', () => {
     expect(p.tarefas.in_review).toBe(1)
     expect(p.tarefas.done).toBe(1)
     expect(p.tarefas.total).toBe(3)
-    expect(p.total_horas).toBe(2) // 120 min, sem inflar por causa das 3 tarefas
+    // Colaborador vê as horas DELE (os 120 min são dele), com a chave que diz
+    // isso — o agregado do time nem entra no JSON. Ver paridadeLinha.test.js.
+    expect(p.minhas_horas).toBe(2) // 120 min, sem inflar por causa das 3 tarefas
+    expect(p.escopo_horas).toBe('proprio')
   })
 
   it('sem nome de projeto, traz todos os ativos', async () => {
@@ -65,11 +68,26 @@ describe('tool status_projeto (todos os papéis)', () => {
     )
 
     const semPeriodo = await tool.run(emp, { projeto: 'Projeto A' })
-    expect(semPeriodo.data[0].total_horas).toBe(12) // 120 + 600 min
+    expect(semPeriodo.data[0].minhas_horas).toBe(12) // 120 + 600 min
     expect(semPeriodo.data[0].periodo).toBeNull()
 
     const comPeriodo = await tool.run(emp, { projeto: 'Projeto A', periodo: 'mes' })
-    expect(comPeriodo.data[0].total_horas).toBe(2) // só os 120 min deste mês
+    expect(comPeriodo.data[0].minhas_horas).toBe(2) // só os 120 min deste mês
     expect(comPeriodo.data[0].periodo).toEqual(expect.objectContaining({ inicio: expect.any(String) }))
+  })
+
+  it('admin soma o projeto inteiro; o colaborador, só o que é dele', async () => {
+    const admin = await makeUser({ role: 'admin', name: 'Chefe' })
+    await query(
+      `INSERT INTO time_entries (user_id, project_id, started_at, ended_at, status, duration_minutes, cost_snapshot)
+       VALUES ($1,$2, now(), now(), 'completed', 60, 0)`,
+      [admin.id, proj.id],
+    )
+    const visaoAdmin = await tool.run(admin, { projeto: 'Projeto A' })
+    expect(visaoAdmin.data[0].total_horas).toBe(3) // 120 do colaborador + 60 do admin
+    expect(visaoAdmin.data[0].escopo_horas).toBe('equipe')
+
+    const visaoColaborador = await tool.run(emp, { projeto: 'Projeto A' })
+    expect(visaoColaborador.data[0].minhas_horas).toBe(2)
   })
 })

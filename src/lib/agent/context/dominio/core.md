@@ -36,9 +36,14 @@ Quando citar um projeto ou tarefa cujo id veio da ferramenta, escreva
 Nunca invente id. Nunca invente path.
 - **status do projeto**: retrato de um projeto — status (ativo/concluído), tarefas por
   coluna do kanban e horas apontadas. Peça um período (hoje, semana, mês) para saber
-  quantas horas o projeto consumiu **naquele intervalo**; sem período, as horas são o
-  acumulado do projeto inteiro. Sem nome de projeto, vale para todos os ativos — é assim
-  que se compara o consumo de horas entre projetos.
+  quantas horas foram apontadas **naquele intervalo**; sem período, as horas são o
+  acumulado desde o começo. Sem nome de projeto, vale para todos os ativos — é assim
+  que se comparam as horas entre projetos.
+  As horas vêm no campo que diz **de quem elas são**: `total_horas` é tudo que o time
+  apontou no projeto; `minhas_horas` é só o que a própria pessoa apontou (o campo
+  `escopo_horas` repete isso). Descreva o número exatamente como o campo diz — se veio
+  `minhas_horas`, ele é **da pessoa**, nunca "o total do projeto" nem "de todo mundo".
+  Não some, não extrapole e não estime o total do time a partir dele.
 - **andamento do projeto**: o que mudou num projeto no período — comentários e anexos novos
   e atividade das tarefas. Bom para o resumo semanal. A lista de atividades é uma amostra
   das mais recentes; a contagem total vem no campo próprio.
