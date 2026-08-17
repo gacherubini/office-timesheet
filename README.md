@@ -79,7 +79,7 @@ docker compose up -d
 cp src/.env.example src/.env
 ```
 
-Preencha pelo menos `JWT_SECRET`, `INITIAL_ADMIN_EMAIL` e `INITIAL_ADMIN_PASSWORD`. O `DATABASE_URL` padrão já aponta pro Postgres do `docker-compose`.
+Preencha pelo menos `JWT_SECRET` e `INITIAL_ADMINS`. O `DATABASE_URL` padrão já aponta pro Postgres do `docker-compose`.
 
 4. Instale as dependências da API e rode as migrations:
 
@@ -327,8 +327,9 @@ API (`src/.env`):
 | `PORT` | Porta da API. Padrão: `3333`. |
 | `DATABASE_URL` | Connection string do Postgres. |
 | `JWT_SECRET` | Segredo de assinatura dos JWTs. Mínimo 32 chars aleatórios. |
-| `INITIAL_ADMIN_EMAIL` | Email do admin inicial criado pelo seed da migration. |
-| `INITIAL_ADMIN_PASSWORD` | Senha temporária do admin inicial. |
+| `INITIAL_ADMINS` | Admins criados pelo seed, com a tabela `users` vazia. Formato `Nome\|email\|senha`, pessoas separadas por `;`. Senha mínima de 6. Entrada malformada derruba o boot de propósito — melhor falhar visível do que a API subir sem nenhum admin. |
+| `INITIAL_ADMIN_EMAIL` | Formato antigo, um admin só (nome fixo "Admin"). Só é lido se `INITIAL_ADMINS` estiver vazia. |
+| `INITIAL_ADMIN_PASSWORD` | Senha temporária do admin inicial do formato antigo. |
 | `FRONTEND_URL` | URL do frontend, usada no fluxo de reset de senha. |
 | `ALLOWED_ORIGIN` | Origem permitida no CORS. Aceita múltiplas origens separadas por vírgula. |
 | `AWS_ACCESS_KEY_ID` | Credencial do Tigris/S3. Vazio desabilita upload. |

@@ -26,9 +26,16 @@ Durante o wipe a API responde 503 no `/health`. O UptimeRobot vai mandar e-mail.
 
 ## Pré-checagem (5 minutos)
 
+0. **O código do seed já está deployado?** O `INITIAL_ADMINS` (vários admins) foi adicionado depois da primeira versão deste runbook. O seed roda no boot **depois** do wipe, então a versão em produção precisa já entender essa variável. Confira que o último deploy da API inclui o commit do `parseAdminsSeed`. Se não incluir, **pare** — deploy primeiro.
 1. Confirme o app certo: `office-timesheet-db-iad` (não `suite-pg`, não `crm-419`).
-2. Confirme que `INITIAL_ADMIN_EMAIL` e `INITIAL_ADMIN_PASSWORD` estão no Fly (`fly secrets list -a office-timesheet-api`). Sem os dois, o seed é pulado e o banco fica sem admin.
-3. Anote o e-mail/senha do seed (estão no painel de secrets ou no gerenciador de senhas). Depois do wipe, o login é **esse** par, nome `Admin`.
+2. Confirme que `INITIAL_ADMINS` está no Fly (`fly secrets list -a office-timesheet-api`). Sem ela (e sem o par antigo `INITIAL_ADMIN_EMAIL`/`INITIAL_ADMIN_PASSWORD`), o seed é pulado e o banco fica sem admin nenhum.
+
+   ```powershell
+   fly secrets set INITIAL_ADMINS='Nome|email@dominio|senha;Outro|outro@dominio|senha' -a office-timesheet-api
+   ```
+
+   Formato: pessoas separadas por `;`, campos por `|`, senha mínima de 6. Entrada malformada **derruba o boot** de propósito (exit 1 no `migrate`), com mensagem dizendo qual entrada está errada — é melhor do que a API subir sem admin.
+3. Anote os e-mails/senhas do seed (estão no painel de secrets ou no gerenciador de senhas). Depois do wipe, o login é um **desses** pares.
 4. Avise o time: sistema fora por ~5–10 min.
 5. Opcional, por paranoia: snapshot extra antes de apagar.
 
@@ -71,7 +78,7 @@ Não use `DROP DATABASE`. Não apague o app `office-timesheet-db-iad`. Não mexa
 
 ### 3. Subir a API de novo (migrate + seed)
 
-O `Dockerfile` da API roda `node scripts/migrate.js && node server.js`. O migrate recria as 037 tabelas e, com `users` vazia, insere o admin do seed.
+O `Dockerfile` da API roda `node scripts/migrate.js && node server.js`. O migrate recria as tabelas e, com `users` vazia, insere **todos** os admins do `INITIAL_ADMINS`. Nos logs sai uma linha `SEED ok: admin criado (...)` por pessoa.
 
 ```powershell
 fly machine start 83d137da7315e8 -a office-timesheet-api
@@ -93,7 +100,7 @@ No `fly postgres connect` de novo:
 SELECT email, name, role, is_active FROM users;
 ```
 
-Uma linha só: o e-mail do `INITIAL_ADMIN_EMAIL`, role `admin`, `is_active` true.
+Uma linha por pessoa do `INITIAL_ADMINS`, todas com role `admin` e `is_active` true. Confira o nome também — é o que aparece na tela para o resto do time.
 
 ```sql
 SELECT count(*) FROM time_entries;
@@ -111,12 +118,14 @@ A role `agent_readonly` sobreviveu (não mora no schema). As migrations 030/031 
 fly postgres backup create -a office-timesheet-db-iad -n go-live-limpo -i
 ```
 
-Abra `https://gestaovoid.com.br`, entre com o e-mail/senha do seed. Troque a senha no perfil **na hora**. O secret `INITIAL_ADMIN_PASSWORD` no Fly não muda sozinho — ele só vale para o seed. Depois que o admin já existe, o migrate não usa mais essa senha.
+Abra `https://gestaovoid.com.br` e entre com um dos pares do seed. **Cada uma das pessoas troca a senha no perfil na hora** — o secret não muda sozinho, ele só vale no momento do seed; depois que o admin existe, o migrate não usa mais aquela senha.
 
-Opcional, depois do primeiro login com senha nova:
+Isso importa mais do que parece se as senhas do seed forem fracas (ex.: `123456`): o `/auth/login` aceita 30 tentativas por IP a cada 15 min, então uma senha de dicionário numa conta **admin** é acerto na primeira tentativa para quem souber o e-mail. Enquanto alguém não trocar, essa conta é a porta aberta.
+
+Opcional, depois de todo mundo já estar com senha nova:
 
 ```powershell
-fly secrets unset INITIAL_ADMIN_PASSWORD -a office-timesheet-api
+fly secrets unset INITIAL_ADMINS -a office-timesheet-api
 ```
 
 Isso reinicia a API. Sem o secret, um wipe futuro **não** cria admin até você setar de novo.
@@ -150,7 +159,7 @@ Crie os colaboradores pela tela de pessoas (não reaproveite usuário de teste).
 
 ## Aceite
 
-- Uma linha em `users`, admin ativo.
+- Uma linha em `users` por pessoa do `INITIAL_ADMINS`, todas admin e ativas, com o nome certo.
 - Zero apontamentos e projetos.
 - `/health` 200.
 - Login no `gestaovoid.com.br` com o seed.
