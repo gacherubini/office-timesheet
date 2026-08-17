@@ -41,20 +41,20 @@ Sem responsável, é informação de fluxo, não sobre pessoas.
 `tools/read/andamentoDeProjeto.js` devolve **só contagens** (comentários, anexos,
 atividades) e títulos das últimas tarefas mexidas. Nenhum nome de pessoa.
 
-### 1.4 O prompt do colaborador mente sobre financeiro — ⚠️ *recomendo corrigir*
+### 1.4 O prompt do colaborador mentia sobre financeiro — ✅ **RESOLVIDO** (`7073545`)
 
-`context/dominio/employee.md` afirma em duas linhas (5 e 13) que "não há
-informação financeira disponível para você". Mas
-`tools/read/simulacaoPerformance.js:75-77` devolve `meta_ganho`, `valor_hora` e
-`valor_realizado` — **dado da própria pessoa**, com paridade em
-`GET /me/simulation`.
+`context/dominio/employee.md` afirmava em duas linhas que "não há informação
+financeira disponível para você". Mas o colaborador tem `meus_bonus` (espelha
+`GET /me/bonuses`) e `simulacao_performance` (espelha `GET /me/simulation`) no
+registry, ambos entregando o dinheiro **dele**.
 
-Não é vazamento. É **fato errado no prompt**, e não decisão de política. O efeito
-prático é o assistente recusar pergunta legítima ("quanto eu já ganhei este
-mês?") sobre dado que a pessoa já vê na tela de performance.
+Não era vazamento — era fato errado, e o efeito prático era o assistente recusar
+"quanto eu já ganhei este mês?" sobre número que a pessoa já vê na tela de
+performance.
 
-Correção: distinguir "seu próprio ganho, sim" de "custo e salário dos outros,
-não".
+O texto agora separa "o seu dinheiro, sim" de "o de terceiro e o do escritório,
+não". O `dominioLint.test.js` ganhou um cruzamento prompt × registry para a
+negação em bloco não voltar.
 
 ### 1.5 Colaborador atribui tarefa a outra pessoa — *duas perguntas, não uma*
 
