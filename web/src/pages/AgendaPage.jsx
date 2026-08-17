@@ -33,16 +33,6 @@ function dateKey(date) {
   return `${year}-${month}-${day}`
 }
 
-function parseDate(value) {
-  const [year, month, day] = value.split('-').map(Number)
-  return new Date(year, month - 1, day)
-}
-
-function formatDate(value) {
-  if (!value) return '-'
-  return parseDate(value).toLocaleDateString('pt-BR')
-}
-
 function eventTime(iso) {
   return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 }

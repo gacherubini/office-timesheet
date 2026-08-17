@@ -15,18 +15,13 @@ import { DateRange } from '../../components/ui/DateRange'
 import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
 import { getPeriodRange } from '../../lib/periods'
+import { formatDateBR as formatDate, todayInSaoPaulo } from '../../lib/dates'
 import { HORAS_LABEL, NET_LABEL, fixedSalaryNote } from '../../lib/apontamentosSummary'
 
 registerLocale('pt-BR', ptBR)
 
 function getMonthRange() {
   return getPeriodRange('month')
-}
-
-function formatDate(iso) {
-  if (!iso) return '-'
-  const date = /^\d{4}-\d{2}-\d{2}$/.test(iso) ? new Date(`${iso}T00:00:00`) : new Date(iso)
-  return date.toLocaleDateString('pt-BR')
 }
 
 function formatTime(iso) {
@@ -125,7 +120,7 @@ export function AdminTimeEntriesPage() {
     title: '',
     description: '',
     amount: '',
-    bonus_date: new Date().toISOString().slice(0, 10),
+    bonus_date: todayInSaoPaulo(),
   })
   const [bonusError, setBonusError] = useState('')
   const [bonusSubmitting, setBonusSubmitting] = useState(false)
@@ -238,7 +233,7 @@ export function AdminTimeEntriesPage() {
       title: '',
       description: '',
       amount: '',
-      bonus_date: new Date().toISOString().slice(0, 10),
+      bonus_date: todayInSaoPaulo(),
     })
     setBonusError('')
     setShowBonusForm(true)
@@ -251,7 +246,7 @@ export function AdminTimeEntriesPage() {
       title: bonus.title || '',
       description: bonus.description || '',
       amount: bonus.amount ?? '',
-      bonus_date: bonus.bonus_date || new Date().toISOString().slice(0, 10),
+      bonus_date: bonus.bonus_date || todayInSaoPaulo(),
     })
     setBonusError('')
     setShowBonusForm(true)

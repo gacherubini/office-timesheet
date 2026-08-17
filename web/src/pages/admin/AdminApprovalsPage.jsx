@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { CalendarOff, CheckCircle2, FileText, Receipt } from 'lucide-react'
 import { api } from '../../lib/api'
+import { formatDateBR as formatDate } from '../../lib/dates'
 import { Avatar } from '../../components/Avatar'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
@@ -9,11 +10,6 @@ import { Button } from '../../components/ui/Button'
 
 function formatCurrency(value) {
   return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
-
-function formatDate(value) {
-  if (!value) return '-'
-  return new Date(`${value}T00:00:00`).toLocaleDateString('pt-BR')
 }
 
 function formatDays(days) {

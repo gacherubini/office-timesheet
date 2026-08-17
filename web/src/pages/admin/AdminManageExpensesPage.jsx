@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CheckCircle2, Trash2 } from 'lucide-react'
 import { api } from '../../lib/api'
+import { formatDateBR as formatDate } from '../../lib/dates'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { Input, Select } from '../../components/ui/Input'
@@ -8,12 +9,6 @@ import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
 import { Badge } from '../../components/ui/Badge'
 import { Avatar } from '../../components/Avatar'
-
-function formatDate(iso) {
-  if (!iso) return '-'
-  const date = /^\d{4}-\d{2}-\d{2}$/.test(iso) ? new Date(`${iso}T00:00:00`) : new Date(iso)
-  return date.toLocaleDateString('pt-BR')
-}
 
 function formatCurrency(value) {
   return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })

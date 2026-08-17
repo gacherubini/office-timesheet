@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { CheckCircle2, Plus, Trash2 } from 'lucide-react'
 import { api } from '../../lib/api'
+import { formatDateBR as formatDate, todayInSaoPaulo } from '../../lib/dates'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { Input, Select } from '../../components/ui/Input'
@@ -15,13 +16,7 @@ const EMPTY_BONUS_FORM = {
   title: '',
   description: '',
   amount: '',
-  bonus_date: new Date().toISOString().slice(0, 10),
-}
-
-function formatDate(iso) {
-  if (!iso) return '-'
-  const date = /^\d{4}-\d{2}-\d{2}$/.test(iso) ? new Date(`${iso}T00:00:00`) : new Date(iso)
-  return date.toLocaleDateString('pt-BR')
+  bonus_date: todayInSaoPaulo(),
 }
 
 function formatCurrency(value) {

@@ -6,14 +6,10 @@ import { Tabs } from '../../components/ui/Tabs'
 import { DateRange } from '../../components/ui/DateRange'
 import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
+import { formatDateBR as formatDate } from '../../lib/dates'
 
 function formatCurrency(value) {
   return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
-
-function formatDate(value) {
-  if (!value) return '-'
-  return new Date(value).toLocaleDateString('pt-BR')
 }
 
 function formatDuration(minutes) {

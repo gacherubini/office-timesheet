@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../../lib/api'
+import { formatDateBR as formatDate } from '../../lib/dates'
 import { CheckCircle2, FolderOpen } from 'lucide-react'
 import { BirthdayCalendar } from '../../components/BirthdayCalendar'
 import { Avatar } from '../../components/Avatar'
@@ -26,11 +27,6 @@ function formatHM(minutes) {
   const h = Math.floor((minutes || 0) / 60)
   const m = Math.floor((minutes || 0) % 60)
   return `${h}h${String(m).padStart(2, '0')}`
-}
-
-function formatDate(value) {
-  if (!value) return '-'
-  return new Date(`${value}T00:00:00`).toLocaleDateString('pt-BR')
 }
 
 function formatDays(days) {

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../lib/api'
+import { formatDateBR as formatDate } from '../lib/dates'
 import {
   Search,
   Plus,
@@ -37,11 +38,6 @@ function whatsappLink(phone) {
   if (!digits) return null
   const withCountry = digits.length <= 11 ? `55${digits}` : digits
   return `https://wa.me/${withCountry}`
-}
-
-function formatDate(iso) {
-  if (!iso) return '-'
-  return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 function formatCurrency(value) {

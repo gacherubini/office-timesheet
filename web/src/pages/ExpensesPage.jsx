@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CheckCircle2, Plus } from 'lucide-react'
 import { api } from '../lib/api'
+import { formatDateBR as formatDate, todayInSaoPaulo as todayValue } from '../lib/dates'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Card } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
@@ -11,15 +12,6 @@ import { Badge } from '../components/ui/Badge'
 import { Modal } from '../components/ui/Modal'
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? '/api'
-
-function todayValue() {
-  return new Date().toISOString().slice(0, 10)
-}
-
-function formatDate(value) {
-  if (!value) return '-'
-  return new Date(`${value}T00:00:00`).toLocaleDateString('pt-BR')
-}
 
 function formatCurrency(value) {
   return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })

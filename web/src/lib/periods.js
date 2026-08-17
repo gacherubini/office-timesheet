@@ -1,7 +1,4 @@
-// "Hoje" no fuso do domínio (America/Sao_Paulo). 'en-CA' já formata YYYY-MM-DD.
-export function todayInSaoPaulo() {
-  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
-}
+import { todayInSaoPaulo } from './dates'
 
 const fmt = (date) => date.toISOString().slice(0, 10)
 

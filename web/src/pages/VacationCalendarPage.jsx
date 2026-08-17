@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CalendarOff, ChevronLeft, ChevronRight, Flag, Video, ListTodo, Clock, MapPin, Building2, ArrowRight, Briefcase } from 'lucide-react'
 import { api } from '../lib/api'
+import { formatDateBR as formatDate } from '../lib/dates'
 import { useAuth } from '../contexts/AuthContext'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Card } from '../components/ui/Card'
@@ -18,16 +19,6 @@ function dateKey(date) {
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
-}
-
-function parseDate(value) {
-  const [year, month, day] = value.split('-').map(Number)
-  return new Date(year, month - 1, day)
-}
-
-function formatDate(value) {
-  if (!value) return '-'
-  return parseDate(value).toLocaleDateString('pt-BR')
 }
 
 function formatMonth(date) {

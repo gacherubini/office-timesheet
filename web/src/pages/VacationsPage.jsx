@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, CalendarOff, CheckCircle2, Plus, Trash2 } from 'lucide-react'
 import { api } from '../lib/api'
+import { formatDateBR as formatDate } from '../lib/dates'
 import { useAuth } from '../contexts/AuthContext'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Card } from '../components/ui/Card'
@@ -27,11 +28,6 @@ function addDaysValue(value, days) {
   const nextMonth = String(date.getMonth() + 1).padStart(2, '0')
   const nextDay = String(date.getDate()).padStart(2, '0')
   return `${nextYear}-${nextMonth}-${nextDay}`
-}
-
-function formatDate(value) {
-  if (!value) return '-'
-  return new Date(`${value}T00:00:00`).toLocaleDateString('pt-BR')
 }
 
 function calculateDays(startDate, endDate) {

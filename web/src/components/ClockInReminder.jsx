@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AlarmClock } from 'lucide-react'
 import { api } from '../lib/api'
+import { todayInSaoPaulo as todayStr } from '../lib/dates'
 import { useAuth } from '../contexts/AuthContext'
 import { Button } from './ui/Button'
 
@@ -9,10 +10,6 @@ const FIFTEEN_MIN_MS = 15 * 60 * 1000
 const POLL_MS = 30 * 1000
 const FIRST_SEEN_KEY = 'clockReminderFirstSeen' // { date, ts }
 const SHOWN_KEY = 'clockReminderShownDate' // 'YYYY-MM-DD'
-
-function todayStr() {
-  return new Date().toISOString().slice(0, 10)
-}
 
 // Lembra o usuário (que bate ponto) de iniciar o apontamento, uma vez por dia,
 // após 15 min de site aberto e somente se ainda não bateu ponto hoje.
