@@ -57,15 +57,23 @@ async function canAccessProjectDocuments(profile, projectId) {
 
 router.get('/projects', requireAuth, async (req, res) => {
   try {
+    // Contato de cliente restrito (admin_only) só sai para admin. Sem isso, o
+    // gate de /admin/clients viraria porta da frente fechada e dos fundos
+    // aberta: o cliente some da tela de Pessoas mas telefone/e-mail/endereço
+    // continuam saindo por aqui. O NOME segue visível — ele é denormalizado em
+    // projects.client e identifica o projeto no quadro.
     const { rows } = await query(
       `SELECT p.id, p.name, COALESCE(c.name, p.client) AS client, p.client_id,
               p.address, p.start_date, p.status, p.image_url, p.briefing,
-              c.phone AS client_phone, c.email AS client_email, c.address AS client_address,
+              CASE WHEN $1 OR NOT c.admin_only THEN c.phone   END AS client_phone,
+              CASE WHEN $1 OR NOT c.admin_only THEN c.email   END AS client_email,
+              CASE WHEN $1 OR NOT c.admin_only THEN c.address END AS client_address,
               p.created_at, p.updated_at
        FROM projects p
        LEFT JOIN clients c ON c.id = p.client_id
        WHERE p.deleted_at IS NULL
        ORDER BY p.created_at DESC`,
+      [isAdmin(req.profile)],
     )
     return res.json(rows)
   } catch (err) {

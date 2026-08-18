@@ -70,3 +70,65 @@ describe('CRM — visibilidade e leitura-apenas para colaborador', () => {
     expect(del.status).toBe(403)
   })
 })
+
+// Regressão: o gate admin_only vale para TODO caminho de leitura, não só para
+// /admin/clients. GET /projects faz LEFT JOIN clients e devolvia phone/email/
+// address do cliente restrito para qualquer autenticado — porta dos fundos do
+// mesmo dado que a porta da frente esconde.
+describe('CRM — cliente restrito não vaza contato pelo projeto', () => {
+  let emp, admin, restrito, comum
+  beforeEach(async () => {
+    await resetDb()
+    emp = await makeUser({ role: 'employee', name: 'Ana' })
+    admin = await makeUser({ role: 'admin', name: 'Chefe' })
+
+    const { rows: r } = await query(
+      `INSERT INTO clients (name, email, phone, address, admin_only)
+       VALUES ('Cliente Restrito', 'secreto@x.com', '11999999999', 'Rua Secreta, 1', true)
+       RETURNING id`,
+    )
+    restrito = r[0]
+    const { rows: c } = await query(
+      `INSERT INTO clients (name, email, phone, address, admin_only)
+       VALUES ('Cliente Comum', 'aberto@x.com', '11888888888', 'Rua Aberta, 2', false)
+       RETURNING id`,
+    )
+    comum = c[0]
+
+    await query(
+      `INSERT INTO projects (name, client, client_id) VALUES ('Obra Restrita', 'Cliente Restrito', $1)`,
+      [restrito.id],
+    )
+    await query(
+      `INSERT INTO projects (name, client, client_id) VALUES ('Obra Comum', 'Cliente Comum', $1)`,
+      [comum.id],
+    )
+  })
+
+  it('employee não recebe contato de cliente restrito em GET /projects', async () => {
+    const res = await asUser(emp).get('/projects')
+    expect(res.status).toBe(200)
+
+    const obra = res.body.find((p) => p.name === 'Obra Restrita')
+    expect(obra).toBeTruthy()
+    expect(obra.client_phone).toBeNull()
+    expect(obra.client_email).toBeNull()
+    expect(obra.client_address).toBeNull()
+  })
+
+  it('employee continua recebendo contato de cliente comum em GET /projects', async () => {
+    const res = await asUser(emp).get('/projects')
+    const obra = res.body.find((p) => p.name === 'Obra Comum')
+    expect(obra.client_phone).toBe('11888888888')
+    expect(obra.client_email).toBe('aberto@x.com')
+    expect(obra.client_address).toBe('Rua Aberta, 2')
+  })
+
+  it('admin continua recebendo o contato do cliente restrito', async () => {
+    const res = await asUser(admin).get('/projects')
+    const obra = res.body.find((p) => p.name === 'Obra Restrita')
+    expect(obra.client_phone).toBe('11999999999')
+    expect(obra.client_email).toBe('secreto@x.com')
+    expect(obra.client_address).toBe('Rua Secreta, 1')
+  })
+})
