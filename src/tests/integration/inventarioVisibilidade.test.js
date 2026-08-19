@@ -5,7 +5,12 @@
 // os caminhos que expõem dado de pessoa e afirma que nenhum entrega campo
 // restrito a quem não é admin.
 //
-// Ao acrescentar rota que leia clients ou suppliers, acrescente aqui também.
+// Ao acrescentar rota que toque clients ou suppliers, acrescente aqui também.
+//
+// BLOQUEADOR 1 (revisão final, 19/08/2026): o inventário só cobria LEITURA.
+// PUT/POST devolvem RETURNING * sem passar por aplicarVisibilidade — vazamento
+// de verdade (PII em texto puro na resposta, mesmo que o front descarte o
+// corpo). Corrigido em clients.js/suppliers.js; PUT e POST entraram na matriz.
 //
 // Inventário refeito em 19/08/2026 com:
 //   grep -rn "FROM clients\|JOIN clients\|FROM suppliers\|JOIN suppliers" src/routes src/lib
@@ -39,12 +44,17 @@ function contemValor(obj, agulha) {
 }
 
 describe('inventário de visibilidade — nenhum caminho vaza', () => {
-  let admin, emp, cliente, fornecedor, projeto
+  let admin, emp, intern, cliente, fornecedor, projeto
 
   beforeEach(async () => {
     await resetDb()
     admin = await makeAdmin()
     emp = await makeUser({ role: 'employee', name: 'Arquiteta' })
+    // PUT/POST de clients/suppliers exigem canManageClients/Suppliers
+    // (admin + administrative_intern) — `emp` (employee) toma 403 antes de
+    // chegar na visibilidade. É exatamente o perfil que o BLOQUEADOR 1 descreve:
+    // gerencia clientes, não é admin.
+    intern = await makeUser({ role: 'administrative_intern', name: 'Estagiária' })
 
     const c = await asUser(admin).post('/admin/clients').send({
       name: 'Fulano',
@@ -70,18 +80,58 @@ describe('inventário de visibilidade — nenhum caminho vaza', () => {
   })
 
   const CAMINHOS = [
-    { nome: 'GET /admin/clients',                 url: () => '/admin/clients' },
-    { nome: 'GET /admin/clients/:id',             url: () => `/admin/clients/${cliente}` },
-    { nome: 'GET /admin/clients/:id/attachments', url: () => `/admin/clients/${cliente}/attachments` },
-    { nome: 'GET /admin/suppliers',               url: () => '/admin/suppliers' },
-    { nome: 'GET /admin/suppliers/:id',           url: () => `/admin/suppliers/${fornecedor}` },
-    { nome: 'GET /projects',                      url: () => '/projects' },
-    { nome: 'GET /projects/:id',                  url: () => `/projects/${projeto.id}` },
+    { nome: 'GET /admin/clients',                 method: 'get', url: () => '/admin/clients' },
+    { nome: 'GET /admin/clients/:id',             method: 'get', url: () => `/admin/clients/${cliente}` },
+    { nome: 'GET /admin/clients/:id/attachments', method: 'get', url: () => `/admin/clients/${cliente}/attachments` },
+    { nome: 'GET /admin/suppliers',               method: 'get', url: () => '/admin/suppliers' },
+    { nome: 'GET /admin/suppliers/:id',           method: 'get', url: () => `/admin/suppliers/${fornecedor}` },
+    { nome: 'GET /projects',                      method: 'get', url: () => '/projects' },
+    { nome: 'GET /projects/:id',                  method: 'get', url: () => `/projects/${projeto.id}` },
+    // BLOQUEADOR 1: RETURNING * sem aplicarVisibilidade. Ator é a estagiária
+    // administrativa — o perfil real que gerencia clientes/fornecedores sem
+    // ser admin. O corpo do PUT é o que a ficha JÁ tinha (não reenvia campo
+    // restrito, porque o form dela nunca o recebeu).
+    {
+      nome: 'PUT /admin/clients/:id', method: 'put', ator: () => intern,
+      url: () => `/admin/clients/${cliente}`,
+      body: () => ({ name: 'Fulano' }),
+    },
+    {
+      nome: 'POST /admin/clients', method: 'post', ator: () => intern,
+      url: () => '/admin/clients',
+      body: () => ({
+        name: 'Cliente criado pela estagiária',
+        cpf: 'CPF-SECRETO', rg: 'RG-SECRETO',
+        bank_name: 'BANCO-SECRETO', pix_key: 'PIX-SECRETO',
+      }),
+    },
+    {
+      nome: 'PUT /admin/suppliers/:id', method: 'put', ator: () => intern,
+      url: () => `/admin/suppliers/${fornecedor}`,
+      body: () => ({ name: 'Marcenaria' }),
+    },
+    {
+      nome: 'POST /admin/suppliers', method: 'post', ator: () => intern,
+      url: () => '/admin/suppliers',
+      body: () => ({
+        name: 'Fornecedor criado pela estagiária',
+        cnpj: 'CNPJ-SECRETO', pix_key: 'PIX-FORN-SECRETO',
+      }),
+    },
   ]
+
+  // Escreve a requisição de um caminho: GET não leva corpo; PUT/POST levam o
+  // que `body()` descrever. Ator default é `emp` (colaborador comum, só
+  // leitura); PUT/POST de clients/suppliers declaram `ator: intern`.
+  function chamar(caminho) {
+    const ator = caminho.ator ? caminho.ator() : emp
+    const req = asUser(ator)[caminho.method](caminho.url())
+    return caminho.body ? req.send(caminho.body()) : req
+  }
 
   for (const caminho of CAMINHOS) {
     it(`${caminho.nome} não entrega dado restrito ao colaborador`, async () => {
-      const res = await asUser(emp).get(caminho.url())
+      const res = await chamar(caminho)
       expect(res.status).toBeLessThan(400)
       for (const agulha of ['CPF-SECRETO', 'RG-SECRETO', 'BANCO-SECRETO', 'PIX-SECRETO',
                             'CNPJ-SECRETO', 'PIX-FORN-SECRETO', 'TEL-SECRETO', 'CONTRATO-SECRETO']) {
@@ -92,7 +142,7 @@ describe('inventário de visibilidade — nenhum caminho vaza', () => {
 
   for (const caminho of CAMINHOS) {
     it(`${caminho.nome} continua entregando o que NÃO é restrito`, async () => {
-      const res = await asUser(emp).get(caminho.url())
+      const res = await chamar(caminho)
       expect(res.status).toBeLessThan(400)
     })
   }

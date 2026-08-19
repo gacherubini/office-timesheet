@@ -184,3 +184,79 @@ describe('PUT preserva is_restricted de linha de contato', () => {
     expect(r2[0].is_restricted).toBe(true)
   })
 })
+
+// BLOQUEADOR 3 (revisão final, 19/08/2026): o caso "vale para fornecedor
+// também" acima roda inteiro como ADMIN, e preservarLinhasInvisiveis()
+// devolve cedo pra admin (`if (isAdminUser) return itensSubmetidos`) — a
+// função nunca chega a executar a lógica de preservação. O revisor trocou o
+// corpo inteiro de preservarLinhasInvisiveis() em suppliers.js por
+// `return itensSubmetidos` e a suíte continuou verde, porque nada exercitava
+// o caminho não-admin do lado de fornecedor.
+//
+// Este bloco copia o cenário que já existe para cliente (linha 70 acima —
+// "outro PUT de estagiário mexendo só no e-mail preserva a restrição do
+// telefone") e aponta para fornecedor: admin marca o e-mail "financeiro /
+// nota fiscal" como restrito; a estagiária (que nem vê essa linha na ficha)
+// edita só o telefone e salva; o DELETE+INSERT de gravarFilhas() não pode
+// apagar a linha de e-mail restrita.
+describe('PUT preserva is_restricted de linha de contato — fornecedor, ator não-admin', () => {
+  let admin, emp, fornecedor
+
+  beforeEach(async () => {
+    await resetDb()
+    admin = await makeAdmin()
+    emp = await makeUser({ role: 'administrative_intern', name: 'Estagiária' })
+
+    const criado = await asUser(admin).post('/admin/suppliers').send({
+      name: 'Marcenaria',
+      phones: [{ label: 'comercial', value: '1122223333', is_primary: true }],
+      emails: [{ label: 'financeiro / nota fiscal', value: 'nf@marcenaria.com' }],
+    })
+    fornecedor = criado.body.id
+
+    // Admin marca o e-mail financeiro/nota fiscal como restrito.
+    const ficha = await asUser(admin).get(`/admin/suppliers/${fornecedor}`)
+    const nf = ficha.body.emails.find((e) => e.label === 'financeiro / nota fiscal')
+    const marcado = await asUser(admin).put(`/admin/suppliers/${fornecedor}`).send({
+      name: 'Marcenaria',
+      phones: ficha.body.phones.map((p) => ({ id: p.id, label: p.label, value: p.value, is_primary: p.is_primary })),
+      emails: ficha.body.emails.map((e) => ({
+        id: e.id, label: e.label, value: e.value, is_primary: e.is_primary,
+        is_restricted: e.id === nf.id,
+      })),
+    })
+    expect(marcado.status).toBe(200)
+
+    const { rows } = await query(
+      `SELECT is_restricted FROM person_emails WHERE supplier_id = $1 AND label = 'financeiro / nota fiscal'`,
+      [fornecedor])
+    expect(rows[0].is_restricted).toBe(true)
+  })
+
+  async function emailNfRestritoEIntacto() {
+    const { rows } = await query(
+      `SELECT value, is_restricted FROM person_emails WHERE supplier_id = $1 AND label = 'financeiro / nota fiscal'`,
+      [fornecedor])
+    return rows[0]
+  }
+
+  it('a estagiária edita só o telefone; o e-mail restrito (que ela nem viu) sobrevive intacto', async () => {
+    const ficha = await asUser(emp).get(`/admin/suppliers/${fornecedor}`)
+    // O formulário da estagiária nem recebe a linha restrita — é exatamente
+    // por isso que o bug existe: sem preservarLinhasInvisiveis, o PUT dela
+    // (que não menciona esse e-mail) apaga a linha no DELETE+INSERT.
+    expect(ficha.body.emails.find((e) => e.label === 'financeiro / nota fiscal')).toBeUndefined()
+
+    const res = await asUser(emp).put(`/admin/suppliers/${fornecedor}`).send({
+      name: 'Marcenaria',
+      phones: [{ label: 'comercial', value: '1122229999', is_primary: true }],
+      emails: ficha.body.emails.map((e) => ({ id: e.id, label: e.label, value: e.value, is_primary: e.is_primary })),
+    })
+    expect(res.status).toBe(200)
+
+    const nf = await emailNfRestritoEIntacto()
+    expect(nf).toBeDefined()
+    expect(nf.is_restricted).toBe(true)
+    expect(nf.value).toBe('nf@marcenaria.com')
+  })
+})

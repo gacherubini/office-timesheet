@@ -380,7 +380,12 @@ router.post('/admin/clients', requireAuth, requireCanManageClients, async (req, 
       }
       return novo
     })
-    return res.status(201).json(cliente)
+    // BLOQUEADOR 1 (revisão final): a resposta do POST também é leitura — o
+    // caminho de escrita não estava passando por aplicarVisibilidade, e o
+    // RETURNING * ecoava CPF/RG/dados bancários crus na rede mesmo para quem
+    // não pode vê-los. Na criação os campos recém-marcados são sempre
+    // PADRAO_RESTRITO (só eles são gravados em person_restricted_fields aqui).
+    return res.status(201).json(aplicarVisibilidade(req.profile, cliente, PADRAO_RESTRITO))
   } catch (err) {
     logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em POST /admin/clients')
     return res.status(400).json({ error: err.message })
@@ -483,7 +488,14 @@ router.put('/admin/clients/:id', requireAuth, requireCanManageClients, async (re
       return res.status(404).json({ error: 'Cliente não encontrado.' })
     }
 
-    return res.json(cliente)
+    // BLOQUEADOR 1 (revisão final): mesmo vazamento do POST, aqui na resposta
+    // do PUT — RETURNING * saía cru, sem passar por aplicarVisibilidade. Busca
+    // os campos restritos JÁ ATUALIZADOS (o corpo pode ter alterado
+    // restricted_fields agora mesmo) para filtrar a resposta corretamente.
+    const { rows: restritosAtuaisRows } = await query(
+      `SELECT field_name FROM person_restricted_fields WHERE client_id = $1`, [req.params.id])
+    const restritosAtuais = restritosAtuaisRows.map((r) => r.field_name)
+    return res.json(aplicarVisibilidade(req.profile, cliente, restritosAtuais))
   } catch (err) {
     logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em PUT /admin/clients/:id')
     return res.status(400).json({ error: err.message })

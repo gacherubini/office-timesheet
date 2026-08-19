@@ -331,7 +331,10 @@ router.post('/admin/suppliers', requireAuth, requireCanManageSuppliers, async (r
       }
       return novo
     })
-    return res.status(201).json(fornecedor)
+    // BLOQUEADOR 1 (revisão final): mesmo vazamento de clients.js — RETURNING *
+    // ecoava CPF/RG/dados bancários crus. Na criação os campos recém-marcados
+    // são sempre PADRAO_RESTRITO (só eles são gravados aqui).
+    return res.status(201).json(aplicarVisibilidade(req.profile, fornecedor, PADRAO_RESTRITO))
   } catch (err) {
     logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em POST /admin/suppliers')
     return res.status(400).json({ error: err.message })
@@ -426,7 +429,13 @@ router.put('/admin/suppliers/:id', requireAuth, requireCanManageSuppliers, async
       return res.status(404).json({ error: 'Fornecedor não encontrado.' })
     }
 
-    return res.json(fornecedor)
+    // BLOQUEADOR 1 (revisão final): mesmo vazamento de clients.js — resposta
+    // do PUT não passava por aplicarVisibilidade. Busca os campos restritos
+    // JÁ ATUALIZADOS (o corpo pode ter alterado restricted_fields agora mesmo).
+    const { rows: restritosAtuaisRows } = await query(
+      `SELECT field_name FROM person_restricted_fields WHERE supplier_id = $1`, [req.params.id])
+    const restritosAtuais = restritosAtuaisRows.map((r) => r.field_name)
+    return res.json(aplicarVisibilidade(req.profile, fornecedor, restritosAtuais))
   } catch (err) {
     logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em PUT /admin/suppliers/:id')
     return res.status(400).json({ error: err.message })
