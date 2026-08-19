@@ -13,6 +13,7 @@ import { TaskDetailModal } from './projectBoard/TaskDetailModal'
 import { NewTaskModal } from './projectBoard/NewTaskModal'
 import { ProjectCatalog } from './projectBoard/ProjectCatalog'
 import { ProjectPage } from './projectBoard/ProjectPage'
+import { ProjectClientsField } from './projectBoard/ProjectClientsField'
 import { TemplateManager } from './projectBoard/TemplateManager'
 import { carimbarContexto } from '../lib/agentContext'
 
@@ -34,6 +35,11 @@ export function ProjectBoardPage() {
   const [search, setSearch] = useState('')
   const [drawer, setDrawer] = useState(null) // task object
   const [creating, setCreating] = useState(false)
+  // Etapa ativa na trilha no momento em que "Nova" foi clicado (ProjectPage
+  // repassa pelo próprio callback) — pré-preenche o seletor de etapa do
+  // modal (item 8 do PDF: "quem está olhando o Anteprojeto quase sempre
+  // quer criar tarefa nele").
+  const [newTaskStage, setNewTaskStage] = useState('')
   const [loading, setLoading] = useState(true)
   const [feedback, setFeedback] = useState('')
   const [timerBusyId, setTimerBusyId] = useState(null)
@@ -50,7 +56,7 @@ export function ProjectBoardPage() {
   const [showForm, setShowForm] = useState(false)
   const [showNoClient, setShowNoClient] = useState(false)
   const [editingProject, setEditingProject] = useState(null)
-  const [form, setForm] = useState({ name: '', client_id: '', address: '', start_date: '', status: 'active' })
+  const [form, setForm] = useState({ name: '', clients: [], address: '', start_date: '', status: 'active' })
   const [formError, setFormError] = useState('')
   const [projectToDelete, setProjectToDelete] = useState(null)
   const [deleteError, setDeleteError] = useState('')
@@ -188,7 +194,7 @@ export function ProjectBoardPage() {
 
   // ── Gestão de projetos no catálogo ────────────────────────────────
   function resetProjectForm() {
-    setForm({ name: '', client_id: '', address: '', start_date: '', status: 'active', template_id: '' })
+    setForm({ name: '', clients: [], address: '', start_date: '', status: 'active', template_id: '' })
     setEditingProject(null)
     setShowForm(false)
     setFormError('')
@@ -201,13 +207,17 @@ export function ProjectBoardPage() {
       return
     }
     resetProjectForm()
+    // Primeira linha já nasce principal — mesma regra do ContactListField.
+    setForm((f) => ({ ...f, clients: [{ client_id: '', role: 'contratante_principal', is_primary: true }] }))
     setShowForm(true)
   }
 
-  function startEditProject(project) {
+  // Edição precisa dos vários contratantes (item 7 do PDF), não só do
+  // principal denormalizado — busca a ficha completa (GET /projects/:id).
+  async function startEditProject(project) {
     setForm({
       name: project.name,
-      client_id: project.client_id || '',
+      clients: [{ client_id: project.client_id || '', role: 'contratante_principal', is_primary: true }],
       address: project.address || '',
       start_date: project.start_date || '',
       status: project.status,
@@ -216,19 +226,33 @@ export function ProjectBoardPage() {
     setEditingProject(project)
     setShowForm(true)
     setFormError('')
+    try {
+      const full = await api.get(`/projects/${project.id}`)
+      if (full.clients?.length) {
+        setForm((f) => ({
+          ...f,
+          clients: full.clients.map((c) => ({ client_id: c.client_id, role: c.role, is_primary: c.is_primary })),
+        }))
+      }
+    } catch (err) {
+      console.error(err)
+    }
   }
 
   async function handleProjectSubmit(e) {
     e.preventDefault()
     setFormError('')
     if (!form.name.trim()) { setFormError('Informe o nome do projeto.'); return }
-    if (!form.client_id) { setFormError('Selecione um cliente.'); return }
+    if (form.clients.length === 0 || form.clients.some((c) => !c.client_id)) {
+      setFormError('Selecione ao menos um contratante.')
+      return
+    }
     if (!form.start_date) { setFormError('Informe a data de início.'); return }
     try {
       const wasEditing = Boolean(editingProject)
       const payload = {
         name: form.name.trim(),
-        client_id: form.client_id,
+        clients: form.clients,
         address: form.address.trim() || null,
         start_date: form.start_date,
       }
@@ -552,7 +576,7 @@ export function ProjectBoardPage() {
           search={search}
           setSearch={setSearch}
           users={users}
-          onNewTask={() => setCreating(true)}
+          onNewTask={(etapa) => { setNewTaskStage(etapa || ''); setCreating(true) }}
           canCreate={canCreate}
           canClockIn={canClockIn}
           activeTimer={activeTimer}
@@ -582,6 +606,7 @@ export function ProjectBoardPage() {
         <NewTaskModal
           projectId={projectFilter}
           users={users}
+          etapaAtiva={newTaskStage || undefined}
           onClose={() => setCreating(false)}
           onCreated={() => { setCreating(false); loadTasks() }}
         />
@@ -601,6 +626,7 @@ export function ProjectBoardPage() {
         open={showForm}
         onClose={resetProjectForm}
         title={editingProject ? 'Editar Projeto' : 'Novo Projeto'}
+        size="lg"
       >
         {formError && (
           <div className="state-danger-soft text-sm p-3 mb-4">
@@ -614,17 +640,10 @@ export function ProjectBoardPage() {
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
           />
-          <Select
-            label="Cliente"
-            required
-            value={form.client_id}
-            onChange={(e) => setForm({ ...form, client_id: e.target.value })}
-          >
-            <option value="">Selecione um cliente...</option>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </Select>
+          <ProjectClientsField
+            itens={form.clients}
+            onChange={(itens) => setForm({ ...form, clients: itens })}
+          />
           <DateField
             label="Data de início"
             required

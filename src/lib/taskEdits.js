@@ -8,10 +8,10 @@ export const VALID_PRIORITY = ['low', 'medium', 'high']
 // routes/projectManagement.js para a rota PUT /tasks/:id e a tool de editar
 // usarem o mesmo bloco.
 export async function aplicarEdicaoTask(id, patch, actorId) {
-  const { title, description, assignee_id, due_date, priority, task_type } = patch || {}
+  const { title, description, assignee_id, due_date, priority, stage_id } = patch || {}
 
   const { rows: taskRows } = await query(
-    'SELECT project_id, title, assignee_id, priority FROM tasks WHERE id = $1',
+    'SELECT project_id, title, assignee_id, priority, stage_id FROM tasks WHERE id = $1',
     [id],
   )
   if (taskRows.length === 0) throw new Error('Tarefa não encontrada.')
@@ -38,15 +38,24 @@ export async function aplicarEdicaoTask(id, patch, actorId) {
     }
     params.push(priority); updates.push(`priority = $${params.length}::task_priority`)
   }
-  if (task_type !== undefined) {
-    params.push(task_type?.trim() || null); updates.push(`task_type = $${params.length}`)
+  if (stage_id !== undefined) {
+    if (!stage_id) throw new Error('stage_id não pode ser vazio.')
+    // A etapa é por projeto (o mesmo nome existe em várias obras) — mover a
+    // tarefa para uma etapa de outro projeto tem que falhar aqui, não virar
+    // uma FK solta apontando pra fora do projeto da tarefa.
+    const { rows: stageRows } = await query(
+      'SELECT id FROM project_stages WHERE id = $1 AND project_id = $2',
+      [stage_id, before.project_id],
+    )
+    if (stageRows.length === 0) throw new Error('Etapa não encontrada neste projeto.')
+    params.push(stage_id); updates.push(`stage_id = $${params.length}`)
   }
   if (updates.length === 0) throw new Error('Nenhum campo para atualizar.')
 
   params.push(id)
   const { rows } = await query(
     `UPDATE tasks SET ${updates.join(', ')} WHERE id = $${params.length}
-     RETURNING id, project_id, title, description, status, assignee_id, due_date, position, priority, task_type, completed_at, created_at, updated_at`,
+     RETURNING id, project_id, title, description, status, assignee_id, due_date, position, priority, stage_id, completed_at, created_at, updated_at`,
     params,
   )
   const after = rows[0]
@@ -56,6 +65,9 @@ export async function aplicarEdicaoTask(id, patch, actorId) {
   }
   if (priority !== undefined && priority !== before.priority) {
     await logActivity(id, actorId, 'priority_changed', { from: before.priority, to: after.priority })
+  }
+  if (stage_id !== undefined && after.stage_id !== before.stage_id) {
+    await logActivity(id, actorId, 'stage_changed', { from: before.stage_id, to: after.stage_id })
   }
   if (assignee_id !== undefined && (after.assignee_id || null) !== (before.assignee_id || null)) {
     await logActivity(id, actorId, 'assignee_changed', { to: after.assignee_id })

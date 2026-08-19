@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { resetDb } from '../helpers/db.js'
+import { resetDb, query } from '../helpers/db.js'
 import { asUser } from '../helpers/api.js'
 import { makeUser, makeAdmin, makeProject } from '../helpers/factories.js'
 
@@ -79,5 +79,83 @@ describe('/me/stats — KPIs do mês', () => {
     const intern = await makeUser({ role: 'administrative_intern', hourly_rate: 0 })
     const res = await asUser(intern).get('/me/stats?month=2026-07')
     expect(res.status).toBe(403)
+  })
+})
+
+// "Tipos de tarefa mais feitas" (tela de Performance) somava cronômetros de
+// tarefa agrupando por tasks.task_type — texto livre. Com task_type removida
+// (migration 051), a agregação passa a agrupar por project_stages.name via
+// tasks.stage_id. O FRONT (PerformancePage.jsx) não muda: continua lendo a
+// chave `task_type_breakdown` e o campo `task_type` dentro de cada linha —
+// só a FONTE dos dados muda, não o formato da resposta.
+describe('/me/stats — task_type_breakdown agrupado por etapa', () => {
+  let employee, project, etapaProjeto, etapaObra
+  beforeEach(async () => {
+    await resetDb()
+    employee = await makeUser({ role: 'employee', hourly_rate: RATE, monthly_income_goal: GOAL })
+    project = await makeProject()
+
+    const { rows: stages } = await query(
+      `INSERT INTO project_stages (project_id, name, position) VALUES
+         ($1, 'Anteprojeto', 0), ($1, 'Executivo', 1)
+       RETURNING id, name`,
+      [project.id],
+    )
+    etapaProjeto = stages.find((s) => s.name === 'Anteprojeto')
+    etapaObra = stages.find((s) => s.name === 'Executivo')
+  })
+
+  async function makeTask(title, stageId) {
+    const { rows } = await query(
+      `INSERT INTO tasks (project_id, title, status, position, stage_id)
+       VALUES ($1, $2, 'todo', 0, $3) RETURNING id`,
+      [project.id, title, stageId],
+    )
+    return rows[0].id
+  }
+
+  async function makeTimeLog(taskId, startedAt, durationMinutes) {
+    const endedAt = new Date(new Date(startedAt).getTime() + durationMinutes * 60000).toISOString()
+    await query(
+      `INSERT INTO task_time_logs (task_id, user_id, started_at, ended_at, duration_minutes)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [taskId, employee.id, startedAt, endedAt, durationMinutes],
+    )
+  }
+
+  it('soma os cronômetros de tarefa do mês agrupados pelo NOME da etapa (project_stages.name)', async () => {
+    const t1 = await makeTask('Planta baixa', etapaProjeto.id)
+    const t2 = await makeTask('Segunda tarefa da mesma etapa', etapaProjeto.id)
+    const t3 = await makeTask('Memorial descritivo', etapaObra.id)
+
+    await makeTimeLog(t1, '2026-07-06T09:00:00-03:00', 60)
+    await makeTimeLog(t2, '2026-07-07T09:00:00-03:00', 30)
+    await makeTimeLog(t3, '2026-07-08T09:00:00-03:00', 45)
+    // Fora do mês de julho: não pode entrar na soma.
+    await makeTimeLog(t1, '2026-06-30T09:00:00-03:00', 999)
+
+    const res = await asUser(employee).get('/me/stats?month=2026-07')
+    expect(res.status).toBe(200)
+
+    const breakdown = res.body.task_type_breakdown
+    expect(breakdown).toEqual(
+      expect.arrayContaining([
+        { task_type: 'Anteprojeto', total_minutes: 90 },
+        { task_type: 'Executivo', total_minutes: 45 },
+      ]),
+    )
+    expect(breakdown).toHaveLength(2)
+    // Ordenado do maior para o menor.
+    expect(breakdown[0].task_type).toBe('Anteprojeto')
+  })
+
+  it('cronômetro em andamento (ended_at NULL) não entra na soma', async () => {
+    const t1 = await makeTask('Tarefa aberta', etapaProjeto.id)
+    await query(
+      `INSERT INTO task_time_logs (task_id, user_id, started_at) VALUES ($1, $2, $3)`,
+      [t1, employee.id, '2026-07-06T09:00:00-03:00'],
+    )
+    const res = await asUser(employee).get('/me/stats?month=2026-07')
+    expect(res.body.task_type_breakdown).toEqual([])
   })
 })

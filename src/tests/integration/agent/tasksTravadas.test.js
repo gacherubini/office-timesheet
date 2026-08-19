@@ -3,25 +3,28 @@ import { resetDb, query } from '../../helpers/db.js'
 import { makeUser, makeProject } from '../../helpers/factories.js'
 import tool from '../../../lib/agent/tools/read/tasksTravadas.js'
 
-async function makeTask({ project_id, title, status, updatedDaysAgo = 0 }) {
+async function makeTask({ project_id, title, status, updatedDaysAgo = 0, stage_id }) {
   const { rows } = await query(
-    `INSERT INTO tasks (project_id, title, status, position, updated_at)
-     VALUES ($1,$2,$3,0, now() - ($4 || ' days')::interval) RETURNING id`,
-    [project_id, title, status, String(updatedDaysAgo)],
+    `INSERT INTO tasks (project_id, title, status, position, updated_at, stage_id)
+     VALUES ($1,$2,$3,0, now() - ($4 || ' days')::interval, $5) RETURNING id`,
+    [project_id, title, status, String(updatedDaysAgo), stage_id],
   )
   return rows[0].id
 }
 
 describe('tool tasks_travadas (todos os papéis)', () => {
-  let emp, proj
+  let emp, proj, etapa
   beforeEach(async () => {
     await resetDb()
     emp = await makeUser({ role: 'employee' })
     proj = await makeProject({ name: 'P' })
-    await makeTask({ project_id: proj.id, title: 'Revisão velha', status: 'in_review', updatedDaysAgo: 10 })
-    await makeTask({ project_id: proj.id, title: 'Revisão nova', status: 'in_review', updatedDaysAgo: 1 })
-    await makeTask({ project_id: proj.id, title: 'Largada', status: 'abandoned', updatedDaysAgo: 0 })
-    await makeTask({ project_id: proj.id, title: 'Tocando', status: 'in_progress', updatedDaysAgo: 30 })
+    const { rows: etapas } = await query(
+      `INSERT INTO project_stages (project_id, name) VALUES ($1,'Anteprojeto') RETURNING id`, [proj.id])
+    etapa = etapas[0].id
+    await makeTask({ project_id: proj.id, title: 'Revisão velha', status: 'in_review', updatedDaysAgo: 10, stage_id: etapa })
+    await makeTask({ project_id: proj.id, title: 'Revisão nova', status: 'in_review', updatedDaysAgo: 1, stage_id: etapa })
+    await makeTask({ project_id: proj.id, title: 'Largada', status: 'abandoned', updatedDaysAgo: 0, stage_id: etapa })
+    await makeTask({ project_id: proj.id, title: 'Tocando', status: 'in_progress', updatedDaysAgo: 30, stage_id: etapa })
   })
 
   it('traz in_review parada há +N dias e abandoned; não traz revisão nova nem in_progress', async () => {

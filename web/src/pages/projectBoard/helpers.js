@@ -3,6 +3,11 @@
 export const COLUMNS = [
   { key: 'todo', label: 'A fazer', dot: 'border border-[rgba(15,15,15,.35)]', bar: 'bg-[rgba(15,15,15,.18)]' },
   { key: 'in_progress', label: 'Fazendo', dot: 'bg-orange', bar: 'bg-orange' },
+  // Travado por terceiro (cliente, topografia, prefeitura). Mesma família do
+  // laranja de "Fazendo", mas vazado: a leitura é "isto seria progresso, mas
+  // está parado", não uma cor de erro. Ponto com contorno (não sólido) marca
+  // o "travado"; barra a 40% de opacidade fica visível sem virar sólida.
+  { key: 'blocked', label: 'Falta info', dot: 'border border-orange', bar: 'bg-orange/40' },
   { key: 'in_review', label: 'Em revisão', dot: 'bg-brown', bar: 'bg-brown' },
   { key: 'done', label: 'Concluído', dot: 'bg-state-success', bar: 'bg-state-success' },
 ]

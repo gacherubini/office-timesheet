@@ -8,7 +8,11 @@ describe('resolverTarefa', () => {
   beforeEach(async () => {
     await resetDb()
     acme = await makeProject({ name: 'Acme' })
-    await query(`INSERT INTO tasks (project_id, title, status, position) VALUES ($1,'Logo','todo',0), ($1,'Logo site','in_progress',1)`, [acme.id])
+    const { rows: etapas } = await query(
+      `INSERT INTO project_stages (project_id, name) VALUES ($1,'Anteprojeto') RETURNING id`, [acme.id])
+    await query(
+      `INSERT INTO tasks (project_id, title, status, position, stage_id) VALUES ($1,'Logo','todo',0,$2), ($1,'Logo site','in_progress',1,$2)`,
+      [acme.id, etapas[0].id])
   })
   it('sem nome pergunta o título', async () => {
     await expect(resolverTarefa('')).rejects.toThrow(/qual tarefa/i)

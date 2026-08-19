@@ -16,10 +16,12 @@ describe('tool carga_equipe (admin)', () => {
        VALUES ($1,$2, now(), now(), 'completed', 180, 0)`,
       [ana.id, proj.id],
     )
+    const { rows: etapas } = await query(
+      `INSERT INTO project_stages (project_id, name) VALUES ($1,'Anteprojeto') RETURNING id`, [proj.id])
     await query(
-      `INSERT INTO tasks (project_id, title, status, assignee_id, position)
-       VALUES ($1,'T1','in_progress',$2,0)`,
-      [proj.id, ana.id],
+      `INSERT INTO tasks (project_id, title, status, assignee_id, position, stage_id)
+       VALUES ($1,'T1','in_progress',$2,0,$3)`,
+      [proj.id, ana.id, etapas[0].id],
     )
   })
 

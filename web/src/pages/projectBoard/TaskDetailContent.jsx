@@ -33,6 +33,9 @@ export function TaskDetailContent({
   const [descUploading, setDescUploading] = useState(false)
   const [descAttKey, setDescAttKey] = useState(0)
   const [commentCount, setCommentCount] = useState(initialTask.comment_count || 0)
+  // Etapas do projeto desta tarefa — o EtapaChip não lê mais lib/taskTypes.js,
+  // cada projeto tem as suas (Task 7 do backend).
+  const [stages, setStages] = useState([])
 
   useEffect(() => {
     setTask(initialTask)
@@ -40,6 +43,14 @@ export function TaskDetailContent({
     setDescription(initialTask.description || '')
     setDueDate(initialTask.due_date || null)
   }, [initialTask])
+
+  useEffect(() => {
+    let cancelado = false
+    api.get(`/projects/${initialTask.project_id}/stages`)
+      .then((rows) => { if (!cancelado) setStages(rows || []) })
+      .catch(() => { if (!cancelado) setStages([]) })
+    return () => { cancelado = true }
+  }, [initialTask.project_id])
 
   const dirty =
     title !== task.title ||
@@ -221,8 +232,9 @@ export function TaskDetailContent({
           disabled={!canEdit}
         />
         <EtapaChip
-          value={task.task_type || ''}
-          onChange={(t) => patch({ task_type: t }, { task_type: t })}
+          value={task.stage_id || ''}
+          etapas={stages}
+          onChange={(id) => patch({ stage_id: id }, { stage_id: id })}
           disabled={!canEdit}
         />
         <DueDateChip

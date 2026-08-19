@@ -52,9 +52,11 @@ describe('paridade de coluna: valor financeiro não vaza por papel (§18)', () =
        VALUES ($1, $2, now(), now(), 'completed', 60, $3)`,
       [dono.id, projeto.id, SENTINELAS.cost_snapshot],
     )
+    const { rows: etapasColuna } = await query(
+      `INSERT INTO project_stages (project_id, name) VALUES ($1,'Anteprojeto') RETURNING id`, [projeto.id])
     await query(
-      `INSERT INTO tasks (project_id, title, status, position) VALUES ($1, 'T', 'in_review', 0)`,
-      [projeto.id],
+      `INSERT INTO tasks (project_id, title, status, position, stage_id) VALUES ($1, 'T', 'in_review', 0, $2)`,
+      [projeto.id, etapasColuna[0].id],
     )
     await query(
       `INSERT INTO bonuses (user_id, title, amount, bonus_date, created_by)

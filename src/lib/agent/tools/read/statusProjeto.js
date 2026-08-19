@@ -13,6 +13,9 @@
 // não pode nem CHEGAR ao modelo: se o número do time entra no contexto, ele
 // aparece na conversa por mais que o rótulo mude. Por isso o recorte é no SQL e
 // a chave muda de nome (`minhas_horas`), não só o texto.
+// `blocked` ("Falta info") entra na contagem como mais uma coluna do kanban,
+// no mesmo espírito de GET /tasks/counts (projectManagement.js): é retrato,
+// não juízo — quem quer saber SE algo travado é grave chama tasks_travadas.
 import { query } from '../../../db.js'
 import { canAccessOperations } from '../../../permissions.js'
 import { resolvePeriodo } from '../../format.js'
@@ -22,7 +25,7 @@ const definition = {
   type: 'function',
   function: {
     name: 'status_projeto',
-    description: 'Retrato de um projeto (ou de todos os ativos): status (active/completed), tarefas por coluna do kanban (todo, in_progress, in_review, done, abandoned) e horas apontadas. Passe o nome do projeto para um projeto específico. Com periodo, as horas são só as da janela. As horas vêm no campo que diz DE QUEM elas são: `total_horas` (tudo que o time apontou no projeto) ou `minhas_horas` (só o que a pessoa que está falando apontou) — o campo `escopo_horas` repete isso. Descreva o número exatamente como o campo diz; nunca chame `minhas_horas` de total do projeto.',
+    description: 'Retrato de um projeto (ou de todos os ativos): status (active/completed), tarefas por coluna do kanban (todo, in_progress, blocked "Falta info", in_review, done, abandoned) e horas apontadas. Passe o nome do projeto para um projeto específico. Com periodo, as horas são só as da janela. As horas vêm no campo que diz DE QUEM elas são: `total_horas` (tudo que o time apontou no projeto) ou `minhas_horas` (só o que a pessoa que está falando apontou) — o campo `escopo_horas` repete isso. Descreva o número exatamente como o campo diz; nunca chame `minhas_horas` de total do projeto.',
     parameters: {
       type: 'object',
       properties: {
@@ -47,7 +50,7 @@ async function run(profile, args) {
 
   const { rows } = await query(
     `SELECT p.id AS projeto_id, p.name AS projeto, COALESCE(c.name, p.client) AS cliente, p.status,
-            tc.todo, tc.in_progress, tc.in_review, tc.done, tc.abandoned, tc.total_tarefas,
+            tc.todo, tc.in_progress, tc.blocked, tc.in_review, tc.done, tc.abandoned, tc.total_tarefas,
             COALESCE(hc.total_minutes, 0) AS total_minutes
        FROM projects p
        LEFT JOIN clients c ON c.id = p.client_id
@@ -55,6 +58,7 @@ async function run(profile, args) {
          SELECT COUNT(*)::int AS total_tarefas,
                 COUNT(*) FILTER (WHERE status = 'todo')::int        AS todo,
                 COUNT(*) FILTER (WHERE status = 'in_progress')::int AS in_progress,
+                COUNT(*) FILTER (WHERE status = 'blocked')::int     AS blocked,
                 COUNT(*) FILTER (WHERE status = 'in_review')::int   AS in_review,
                 COUNT(*) FILTER (WHERE status = 'done')::int        AS done,
                 COUNT(*) FILTER (WHERE status = 'abandoned')::int   AS abandoned
@@ -83,7 +87,7 @@ async function run(profile, args) {
       status: r.status,
       periodo: janela,
       tarefas: {
-        todo: r.todo, in_progress: r.in_progress, in_review: r.in_review,
+        todo: r.todo, in_progress: r.in_progress, blocked: r.blocked, in_review: r.in_review,
         done: r.done, abandoned: r.abandoned, total: r.total_tarefas,
       },
       escopo_horas: equipe ? 'equipe' : 'proprio',

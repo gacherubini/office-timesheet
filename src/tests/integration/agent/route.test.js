@@ -27,6 +27,9 @@ describe('POST /agent/chat + execute', () => {
     await resetDb()
     emp = await makeUser({ role: 'employee', hourly_rate: 100 })
     project = await makeProject({ name: 'Projeto Y' })
+    // Toda tarefa pertence a uma etapa (item 8 do PDF de 18/08/2026); com uma
+    // etapa só, propor_criar_task usa ela automaticamente.
+    await query(`INSERT INTO project_stages (project_id, name) VALUES ($1, 'Anteprojeto')`, [project.id])
   })
   afterEach(() => {
     resetClient()

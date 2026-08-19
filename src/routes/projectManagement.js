@@ -18,7 +18,7 @@ function canManageTasks(profile) {
 // Cria tarefa num projeto (admin ou líder do projeto)
 router.post('/projects/:id/tasks', requireAuth, async (req, res) => {
   const projectId = req.params.id
-  const { title, description, assignee_id, due_date, priority, task_type } = req.body
+  const { title, description, assignee_id, due_date, priority, stage_id } = req.body
   const VALID_PRIORITY = ['low', 'medium', 'high']
 
   if (!title || !title.trim()) {
@@ -27,10 +27,22 @@ router.post('/projects/:id/tasks', requireAuth, async (req, res) => {
   if (priority !== undefined && !VALID_PRIORITY.includes(priority)) {
     return res.status(400).json({ error: 'priority inválida. Use low, medium ou high.' })
   }
+  // "Toda tarefa pertence a uma etapa — campo obrigatório na criação" (item 8
+  // do PDF de ajustes de 18/08/2026).
+  if (!stage_id) {
+    return res.status(400).json({ error: 'A tarefa precisa de uma etapa.' })
+  }
 
   try {
     // Criar tarefas é liberado a qualquer usuário logado.
     // Só excluir (DELETE) exige admin/líder.
+
+    // Checar o projeto junto evita amarrar a tarefa a uma etapa de outra obra.
+    const { rows: st } = await query(
+      'SELECT id FROM project_stages WHERE id = $1 AND project_id = $2', [stage_id, projectId])
+    if (!st[0]) {
+      return res.status(400).json({ error: 'Etapa não encontrada neste projeto.' })
+    }
 
     // position = vai para o fim da coluna 'todo'
     const { rows: posRows } = await query(
@@ -41,9 +53,9 @@ router.post('/projects/:id/tasks', requireAuth, async (req, res) => {
     const position = posRows[0].next
 
     const { rows } = await query(
-      `INSERT INTO tasks (project_id, title, description, assignee_id, due_date, priority, task_type, position, created_by)
+      `INSERT INTO tasks (project_id, title, description, assignee_id, due_date, priority, stage_id, position, created_by)
        VALUES ($1, $2, $3, $4, $5, $6::task_priority, $7, $8, $9)
-       RETURNING id, project_id, title, description, status, assignee_id, due_date, priority, task_type, position, created_by, completed_at, created_at, updated_at`,
+       RETURNING id, project_id, title, description, status, assignee_id, due_date, priority, stage_id, position, created_by, completed_at, created_at, updated_at`,
       [
         projectId,
         title.trim(),
@@ -51,7 +63,7 @@ router.post('/projects/:id/tasks', requireAuth, async (req, res) => {
         assignee_id || null,
         due_date || null,
         priority || 'medium',
-        task_type?.trim() || null,
+        stage_id,
         position,
         req.profile.id,
       ]
@@ -103,7 +115,7 @@ router.get('/tasks', requireAuth, async (req, res) => {
 
     const { rows } = await query(
       `SELECT t.id, t.project_id, t.title, t.description, t.status, t.assignee_id,
-              t.due_date, t.position, t.priority, t.task_type, t.created_by, t.completed_at, t.created_at, t.updated_at,
+              t.due_date, t.position, t.priority, t.stage_id, t.created_by, t.completed_at, t.created_at, t.updated_at,
               p.name AS project_name,
               a.name AS assignee_name, a.avatar_url AS assignee_avatar_url,
               COALESCE(tl.total_minutes, 0) AS total_minutes,
@@ -152,6 +164,7 @@ router.get('/tasks/counts', requireAuth, async (_req, res) => {
               COUNT(*)::int AS total,
               COUNT(*) FILTER (WHERE t.status = 'todo')::int        AS todo,
               COUNT(*) FILTER (WHERE t.status = 'in_progress')::int AS in_progress,
+              COUNT(*) FILTER (WHERE t.status = 'blocked')::int     AS blocked,
               COUNT(*) FILTER (WHERE t.status = 'in_review')::int   AS in_review,
               COUNT(*) FILTER (WHERE t.status = 'done')::int        AS done,
               COUNT(*) FILTER (WHERE t.status = 'abandoned')::int   AS abandoned
@@ -172,7 +185,7 @@ router.get('/me/tasks', requireAuth, async (req, res) => {
   try {
     const { rows } = await query(
       `SELECT t.id, t.title, t.project_id, p.name AS project_name,
-              t.status, t.priority, t.due_date,
+              t.status, t.priority, t.due_date, t.stage_id,
               COALESCE(mine.minutes, 0)::int AS my_minutes,
               open.started_at AS open_started_at
        FROM tasks t
@@ -210,7 +223,7 @@ router.get('/tasks/:id', requireAuth, async (req, res) => {
   try {
     const { rows } = await query(
       `SELECT t.id, t.project_id, t.title, t.description, t.status, t.assignee_id,
-              t.due_date, t.position, t.priority, t.task_type, t.created_by, t.completed_at, t.created_at, t.updated_at,
+              t.due_date, t.position, t.priority, t.stage_id, t.created_by, t.completed_at, t.created_at, t.updated_at,
               p.name AS project_name,
               a.name AS assignee_name, a.avatar_url AS assignee_avatar_url,
               COALESCE(tl.total_minutes, 0) AS total_minutes,
@@ -262,9 +275,9 @@ router.put('/tasks/:id', requireAuth, async (req, res) => {
 router.put('/tasks/:id/status', requireAuth, async (req, res) => {
   const { id } = req.params
   const { status, position } = req.body
-  const VALID = ['todo', 'in_progress', 'in_review', 'done', 'abandoned']
+  const VALID = ['todo', 'in_progress', 'blocked', 'in_review', 'done', 'abandoned']
   if (!VALID.includes(status)) {
-    return res.status(400).json({ error: 'status inválido. Use todo, in_progress, in_review, done ou abandoned.' })
+    return res.status(400).json({ error: 'status inválido. Use todo, in_progress, blocked, in_review, done ou abandoned.' })
   }
   try {
     const { rows: taskRows } = await query(

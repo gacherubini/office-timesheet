@@ -45,9 +45,11 @@ describe('falha de infra não vaza jargão para o usuário', () => {
 
   it('execute: erro de driver (SQLSTATE) não vaza jargão do Postgres', async () => {
     const proj = await makeProject({ name: 'Acme' })
+    const { rows: etapas } = await query(
+      `INSERT INTO project_stages (project_id, name) VALUES ($1,'Anteprojeto') RETURNING id`, [proj.id])
     const { rows } = await query(
-      `INSERT INTO tasks (project_id, title, status, position) VALUES ($1,'Logo','todo',0) RETURNING id`,
-      [proj.id],
+      `INSERT INTO tasks (project_id, title, status, position, stage_id) VALUES ($1,'Logo','todo',0,$2) RETURNING id`,
+      [proj.id, etapas[0].id],
     )
     clearTestSink()
     const { proposalId } = createProposal({

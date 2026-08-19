@@ -4,13 +4,13 @@ import { query } from '../../../db.js'
 import { logActivity } from '../../../taskActivity.js'
 import { resolverTarefa } from '../tarefas.js'
 
-const VALID = ['todo', 'in_progress', 'in_review', 'done', 'abandoned']
+const VALID = ['todo', 'in_progress', 'blocked', 'in_review', 'done', 'abandoned']
 
 const definition = {
   type: 'function',
   function: {
     name: 'propor_mover_task',
-    description: 'Propõe mover uma tarefa de coluna no kanban. Requer confirmação. Status: todo, in_progress, in_review, done ou abandoned.',
+    description: 'Propõe mover uma tarefa de coluna no kanban. Requer confirmação. Status: todo, in_progress, blocked, in_review, done ou abandoned.',
     parameters: {
       type: 'object',
       properties: {
@@ -27,7 +27,7 @@ const definition = {
 async function propose(_profile, args) {
   const status = args?.status
   if (!VALID.includes(status)) {
-    throw new Error('status inválido. Use todo, in_progress, in_review, done ou abandoned.')
+    throw new Error('status inválido. Use todo, in_progress, blocked, in_review, done ou abandoned.')
   }
   const tarefa = await resolverTarefa(args?.tarefa, { projeto: args?.projeto, acao: 'mover a tarefa' })
   return {

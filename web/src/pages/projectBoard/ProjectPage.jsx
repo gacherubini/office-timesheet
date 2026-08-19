@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   ArrowLeft, FileText, Upload, Trash2, User, MapPin, Phone, Plus, Pencil, Save, X, Clock3,
-  Play, Pause, Square,
+  Play, Pause, Square, Settings,
 } from 'lucide-react'
 import { api } from '../../lib/api'
 import { carimbarContexto } from '../../lib/agentContext'
@@ -9,7 +9,14 @@ import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Input, Select } from '../../components/ui/Input'
 import { KanbanBoard } from './KanbanBoard'
+import { StageTrack } from './StageTrack'
+import { StageManagerModal } from './StageManagerModal'
+import { PAPEIS_CLIENTE } from './ProjectClientsField'
 import { formatMinutes, formatClock } from './helpers'
+
+function papelClienteLabel(role) {
+  return PAPEIS_CLIENTE.find((p) => p.value === role)?.label || role
+}
 
 function formatFileSize(bytes) {
   if (!bytes) return ''
@@ -37,8 +44,24 @@ export function ProjectPage({
   const [feedback, setFeedback] = useState('')
   const fileRef = useRef(null)
 
+  // Trilha de etapas (item 8 do PDF): a lista vem de GET /projects/:id/stages
+  // (Task 7 do backend). etapaAtiva filtra o quadro; null = todas as etapas.
+  const [stages, setStages] = useState([])
+  const [etapaAtiva, setEtapaAtiva] = useState(null)
+  const [showStageManager, setShowStageManager] = useState(false)
+
+  // Contratantes do projeto (item 7 do PDF): GET /projects/:id/stages não traz
+  // isto — o `project` recebido do catálogo (GET /projects) também não. É
+  // preciso buscar a ficha completa (GET /projects/:id) para os `clients[]`.
+  const [clients, setClients] = useState([])
+
   const completed = project?.status === 'completed'
-  const taskCount = tasks?.length || 0
+
+  // Quadro filtrado pela etapa ativa na trilha — "clico em 'anteprojeto' e o
+  // quadro mostra só as tarefas dessa etapa" (aceite do item 8).
+  const filteredTasks = etapaAtiva ? (tasks || []).filter((t) => t.stage_id === etapaAtiva) : tasks
+  const etapaAtivaObj = etapaAtiva ? stages.find((s) => s.id === etapaAtiva) : null
+  const boardTitle = etapaAtivaObj ? `Tarefas · ${etapaAtivaObj.name}` : 'Tarefas · Todas as etapas'
 
   // Apontamento do projeto: mesmo estado usado no card do catálogo.
   const isTiming = activeTimer?.project_id === project?.id
@@ -61,12 +84,32 @@ export function ProjectPage({
     }
   }
 
+  async function loadStages() {
+    try {
+      setStages(await api.get(`/projects/${project.id}/stages`))
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  async function loadClients() {
+    try {
+      const full = await api.get(`/projects/${project.id}`)
+      setClients(full.clients || [])
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
   useEffect(() => {
     if (!project?.id) return
     loadHours()
     loadDocuments()
+    loadStages()
+    loadClients()
     setBriefingDraft(project.briefing || '')
     setEditingBriefing(false)
+    setEtapaAtiva(null)
     // Contexto para o chat: o projeto aberto agora (não o último visitado
     // na listagem, que é o que ProjectBoardPage.jsx carimba).
     carimbarContexto({ projectId: project.id, projectName: project.name })
@@ -148,15 +191,30 @@ export function ProjectPage({
           )}
         </div>
         <div className="flex items-center gap-2 flex-wrap md:pr-12">
-          <span className="inline-flex items-center bg-surface-alt px-2.5 py-1 text-[11px] font-medium text-text-secondary" title="Etapa — em breve">
-            Etapa · em breve
-          </span>
           <span className={`inline-flex items-center px-2.5 py-1 text-[11px] font-medium ${
             completed ? 'state-success-soft' : 'bg-accent/15 text-accent'
           }`}>
             {completed ? 'Concluído' : 'Em andamento'}
           </span>
         </div>
+      </div>
+
+      {/* Trilha de etapas — "fica no topo da página do projeto, mostrando o
+          que já fechou, onde o projeto está e o que vem" (item 8 do PDF) */}
+      <div className="mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-[13px] font-medium text-text-secondary">Etapas do projeto</h2>
+          {canManage && (
+            <button
+              type="button"
+              onClick={() => setShowStageManager(true)}
+              className="inline-flex items-center gap-1 text-xs text-text-secondary transition-colors hover:text-text-primary"
+            >
+              <Settings size={13} /> Gerenciar etapas
+            </button>
+          )}
+        </div>
+        <StageTrack etapas={stages} etapaAtiva={etapaAtiva} onSelecionar={setEtapaAtiva} />
       </div>
 
       {feedback && (
@@ -216,9 +274,20 @@ export function ProjectPage({
           {/* Tarefas do projeto — board de 4 colunas */}
           <Card padded={false} className="p-4">
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
-              <h2 className="text-[15px] font-medium text-text-primary sm:pt-1">
-                Tarefas do projeto · {taskCount}
-              </h2>
+              <div className="sm:pt-1">
+                <h2 className="text-[15px] font-medium text-text-primary">
+                  {boardTitle} · {filteredTasks?.length || 0}
+                </h2>
+                {etapaAtiva && (
+                  <button
+                    type="button"
+                    onClick={() => setEtapaAtiva(null)}
+                    className="mt-0.5 text-[11px] text-accent hover:underline"
+                  >
+                    Todas as etapas
+                  </button>
+                )}
+              </div>
               <div className="flex items-end gap-2 flex-wrap">
                 <Select
                   label="Responsável"
@@ -238,7 +307,7 @@ export function ProjectPage({
                   className="w-48"
                 />
                 {canCreate && (
-                  <Button onClick={onNewTask}>
+                  <Button onClick={() => onNewTask(etapaAtiva)}>
                     <Plus size={16} /> Nova
                   </Button>
                 )}
@@ -249,7 +318,7 @@ export function ProjectPage({
               <div className="py-16 text-center text-text-secondary text-sm">Carregando...</div>
             ) : (
               <KanbanBoard
-                tasks={tasks}
+                tasks={filteredTasks}
                 onOpenTask={onOpenTask}
                 onMove={onMove}
                 currentUserId={currentUserId}
@@ -262,13 +331,30 @@ export function ProjectPage({
         </div>
 
         <div className="space-y-4">
-          {/* Cliente / endereço */}
+          {/* Cliente / endereço — cabeçalho continua com o principal
+              (project.client, já sincronizado pelo backend); aqui o card
+              lista TODOS os contratantes com o papel (item 7 do PDF: "ambos
+              aparecem no projeto e o projeto aparece na ficha dos dois"). O
+              contato mostrado continua sendo o do principal. */}
           <Card>
             <div className="flex items-center gap-2 mb-3">
               <User size={16} className="text-text-secondary" />
-              <h2 className="text-[15px] font-medium text-text-primary">Cliente / endereço</h2>
+              <h2 className="text-[15px] font-medium text-text-primary">Contratantes</h2>
             </div>
-            <p className="text-sm font-medium text-text-primary">{project?.client || '—'}</p>
+            {clients.length > 0 ? (
+              <ul className="space-y-1.5">
+                {clients.map((c) => (
+                  <li key={c.client_id} className="flex items-center justify-between gap-2 text-sm">
+                    <span className="text-text-primary truncate">{c.name}</span>
+                    <span className="flex-none text-[11px] text-text-secondary">
+                      {papelClienteLabel(c.role)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm font-medium text-text-primary">{project?.client || '—'}</p>
+            )}
             {project?.client_phone && (
               <p className="flex items-center gap-1.5 text-sm text-text-secondary mt-1.5">
                 <Phone size={13} /> {project.client_phone}
@@ -381,6 +467,16 @@ export function ProjectPage({
           </Card>
         </div>
       </div>
+
+      {showStageManager && (
+        <StageManagerModal
+          projectId={project.id}
+          stages={stages}
+          users={users}
+          onClose={() => setShowStageManager(false)}
+          onChanged={loadStages}
+        />
+      )}
     </div>
   )
 }

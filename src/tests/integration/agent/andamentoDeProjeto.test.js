@@ -9,9 +9,11 @@ describe('tool andamento_de_projeto (todos os papéis)', () => {
     await resetDb()
     ana = await makeUser({ role: 'employee', name: 'Ana' })
     proj = await makeProject({ name: 'P' })
+    const { rows: etapas } = await query(
+      `INSERT INTO project_stages (project_id, name) VALUES ($1,'Anteprojeto') RETURNING id`, [proj.id])
     const t = await query(
-      `INSERT INTO tasks (project_id, title, status, position) VALUES ($1,'Tarefa X','in_progress',0) RETURNING id`,
-      [proj.id],
+      `INSERT INTO tasks (project_id, title, status, position, stage_id) VALUES ($1,'Tarefa X','in_progress',0,$2) RETURNING id`,
+      [proj.id, etapas[0].id],
     )
     taskId = t.rows[0].id
     // Tudo com now() → cai na semana corrente.
@@ -63,9 +65,11 @@ describe('tool andamento_de_projeto (todos os papéis)', () => {
     // 22h de HOJE em SP = 01h de AMANHÃ em UTC. Com created_at comparado à data
     // nua (UTC) a atividade cairia fora do dia; a fronteira certa é no fuso SP.
     const projFuso = await makeProject({ name: 'Fuso' })
+    const { rows: etapasFuso } = await query(
+      `INSERT INTO project_stages (project_id, name) VALUES ($1,'Anteprojeto') RETURNING id`, [projFuso.id])
     const tf = await query(
-      `INSERT INTO tasks (project_id, title, status, position) VALUES ($1,'TF','todo',0) RETURNING id`,
-      [projFuso.id],
+      `INSERT INTO tasks (project_id, title, status, position, stage_id) VALUES ($1,'TF','todo',0,$2) RETURNING id`,
+      [projFuso.id, etapasFuso[0].id],
     )
     await query(
       `INSERT INTO task_activity (task_id, actor_id, type, detail, created_at)

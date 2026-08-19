@@ -125,9 +125,13 @@ describe('paridade de papel: tool ↔ endpoint espelhado (§18)', () => {
       [emp.id],
     )
     const projeto = await makeProject({ name: 'Paridade' })
-    const { rows: taskRows } = await query(
-      `INSERT INTO tasks (project_id, title, status, position) VALUES ($1,'Paridade','todo',0) RETURNING id`,
+    const { rows: etapaRows } = await query(
+      `INSERT INTO project_stages (project_id, name) VALUES ($1,'Anteprojeto') RETURNING id`,
       [projeto.id],
+    )
+    const { rows: taskRows } = await query(
+      `INSERT INTO tasks (project_id, title, status, position, stage_id) VALUES ($1,'Paridade','todo',0,$2) RETURNING id`,
+      [projeto.id, etapaRows[0].id],
     )
     const { rows: bonusRows } = await query(
       `INSERT INTO bonuses (user_id, title, amount, bonus_date, created_by)

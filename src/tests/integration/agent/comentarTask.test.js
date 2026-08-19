@@ -9,7 +9,11 @@ describe('propor_comentar_task', () => {
     await resetDb()
     emp = await makeUser({ role: 'employee', name: 'Ana' })
     proj = await makeProject({ name: 'Acme' })
-    await query(`INSERT INTO tasks (project_id, title, status, position) VALUES ($1,'Logo','todo',0)`, [proj.id])
+    const { rows: etapas } = await query(
+      `INSERT INTO project_stages (project_id, name) VALUES ($1,'Anteprojeto') RETURNING id`, [proj.id])
+    await query(
+      `INSERT INTO tasks (project_id, title, status, position, stage_id) VALUES ($1,'Logo','todo',0,$2)`,
+      [proj.id, etapas[0].id])
   })
   it('texto vazio recusa; propose não grava', async () => {
     await expect(tool.propose(emp, { tarefa: 'Logo', texto: '   ' })).rejects.toThrow(/texto/i)

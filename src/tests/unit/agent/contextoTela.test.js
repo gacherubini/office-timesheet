@@ -10,7 +10,11 @@ describe('validarContexto', () => {
     user = await makeUser({ role: 'employee' })
     acme = await makeProject({ name: 'Acme' })
     outro = await makeProject({ name: 'Outro' })
-    await query(`INSERT INTO tasks (project_id, title, status, position) VALUES ($1,'Logo','todo',0)`, [acme.id])
+    const { rows: etapas } = await query(
+      `INSERT INTO project_stages (project_id, name) VALUES ($1,'Anteprojeto') RETURNING id`, [acme.id])
+    await query(
+      `INSERT INTO tasks (project_id, title, status, position, stage_id) VALUES ($1,'Logo','todo',0,$2)`,
+      [acme.id, etapas[0].id])
   })
 
   it('id válido devolve nome do banco', async () => {

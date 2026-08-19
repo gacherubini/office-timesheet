@@ -34,6 +34,11 @@ import { SupplierFormModal } from '../components/SupplierFormModal'
 import { ROLES, roleLabel } from '../lib/permissions'
 import { CARGOS, CARGO_PADRAO } from '../lib/cargos'
 import { tempoDeCasa } from '../lib/tempoDeCasa'
+import { PAPEIS_CLIENTE } from './projectBoard/ProjectClientsField'
+
+function papelClienteLabel(role) {
+  return PAPEIS_CLIENTE.find((p) => p.value === role)?.label || role
+}
 
 function whatsappLink(phone) {
   if (!phone) return null
@@ -1044,6 +1049,37 @@ function OutrosContatos({ ficha }) {
   )
 }
 
+// Projetos do cliente, com o papel em cada um (segunda metade do aceite do
+// item 7 do PDF: "o projeto aparece na ficha dos dois"). `ficha.projects`
+// vem de GET /admin/clients/:id (Task 2) e já conta TODOS os papéis, não só
+// contratante principal — é o mesmo motivo do `project_count` bater com os
+// dois contratantes de um projeto.
+function ProjetosDoCliente({ ficha }) {
+  if (!ficha) return null
+  const projetos = ficha.projects || []
+  return (
+    <DetailRow label={`Projetos${projetos.length > 0 ? ` (${ficha.project_count})` : ''}`}>
+      {projetos.length === 0 ? (
+        '—'
+      ) : (
+        <ul className="space-y-1">
+          {projetos.map((p) => (
+            <li key={p.id} className="flex items-center justify-between gap-2">
+              <span className="truncate">{p.name}</span>
+              <span className="flex-none flex items-center gap-1.5">
+                <span className="text-[11px] text-text-secondary">{papelClienteLabel(p.role)}</span>
+                <Badge tone={p.status === 'completed' ? 'success' : 'neutral'}>
+                  {p.status === 'completed' ? 'Concluído' : 'Em andamento'}
+                </Badge>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </DetailRow>
+  )
+}
+
 // Pop-up de detalhe (mockup pág. 10). Mostra os campos que temos por tipo;
 // CRM, documentos e projetos vinculados ficam para a próxima etapa.
 function PersonDetailModal({
@@ -1131,6 +1167,7 @@ function PersonDetailModal({
             <DetailRow label="Nascimento">{raw.birth_date ? formatDate(raw.birth_date) : ''}</DetailRow>
             <DetailRow label="Endereço">{raw.primary_address}</DetailRow>
             <DetailRow label="Observações">{raw.notes}</DetailRow>
+            <ProjetosDoCliente ficha={ficha} />
           </>
         )}
         {person.kind === 'fornecedor' && (
@@ -1175,7 +1212,9 @@ function PersonDetailModal({
       </div>
 
       <div className="mt-4 bg-surface-alt p-3 text-[13px] text-text-secondary">
-        Histórico CRM, documentos e projetos vinculados chegam na próxima etapa.
+        {person.kind === 'cliente'
+          ? 'Histórico CRM e documentos chegam na próxima etapa.'
+          : 'Histórico CRM, documentos e projetos vinculados chegam na próxima etapa.'}
       </div>
 
       <div className="flex items-center justify-end gap-2 mt-5">

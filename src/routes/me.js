@@ -420,12 +420,22 @@ router.get('/me/stats', requireAuth, async (req, res) => {
     }
 
     // "Tipos de tarefa mais feitas" (Performance): soma os cronômetros de tarefa
-    // concluídos no mês, agrupados pela etapa (tasks.task_type).
+    // concluídos no mês, agrupados pela etapa.
+    //
+    // Antes agrupava por tasks.task_type (texto livre). A migration 051 removeu
+    // essa coluna: a etapa agora é tasks.stage_id → project_stages.name. A
+    // CHAVE da resposta continua `task_type_breakdown` e o campo de cada linha
+    // continua `task_type` de propósito — o front (PerformancePage.jsx) lê
+    // esses dois nomes direto e renomear quebraria a tela; só a FONTE mudou.
+    // LEFT JOIN (não INNER) por segurança: stage_id é NOT NULL desde a 051,
+    // mas se algum dia isso deixar de valer, uma tarefa sem etapa cai em
+    // 'Sem etapa' em vez de sumir da soma.
     const { rows: taskTypeRows } = await query(
-      `SELECT COALESCE(NULLIF(TRIM(t.task_type), ''), 'Sem etapa') AS task_type,
+      `SELECT COALESCE(NULLIF(TRIM(s.name), ''), 'Sem etapa') AS task_type,
               COALESCE(SUM(ttl.duration_minutes), 0)::int AS total_minutes
        FROM task_time_logs ttl
        JOIN tasks t ON t.id = ttl.task_id
+       LEFT JOIN project_stages s ON s.id = t.stage_id
        WHERE ttl.user_id = $1 AND ttl.ended_at IS NOT NULL
          AND ttl.started_at >= ($2::timestamp AT TIME ZONE 'America/Sao_Paulo')
          AND ttl.started_at < (($3::date + interval '1 day')::timestamp AT TIME ZONE 'America/Sao_Paulo')

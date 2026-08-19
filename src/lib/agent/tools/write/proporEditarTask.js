@@ -1,8 +1,16 @@
 // Espelha PUT /tasks/:id (requireAuth, qualquer logado), recorte fino: título,
-// prioridade, responsável ou prazo. Sem description/task_type. Responsável
+// prioridade, responsável, prazo ou etapa. Sem description. Responsável
 // vazio ou "ninguém" desatribui. Pelo menos um campo de mudança.
+//
+// CAMPO DE ETAPA: aplicarEdicaoTask (lib/taskEdits.js) já aceita stage_id no
+// patch — mover uma tarefa já existente para outra etapa tem endpoint desde
+// que o PUT /tasks/:id ganhou suporte. Esta tool resolve a etapa pelo NOME
+// dentro do projeto da tarefa (resolverEtapa, tools/etapas.js — mesmo padrão
+// de resolverPessoa em tools/pessoas.js: nome ambíguo ou inexistente vira erro
+// legível), porque a mesma etapa se repete em várias obras.
 import { resolverTarefa } from '../tarefas.js'
 import { resolverPessoa } from '../pessoas.js'
+import { resolverEtapa } from '../etapas.js'
 import { aplicarEdicaoTask, VALID_PRIORITY } from '../../../taskEdits.js'
 import { formatDateBR } from '../../format.js'
 
@@ -10,7 +18,7 @@ const definition = {
   type: 'function',
   function: {
     name: 'propor_editar_task',
-    description: 'Propõe editar título, prioridade, responsável ou prazo de uma tarefa. Requer confirmação. Responsável vazio ou "ninguém" desatribui.',
+    description: 'Propõe editar título, prioridade, responsável, prazo ou etapa de uma tarefa. Requer confirmação. Responsável vazio ou "ninguém" desatribui.',
     parameters: {
       type: 'object',
       properties: {
@@ -20,6 +28,7 @@ const definition = {
         prioridade: { type: 'string', enum: VALID_PRIORITY, description: 'low, medium ou high' },
         responsavel: { type: 'string', description: 'nome da pessoa; vazio ou "ninguém" desatribui' },
         prazo: { type: 'string', description: 'prazo YYYY-MM-DD; vazio limpa o prazo' },
+        etapa: { type: 'string', description: 'nome da nova etapa (dentro do projeto da tarefa)' },
       },
       required: ['tarefa'],
       additionalProperties: false,
@@ -46,8 +55,9 @@ async function propose(_profile, args) {
   const temPrioridade = args?.prioridade !== undefined
   const temResponsavel = args?.responsavel !== undefined
   const temPrazo = args?.prazo !== undefined
-  if (!temTitulo && !temPrioridade && !temResponsavel && !temPrazo) {
-    throw new Error('Informe ao menos um campo para alterar (título, prioridade, responsável ou prazo).')
+  const temEtapa = args?.etapa !== undefined
+  if (!temTitulo && !temPrioridade && !temResponsavel && !temPrazo && !temEtapa) {
+    throw new Error('Informe ao menos um campo para alterar (título, prioridade, responsável, prazo ou etapa).')
   }
   if (temTitulo && !(args.titulo || '').trim()) {
     throw new Error('O título não pode ser vazio.')
@@ -85,6 +95,15 @@ async function propose(_profile, args) {
     }
     patch.due_date = raw || null
     dados.prazo = patch.due_date ? formatDateBR(patch.due_date) : 'sem prazo'
+  }
+  if (temEtapa) {
+    // Diferente de responsável/prazo, etapa não tem "esvaziar": toda tarefa
+    // pertence a uma etapa (stage_id é NOT NULL desde a migration 051).
+    const nomeEtapa = (args.etapa || '').trim()
+    if (!nomeEtapa) throw new Error('Diga o nome da nova etapa.')
+    const etapa = await resolverEtapa(nomeEtapa, { id: tarefa.project_id, name: tarefa.project_name })
+    patch.stage_id = etapa.id
+    dados.etapa = etapa.name
   }
 
   return {

@@ -3,22 +3,25 @@ import { resetDb, query } from '../../helpers/db.js'
 import { makeUser, makeProject } from '../../helpers/factories.js'
 import tool from '../../../lib/agent/tools/read/statusProjeto.js'
 
-async function makeTask({ project_id, title, status }) {
+async function makeTask({ project_id, title, status, stage_id }) {
   await query(
-    `INSERT INTO tasks (project_id, title, status, position) VALUES ($1,$2,$3,0)`,
-    [project_id, title, status],
+    `INSERT INTO tasks (project_id, title, status, position, stage_id) VALUES ($1,$2,$3,0,$4)`,
+    [project_id, title, status, stage_id],
   )
 }
 
 describe('tool status_projeto (todos os papéis)', () => {
-  let emp, proj
+  let emp, proj, etapa
   beforeEach(async () => {
     await resetDb()
     emp = await makeUser({ role: 'employee' })
     proj = await makeProject({ name: 'Projeto A', status: 'active' })
-    await makeTask({ project_id: proj.id, title: 'T1', status: 'todo' })
-    await makeTask({ project_id: proj.id, title: 'T2', status: 'in_review' })
-    await makeTask({ project_id: proj.id, title: 'T3', status: 'done' })
+    const { rows: etapas } = await query(
+      `INSERT INTO project_stages (project_id, name) VALUES ($1,'Anteprojeto') RETURNING id`, [proj.id])
+    etapa = etapas[0].id
+    await makeTask({ project_id: proj.id, title: 'T1', status: 'todo', stage_id: etapa })
+    await makeTask({ project_id: proj.id, title: 'T2', status: 'in_review', stage_id: etapa })
+    await makeTask({ project_id: proj.id, title: 'T3', status: 'done', stage_id: etapa })
     await query(
       `INSERT INTO time_entries (user_id, project_id, started_at, ended_at, status, duration_minutes, cost_snapshot)
        VALUES ($1,$2, now(), now(), 'completed', 120, 0)`,

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { api } from '../../lib/api'
 import { Modal } from '../../components/ui/Modal'
 import { Input, Select } from '../../components/ui/Input'
@@ -6,7 +6,6 @@ import { Button } from '../../components/ui/Button'
 import { AssigneePicker } from './AssigneePicker'
 import { PriorityChip } from './PriorityChip'
 import { DueDateChip } from './DueDateChip'
-import { TASK_TYPES } from '../../lib/taskTypes'
 
 function Field({ label, children }) {
   return (
@@ -19,7 +18,10 @@ function Field({ label, children }) {
 
 // `projects` (opcional) habilita o seletor de projeto (usado no board global de
 // Tarefas). No board de um projeto, passe `projectId` e omita `projects`.
-export function NewTaskModal({ projectId, projects, users, onClose, onCreated }) {
+// `etapaAtiva` (opcional) pré-preenche a etapa quando a tarefa nasce a partir
+// de uma trilha já filtrada — quem está olhando o Anteprojeto quase sempre
+// quer criar tarefa nele (item 8 do PDF).
+export function NewTaskModal({ projectId, projects, users, etapaAtiva, onClose, onCreated }) {
   const showProjectPicker = Array.isArray(projects) && projects.length > 0 && !projectId
   const [selectedProject, setSelectedProject] = useState(projectId || '')
   const [title, setTitle] = useState('')
@@ -27,13 +29,36 @@ export function NewTaskModal({ projectId, projects, users, onClose, onCreated })
   const [assigneeId, setAssigneeId] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [priority, setPriority] = useState('medium')
-  const [taskType, setTaskType] = useState('')
+  const [stageId, setStageId] = useState(etapaAtiva || '')
+  const [stages, setStages] = useState([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  // Etapa é obrigatória — a lista vem do projeto selecionado (Task 7 do
+  // backend). Recarrega sempre que o projeto muda (relevante no seletor do
+  // board global de Tarefas, onde o usuário escolhe o projeto na hora).
+  useEffect(() => {
+    if (!selectedProject) { setStages([]); return }
+    let cancelado = false
+    api.get(`/projects/${selectedProject}/stages`)
+      .then((rows) => { if (!cancelado) setStages(rows || []) })
+      .catch(() => { if (!cancelado) setStages([]) })
+    return () => { cancelado = true }
+  }, [selectedProject])
+
+  // Pré-preenche com a etapa filtrada assim que a lista chega, sem sobrescrever
+  // uma escolha que o usuário já tenha feito na mesma sessão do modal.
+  useEffect(() => {
+    if (etapaAtiva && stages.some((e) => e.id === etapaAtiva)) {
+      setStageId((cur) => cur || etapaAtiva)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stages])
 
   async function handleCreate() {
     if (!title.trim()) { setError('Informe um título.'); return }
     if (!selectedProject) { setError('Selecione um projeto.'); return }
+    if (!stageId) { setError('Selecione a etapa da tarefa.'); return }
     setSaving(true); setError('')
     try {
       const created = await api.post(`/projects/${selectedProject}/tasks`, {
@@ -42,7 +67,7 @@ export function NewTaskModal({ projectId, projects, users, onClose, onCreated })
         assignee_id: assigneeId || null,
         due_date: dueDate || null,
         priority,
-        task_type: taskType || null,
+        stage_id: stageId,
       })
       onCreated(created)
     } catch (err) {
@@ -69,7 +94,11 @@ export function NewTaskModal({ projectId, projects, users, onClose, onCreated })
       {error && <p className="text-xs state-danger mb-3">{error}</p>}
       <div className="space-y-4">
         {showProjectPicker && (
-          <Select label="Projeto" value={selectedProject} onChange={(e) => setSelectedProject(e.target.value)}>
+          <Select
+            label="Projeto"
+            value={selectedProject}
+            onChange={(e) => { setSelectedProject(e.target.value); setStageId('') }}
+          >
             <option value="">Selecione um projeto...</option>
             {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </Select>
@@ -86,9 +115,11 @@ export function NewTaskModal({ projectId, projects, users, onClose, onCreated })
             <DueDateChip value={dueDate || null} status="todo" onChange={(d) => setDueDate(d || '')} />
           </Field>
         </div>
-        <Select label="Etapa" value={taskType} onChange={(e) => setTaskType(e.target.value)}>
-          <option value="">Sem etapa</option>
-          {TASK_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+        <Select label="Etapa" required value={stageId} onChange={(e) => setStageId(e.target.value)}>
+          <option value="">
+            {selectedProject ? 'Selecione a etapa...' : 'Selecione um projeto primeiro'}
+          </option>
+          {stages.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
         </Select>
         <Input label="Descrição" as="textarea" rows={4} value={description} onChange={(e) => setDescription(e.target.value)} />
       </div>

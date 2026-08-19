@@ -1,5 +1,11 @@
 // Derivado, admin: horas apontadas no período + tarefas abertas atribuídas, por
 // pessoa. Ajuda a ver sobrecarga (muitas horas/tarefas) e ociosidade (zero).
+// "Aberta" = não chegou a um status terminal (done/abandoned) — inclui
+// `blocked` ("Falta info") de propósito: a tarefa travada esperando terceiro
+// continua sob a responsabilidade da pessoa (ela precisa cobrar o cliente, ir
+// atrás da topografia etc.), só não avança sozinha. Tirar `blocked` da conta
+// faria a carga da pessoa CAIR quando uma tarefa trava — o oposto do que
+// "carga" deveria mostrar.
 import { query } from '../../../db.js'
 import { resolvePeriodo } from '../../format.js'
 
@@ -24,7 +30,7 @@ async function run(_profile, args) {
             COUNT(te.id)::int AS apontamentos,
             (SELECT COUNT(*) FROM tasks tk
               WHERE tk.assignee_id = u.id
-                AND tk.status IN ('todo','in_progress','in_review'))::int AS tarefas_abertas
+                AND tk.status IN ('todo','in_progress','blocked','in_review'))::int AS tarefas_abertas
        FROM users u
        LEFT JOIN time_entries te
          ON te.user_id = u.id AND te.status = 'completed'

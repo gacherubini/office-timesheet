@@ -37,6 +37,58 @@ const uploadDoc = multer({
 
 const router = Router()
 
+const PAPEIS_CLIENTE = new Set(['contratante_principal', 'contratante', 'investidor', 'representante'])
+
+// Mesma forma de normalizarContatos (lib/personContacts.js): valida tudo ANTES
+// de abrir a transação e garante exatamente um principal, promovendo o primeiro
+// se ninguém marcar. O card e o cabeçalho do projeto precisam de um principal.
+function normalizarClientesDoProjeto(lista) {
+  const entrada = Array.isArray(lista) ? lista : []
+  if (entrada.length === 0) return { error: 'O projeto precisa de ao menos um cliente.' }
+
+  const itens = []
+  const vistos = new Set()
+  for (const bruto of entrada) {
+    const clientId = bruto?.client_id
+    if (!clientId) return { error: 'Todo vínculo precisa apontar para um cliente cadastrado.' }
+    if (vistos.has(clientId)) return { error: 'O mesmo cliente aparece duas vezes no projeto.' }
+    vistos.add(clientId)
+    const role = bruto.role || 'contratante'
+    if (!PAPEIS_CLIENTE.has(role)) return { error: `Papel de cliente inválido: ${role}.` }
+    itens.push({ client_id: clientId, role, is_primary: Boolean(bruto.is_primary) })
+  }
+
+  const principais = itens.filter((i) => i.is_primary)
+  if (principais.length > 1) return { error: 'Marque apenas um cliente como principal.' }
+  if (principais.length === 0) itens[0].is_primary = true
+
+  return { itens }
+}
+
+// Compatibilidade: corpo no formato antigo (client_id solto) vira uma lista de
+// um item, contratante principal. Chamadas antigas do front migram na Task 10.
+function clientesDoCorpo(body) {
+  if (Array.isArray(body.clients)) return body.clients
+  if (body.client_id) return [{ client_id: body.client_id, role: 'contratante_principal', is_primary: true }]
+  return []
+}
+
+// Regrava os vínculos e SINCRONIZA projects.client_id/client com o principal.
+// Na mesma transação, e na rota — não em trigger (ver comentário da 045).
+async function gravarClientesDoProjeto(client, projectId, itens) {
+  await client.query('DELETE FROM project_clients WHERE project_id = $1', [projectId])
+  for (const i of itens) {
+    await client.query(
+      `INSERT INTO project_clients (project_id, client_id, role, is_primary) VALUES ($1,$2,$3,$4)`,
+      [projectId, i.client_id, i.role, i.is_primary])
+  }
+  const principal = itens.find((i) => i.is_primary)
+  const { rows } = await client.query('SELECT name FROM clients WHERE id = $1', [principal.client_id])
+  await client.query(
+    `UPDATE projects SET client_id = $1, client = $2 WHERE id = $3`,
+    [principal.client_id, rows[0]?.name || null, projectId])
+}
+
 // Documentos: gestor/admin, ou quem já apontou/tem task no projeto (não qualquer UUID).
 async function canAccessProjectDocuments(profile, projectId) {
   if (canManageProjects(profile) || isAdmin(profile)) return true
@@ -78,13 +130,26 @@ router.get('/projects', requireAuth, async (req, res) => {
        FROM projects p
        LEFT JOIN clients c ON c.id = p.client_id
        LEFT JOIN LATERAL (
-         SELECT value FROM person_phones WHERE client_id = c.id AND is_primary LIMIT 1
+         -- Mesmo achado do reinventário de 19/08/2026 que corrigiu
+         -- GET /admin/clients e GET /admin/suppliers: sem o filtro de
+         -- is_restricted aqui, a linha PRINCIPAL marcada como restrita vazava
+         -- mesmo com o cliente inteiro não sendo admin_only. A ordem
+         -- (is_primary DESC) escolhe a próxima visível quando a principal de
+         -- verdade é restrita — mesmo padrão de filtrarLinhasRestritas() em
+         -- personVisibility.js.
+         SELECT value FROM person_phones
+         WHERE client_id = c.id AND (is_restricted = false OR $1 = true)
+         ORDER BY is_primary DESC, position LIMIT 1
        ) pp ON true
        LEFT JOIN LATERAL (
-         SELECT value FROM person_emails WHERE client_id = c.id AND is_primary LIMIT 1
+         SELECT value FROM person_emails
+         WHERE client_id = c.id AND (is_restricted = false OR $1 = true)
+         ORDER BY is_primary DESC, position LIMIT 1
        ) pe ON true
        LEFT JOIN LATERAL (
-         SELECT street FROM person_addresses WHERE client_id = c.id AND is_primary LIMIT 1
+         SELECT street FROM person_addresses
+         WHERE client_id = c.id AND (is_restricted = false OR $1 = true)
+         ORDER BY is_primary DESC, position LIMIT 1
        ) pa ON true
        WHERE p.deleted_at IS NULL
        ORDER BY p.created_at DESC`,
@@ -114,36 +179,80 @@ router.get('/projects/deleted', requireAuth, requireAdmin, async (_req, res) => 
   }
 })
 
+// Ficha de UM projeto. Não existia antes da task 2 — a lista (GET /projects)
+// não devolve os vários contratantes; a ficha nova de cliente e a tela de
+// edição de projeto precisam de `clients[]`, então a rota nasce aqui.
+router.get('/projects/:id', requireAuth, async (req, res) => {
+  try {
+    const { rows: projRows } = await query(
+      `SELECT p.id, p.name, COALESCE(c.name, p.client) AS client, p.client_id,
+              p.address, p.start_date, p.status, p.image_url, p.briefing,
+              p.created_at, p.updated_at
+         FROM projects p
+         LEFT JOIN clients c ON c.id = p.client_id
+        WHERE p.id = $1 AND p.deleted_at IS NULL`,
+      [req.params.id],
+    )
+    const project = projRows[0]
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado.' })
+
+    const { rows: clients } = await query(
+      `SELECT pc.client_id, pc.role, pc.is_primary, c.name
+         FROM project_clients pc JOIN clients c ON c.id = pc.client_id
+        WHERE pc.project_id = $1 ORDER BY pc.is_primary DESC, c.name`,
+      [req.params.id],
+    )
+
+    return res.json({ ...project, clients })
+  } catch (err) {
+    logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em GET /projects/:id')
+    return res.status(400).json({ error: err.message })
+  }
+})
+
 router.post('/projects', requireAuth, requireProjectManagement, async (req, res) => {
-  const { name, client_id, address, start_date, template_id } = req.body
+  const { name, address, start_date, template_id } = req.body
 
   // Status nasce sempre "active"; a evolução (concluído/excluído) é tratada
   // depois. Cliente vinculado e data de início são obrigatórios.
   if (!name || !name.trim()) {
     return res.status(400).json({ error: 'Informe o nome do projeto.' })
   }
-  if (!client_id) {
-    return res.status(400).json({ error: 'Selecione um cliente para o projeto.' })
+  const normClientes = normalizarClientesDoProjeto(clientesDoCorpo(req.body))
+  if (normClientes.error) {
+    return res.status(400).json({ error: normClientes.error })
   }
   if (!start_date) {
     return res.status(400).json({ error: 'Informe a data de início.' })
   }
 
   try {
-    const { rows: cli } = await query('SELECT name FROM clients WHERE id = $1', [client_id])
-    if (!cli[0]) {
-      return res.status(400).json({ error: 'Cliente não encontrado.' })
+    // Todo cliente citado precisa existir — checado ANTES de abrir a transação.
+    for (const item of normClientes.itens) {
+      const { rows: cli } = await query('SELECT id FROM clients WHERE id = $1', [item.client_id])
+      if (!cli[0]) {
+        return res.status(400).json({ error: 'Cliente não encontrado.' })
+      }
     }
 
-    // Itens do template (se houver) — validados antes de abrir a transação.
+    // Etapas e itens do template (se houver) — validados antes de abrir a
+    // transação. As etapas vêm PRIMEIRO: a tarefa precisa do stage_id para
+    // nascer (ver geração dentro da transação, abaixo).
+    let templateStages = []
     let templateItems = []
     if (template_id) {
       const { rows: tpl } = await query('SELECT id FROM project_templates WHERE id = $1', [template_id])
       if (!tpl[0]) {
         return res.status(400).json({ error: 'Template não encontrado.' })
       }
+      const { rows: stages } = await query(
+        `SELECT id, catalog_id, name, position FROM project_template_stages
+         WHERE template_id = $1 ORDER BY position, name`,
+        [template_id],
+      )
+      templateStages = stages
       const { rows: items } = await query(
-        `SELECT title, description, priority FROM project_template_items
+        `SELECT title, description, priority, template_stage_id FROM project_template_items
          WHERE template_id = $1 ORDER BY position, created_at`,
         [template_id],
       )
@@ -152,23 +261,62 @@ router.post('/projects', requireAuth, requireProjectManagement, async (req, res)
 
     const project = await withTransaction(async (client) => {
       const { rows } = await client.query(
-        `INSERT INTO projects (name, client, client_id, address, start_date, status, sale_value)
-         VALUES ($1, $2, $3, $4, $5, 'active', 0)
+        `INSERT INTO projects (name, address, start_date, status, sale_value)
+         VALUES ($1, $2, $3, 'active', 0)
          RETURNING id, name, client, client_id, address, start_date, status, image_url, created_at, updated_at`,
-        [name.trim(), cli[0].name, client_id, address?.trim() || null, start_date],
+        [name.trim(), address?.trim() || null, start_date],
       )
       const created = rows[0]
+
+      await gravarClientesDoProjeto(client, created.id, normClientes.itens)
+
+      // Etapas do template primeiro: a tarefa precisa do stage_id para nascer
+      // ("o projeto nasce estruturado em vez de em branco" — item 8 do PDF).
+      const etapaPorTemplateStage = new Map()
+      for (const ts of templateStages) {
+        const { rows: st } = await client.query(
+          `INSERT INTO project_stages (project_id, catalog_id, name, position)
+           VALUES ($1,$2,$3,$4) RETURNING id`,
+          [created.id, ts.catalog_id, ts.name, ts.position],
+        )
+        etapaPorTemplateStage.set(ts.id, st[0].id)
+      }
+
+      // Item de template ANTIGO (sem etapa) cai numa etapa coringa, criada só
+      // se realmente houver item órfão — projeto sem template não ganha
+      // "Sem etapa" à toa.
+      let semEtapaId = null
+      async function etapaDoItem(item) {
+        if (item.template_stage_id) return etapaPorTemplateStage.get(item.template_stage_id)
+        if (!semEtapaId) {
+          const { rows: se } = await client.query(
+            `INSERT INTO project_stages (project_id, name, position) VALUES ($1,'Sem etapa',999) RETURNING id`,
+            [created.id],
+          )
+          semEtapaId = se[0].id
+        }
+        return semEtapaId
+      }
 
       // Gera as tarefas do template, em ordem, na coluna "A fazer".
       for (let i = 0; i < templateItems.length; i++) {
         const item = templateItems[i]
+        const stageId = await etapaDoItem(item)
         await client.query(
-          `INSERT INTO tasks (project_id, title, description, priority, status, position, created_by)
-           VALUES ($1, $2, $3, $4::task_priority, 'todo', $5, $6)`,
-          [created.id, item.title, item.description || null, item.priority || 'medium', i, req.profile.id],
+          `INSERT INTO tasks (project_id, title, description, priority, status, position, stage_id, created_by)
+           VALUES ($1, $2, $3, $4::task_priority, 'todo', $5, $6, $7)`,
+          [created.id, item.title, item.description || null, item.priority || 'medium', i, stageId, req.profile.id],
         )
       }
-      return created
+
+      // gravarClientesDoProjeto já ajustou client/client_id no banco; devolve
+      // o registro atualizado.
+      const { rows: atualizado } = await client.query(
+        `SELECT id, name, client, client_id, address, start_date, status, image_url, created_at, updated_at
+           FROM projects WHERE id = $1`,
+        [created.id],
+      )
+      return atualizado[0]
     })
 
     return res.status(201).json(project)
@@ -180,7 +328,7 @@ router.post('/projects', requireAuth, requireProjectManagement, async (req, res)
 
 router.put('/projects/:id', requireAuth, requireProjectManagement, async (req, res) => {
   const { id } = req.params
-  const { name, client_id, address, start_date, status, briefing } = req.body
+  const { name, address, start_date, status, briefing } = req.body
 
   const updates = {}
   if (name !== undefined) updates.name = name.trim()
@@ -194,44 +342,76 @@ router.put('/projects/:id', requireAuth, requireProjectManagement, async (req, r
     updates.status = status
   }
 
-  if (Object.keys(updates).length === 0 && client_id === undefined) {
+  // Clientes só entram na atualização se o corpo trouxer `clients` (formato
+  // novo) ou `client_id` (formato antigo — ver clientesDoCorpo). Sem isso, o
+  // PUT não mexe nos vínculos existentes.
+  const atualizaClientes = req.body.clients !== undefined || req.body.client_id !== undefined
+  let normClientes = null
+  if (atualizaClientes) {
+    normClientes = normalizarClientesDoProjeto(clientesDoCorpo(req.body))
+    if (normClientes.error) {
+      return res.status(400).json({ error: normClientes.error })
+    }
+  }
+
+  if (Object.keys(updates).length === 0 && !atualizaClientes) {
     return res.status(400).json({ error: 'Nenhum campo para atualizar.' })
   }
 
   try {
-    // Cliente vinculado: valida e denormaliza o nome em `client`.
-    if (client_id !== undefined) {
-      if (!client_id) {
-        return res.status(400).json({ error: 'Selecione um cliente para o projeto.' })
+    if (atualizaClientes) {
+      // Todo cliente citado precisa existir — checado ANTES de abrir a transação.
+      for (const item of normClientes.itens) {
+        const { rows: cli } = await query('SELECT id FROM clients WHERE id = $1', [item.client_id])
+        if (!cli[0]) {
+          return res.status(400).json({ error: 'Cliente não encontrado.' })
+        }
       }
-      const { rows: cli } = await query('SELECT name FROM clients WHERE id = $1', [client_id])
-      if (!cli[0]) {
-        return res.status(400).json({ error: 'Cliente não encontrado.' })
-      }
-      updates.client_id = client_id
-      updates.client = cli[0].name
     }
 
-    const setClauses = []
-    const values = []
-    let paramCount = 1
+    const project = await withTransaction(async (client) => {
+      let atual
+      if (Object.keys(updates).length > 0) {
+        const setClauses = []
+        const values = []
+        let paramCount = 1
 
-    Object.entries(updates).forEach(([key, value]) => {
-      setClauses.push(`${key} = $${paramCount}`)
-      values.push(value)
-      paramCount++
+        Object.entries(updates).forEach(([key, value]) => {
+          setClauses.push(`${key} = $${paramCount}`)
+          values.push(value)
+          paramCount++
+        })
+
+        values.push(id)
+        const sql = `UPDATE projects SET ${setClauses.join(', ')} WHERE id = $${paramCount} AND deleted_at IS NULL RETURNING id`
+        const { rows } = await client.query(sql, values)
+        atual = rows[0]
+      } else {
+        const { rows } = await client.query(
+          'SELECT id FROM projects WHERE id = $1 AND deleted_at IS NULL', [id])
+        atual = rows[0]
+      }
+      if (!atual) return null
+
+      // gravarClientesDoProjeto sincroniza client_id/client com o principal
+      // na mesma transação (ver comentário da 045).
+      if (atualizaClientes) {
+        await gravarClientesDoProjeto(client, id, normClientes.itens)
+      }
+
+      const { rows: full } = await client.query(
+        `SELECT id, name, client, client_id, address, start_date, status, image_url, briefing, created_at, updated_at
+           FROM projects WHERE id = $1`,
+        [id],
+      )
+      return full[0]
     })
 
-    values.push(id)
-    const sql = `UPDATE projects SET ${setClauses.join(', ')} WHERE id = $${paramCount} AND deleted_at IS NULL RETURNING id, name, client, client_id, address, start_date, status, image_url, briefing, created_at, updated_at`
-
-    const { rows } = await query(sql, values)
-
-    if (!rows[0]) {
+    if (!project) {
       return res.status(404).json({ error: 'Projeto não encontrado.' })
     }
 
-    return res.json(rows[0])
+    return res.json(project)
   } catch (err) {
     logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em PUT /projects/:id')
     return res.status(400).json({ error: err.message })
