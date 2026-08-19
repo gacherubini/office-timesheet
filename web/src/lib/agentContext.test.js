@@ -25,3 +25,24 @@ it('JSON corrompido → null', () => {
   sessionStorage.setItem('assistente:contexto', '{')
   expect(lerContexto()).toBeNull()
 })
+
+it('carimba pessoa e devolve na leitura', () => {
+  carimbarContexto({ personId: 'p1', personName: 'Luiz Eduardo' })
+  const ctx = lerContexto()
+  expect(ctx.personId).toBe('p1')
+  expect(ctx.personName).toBe('Luiz Eduardo')
+})
+
+it('pessoa e projeto não se atropelam num carimbo só', () => {
+  carimbarContexto({ projectId: 'pr1', projectName: 'Obra', personId: 'p1', personName: 'Luiz' })
+  const ctx = lerContexto()
+  expect(ctx.projectName).toBe('Obra')
+  expect(ctx.personName).toBe('Luiz')
+})
+
+it('carimbo sem pessoa deixa os campos nulos, não ausentes', () => {
+  carimbarContexto({ projectId: 'pr1', projectName: 'Obra' })
+  const ctx = lerContexto()
+  expect(ctx.personId).toBeNull()
+  expect(ctx.personName).toBeNull()
+})

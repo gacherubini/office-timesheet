@@ -4,6 +4,7 @@ import {
   Play, Pause, Square,
 } from 'lucide-react'
 import { api } from '../../lib/api'
+import { carimbarContexto } from '../../lib/agentContext'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Input, Select } from '../../components/ui/Input'
@@ -66,6 +67,9 @@ export function ProjectPage({
     loadDocuments()
     setBriefingDraft(project.briefing || '')
     setEditingBriefing(false)
+    // Contexto para o chat: o projeto aberto agora (não o último visitado
+    // na listagem, que é o que ProjectBoardPage.jsx carimba).
+    carimbarContexto({ projectId: project.id, projectName: project.name })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project?.id])
 

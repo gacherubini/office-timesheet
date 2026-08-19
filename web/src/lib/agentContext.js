@@ -24,7 +24,7 @@ function lerBruto() {
   }
 }
 
-export function carimbarContexto({ projectId, projectName, taskId, taskTitle, taskCount } = {}) {
+export function carimbarContexto({ projectId, projectName, taskId, taskTitle, taskCount, personId, personName } = {}) {
   const st = storage()
   if (!st) return
   try {
@@ -34,6 +34,8 @@ export function carimbarContexto({ projectId, projectName, taskId, taskTitle, ta
       taskId: taskId ?? null,
       taskTitle: taskTitle ?? null,
       taskCount: taskCount ?? null,
+      personId: personId ?? null,
+      personName: personName ?? null,
     }))
   } catch {
     /* quota/serialização: degrada sem quebrar a UI */

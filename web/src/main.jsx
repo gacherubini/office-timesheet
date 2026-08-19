@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
+import { AgentProvider } from './contexts/AgentContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import App from './App'
 import '@fontsource-variable/funnel-sans'
@@ -16,7 +17,12 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <ErrorBoundary>
       <BrowserRouter>
         <AuthProvider>
-          <App />
+          {/* Fora do App de propósito: o estado da conversa precisa sobreviver
+              à navegação entre rotas, senão o painel perde o fio ao mudar de
+              página — que é justamente o que o item 11 pede para não acontecer. */}
+          <AgentProvider>
+            <App />
+          </AgentProvider>
         </AuthProvider>
       </BrowserRouter>
     </ErrorBoundary>
