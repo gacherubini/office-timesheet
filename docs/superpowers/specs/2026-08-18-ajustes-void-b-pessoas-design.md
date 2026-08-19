@@ -336,15 +336,39 @@ que ela pode fazer no sistema (admin ou padrão). São campos separados."*
 - A linha 368 some. `PessoasPage.jsx:227` (`row.position || roleLabel(row.role)`)
   pode ficar: é fallback para quem não tem cargo.
 
-Backfill mínimo e defensável:
+### Onde `position` é escrito hoje (os três pontos a remover)
 
-```sql
-UPDATE users SET position = 'Arquiteto' WHERE position = 'Colaborador';
-```
+Não é só a tela. `position` **nunca** é digitado por ninguém:
 
-Só isso. Quem tem "Administrador" ou "Estagiário Administrativo" gravado fica
-como está — adivinhar o cargo real de outra pessoa a partir da permissão dela é
-o erro que estamos consertando.
+| Arquivo | Linha | O que faz |
+|---|---|---|
+| `web/src/pages/PessoasPage.jsx` | 368 | front envia `position: roleLabel(form.role)` |
+| `src/routes/users.js` | 97 | criação **ignora** o que o front mandou e grava `roleLabel(role)` |
+| `src/routes/users.js` | 207 | edição sobrescreve `position` sempre que `role` vier no corpo |
+
+Os três somem. `position` passa a ser o que o formulário mandar.
+
+Cuidado ao mexer: `roleLabel()` é usada em **8 outros lugares** para exibir a
+**permissão** — `PessoasPage.jsx:1029` e `:1043` a renderizam dentro de
+`<DetailRow label="Perfil">`. Mudar o retorno de `roleLabel` para "Arquiteto"
+faria a ficha dizer "Perfil: Arquiteto", que é exatamente a confusão que o item
+5 pede para desfazer. A função fica intacta; o que muda é quem chama.
+
+### Backfill: decisão adiada (18/08/2026)
+
+O que fazer com quem já tem `'Colaborador'`, `'Administrador'` ou
+`'Gestor de Projetos'` gravado **ainda não foi decidido**. Opções na mesa:
+
+1. Só `'Colaborador' → 'Arquiteto'` (o que o PDF pede, literal).
+2. Zerar tudo e o admin preenche (exige ajustar o fallback de
+   `PessoasPage.jsx:227`, que hoje cai em `roleLabel()`).
+3. Mapear todos por inferência — desaconselhado: é inferir cargo a partir de
+   permissão, o erro que estamos consertando.
+
+**Isto não bloqueia o resto do item 5.** Separar os campos e parar de
+sobrescrever `position` pode ser implementado antes; o backfill é uma migration
+de uma linha que entra quando a decisão sair. Enquanto isso, o dado antigo fica
+como está e ninguém perde nada.
 
 **Aceite:** *"Ao criar um usuário, o cargo padrão é 'Arquiteto' e a permissão é
 escolhida em campo próprio."*
@@ -369,9 +393,14 @@ leitor de aniversário, de modo que PJ nunca entre. **O que não faz:** adiciona
 clientes ao card, porque isso é funcionalidade nova e não está pedida em lugar
 nenhum do PDF.
 
-⚠️ **Confirmar com o João Pedro:** aniversário de cliente deve aparecer na tela
-inicial? Se sim, é um item a mais (pequeno) e a guarda de PF já estará pronta
-para recebê-lo.
+**Decidido em 18/08/2026: cliente NÃO entra no card.** Fica só a guarda de PF,
+pronta para o dia em que entrar. Adicionar aniversário de cliente à tela inicial
+seria funcionalidade nova, e ainda esbarraria em privacidade — o card é a
+primeira tela e ficaria visível para a equipe inteira.
+
+Se o João Pedro disser que era isso que ele queria, volta como item próprio: a
+guarda já estará no lugar e o custo é pequeno (`clients.birth_date` existe desde
+a migration 019 e já é preenchido no formulário).
 
 ---
 

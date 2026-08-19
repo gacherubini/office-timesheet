@@ -153,8 +153,27 @@ O item 9 merecia o susto: a role `agent_readonly` (migrations 030/031) tem
 `GRANT SELECT` em `clients` e `suppliers`, e SQL ad-hoc atravessaria qualquer
 filtro de aplicação. `consultarDados.js:61` é `roles: ['admin']` e
 `registry.js:7` filtra por papel, então só admin alcança a tool — e admin vê
-tudo mesmo. **Sem ação necessária, mas quem mexer nesse papel no futuro precisa
-saber que isto está aqui.** Registrado por isso.
+tudo mesmo. O risco **hoje** é zero; o risco é de **deriva**: nada no código
+impede alguém de um dia incluir `employee` naquela lista, e nesse dia o SQL
+ad-hoc passa por cima de toda esta matriz de visibilidade, em silêncio.
+
+**Decidido em 18/08/2026: manter o GRANT e travar a invariante com teste.**
+
+```js
+// tests/unit/agent/sqlPiiInvariant.test.js
+// clients/suppliers só podem estar na allowlist do guard enquanto
+// consultar_dados for exclusiva de admin. Se alguém abrir a tool para outro
+// papel, este teste quebra e obriga a pessoa a decidir conscientemente.
+it('SQL ad-hoc sobre tabelas de PII continua exclusivo de admin', () => {
+  const temPII = ['clients', 'suppliers'].some((t) => TABELAS_PERMITIDAS.has(t))
+  if (temPII) expect(consultarDados.roles).toEqual(['admin'])
+})
+```
+
+Escolhido em vez de revogar o GRANT porque a tool existe justamente para as
+perguntas que as tools prontas não cobrem, e o admin enxerga esses dados por
+qualquer tela. O teste ataca o risco real (mudança futura) sem cobrar preço do
+uso legítimo de hoje.
 
 **Teste de cobertura do inventário.** Um teste percorre esta tabela e, para cada
 caminho marcado "precisa", faz a requisição como colaborador e afirma que
@@ -268,6 +287,7 @@ enquanto não houver log.
 | integration | cliente novo nasce com cpf/cnpj/rg/bancários restritos |
 | migration | backfill marca os cadastros existentes |
 | integration | **cobertura do inventário**: varre a tabela do §4 e afirma que nenhum caminho vaza campo restrito para colaborador |
+| unit | **invariante do SQL do agente**: `clients`/`suppliers` na allowlist ⇒ `consultar_dados` é `roles: ['admin']` |
 
 Aceite do PDF: *"Oculto o CPF de um cliente e anexo um contrato como restrito;
 no login de arquiteto, nenhum dos dois aparece."*
@@ -283,7 +303,9 @@ no login de arquiteto, nenhum dos dois aparece."*
 5. `GET /projects`.
 6. Teste de cobertura do inventário — **antes** da tela, para nenhum caminho
    ficar para trás.
-7. Controle de visibilidade na interface.
+7. Teste da invariante do SQL do agente (§4, item 9). Independente do resto —
+   pode ir a qualquer momento, inclusive antes do bloco todo.
+8. Controle de visibilidade na interface.
 
 O passo 1 primeiro é o que garante que a regra viva num lugar só. Se as rotas
 vierem antes, cada uma inventa a sua.
