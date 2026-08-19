@@ -4,6 +4,7 @@ import { api } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 import { useDropzone } from '../hooks/useDropzone'
 import { AttachmentChip } from '../pages/projectBoard/AttachmentChip'
+import { VisibilityToggle } from './pessoas/VisibilityToggle'
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? '/api'
 
@@ -70,6 +71,20 @@ export function ClientAttachments({ clientId }) {
     return att.uploaded_by === profile?.id || isAdmin
   }
 
+  // Só admin alterna (PUT .../attachments/:id — Task 4 já responde 403 para
+  // o resto). Atualiza local para não esperar um novo GET só para refletir
+  // o clique.
+  async function alternarRestricao(att, novo) {
+    try {
+      const atualizado = await api.put(`/admin/clients/${clientId}/attachments/${att.id}`, {
+        is_restricted: novo,
+      })
+      setItems((prev) => prev.map((a) => (a.id === att.id ? atualizado : a)))
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
   const { dragOver, dropProps } = useDropzone(handleFiles)
 
   return (
@@ -107,7 +122,17 @@ export function ClientAttachments({ clientId }) {
         ) : (
           <div className="flex flex-wrap items-center gap-1.5">
             {items.map((a) => (
-              <AttachmentChip key={a.id} att={a} onRemove={canRemove(a) ? () => remove(a) : undefined} />
+              // AttachmentChip não é desta task (fora da lista de arquivos
+              // permitidos) — o cadeado entra por fora, ao lado do chip, sem
+              // mexer nele.
+              <div key={a.id} className="inline-flex items-center gap-0.5">
+                <AttachmentChip att={a} onRemove={canRemove(a) ? () => remove(a) : undefined} />
+                <VisibilityToggle
+                  restrito={Boolean(a.is_restricted)}
+                  onChange={(novo) => alternarRestricao(a, novo)}
+                  podeEditar={isAdmin}
+                />
+              </div>
             ))}
           </div>
         )}

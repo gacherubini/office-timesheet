@@ -214,3 +214,65 @@ describe('GET /projects lê o contato principal das tabelas filhas', () => {
     expect(obra.client_email).toBeNull()
   })
 })
+
+// Gate por LINHA (is_restricted numa linha de person_phones/emails/addresses),
+// distinto do gate por CLIENTE INTEIRO (admin_only) já coberto acima. Mesmo
+// padrão do reinventário de 19/08/2026 que corrigiu GET /admin/clients e
+// GET /admin/suppliers: o LATERAL de GET /projects pegava a linha is_primary
+// sem checar is_restricted, então um telefone principal marcado como restrito
+// vazava para qualquer colaborador mesmo com o cliente não sendo admin_only.
+describe('GET /projects — linha de contato marcada is_restricted não vaza', () => {
+  let emp, admin
+
+  beforeEach(async () => {
+    await resetDb()
+    emp = await makeUser({ role: 'employee', name: 'Ana' })
+    admin = await makeUser({ role: 'admin', name: 'Chefe' })
+  })
+
+  it('com telefone alternativo disponível, devolve o não-restrito ao colaborador', async () => {
+    const { rows } = await query(
+      `INSERT INTO clients (name, admin_only) VALUES ('Cliente Linha Restrita', false) RETURNING id`)
+    const cliente = rows[0]
+    // Principal é o restrito — sem o gate por linha, é ele que sairia no LATERAL.
+    await query(
+      `INSERT INTO person_phones (client_id, label, value, is_primary, is_restricted)
+       VALUES ($1, 'celular', 'TEL-LINHA-SECRETO', true, true)`, [cliente.id])
+    await query(
+      `INSERT INTO person_phones (client_id, label, value, is_primary, is_restricted)
+       VALUES ($1, 'comercial', 'TEL-LINHA-ABERTO', false, false)`, [cliente.id])
+    await query(
+      `INSERT INTO projects (name, client, client_id) VALUES ('Obra Linha Restrita', 'Cliente Linha Restrita', $1)`,
+      [cliente.id])
+
+    const resEmp = await asUser(emp).get('/projects')
+    const obraEmp = resEmp.body.find((p) => p.name === 'Obra Linha Restrita')
+    expect(obraEmp.client_phone).not.toBe('TEL-LINHA-SECRETO')
+    expect(obraEmp.client_phone).toBe('TEL-LINHA-ABERTO')
+
+    const resAdmin = await asUser(admin).get('/projects')
+    const obraAdmin = resAdmin.body.find((p) => p.name === 'Obra Linha Restrita')
+    expect(obraAdmin.client_phone).toBe('TEL-LINHA-SECRETO')
+  })
+
+  it('sem alternativa não-restrita, o colaborador recebe null (nunca o valor restrito)', async () => {
+    const { rows } = await query(
+      `INSERT INTO clients (name, admin_only) VALUES ('Cliente Só Restrito', false) RETURNING id`)
+    const cliente = rows[0]
+    await query(
+      `INSERT INTO person_phones (client_id, label, value, is_primary, is_restricted)
+       VALUES ($1, 'celular', 'TEL-UNICO-SECRETO', true, true)`, [cliente.id])
+    await query(
+      `INSERT INTO projects (name, client, client_id) VALUES ('Obra Só Restrita', 'Cliente Só Restrito', $1)`,
+      [cliente.id])
+
+    const resEmp = await asUser(emp).get('/projects')
+    const obraEmp = resEmp.body.find((p) => p.name === 'Obra Só Restrita')
+    expect(obraEmp.client_phone).not.toBe('TEL-UNICO-SECRETO')
+    expect(obraEmp.client_phone).toBeNull()
+
+    const resAdmin = await asUser(admin).get('/projects')
+    const obraAdmin = resAdmin.body.find((p) => p.name === 'Obra Só Restrita')
+    expect(obraAdmin.client_phone).toBe('TEL-UNICO-SECRETO')
+  })
+})

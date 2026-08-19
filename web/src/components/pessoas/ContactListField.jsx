@@ -1,5 +1,6 @@
 import { Plus, Trash2 } from 'lucide-react'
 import { LABELS } from './labels'
+import { VisibilityToggle } from './VisibilityToggle'
 
 const NOME = {
   phone: { singular: 'telefone', botao: 'Adicionar telefone', titulo: 'Telefones' },
@@ -10,7 +11,7 @@ const NOME = {
 // não guarda estado, só devolve a lista nova. É o mesmo componente para cliente
 // e fornecedor — é o que impede a regra de "principal" de divergir entre as
 // duas telas.
-export function ContactListField({ tipo, itens = [], onChange, readOnly = false }) {
+export function ContactListField({ tipo, itens = [], onChange, readOnly = false, podeRestringir = false }) {
   const nome = NOME[tipo]
   const sugestoes = LABELS[tipo] || []
 
@@ -90,6 +91,13 @@ export function ContactListField({ tipo, itens = [], onChange, readOnly = false 
               onChange={(e) => alterar(i, 'value', e.target.value)}
               disabled={readOnly}
               className="flex-1 border border-border-subtle bg-bg px-2 py-1.5 text-sm"
+            />
+            {/* A restrição vive NA LINHA (is_restricted), não no formulário
+                inteiro — cada telefone/e-mail é liberado ou restrito por si. */}
+            <VisibilityToggle
+              restrito={Boolean(it.is_restricted)}
+              onChange={(novo) => alterar(i, 'is_restricted', novo)}
+              podeEditar={podeRestringir}
             />
             {!readOnly && (
               <button

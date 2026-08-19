@@ -11,6 +11,8 @@ import { AddressListField } from './pessoas/AddressListField'
 import { PersonTypeToggle } from './pessoas/PersonTypeToggle'
 import { PersonLinksField } from './pessoas/PersonLinksField'
 import { BankFields } from './pessoas/BankFields'
+import { VisibilityToggle } from './pessoas/VisibilityToggle'
+import { CAMPOS_RESTRINGIVEIS_FORM, PADRAO_RESTRITO } from './pessoas/labels'
 
 // Estado do formulário unificado PF/PJ (item 3 do PDF de ajustes de
 // 18/08/2026), com contatos múltiplos (item 2), CEP (item 1) e dados
@@ -48,8 +50,26 @@ export function SupplierFormModal({ open, supplier, isAdmin, onClose, onSaved })
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const [loadingFicha, setLoadingFicha] = useState(false)
+  // Campos escalares hoje marcados como restritos (alimenta restricted_fields
+  // no PUT). null em `presentes` = "formulário de criação, nada foi omitido
+  // ainda" — todo campo pode ser mostrado.
+  const [restritos, setRestritos] = useState(PADRAO_RESTRITO)
+  const [presentes, setPresentes] = useState(null)
   const editing = Boolean(supplier)
   const { erro: erroCep, buscar: buscarCep } = useCep()
+
+  // Só o admin vê e mexe nos cadeados — colaborador nem sabe que existem
+  // (regra central da Task 7: cadeado desabilitado já seria um aviso).
+  function alternarRestricao(campo, novo) {
+    setRestritos((prev) => (novo ? [...new Set([...prev, campo])] : prev.filter((c) => c !== campo)))
+  }
+
+  // Campo ausente na resposta (removido pelo backend para quem não pode ver)
+  // não pode renderizar rótulo — um <Input label="CPF" value=""> seria
+  // exatamente o aviso proibido que o DELETE do backend evitou.
+  function campoVisivel(campo) {
+    return presentes === null || presentes.has(campo)
+  }
 
   useEffect(() => {
     if (!open) return
@@ -57,6 +77,8 @@ export function SupplierFormModal({ open, supplier, isAdmin, onClose, onSaved })
 
     if (!supplier) {
       setForm(EMPTY_SUPPLIER_FORM)
+      setRestritos(PADRAO_RESTRITO)
+      setPresentes(null)
       return
     }
 
@@ -68,6 +90,12 @@ export function SupplierFormModal({ open, supplier, isAdmin, onClose, onSaved })
       .get(`/admin/suppliers/${supplier.id}`)
       .then((ficha) => {
         if (cancelado) return
+        setPresentes(new Set(CAMPOS_RESTRINGIVEIS_FORM.filter((c) => c in ficha)))
+        // Admin recebe restricted_fields com o estado real gravado no banco.
+        // Não-admin não recebe a chave — mas também não mexe nos cadeados
+        // (VisibilityToggle já se esconde via podeEditar), então o fallback
+        // ao palpite de criação não importa pra ele.
+        setRestritos(ficha.restricted_fields || PADRAO_RESTRITO)
         setForm({
           person_type: ficha.person_type || 'pf',
           name: ficha.name || '',
@@ -108,11 +136,14 @@ export function SupplierFormModal({ open, supplier, isAdmin, onClose, onSaved })
     e.preventDefault()
     setError('')
     setSaving(true)
+    // restricted_fields só vai no corpo se for admin: um colaborador que
+    // mandasse a chave levaria 403 (só admin altera a marcação — task 3/4).
+    const payload = isAdmin ? { ...form, restricted_fields: restritos } : form
     try {
       if (editing) {
-        await api.put(`/admin/suppliers/${supplier.id}`, form)
+        await api.put(`/admin/suppliers/${supplier.id}`, payload)
       } else {
-        await api.post('/admin/suppliers', form)
+        await api.post('/admin/suppliers', payload)
       }
       onSaved(editing ? 'Fornecedor atualizado com sucesso!' : 'Fornecedor cadastrado com sucesso!')
     } catch (err) {
@@ -148,37 +179,77 @@ export function SupplierFormModal({ open, supplier, isAdmin, onClose, onSaved })
 
           {isPj ? (
             <>
-              <Input
-                label="Razão social"
-                required
-                value={form.razao_social}
-                onChange={(e) => setForm({ ...form, razao_social: e.target.value })}
-              />
+              {campoVisivel('razao_social') && (
+                <div className="flex items-end gap-1">
+                  <Input
+                    label="Razão social"
+                    required
+                    className="flex-1"
+                    value={form.razao_social}
+                    onChange={(e) => setForm({ ...form, razao_social: e.target.value })}
+                  />
+                  <VisibilityToggle
+                    restrito={restritos.includes('razao_social')}
+                    onChange={(novo) => alternarRestricao('razao_social', novo)}
+                    podeEditar={isAdmin}
+                  />
+                </div>
+              )}
               <Input
                 label="Nome fantasia"
                 value={form.nome_fantasia}
                 onChange={(e) => setForm({ ...form, nome_fantasia: e.target.value })}
               />
               <div className="grid grid-cols-2 gap-3">
-                <Input
-                  label="CNPJ"
-                  value={form.cnpj}
-                  onChange={(e) => setForm({ ...form, cnpj: e.target.value })}
-                  placeholder="00.000.000/0000-00"
-                />
-                <Input
-                  label="Inscrição estadual"
-                  value={form.inscricao_estadual}
-                  onChange={(e) => setForm({ ...form, inscricao_estadual: e.target.value })}
-                />
+                {campoVisivel('cnpj') && (
+                  <div className="flex items-end gap-1">
+                    <Input
+                      label="CNPJ"
+                      className="flex-1"
+                      value={form.cnpj}
+                      onChange={(e) => setForm({ ...form, cnpj: e.target.value })}
+                      placeholder="00.000.000/0000-00"
+                    />
+                    <VisibilityToggle
+                      restrito={restritos.includes('cnpj')}
+                      onChange={(novo) => alternarRestricao('cnpj', novo)}
+                      podeEditar={isAdmin}
+                    />
+                  </div>
+                )}
+                {campoVisivel('inscricao_estadual') && (
+                  <div className="flex items-end gap-1">
+                    <Input
+                      label="Inscrição estadual"
+                      className="flex-1"
+                      value={form.inscricao_estadual}
+                      onChange={(e) => setForm({ ...form, inscricao_estadual: e.target.value })}
+                    />
+                    <VisibilityToggle
+                      restrito={restritos.includes('inscricao_estadual')}
+                      onChange={(novo) => alternarRestricao('inscricao_estadual', novo)}
+                      podeEditar={isAdmin}
+                    />
+                  </div>
+                )}
               </div>
-              <DateField
-                label="Data de fundação"
-                value={form.founded_date}
-                onChange={(e) => setForm({ ...form, founded_date: e.target.value })}
-                showYearDropdown
-                showMonthDropdown
-              />
+              {campoVisivel('founded_date') && (
+                <div className="flex items-end gap-1">
+                  <DateField
+                    label="Data de fundação"
+                    className="flex-1"
+                    value={form.founded_date}
+                    onChange={(e) => setForm({ ...form, founded_date: e.target.value })}
+                    showYearDropdown
+                    showMonthDropdown
+                  />
+                  <VisibilityToggle
+                    restrito={restritos.includes('founded_date')}
+                    onChange={(novo) => alternarRestricao('founded_date', novo)}
+                    podeEditar={isAdmin}
+                  />
+                </div>
+              )}
             </>
           ) : (
             <>
@@ -189,25 +260,55 @@ export function SupplierFormModal({ open, supplier, isAdmin, onClose, onSaved })
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
               <div className="grid grid-cols-2 gap-3">
-                <Input
-                  label="CPF"
-                  value={form.cpf}
-                  onChange={(e) => setForm({ ...form, cpf: e.target.value })}
-                  placeholder="000.000.000-00"
-                />
-                <Input
-                  label="RG"
-                  value={form.rg}
-                  onChange={(e) => setForm({ ...form, rg: e.target.value })}
-                />
+                {campoVisivel('cpf') && (
+                  <div className="flex items-end gap-1">
+                    <Input
+                      label="CPF"
+                      className="flex-1"
+                      value={form.cpf}
+                      onChange={(e) => setForm({ ...form, cpf: e.target.value })}
+                      placeholder="000.000.000-00"
+                    />
+                    <VisibilityToggle
+                      restrito={restritos.includes('cpf')}
+                      onChange={(novo) => alternarRestricao('cpf', novo)}
+                      podeEditar={isAdmin}
+                    />
+                  </div>
+                )}
+                {campoVisivel('rg') && (
+                  <div className="flex items-end gap-1">
+                    <Input
+                      label="RG"
+                      className="flex-1"
+                      value={form.rg}
+                      onChange={(e) => setForm({ ...form, rg: e.target.value })}
+                    />
+                    <VisibilityToggle
+                      restrito={restritos.includes('rg')}
+                      onChange={(novo) => alternarRestricao('rg', novo)}
+                      podeEditar={isAdmin}
+                    />
+                  </div>
+                )}
               </div>
-              <DateField
-                label="Data de nascimento"
-                value={form.birth_date}
-                onChange={(e) => setForm({ ...form, birth_date: e.target.value })}
-                showYearDropdown
-                showMonthDropdown
-              />
+              {campoVisivel('birth_date') && (
+                <div className="flex items-end gap-1">
+                  <DateField
+                    label="Data de nascimento"
+                    className="flex-1"
+                    value={form.birth_date}
+                    onChange={(e) => setForm({ ...form, birth_date: e.target.value })}
+                    showYearDropdown
+                    showMonthDropdown
+                  />
+                  <VisibilityToggle
+                    restrito={restritos.includes('birth_date')}
+                    onChange={(novo) => alternarRestricao('birth_date', novo)}
+                    podeEditar={isAdmin}
+                  />
+                </div>
+              )}
             </>
           )}
 
@@ -222,22 +323,28 @@ export function SupplierFormModal({ open, supplier, isAdmin, onClose, onSaved })
             tipo="phone"
             itens={form.phones}
             onChange={(phones) => setForm({ ...form, phones })}
+            podeRestringir={isAdmin}
           />
           <ContactListField
             tipo="email"
             itens={form.emails}
             onChange={(emails) => setForm({ ...form, emails })}
+            podeRestringir={isAdmin}
           />
           <AddressListField
             itens={form.addresses}
             onChange={(addresses) => setForm({ ...form, addresses })}
             buscar={buscarCep}
             erroCep={erroCep}
+            podeRestringir={isAdmin}
           />
 
           <BankFields
             valor={form}
             onChange={(bancarios) => setForm({ ...form, ...bancarios })}
+            restritos={restritos}
+            onAlternarRestricao={alternarRestricao}
+            podeRestringir={isAdmin}
           />
 
           {isPj && (
@@ -249,13 +356,23 @@ export function SupplierFormModal({ open, supplier, isAdmin, onClose, onSaved })
             />
           )}
 
-          <Input
-            label="Observações"
-            as="textarea"
-            rows={4}
-            value={form.notes}
-            onChange={(e) => setForm({ ...form, notes: e.target.value })}
-          />
+          {campoVisivel('notes') && (
+            <div className="flex items-end gap-1">
+              <Input
+                label="Observações"
+                as="textarea"
+                rows={4}
+                className="flex-1"
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              />
+              <VisibilityToggle
+                restrito={restritos.includes('notes')}
+                onChange={(novo) => alternarRestricao('notes', novo)}
+                podeEditar={isAdmin}
+              />
+            </div>
+          )}
           {isAdmin && (
             <label className="flex items-start gap-2.5 border border-border-subtle p-3 cursor-pointer">
               <input

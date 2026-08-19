@@ -49,11 +49,21 @@ export function normalizarContatos(lista, { tipo }) {
       }
       // Rótulo sem nenhum campo é uma linha que não diz nada.
       if (!algum) return { error: `Endereço "${label}" está vazio.` }
-      itens.push({ label, ...campos, is_primary: Boolean(bruto?.is_primary), position: itens.length })
+      // id e is_restricted viajam intactos (undefined incluso): quem decide o
+      // que fazer com eles é a rota, que tem o perfil de quem chamou e o
+      // estado atual do banco — esta função é pura, sem banco (ver o
+      // comentário do topo do arquivo).
+      itens.push({
+        label, ...campos, is_primary: Boolean(bruto?.is_primary), position: itens.length,
+        id: bruto?.id ?? null, is_restricted: bruto?.is_restricted,
+      })
     } else {
       const value = texto(bruto?.value)
       if (!value) return { error: `O ${nome.singular} "${label}" está vazio.` }
-      itens.push({ label, value, is_primary: Boolean(bruto?.is_primary), position: itens.length })
+      itens.push({
+        label, value, is_primary: Boolean(bruto?.is_primary), position: itens.length,
+        id: bruto?.id ?? null, is_restricted: bruto?.is_restricted,
+      })
     }
   }
 

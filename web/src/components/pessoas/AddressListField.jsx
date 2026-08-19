@@ -1,13 +1,14 @@
 import { Plus, Trash2 } from 'lucide-react'
 import { LABELS } from './labels'
 import { apenasDigitos } from '../../hooks/useCep'
+import { VisibilityToggle } from './VisibilityToggle'
 
 // Lista repetível de endereço (item 2 do PDF), com CEP como primeiro campo
 // (item 1). Mesmo contrato controlado do ContactListField: não guarda estado,
 // só devolve a lista nova. `buscar` e `erroBusca`/`buscandoIndice` vêm de fora
 // (o hook useCep é chamado uma vez no formulário pai) para não instanciar um
 // AbortController por linha.
-export function AddressListField({ itens = [], onChange, readOnly = false, buscar, erroCep }) {
+export function AddressListField({ itens = [], onChange, readOnly = false, buscar, erroCep, podeRestringir = false }) {
   const sugestoes = LABELS.address || []
 
   function adicionar() {
@@ -94,6 +95,13 @@ export function AddressListField({ itens = [], onChange, readOnly = false, busca
                 onChange={(e) => alterar(i, 'label', e.target.value)}
                 disabled={readOnly}
                 className="w-32 border border-border-subtle bg-bg px-2 py-1.5 text-sm"
+              />
+              {/* Endereço restrito é a linha inteira, não campo a campo — o
+                  mesmo raciocínio do ContactListField. */}
+              <VisibilityToggle
+                restrito={Boolean(it.is_restricted)}
+                onChange={(novo) => alterar(i, 'is_restricted', novo)}
+                podeEditar={podeRestringir}
               />
               {!readOnly && (
                 <button

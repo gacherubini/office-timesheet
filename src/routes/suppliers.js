@@ -4,6 +4,10 @@ import { requireAuth } from '../middleware/auth.js'
 import { canDeleteSuppliers, canManageSuppliers, canViewSuppliers, isAdmin } from '../lib/permissions.js'
 import { logger } from '../lib/logger.js'
 import { normalizarContatos } from '../lib/personContacts.js'
+import {
+  aplicarVisibilidade, aplicarVisibilidadeEmLista, filtrarLinhasRestritas,
+  CAMPOS_RESTRINGIVEIS, PADRAO_RESTRITO,
+} from '../lib/personVisibility.js'
 
 const router = Router()
 
@@ -80,30 +84,77 @@ async function gravarFilhas(client, supplierId, { phones, emails, addresses, lin
   await client.query('DELETE FROM person_addresses WHERE supplier_id = $1', [supplierId])
   await client.query('DELETE FROM person_links     WHERE company_supplier_id = $1', [supplierId])
 
+  // is_restricted vai junto do INSERT — ver o comentário equivalente em
+  // clients.js. Quem decide o valor final é resolverRestricaoLinhas +
+  // preservarLinhasInvisiveis, chamadas ANTES de gravarFilhas.
   for (const p of phones) {
     await client.query(
-      `INSERT INTO person_phones (supplier_id, label, value, is_primary, position)
-       VALUES ($1,$2,$3,$4,$5)`,
-      [supplierId, p.label, p.value, p.is_primary, p.position])
+      `INSERT INTO person_phones (supplier_id, label, value, is_primary, position, is_restricted)
+       VALUES ($1,$2,$3,$4,$5,$6)`,
+      [supplierId, p.label, p.value, p.is_primary, p.position, p.is_restricted])
   }
   for (const e of emails) {
     await client.query(
-      `INSERT INTO person_emails (supplier_id, label, value, is_primary, position)
-       VALUES ($1,$2,$3,$4,$5)`,
-      [supplierId, e.label, e.value, e.is_primary, e.position])
+      `INSERT INTO person_emails (supplier_id, label, value, is_primary, position, is_restricted)
+       VALUES ($1,$2,$3,$4,$5,$6)`,
+      [supplierId, e.label, e.value, e.is_primary, e.position, e.is_restricted])
   }
   for (const a of addresses) {
     await client.query(
       `INSERT INTO person_addresses
-         (supplier_id, label, cep, street, number, complement, district, city, uf, is_primary, position)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
-      [supplierId, a.label, a.cep, a.street, a.number, a.complement, a.district, a.city, a.uf, a.is_primary, a.position])
+         (supplier_id, label, cep, street, number, complement, district, city, uf, is_primary, position, is_restricted)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+      [supplierId, a.label, a.cep, a.street, a.number, a.complement, a.district, a.city, a.uf, a.is_primary, a.position, a.is_restricted])
   }
   for (const l of links) {
     await client.query(
       `INSERT INTO person_links (company_supplier_id, member_supplier_id, role) VALUES ($1,$2,$3)`,
       [supplierId, l.member_supplier_id, l.role])
   }
+}
+
+// Ver o comentário equivalente em clients.js — mesma regra, mesma correção.
+function resolverRestricaoLinhas(itens, existentesPorId, isAdminUser) {
+  return itens.map((item) => {
+    const existente = item.id ? existentesPorId[item.id] : undefined
+    let is_restricted
+    if (isAdminUser && item.is_restricted !== undefined) {
+      is_restricted = Boolean(item.is_restricted)
+    } else if (existente) {
+      is_restricted = existente.is_restricted
+    } else {
+      is_restricted = false
+    }
+    return { ...item, is_restricted }
+  })
+}
+
+async function carregarLinhasAtuais(supplierId) {
+  if (!supplierId) return { phones: [], emails: [], addresses: [] }
+  const [{ rows: phones }, { rows: emails }, { rows: addresses }] = await Promise.all([
+    query('SELECT * FROM person_phones WHERE supplier_id = $1', [supplierId]),
+    query('SELECT * FROM person_emails WHERE supplier_id = $1', [supplierId]),
+    query('SELECT * FROM person_addresses WHERE supplier_id = $1', [supplierId]),
+  ])
+  return { phones, emails, addresses }
+}
+
+const porId = (linhas) => Object.fromEntries(linhas.map((l) => [l.id, l]))
+
+// Ver o comentário equivalente em clients.js — mesma regra, mesma correção.
+function preservarLinhasInvisiveis(itensSubmetidos, linhasAtuais, isAdminUser) {
+  if (isAdminUser) return itensSubmetidos
+
+  const idsSubmetidos = new Set(itensSubmetidos.filter((i) => i.id).map((i) => i.id))
+  const perdidas = linhasAtuais.filter((l) => l.is_restricted && !idsSubmetidos.has(l.id))
+  if (perdidas.length === 0) return itensSubmetidos
+
+  const restauraPrincipal = perdidas.some((l) => l.is_primary)
+  const base = restauraPrincipal
+    ? itensSubmetidos.map((i) => ({ ...i, is_primary: false }))
+    : itensSubmetidos
+
+  return [...base, ...perdidas]
 }
 
 function requireCanManageSuppliers(req, res, next) {
@@ -141,19 +192,36 @@ router.get('/admin/suppliers', requireAuth, requireCanViewSuppliers, async (req,
                       s.admin_only, s.created_at, s.updated_at,
                       pp.value AS primary_phone,
                       pe.value AS primary_email,
-                      pa.street AS primary_address
+                      pa.street AS primary_address,
+                      rf.campos AS campos
                FROM suppliers s
                LEFT JOIN LATERAL (
-                 SELECT value FROM person_phones WHERE supplier_id = s.id AND is_primary LIMIT 1
+                 -- Achado do reinventário de 19/08/2026: sem o filtro de
+                 -- is_restricted aqui, a linha principal marcada como restrita
+                 -- vazava no resumo da listagem mesmo escondida na ficha — ver
+                 -- o comentário equivalente em clients.js.
+                 SELECT value FROM person_phones
+                 WHERE supplier_id = s.id AND (is_restricted = false OR $1 = true)
+                 ORDER BY is_primary DESC, position LIMIT 1
                ) pp ON true
                LEFT JOIN LATERAL (
-                 SELECT value FROM person_emails WHERE supplier_id = s.id AND is_primary LIMIT 1
+                 SELECT value FROM person_emails
+                 WHERE supplier_id = s.id AND (is_restricted = false OR $1 = true)
+                 ORDER BY is_primary DESC, position LIMIT 1
                ) pe ON true
                LEFT JOIN LATERAL (
-                 SELECT street FROM person_addresses WHERE supplier_id = s.id AND is_primary LIMIT 1
-               ) pa ON true`
+                 SELECT street FROM person_addresses
+                 WHERE supplier_id = s.id AND (is_restricted = false OR $1 = true)
+                 ORDER BY is_primary DESC, position LIMIT 1
+               ) pa ON true
+               LEFT JOIN LATERAL (
+                 -- Agrega os campos restritos num array só, sem N+1.
+                 SELECT array_agg(field_name) AS campos
+                 FROM person_restricted_fields WHERE supplier_id = s.id
+               ) rf ON true`
     const conditions = []
-    const params = []
+    // $1 é o isAdmin — usado pelas LATERAL de contato principal acima.
+    const params = [isAdmin(req.profile)]
 
     // Fornecedores restritos só aparecem para admins.
     if (!isAdmin(req.profile)) {
@@ -170,7 +238,11 @@ router.get('/admin/suppliers', requireAuth, requireCanViewSuppliers, async (req,
     sql += ` ORDER BY s.name ASC`
 
     const { rows } = await query(sql, params)
-    return res.json(rows || [])
+    const restritosPorId = {}
+    for (const r of rows) restritosPorId[r.id] = r.campos || []
+    // `campos` é dado interno — não vai para a resposta.
+    for (const r of rows) delete r.campos
+    return res.json(aplicarVisibilidadeEmLista(req.profile, rows, restritosPorId))
   } catch (err) {
     logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em GET /admin/suppliers')
     return res.status(400).json({ error: err.message })
@@ -190,20 +262,34 @@ router.get('/admin/suppliers/:id', requireAuth, requireCanViewSuppliers, async (
       return res.status(404).json({ error: 'Fornecedor não encontrado.' })
     }
 
-    const [{ rows: phones }, { rows: emails }, { rows: addresses }, { rows: links }] = await Promise.all([
-      query(`SELECT id, label, value, is_primary, position FROM person_phones
+    const [{ rows: phones }, { rows: emails }, { rows: addresses }, { rows: links }, { rows: restritosRows }] = await Promise.all([
+      // is_restricted precisa vir junto: filtrarLinhasRestritas() decide por ela.
+      query(`SELECT id, label, value, is_primary, position, is_restricted FROM person_phones
               WHERE supplier_id = $1 ORDER BY position, created_at`, [req.params.id]),
-      query(`SELECT id, label, value, is_primary, position FROM person_emails
+      query(`SELECT id, label, value, is_primary, position, is_restricted FROM person_emails
               WHERE supplier_id = $1 ORDER BY position, created_at`, [req.params.id]),
-      query(`SELECT id, label, cep, street, number, complement, district, city, uf, is_primary, position
+      query(`SELECT id, label, cep, street, number, complement, district, city, uf, is_primary, position, is_restricted
                FROM person_addresses WHERE supplier_id = $1 ORDER BY position, created_at`, [req.params.id]),
       query(`SELECT l.id, l.role, l.member_supplier_id, m.name AS member_name, m.person_type AS member_person_type
                FROM person_links l
                JOIN suppliers m ON m.id = l.member_supplier_id
               WHERE l.company_supplier_id = $1 ORDER BY l.role, m.name`, [req.params.id]),
+      query(`SELECT field_name FROM person_restricted_fields WHERE supplier_id = $1`, [req.params.id]),
     ])
+    const restritos = restritosRows.map((r) => r.field_name)
 
-    return res.json({ ...fornecedor, phones, emails, addresses, links })
+    return res.json({
+      ...aplicarVisibilidade(req.profile, fornecedor, restritos),
+      // Só admin recebe a marcação — é quem pode alterá-la (mesma lógica do
+      // resto: quem não pode mudar não precisa saber que existe). Sem isto o
+      // PUT seguinte reverte a marcação em silêncio: o front não tinha como
+      // saber o que estava restrito e mandava o palpite padrão.
+      ...(isAdmin(req.profile) ? { restricted_fields: restritos } : {}),
+      phones: filtrarLinhasRestritas(req.profile, phones),
+      emails: filtrarLinhasRestritas(req.profile, emails),
+      addresses: filtrarLinhasRestritas(req.profile, addresses),
+      links,
+    })
   } catch (err) {
     logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em GET /admin/suppliers/:id')
     return res.status(400).json({ error: err.message })
@@ -216,6 +302,11 @@ router.post('/admin/suppliers', requireAuth, requireCanManageSuppliers, async (r
 
   // Só admin pode marcar como restrito.
   const adminOnly = isAdmin(req.profile) ? Boolean(req.body.admin_only) : false
+  // Criação: sem linha anterior para casar por id — ver o comentário
+  // equivalente em clients.js.
+  parsed.phones = resolverRestricaoLinhas(parsed.phones, {}, isAdmin(req.profile))
+  parsed.emails = resolverRestricaoLinhas(parsed.emails, {}, isAdmin(req.profile))
+  parsed.addresses = resolverRestricaoLinhas(parsed.addresses, {}, isAdmin(req.profile))
 
   try {
     const fornecedor = await withTransaction(async (client) => {
@@ -232,6 +323,12 @@ router.post('/admin/suppliers', requireAuth, requireCanManageSuppliers, async (r
       )
       const novo = rows[0]
       await gravarFilhas(client, novo.id, parsed)
+      // "Nascem restritos por padrão: CPF, CNPJ, RG, dados bancários."
+      for (const campo of PADRAO_RESTRITO) {
+        await client.query(
+          `INSERT INTO person_restricted_fields (supplier_id, field_name) VALUES ($1,$2)
+           ON CONFLICT DO NOTHING`, [novo.id, campo])
+      }
       return novo
     })
     return res.status(201).json(fornecedor)
@@ -245,9 +342,17 @@ router.put('/admin/suppliers/:id', requireAuth, requireCanManageSuppliers, async
   const parsed = parseSupplierPayload(req.body)
   if (parsed.error) return res.status(400).json({ error: parsed.error })
 
+  // Só admin muda o que é restrito. Um colaborador que pudesse desmarcar
+  // esvaziaria a proteção inteira com um PUT.
+  if (req.body.restricted_fields !== undefined && !isAdmin(req.profile)) {
+    return res.status(403).json({ error: 'Só o administrador altera a visibilidade dos campos.' })
+  }
+
   try {
+    // SELECT * (não só admin_only): task 5 precisa dos valores atuais de TODOS
+    // os campos restringíveis, para preservá-los quando quem edita não os viu.
     const { rows: existingRows } = await query(
-      `SELECT admin_only FROM suppliers WHERE id = $1`,
+      `SELECT * FROM suppliers WHERE id = $1`,
       [req.params.id],
     )
     const existing = existingRows[0]
@@ -257,6 +362,33 @@ router.put('/admin/suppliers/:id', requireAuth, requireCanManageSuppliers, async
     }
     // Só admin altera o flag; os demais preservam o valor atual.
     const adminOnly = isAdmin(req.profile) ? Boolean(req.body.admin_only) : existing.admin_only
+
+    // Campo restringível que o corpo nem tocou preserva o valor atual — ver o
+    // comentário equivalente em clients.js.
+    for (const campo of CAMPOS_RESTRINGIVEIS) {
+      if (req.body[campo] === undefined) parsed.data[campo] = existing[campo]
+    }
+
+    // Quem não podia VER o campo não pode APAGÁ-LO sem querer. Ver o comentário
+    // equivalente em clients.js — mesmo bug, mesma correção.
+    if (!isAdmin(req.profile)) {
+      const { rows: restritosRows } = await query(
+        `SELECT field_name FROM person_restricted_fields WHERE supplier_id = $1`, [req.params.id])
+      for (const { field_name: campo } of restritosRows) {
+        if (CAMPOS_RESTRINGIVEIS.has(campo)) parsed.data[campo] = existing[campo]
+      }
+    }
+
+    // Mesmo raciocínio, um nível abaixo — ver o comentário equivalente em
+    // clients.js.
+    const atuais = await carregarLinhasAtuais(req.params.id)
+    const admin = isAdmin(req.profile)
+    parsed.phones = preservarLinhasInvisiveis(
+      resolverRestricaoLinhas(parsed.phones, porId(atuais.phones), admin), atuais.phones, admin)
+    parsed.emails = preservarLinhasInvisiveis(
+      resolverRestricaoLinhas(parsed.emails, porId(atuais.emails), admin), atuais.emails, admin)
+    parsed.addresses = preservarLinhasInvisiveis(
+      resolverRestricaoLinhas(parsed.addresses, porId(atuais.addresses), admin), atuais.addresses, admin)
 
     const fornecedor = await withTransaction(async (client) => {
       const { rows } = await client.query(
@@ -274,6 +406,19 @@ router.put('/admin/suppliers/:id', requireAuth, requireCanManageSuppliers, async
       const atualizado = rows[0]
       if (!atualizado) return null
       await gravarFilhas(client, atualizado.id, parsed)
+
+      // Regrava a marcação de restrição só quando ela veio no corpo — e só
+      // com os nomes que estão na allowlist.
+      if (req.body.restricted_fields !== undefined) {
+        const campos = (req.body.restricted_fields || []).filter((c) => CAMPOS_RESTRINGIVEIS.has(c))
+        await client.query('DELETE FROM person_restricted_fields WHERE supplier_id = $1', [req.params.id])
+        for (const campo of campos) {
+          await client.query(
+            `INSERT INTO person_restricted_fields (supplier_id, field_name) VALUES ($1,$2)`,
+            [req.params.id, campo])
+        }
+      }
+
       return atualizado
     })
 

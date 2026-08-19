@@ -6,12 +6,19 @@ export { query, pool }
 
 // Zera os dados entre testes preservando o schema. CASCADE cuida das tabelas
 // que referenciam users/projects (time_entries, pauses, notifications, etc.).
+//
+// stage_catalog entra na lista EXPLICITAMENTE: é global e não referencia
+// projects/users/etc, então o CASCADE de baixo não alcança ela sozinho — sem
+// isto, testes que semeiam o catálogo (migration 047) vazariam linha de um
+// teste pro próximo. project_stages e tasks não precisam entrar: as duas
+// referenciam projects (a segunda também project_stages), então o CASCADE já
+// as alcança a partir da lista abaixo.
 export async function resetDb() {
   await query(`
     TRUNCATE
       users, projects, clients, suppliers,
       time_entries, time_entry_pauses, time_entry_change_requests,
-      vacation_requests, notifications
+      vacation_requests, notifications, stage_catalog
     RESTART IDENTITY CASCADE
   `)
   // O cache de usuário vive no processo e sobrevive entre testes; sem limpar,
