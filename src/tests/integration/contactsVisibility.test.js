@@ -82,18 +82,47 @@ describe('CRM — cliente restrito não vaza contato pelo projeto', () => {
     emp = await makeUser({ role: 'employee', name: 'Ana' })
     admin = await makeUser({ role: 'admin', name: 'Chefe' })
 
+    // As colunas antigas (email/phone/address) seguem preenchidas aqui só por
+    // realismo de dado legado — GET /projects não lê mais delas (ver migration
+    // 043). Quem alimenta a asserção é o INSERT nas tabelas filhas abaixo,
+    // marcado is_primary = true, que é a fonte nova da rota.
     const { rows: r } = await query(
       `INSERT INTO clients (name, email, phone, address, admin_only)
        VALUES ('Cliente Restrito', 'secreto@x.com', '11999999999', 'Rua Secreta, 1', true)
        RETURNING id`,
     )
     restrito = r[0]
+    await query(
+      `INSERT INTO person_phones (client_id, label, value, is_primary) VALUES ($1, 'celular', '11999999999', true)`,
+      [restrito.id],
+    )
+    await query(
+      `INSERT INTO person_emails (client_id, label, value, is_primary) VALUES ($1, 'pessoal', 'secreto@x.com', true)`,
+      [restrito.id],
+    )
+    await query(
+      `INSERT INTO person_addresses (client_id, label, street, is_primary) VALUES ($1, 'principal', 'Rua Secreta, 1', true)`,
+      [restrito.id],
+    )
+
     const { rows: c } = await query(
       `INSERT INTO clients (name, email, phone, address, admin_only)
        VALUES ('Cliente Comum', 'aberto@x.com', '11888888888', 'Rua Aberta, 2', false)
        RETURNING id`,
     )
     comum = c[0]
+    await query(
+      `INSERT INTO person_phones (client_id, label, value, is_primary) VALUES ($1, 'celular', '11888888888', true)`,
+      [comum.id],
+    )
+    await query(
+      `INSERT INTO person_emails (client_id, label, value, is_primary) VALUES ($1, 'pessoal', 'aberto@x.com', true)`,
+      [comum.id],
+    )
+    await query(
+      `INSERT INTO person_addresses (client_id, label, street, is_primary) VALUES ($1, 'principal', 'Rua Aberta, 2', true)`,
+      [comum.id],
+    )
 
     await query(
       `INSERT INTO projects (name, client, client_id) VALUES ('Obra Restrita', 'Cliente Restrito', $1)`,
@@ -130,5 +159,58 @@ describe('CRM — cliente restrito não vaza contato pelo projeto', () => {
     expect(obra.client_phone).toBe('11999999999')
     expect(obra.client_email).toBe('secreto@x.com')
     expect(obra.client_address).toBe('Rua Secreta, 1')
+  })
+})
+
+// Depois da 043 as colunas antigas ficam CONGELADAS: continuam existindo (é o
+// que torna a migração reversível) mas ninguém escreve nelas. Quem lê contato
+// de cliente precisa ler a tabela filha, senão mostra dado velho para sempre.
+describe('GET /projects lê o contato principal das tabelas filhas', () => {
+  let emp, admin, cliente
+  beforeEach(async () => {
+    await resetDb()
+    emp = await makeUser({ role: 'employee', name: 'Ana' })
+    admin = await makeUser({ role: 'admin', name: 'Chefe' })
+
+    const { rows } = await query(
+      `INSERT INTO clients (name, phone, email) VALUES ('Cliente', 'ANTIGO', 'antigo@x.com') RETURNING id`)
+    cliente = rows[0]
+    await query(
+      `INSERT INTO person_phones (client_id, label, value, is_primary)
+       VALUES ($1, 'celular', 'NOVO', true), ($1, 'comercial', 'SECUNDARIO', false)`, [cliente.id])
+    await query(
+      `INSERT INTO person_emails (client_id, label, value, is_primary)
+       VALUES ($1, 'pessoal', 'novo@x.com', true)`, [cliente.id])
+    await query(
+      `INSERT INTO projects (name, client, client_id) VALUES ('Obra', 'Cliente', $1)`, [cliente.id])
+  })
+
+  it('devolve o principal novo, não a coluna antiga', async () => {
+    const res = await asUser(admin).get('/projects')
+    const obra = res.body.find((p) => p.name === 'Obra')
+    expect(obra.client_phone).toBe('NOVO')
+    expect(obra.client_email).toBe('novo@x.com')
+  })
+
+  it('não devolve o telefone secundário', async () => {
+    const res = await asUser(admin).get('/projects')
+    const obra = res.body.find((p) => p.name === 'Obra')
+    expect(obra.client_phone).not.toBe('SECUNDARIO')
+  })
+
+  it('cliente sem contato nenhum devolve null, não erro', async () => {
+    const { rows } = await query(`INSERT INTO clients (name) VALUES ('Mudo') RETURNING id`)
+    await query(`INSERT INTO projects (name, client, client_id) VALUES ('Obra 2', 'Mudo', $1)`, [rows[0].id])
+    const res = await asUser(admin).get('/projects')
+    const obra = res.body.find((p) => p.name === 'Obra 2')
+    expect(obra.client_phone).toBeNull()
+  })
+
+  it('o gate de admin_only continua valendo sobre a fonte nova', async () => {
+    await query(`UPDATE clients SET admin_only = true WHERE id = $1`, [cliente.id])
+    const res = await asUser(emp).get('/projects')
+    const obra = res.body.find((p) => p.name === 'Obra')
+    expect(obra.client_phone).toBeNull()
+    expect(obra.client_email).toBeNull()
   })
 })

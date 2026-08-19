@@ -695,6 +695,11 @@ router.get('/me/time-clock-status', requireAuth, async (req, res) => {
 })
 
 // ─── ANIVERSARIANTES (compartilhado: admin e employee) ────────────────
+// Lê SÓ `users`. Decidido em 18/08/2026 que cliente não entra no card (item 3
+// do PDF de ajustes). Se um dia entrar, o SELECT precisa de
+// `AND person_type = 'pf'` — pessoa jurídica não faz aniversário, e a data de
+// fundação de uma construtora não vai no card social do time.
+// Ver docs/superpowers/specs/2026-08-18-ajustes-void-b-pessoas-design.md §7.
 router.get('/birthdays', requireAuth, async (_req, res) => {
   try {
     const { rows } = await query(

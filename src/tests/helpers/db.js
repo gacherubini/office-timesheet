@@ -9,7 +9,7 @@ export { query, pool }
 export async function resetDb() {
   await query(`
     TRUNCATE
-      users, projects, clients,
+      users, projects, clients, suppliers,
       time_entries, time_entry_pauses, time_entry_change_requests,
       vacation_requests, notifications
     RESTART IDENTITY CASCADE

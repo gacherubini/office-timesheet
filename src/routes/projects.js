@@ -62,15 +62,30 @@ router.get('/projects', requireAuth, async (req, res) => {
     // aberta: o cliente some da tela de Pessoas mas telefone/e-mail/endereço
     // continuam saindo por aqui. O NOME segue visível — ele é denormalizado em
     // projects.client e identifica o projeto no quadro.
+    //
+    // Desde a 043, clients.phone/email/address estão CONGELADAS (existem só
+    // para a migração ser reversível, ninguém escreve mais nelas). O contato
+    // agora mora em person_phones/person_emails/person_addresses, uma linha
+    // marcada is_primary por dono — daí o LEFT JOIN LATERAL buscando a
+    // principal de cada tabela filha em vez das colunas antigas de `clients`.
     const { rows } = await query(
       `SELECT p.id, p.name, COALESCE(c.name, p.client) AS client, p.client_id,
               p.address, p.start_date, p.status, p.image_url, p.briefing,
-              CASE WHEN $1 OR NOT c.admin_only THEN c.phone   END AS client_phone,
-              CASE WHEN $1 OR NOT c.admin_only THEN c.email   END AS client_email,
-              CASE WHEN $1 OR NOT c.admin_only THEN c.address END AS client_address,
+              CASE WHEN $1 OR NOT c.admin_only THEN pp.value  END AS client_phone,
+              CASE WHEN $1 OR NOT c.admin_only THEN pe.value  END AS client_email,
+              CASE WHEN $1 OR NOT c.admin_only THEN pa.street END AS client_address,
               p.created_at, p.updated_at
        FROM projects p
        LEFT JOIN clients c ON c.id = p.client_id
+       LEFT JOIN LATERAL (
+         SELECT value FROM person_phones WHERE client_id = c.id AND is_primary LIMIT 1
+       ) pp ON true
+       LEFT JOIN LATERAL (
+         SELECT value FROM person_emails WHERE client_id = c.id AND is_primary LIMIT 1
+       ) pe ON true
+       LEFT JOIN LATERAL (
+         SELECT street FROM person_addresses WHERE client_id = c.id AND is_primary LIMIT 1
+       ) pa ON true
        WHERE p.deleted_at IS NULL
        ORDER BY p.created_at DESC`,
       [isAdmin(req.profile)],

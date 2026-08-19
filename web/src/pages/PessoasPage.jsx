@@ -20,6 +20,7 @@ import {
   CheckCircle2,
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { carimbarContexto } from '../lib/agentContext'
 import { Avatar } from '../components/Avatar'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Card } from '../components/ui/Card'
@@ -31,6 +32,8 @@ import { DateField } from '../components/ui/DateField'
 import { ClientFormModal } from '../components/ClientFormModal'
 import { SupplierFormModal } from '../components/SupplierFormModal'
 import { ROLES, roleLabel } from '../lib/permissions'
+import { CARGOS, CARGO_PADRAO } from '../lib/cargos'
+import { tempoDeCasa } from '../lib/tempoDeCasa'
 
 function whatsappLink(phone) {
   if (!phone) return null
@@ -61,8 +64,10 @@ const EMPTY_COLLABORATOR_FORM = {
   hourly_rate: '',
   fixed_salary: '',
   is_active: true,
-  position: '',
+  position: CARGO_PADRAO,
   birth_date: '',
+  admission_date: '',
+  termination_date: '',
   phone: '',
 }
 
@@ -133,6 +138,40 @@ export function PessoasPage() {
   const [contactDeleteError, setContactDeleteError] = useState('')
   const [contactDeleting, setContactDeleting] = useState(false)
 
+  // Contexto para o chat: quem está na tela agora. Espelha o que
+  // ProjectBoardPage.jsx já faz com projeto e tarefa. `selected.id` é a
+  // chave sintética (`cliente-42`) usada na lista; o id real da pessoa é
+  // `selected.rawId` (== `selected.raw.id`).
+  useEffect(() => {
+    if (!selected) return
+    carimbarContexto({ personId: selected.rawId, personName: selected.name })
+  }, [selected])
+
+  // Ficha completa (com as listas inteiras de telefone/e-mail/endereço) da
+  // pessoa aberta no detalhe. A listagem só traz o principal — sem isto, um
+  // cliente com dois telefones cadastrados não teria lugar nenhum onde o
+  // segundo aparecesse (item 2 do PDF de 18/08/2026).
+  const [selectedFicha, setSelectedFicha] = useState(null)
+  useEffect(() => {
+    if (!selected || (selected.kind !== 'cliente' && selected.kind !== 'fornecedor')) {
+      setSelectedFicha(null)
+      return
+    }
+    let cancelado = false
+    const base = selected.kind === 'cliente' ? '/admin/clients' : '/admin/suppliers'
+    api
+      .get(`${base}/${selected.rawId}`)
+      .then((ficha) => {
+        if (!cancelado) setSelectedFicha(ficha)
+      })
+      .catch(() => {
+        if (!cancelado) setSelectedFicha(null)
+      })
+    return () => {
+      cancelado = true
+    }
+  }, [selected])
+
   async function loadPeople() {
     setPageError('')
     setLoading(true)
@@ -182,9 +221,14 @@ export function PessoasPage() {
         rawId: row.id,
         kind: 'cliente',
         name: row.name,
-        subtitle: 'Pessoa física',
-        email: row.email || '',
-        phone: row.phone || '',
+        subtitle: row.person_type === 'pj' ? 'Pessoa jurídica' : 'Pessoa física',
+        // `email`/`phone` (colunas do banco) ficaram congeladas pela 043: a
+        // listagem já não escreve nelas, só nas tabelas de contatos múltiplos.
+        // primary_email/primary_phone é a view que a lista devolve (item 2 do
+        // PDF de 18/08/2026) — ler o campo velho aqui mostraria o telefone
+        // desatualizado para sempre.
+        email: row.primary_email || '',
+        phone: row.primary_phone || '',
         avatarUrl: null,
         adminOnly: Boolean(row.admin_only),
         raw: row,
@@ -197,8 +241,9 @@ export function PessoasPage() {
         kind: 'fornecedor',
         name: row.name,
         subtitle: row.category || 'Fornecedor',
-        email: row.email || '',
-        phone: row.phone || '',
+        // Mesmo motivo do cliente acima: email/phone estão congelados desde a 043.
+        email: row.primary_email || '',
+        phone: row.primary_phone || '',
         avatarUrl: null,
         adminOnly: Boolean(row.admin_only),
         raw: row,
@@ -293,6 +338,8 @@ export function PessoasPage() {
       is_active: user.is_active,
       position: user.position || '',
       birth_date: user.birth_date || '',
+      admission_date: user.admission_date || '',
+      termination_date: user.termination_date || '',
       phone: user.phone || '',
     })
     setEditingUser(user)
@@ -365,8 +412,10 @@ export function PessoasPage() {
       hourly_rate: isAdministrativeIntern ? 0 : Number(form.hourly_rate) || 0,
       fixed_salary: isAdministrativeIntern ? Number(form.fixed_salary) || 0 : 0,
       is_active: form.is_active,
-      position: roleLabel(form.role),
+      position: form.position,
       birth_date: form.birth_date,
+      admission_date: form.admission_date,
+      termination_date: form.termination_date,
       phone: form.phone,
     }
 
@@ -527,6 +576,7 @@ export function PessoasPage() {
 
       <PersonDetailModal
         person={selected}
+        ficha={selectedFicha}
         onClose={() => setSelected(null)}
         onRestore={handleRestore}
         restoring={selected ? restoringId === selected.rawId : false}
@@ -621,6 +671,24 @@ export function PessoasPage() {
             />
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <DateField
+              label="Data de Admissão"
+              value={form.admission_date}
+              onChange={(e) => setForm({ ...form, admission_date: e.target.value })}
+              showYearDropdown
+              showMonthDropdown
+              max={new Date()}
+            />
+            <DateField
+              label="Data de Desligamento"
+              value={form.termination_date}
+              onChange={(e) => setForm({ ...form, termination_date: e.target.value })}
+              showYearDropdown
+              showMonthDropdown
+            />
+          </div>
+
           {!editingUser && (
             <>
               <Input
@@ -654,6 +722,22 @@ export function PessoasPage() {
               <option value={ROLES.ADMINISTRATIVE_INTERN}>Estagiário Administrativo</option>
               <option value={ROLES.ADMIN}>Administrador</option>
             </Select>
+            <div>
+              <Input
+                label="Cargo"
+                list="cargos-sugeridos"
+                value={form.position}
+                onChange={(e) => setForm({ ...form, position: e.target.value })}
+              />
+              <datalist id="cargos-sugeridos">
+                {CARGOS.map((cargo) => (
+                  <option key={cargo} value={cargo} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
             {form.role === ROLES.ADMINISTRATIVE_INTERN ? (
               <Input
                 label="Salário fixo mensal (R$)"
@@ -934,10 +1018,37 @@ function DetailRow({ label, children }) {
   )
 }
 
+// Contatos além do principal, cada um com o rótulo que a pessoa deu (item 2 do
+// PDF de 18/08/2026). Sem isto, um cliente com dois telefones cadastrados não
+// tem lugar nenhum onde o segundo apareça. `ficha` vem do GET .../:id (a
+// listagem só traz o principal) — enquanto carrega, ou se falhar, some sem
+// quebrar o resto da ficha.
+function OutrosContatos({ ficha }) {
+  if (!ficha) return null
+  const extras = [
+    ...(ficha.phones || []).filter((p) => !p.is_primary).map((p) => `${p.label}: ${p.value}`),
+    ...(ficha.emails || []).filter((e) => !e.is_primary).map((e) => `${e.label}: ${e.value}`),
+    ...(ficha.addresses || [])
+      .filter((a) => !a.is_primary)
+      .map((a) => `${a.label}: ${[a.street, a.number, a.city, a.uf].filter(Boolean).join(', ')}`),
+  ]
+  if (extras.length === 0) return null
+  return (
+    <DetailRow label="Outros contatos">
+      <ul className="space-y-0.5">
+        {extras.map((linha, i) => (
+          <li key={i}>{linha}</li>
+        ))}
+      </ul>
+    </DetailRow>
+  )
+}
+
 // Pop-up de detalhe (mockup pág. 10). Mostra os campos que temos por tipo;
 // CRM, documentos e projetos vinculados ficam para a próxima etapa.
 function PersonDetailModal({
   person,
+  ficha,
   onClose,
   onRestore,
   restoring,
@@ -1006,19 +1117,30 @@ function PersonDetailModal({
       <div className="border border-border-subtle px-4">
         {person.kind === 'cliente' && (
           <>
-            <DetailRow label="E-mail">{raw.email}</DetailRow>
-            <DetailRow label="Telefone">{raw.phone}</DetailRow>
-            <DetailRow label="CPF">{raw.cpf}</DetailRow>
+            {raw.person_type === 'pj' && <DetailRow label="Razão social">{raw.razao_social}</DetailRow>}
+            {/* email/phone (colunas do banco) estão congeladas desde a 043 — a
+                listagem só traz o principal, por isso primary_email/primary_phone. */}
+            <DetailRow label="E-mail">{raw.primary_email}</DetailRow>
+            <DetailRow label="Telefone">{raw.primary_phone}</DetailRow>
+            <OutrosContatos ficha={ficha} />
+            {raw.person_type === 'pj' ? (
+              <DetailRow label="CNPJ">{raw.cnpj}</DetailRow>
+            ) : (
+              <DetailRow label="CPF">{raw.cpf}</DetailRow>
+            )}
             <DetailRow label="Nascimento">{raw.birth_date ? formatDate(raw.birth_date) : ''}</DetailRow>
-            <DetailRow label="Endereço">{raw.address}</DetailRow>
+            <DetailRow label="Endereço">{raw.primary_address}</DetailRow>
             <DetailRow label="Observações">{raw.notes}</DetailRow>
           </>
         )}
         {person.kind === 'fornecedor' && (
           <>
+            {raw.person_type === 'pj' && <DetailRow label="Razão social">{raw.razao_social}</DetailRow>}
             <DetailRow label="Categoria">{raw.category}</DetailRow>
-            <DetailRow label="E-mail">{raw.email}</DetailRow>
-            <DetailRow label="Telefone">{raw.phone}</DetailRow>
+            {/* Mesmo motivo do cliente acima: email/phone congelados desde a 043. */}
+            <DetailRow label="E-mail">{raw.primary_email}</DetailRow>
+            <DetailRow label="Telefone">{raw.primary_phone}</DetailRow>
+            <OutrosContatos ficha={ficha} />
             <DetailRow label="Observações">{raw.notes}</DetailRow>
           </>
         )}
@@ -1030,6 +1152,12 @@ function PersonDetailModal({
             {canAccessMoney && (
               <DetailRow label="Remuneração">{compensationLabel(raw)}</DetailRow>
             )}
+            <DetailRow label="Admissão">
+              {formatDate(raw.admission_date)}
+              {tempoDeCasa(raw.admission_date) && (
+                <span className="ml-2 text-text-secondary">({tempoDeCasa(raw.admission_date)} de casa)</span>
+              )}
+            </DetailRow>
             <DetailRow label="Status">
               <Badge tone={raw.is_active === false ? 'danger' : 'success'}>
                 {raw.is_active === false ? 'Inativo' : 'Ativo'}

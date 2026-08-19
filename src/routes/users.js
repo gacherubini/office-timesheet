@@ -6,7 +6,7 @@ import { uploadFile, deleteFile, extractKeyFromUrl } from '../lib/storage.js'
 import { requireAuth } from '../middleware/auth.js'
 import { requireAdmin } from '../middleware/requireAdmin.js'
 import { requireOperationalAccess } from '../middleware/requireOperationalAccess.js'
-import { ROLES, VALID_ROLES, canAccessMoney, roleLabel } from '../lib/permissions.js'
+import { ROLES, VALID_ROLES, canAccessMoney } from '../lib/permissions.js'
 import { invalidateUser, invalidateUsersBasic } from '../lib/userCache.js'
 import { logger } from '../lib/logger.js'
 
@@ -15,6 +15,18 @@ import { logger } from '../lib/logger.js'
 // guard só barrava `false`/'false') e ainda gravava o valor cru na coluna.
 function toBool(v) {
   return v === true || v === 'true' || v === 1 || v === '1'
+}
+
+// Cargo é o que a pessoa FAZ; role é o que ela PODE FAZER. São campos
+// separados desde o item 5 do PDF de 18/08/2026 — antes disso, position era
+// gravado como roleLabel(role), e por isso todo colaborador aparecia como
+// "Colaborador". Ver docs/superpowers/specs/2026-08-18-ajustes-void-b-pessoas-design.md §6.
+const CARGO_PADRAO = 'Arquiteto'
+
+function optionalText(value) {
+  if (value === undefined || value === null) return null
+  const text = String(value).trim()
+  return text || null
 }
 
 // uuid casa case-insensitive no Postgres; o compare em JS tem que casar também,
@@ -50,6 +62,8 @@ router.post('/create-user', requireAuth, requireAdmin, async (req, res) => {
       is_active = true,
       position,
       birth_date,
+      admission_date,
+      termination_date,
       phone,
     } = req.body
 
@@ -83,8 +97,8 @@ router.post('/create-user', requireAuth, requireAdmin, async (req, res) => {
 
     const { rows } = await query(
       `INSERT INTO users (email, password_hash, name, role, hourly_rate, fixed_salary,
-                          is_active, position, birth_date, phone)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                          is_active, position, birth_date, admission_date, termination_date, phone)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING id, email, name, role, hourly_rate, fixed_salary, is_active`,
       [
         email.trim().toLowerCase(),
@@ -94,8 +108,10 @@ router.post('/create-user', requireAuth, requireAdmin, async (req, res) => {
         role === ROLES.ADMINISTRATIVE_INTERN ? 0 : Number(hourly_rate) || 0,
         role === ROLES.ADMINISTRATIVE_INTERN ? Number(fixed_salary) || 0 : 0,
         is_active,
-        roleLabel(role),
+        optionalText(position) || CARGO_PADRAO,
         birth_date || null,
+        admission_date || null,
+        termination_date || null,
         phone?.trim() || null,
       ],
     )
@@ -124,8 +140,8 @@ router.post('/create-user', requireAuth, requireAdmin, async (req, res) => {
 // ─── LISTAR USUÁRIOS (apenas não deletados) ───────────────────────────
 router.get('/users', requireAuth, requireOperationalAccess, async (req, res) => {
   const fields = canAccessMoney(req.profile)
-    ? 'id, name, email, role, hourly_rate, fixed_salary, is_active, position, birth_date, phone, avatar_url, created_at'
-    : 'id, name, email, role, is_active, position, birth_date, phone, avatar_url, created_at'
+    ? 'id, name, email, role, hourly_rate, fixed_salary, is_active, position, birth_date, admission_date, termination_date, phone, avatar_url, created_at'
+    : 'id, name, email, role, is_active, position, birth_date, admission_date, termination_date, phone, avatar_url, created_at'
 
   try {
     const { rows } = await query(
@@ -185,7 +201,10 @@ router.post('/users/:id/restore', requireAuth, requireAdmin, async (req, res) =>
 // ─── EDITAR USUÁRIO ───────────────────────────────────────────────────
 router.put('/users/:id', requireAuth, requireAdmin, async (req, res) => {
   const { id } = req.params
-  const { name, role, hourly_rate, fixed_salary, is_active, position, birth_date, phone } = req.body
+  const {
+    name, role, hourly_rate, fixed_salary, is_active, position,
+    birth_date, admission_date, termination_date, phone,
+  } = req.body
 
   // Admin não se auto-desativa nem troca o próprio papel (self-lock).
   if (sameId(id, req.profile.id)) {
@@ -204,7 +223,6 @@ router.put('/users/:id', requireAuth, requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Role inválida.' })
     }
     updates.role = role
-    updates.position = roleLabel(role)
     if (role === ROLES.ADMINISTRATIVE_INTERN) {
       updates.hourly_rate = 0
     } else {
@@ -228,7 +246,11 @@ router.put('/users/:id', requireAuth, requireAdmin, async (req, res) => {
     }
   }
   if (is_active !== undefined) updates.is_active = toBool(is_active)
+  // Cargo é independente da permissão: trocar o role (acima) não mexe aqui.
+  if (position !== undefined) updates.position = optionalText(position)
   if (birth_date !== undefined) updates.birth_date = birth_date || null
+  if (admission_date !== undefined) updates.admission_date = admission_date || null
+  if (termination_date !== undefined) updates.termination_date = termination_date || null
   if (phone !== undefined) updates.phone = phone?.trim() || null
 
   if (Object.keys(updates).length === 0) {

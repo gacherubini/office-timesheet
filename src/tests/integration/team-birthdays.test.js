@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { resetDb } from '../helpers/db.js'
+import { resetDb, query } from '../helpers/db.js'
 import { asUser, request } from '../helpers/api.js'
 import { makeUser } from '../helpers/factories.js'
 import { dateInSaoPaulo } from '../../lib/dates.js'
@@ -61,5 +61,32 @@ describe('/me/team-birthdays — aniversariantes do time', () => {
   it('exige autenticação', async () => {
     const res = await request.get('/me/team-birthdays')
     expect(res.status).toBe(401)
+  })
+})
+
+// Guarda de PF: se um dia clientes entrarem no card, pessoa jurídica não pode
+// "fazer aniversário". A data de fundação de uma construtora não é aniversário
+// de ninguém. Ver a decisão de 18/08/2026 no spec do bloco B, §7.
+describe('aniversariantes ignoram pessoa jurídica', () => {
+  beforeEach(async () => { await resetDb() })
+
+  it('a lista continua vindo só de users', async () => {
+    const u = await makeUser({ role: 'employee', name: 'Ana', birth_date: '1990-08-18' })
+    await query(
+      `INSERT INTO clients (name, person_type, razao_social, birth_date)
+       VALUES ('Construtora X', 'pj', 'Construtora X Ltda', '1990-08-18')`)
+    const res = await asUser(u).get('/birthdays')
+    expect(res.status).toBe(200)
+    expect(res.body.map((p) => p.name)).toContain('Ana')
+    expect(res.body.map((p) => p.name)).not.toContain('Construtora X')
+  })
+
+  it('o endpoint da equipe também não traz PJ', async () => {
+    const u = await makeUser({ role: 'employee', name: 'Ana', birth_date: '1990-08-18' })
+    await query(
+      `INSERT INTO clients (name, person_type, razao_social, birth_date)
+       VALUES ('Construtora X', 'pj', 'Construtora X Ltda', '1990-08-18')`)
+    const res = await asUser(u).get('/me/team-birthdays')
+    expect(res.body.aniversariantes.map((p) => p.name)).not.toContain('Construtora X')
   })
 })
