@@ -1977,6 +1977,7 @@ git commit -m "feat(web): busca de endereço por CEP no ViaCEP"
 - Create: `web/src/components/pessoas/ContactListField.test.jsx`
 - Modify: `web/src/components/ClientFormModal.jsx`
 - Modify: `web/src/components/SupplierFormModal.jsx`
+- Modify: `web/src/pages/PessoasPage.jsx` (lista, busca, WhatsApp e card de detalhe)
 
 **Interfaces:**
 - Consumes: `useCep` da Task 9; as rotas das Tasks 6 e 7.
@@ -2286,7 +2287,39 @@ const EMPTY_CLIENT_FORM = {
 
 Ao **editar**, carregue a ficha completa com `api.get('/admin/clients/' + client.id)` — a listagem só traz os principais.
 
-- [ ] **Step 8: Rodar tudo**
+- [ ] **Step 8: Migrar a tela de Pessoas para a fonte nova**
+
+**Não pule este passo.** `PessoasPage.jsx` lê `row.phone` e `row.email` em oito
+lugares, e depois da 043 essas colunas ficam **congeladas** — continuam existindo
+(é o que torna o bloco reversível) mas ninguém escreve nelas. Sem este passo, a
+lista, a busca e o link do WhatsApp mostrariam o telefone velho para sempre, e
+ninguém perceberia: o dado está lá, só está desatualizado.
+
+Confira o alcance antes de mexer:
+
+```bash
+grep -n "\.phone\|\.email\|whatsappLink" web/src/pages/PessoasPage.jsx
+```
+
+Troque em cada ponto:
+
+| Onde | Hoje | Passa a ser |
+|---|---|---|
+| montagem das linhas (~186, 200, 214, 228) | `row.email`, `row.phone` | `row.primary_email`, `row.primary_phone` |
+| filtro de busca (~253) | `p.email`, `p.phone` | os mesmos campos novos |
+| link do WhatsApp (~844) | `whatsappLink(person.phone)` | `whatsappLink(person.primary_phone)` |
+| card de detalhe (~889) | `person.phone` | `person.primary_phone` |
+
+Colaboradores (`users`) **não** mudam: eles continuam com `phone` e `email`
+próprios, porque a tabela `users` ficou de fora deste bloco. Se a montagem das
+linhas for compartilhada entre cliente, fornecedor e colaborador, o mapeamento
+precisa ser por tipo — cuidado para não trocar o campo do colaborador junto.
+
+Na ficha do cliente, além do principal, mostre os **outros** contatos com o
+rótulo de cada um: é o ganho que o item 2 pede, e sem isso o cadastro de dois
+telefones não aparece em lugar nenhum.
+
+- [ ] **Step 9: Rodar tudo**
 
 ```bash
 cd web && npx vitest run
@@ -2294,7 +2327,7 @@ cd web && npx vitest run
 
 Expected: PASS.
 
-- [ ] **Step 9: Conferir no navegador**
+- [ ] **Step 10: Conferir no navegador**
 
 ```bash
 cd src && npm run dev     # terminal 1
@@ -2307,8 +2340,11 @@ Roteiro de aceite dos itens 1, 2 e 3 do PDF:
 3. Endereço → digite `99999-999` → aviso brando, campos livres, **o cadastro salva**.
 4. Novo cliente **PJ** → razão social, fantasia, CNPJ → vincule duas PF (sócio e financeiro) → salve → a ficha da empresa mostra os dois.
 5. Repita 1 e 4 em **fornecedor**.
+6. Na **lista** de Pessoas, o telefone mostrado é o principal, e o botão do
+   WhatsApp abre com ele — não com o antigo.
+7. Busque pelo telefone secundário: a busca acha a pessoa.
 
-- [ ] **Step 10: Commit**
+- [ ] **Step 11: Commit**
 
 ```bash
 git add web/src/components/pessoas web/src/components/ClientFormModal.jsx web/src/components/SupplierFormModal.jsx

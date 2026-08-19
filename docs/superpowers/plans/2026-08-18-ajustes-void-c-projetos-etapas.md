@@ -1738,19 +1738,27 @@ git commit -m "feat: template gera etapas e tarefas-padrão de cada uma"
 
 ---
 
-### Task 9: Front — trilha de etapas e filtro do quadro
+### Task 9: Front — trilha, gerenciar etapas e contratantes na tela
 
 **Files:**
 - Create: `web/src/pages/projectBoard/StageTrack.jsx`
 - Create: `web/src/pages/projectBoard/StageTrack.test.jsx`
+- Create: `web/src/pages/projectBoard/StageManagerModal.jsx`
+- Create: `web/src/pages/projectBoard/ProjectClientsField.jsx`
 - Modify: `web/src/pages/projectBoard/ProjectPage.jsx`
 - Modify: `web/src/pages/projectBoard/EtapaChip.jsx`
 - Modify: `web/src/pages/projectBoard/NewTaskModal.jsx`
 - Modify: `web/src/pages/ProjectBoardPage.jsx`
+- Modify: `web/src/pages/PessoasPage.jsx` (lista de projetos na ficha)
 
 **Interfaces:**
-- Consumes: `GET /projects/:id/stages` da Task 7.
-- Produces: `<StageTrack etapas etapaAtiva onSelecionar />`.
+- Consumes: `GET /projects/:id/stages` (Task 7); `clients[]` de `GET /projects/:id` e `projects[]` de `GET /admin/clients/:id` (Task 2).
+- Produces: `<StageTrack etapas etapaAtiva onSelecionar />`, `<StageManagerModal ... />`, `<ProjectClientsField itens onChange />`.
+
+> **Esta tarefa fecha o item 7 e a metade visível do item 8.** A Task 2 entregou
+> os vários contratantes só na API, e a Task 7 entregou o CRUD de etapas só na
+> API. Os aceites do PDF para os dois são fluxos de **tela** — sem esta tarefa,
+> nenhum dos dois pode ser demonstrado.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1907,19 +1915,83 @@ Hoje ele lê a lista estática de `web/src/lib/taskTypes.js`. Passa a receber as
 
 Em `NewTaskModal.jsx`, a etapa vira campo **obrigatório**, pré-preenchido com `etapaAtiva` quando houver — quem está olhando o Anteprojeto quase sempre quer criar tarefa nele.
 
-- [ ] **Step 7: Rodar tudo e conferir**
+- [ ] **Step 7: "Gerenciar etapas" — a tela que ativa e acrescenta**
+
+O PDF: *"Cada projeto ativa as que se aplicam e pode acrescentar extras."* A API
+está pronta desde a Task 7; falta o lugar de usá-la.
+
+Create `web/src/pages/projectBoard/StageManagerModal.jsx`. Aberto pelo link
+"Gerenciar etapas" no cabeçalho da trilha (como no mockup do PDF), visível só
+para quem gerencia projetos:
+
+- Lista o **catálogo** (`GET /stage-catalog`) com uma marcação por etapa já ativa
+  no projeto. Marcar chama `POST /projects/:id/stages` com `catalog_id`;
+  desmarcar chama `DELETE`.
+- Campo "acrescentar etapa extra" que chama `POST` com `name` livre — é o
+  "pode acrescentar extras" do PDF.
+- Cada etapa ativa edita **prazo, responsável, ordem e status** in-place
+  (`PUT /projects/:id/stages/:stageId`).
+- O `DELETE` de etapa com tarefa devolve 400 com `Mova as N tarefas...`
+  (Task 7). Mostre essa mensagem como está — ela já diz o que fazer.
+
+- [ ] **Step 8: Contratantes na tela do projeto**
+
+Hoje `ProjectPage.jsx:142` mostra `Cliente: {project.client}` — um só — e o card
+lateral (`:267`) mostra um nome, um telefone e um endereço. Com N:N isso passa a
+esconder informação: o segundo contratante existe no banco e não aparece em
+lugar nenhum.
+
+- **Cabeçalho** (`:142`): continua mostrando o **principal** (`project.client`,
+  já sincronizado pela Task 2). Não mexa — é o que o PDF pede para o cabeçalho.
+- **Card lateral** (`:267`): passa a listar **todos** os `clients[]` de
+  `GET /projects/:id`, cada um com o papel ao lado (Contratante principal,
+  Investidor…). O contato mostrado continua sendo o do principal.
+- **Formulário de projeto**: create `ProjectClientsField.jsx` — lista repetível
+  de `{ client_id, role, is_primary }`, no mesmo contrato dos campos do bloco B
+  (`{ itens, onChange }`), com seletor de cliente sobre o cadastro (nunca texto
+  livre) e um rádio para o principal. Reaproveite a lógica de "remover o
+  principal promove o primeiro" do `ContactListField`.
+
+- [ ] **Step 9: Projetos na ficha da pessoa**
+
+`GET /admin/clients/:id` já devolve `projects[]` e `project_count` desde a
+Task 2. Na ficha de Pessoas, mostre a lista com o papel em cada projeto — é a
+segunda metade do aceite do item 7 (*"o projeto aparece na ficha dos dois"*), e
+o contador precisa bater com todos os papéis, não só com contratante principal.
+
+- [ ] **Step 10: Rodar tudo e conferir**
 
 ```bash
 cd web && npx vitest run && npm run dev
 ```
 
-Roteiro de aceite do item 8: *"Abro um projeto e vejo a trilha de etapas com o progresso; clico em 'anteprojeto' e o quadro mostra só as tarefas dessa etapa; ao criar projeto por template, etapas e tarefas-padrão já vêm prontas."*
+Roteiro de aceite, os **dois** itens:
 
-- [ ] **Step 8: Commit**
+*Item 8 — "Abro um projeto e vejo a trilha de etapas com o progresso; clico em
+'anteprojeto' e o quadro mostra só as tarefas dessa etapa; ao criar projeto por
+template, etapas e tarefas-padrão já vêm prontas."*
+
+1. Abra um projeto: trilha no topo, com progresso.
+2. Clique em "Anteprojeto": o quadro filtra. Clique de novo: volta para todas.
+3. "Gerenciar etapas": ative uma do catálogo, acrescente uma extra, defina prazo
+   e responsável, tente excluir uma com tarefa dentro (tem que recusar dizendo
+   quantas).
+4. Crie projeto por template: etapas e tarefas já vêm prontas.
+
+*Item 7 — "Cadastro um projeto com dois contratantes; ambos aparecem no projeto
+e o projeto aparece na ficha dos dois."*
+
+5. Crie um projeto com dois contratantes (um principal, um investidor).
+6. Na página do projeto: o cabeçalho mostra o principal, o card lateral mostra
+   os dois com os papéis.
+7. Abra a ficha de **cada um** dos dois em Pessoas: o projeto está lá, e o
+   contador conta os dois.
+
+- [ ] **Step 11: Commit**
 
 ```bash
-git add web/src/pages/projectBoard web/src/pages/ProjectBoardPage.jsx
-git commit -m "feat(web): trilha de etapas no topo do projeto com filtro do quadro"
+git add web/src/pages/projectBoard web/src/pages/ProjectBoardPage.jsx web/src/pages/PessoasPage.jsx
+git commit -m "feat(web): trilha de etapas, gerenciar etapas e vários contratantes na tela"
 ```
 
 ---
