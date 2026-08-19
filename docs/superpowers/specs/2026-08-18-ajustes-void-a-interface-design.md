@@ -50,30 +50,35 @@ quem está usando o sistema agora. O rótulo mente.
                     (requireAuth, já roda em tudo)
                              │
                              ▼
-                  src/lib/presence.js
-                    marcarVisto(userId)   ← Map<userId, timestamp>
-                    online()              → ids vistos há < 5 min
+                  src/lib/onlineUsers.js
+                    marcarVisto(userId)     ← Map<userId, timestamp>
+                    usuariosOnline()        → ids vistos há < 5 min
                              │
                              ▼
                   GET /dashboard  (routes/dashboard.js)
                     online_users = online() ∪ (quem tem time_entry running)
 ```
 
-### `src/lib/presence.js` (novo)
+### `src/lib/onlineUsers.js` (novo)
 
 Espelha o formato e as ressalvas do `lib/userCache.js`, inclusive o comentário
-sobre uma única instância no Fly:
+sobre uma única instância no Fly.
+
+**Nome:** `onlineUsers` e **não** `presence` — `routes/presences.js` e a tabela
+`presences` (migration 028) já existem e são outra coisa: a marcação de "vou ao
+escritório amanhã" da Agenda. Dois conceitos quase homônimos no mesmo repo é
+armadilha para quem chegar depois.
 
 ```js
 const JANELA_MS = Number(process.env.PRESENCE_WINDOW_MS) || 5 * 60_000
 const vistos = new Map()          // userId -> epoch ms
 
 export function marcarVisto(userId)   // chamado no requireAuth
-export function online()              // Set<userId> dentro da janela
-export function limparPresenca()      // reset entre testes
+export function usuariosOnline()      // Set<userId> dentro da janela
+export function limparOnline()        // reset entre testes
 ```
 
-Poda preguiçosa: `online()` remove as entradas vencidas enquanto varre. Com
+Poda preguiçosa: `usuariosOnline()` remove as entradas vencidas enquanto varre. Com
 dezenas de usuários não vale um timer.
 
 **Ressalva a documentar no arquivo:** com mais de uma máquina no Fly, cada
@@ -122,7 +127,7 @@ consumidores podem ler), e entra `kpis.online_users`. A tela troca o que exibe.
 
 | Nível | Caso |
 |---|---|
-| unit `presence.test.js` | carimbo entra em `online()`; some depois da janela; poda não vaza memória; `limparPresenca` zera |
+| unit `onlineUsers.test.js` | carimbo entra em `usuariosOnline()`; some depois da janela; poda não vaza memória; `limparOnline` zera |
 | integration | `POST /me/heartbeat` → 204 e o usuário aparece em `online_users` |
 | integration | usuário sem sinal nenhum **não** aparece |
 | integration | usuário com `time_entry` `running` e **sem** request recente aparece |
@@ -291,7 +296,7 @@ pergunto e volto ao projeto sem perder tela nem conversa."*
 ## 5. Ordem de implementação
 
 1. **Item 10** — favicon, manifest, título. Isolado, sem risco, resultado visível na hora.
-2. **Item 9** — `presence.js`, heartbeat, KPI. Backend com teste, contido.
+2. **Item 9** — `onlineUsers.js`, heartbeat, KPI. Backend com teste, contido.
 3. **Item 11 (a)** — extrair `AgentContext`, página continuando idêntica.
 4. **Item 11 (b)** — `ChatPanel` + botão flutuante + contexto de pessoa.
 
