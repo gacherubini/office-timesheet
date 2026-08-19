@@ -2,8 +2,11 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
 import simbolo from '../assets/studio-vivian-simbolo.png'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 export function ForgotPasswordPage() {
+  useDocumentTitle('Recuperar senha')
+
   const [email, setEmail] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')

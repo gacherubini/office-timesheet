@@ -3,8 +3,10 @@ import { useNavigate, Navigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { BrandLine } from '../components/BrandLine'
 import simbolo from '../assets/studio-vivian-simbolo.png'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 export function LoginPage() {
+  useDocumentTitle('Entrar')
   const { profile, login } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')

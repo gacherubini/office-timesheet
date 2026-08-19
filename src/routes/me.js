@@ -31,6 +31,13 @@ router.get('/me', requireAuth, async (req, res) => {
   })
 })
 
+// Sinal de vida da aba aberta, para o indicador "usuários online".
+// O handler é vazio DE PROPÓSITO: quem carimba a presença é o requireAuth que
+// esta rota atravessa (ver lib/onlineUsers.js). Não apague achando que é rota
+// morta — sem ela, quem fica lendo uma tela que não faz polling some do
+// indicador em 5 minutos, sentado na cadeira.
+router.post('/me/heartbeat', requireAuth, (_req, res) => res.status(204).end())
+
 router.get('/me/profile', requireAuth, async (req, res) => {
   const { rows, error } = await query(
     'SELECT id, name, email, role, is_active, position, birth_date, phone, avatar_url, monthly_income_goal, created_at FROM users WHERE id = $1',

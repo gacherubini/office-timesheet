@@ -2,8 +2,11 @@ import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { api } from '../lib/api'
 import simbolo from '../assets/studio-vivian-simbolo.png'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 export function ResetPasswordPage() {
+  useDocumentTitle('Redefinir senha')
+
   const navigate = useNavigate()
   const [accessToken, setAccessToken] = useState('')
   const [newPassword, setNewPassword] = useState('')

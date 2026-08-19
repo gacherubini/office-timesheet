@@ -1,4 +1,10 @@
+import { useDocumentTitle } from '../../hooks/useDocumentTitle'
+
 export function PageHeader({ title, subtitle, badge, actions, children }) {
+  // O título da tela também é o título da aba. Ligar aqui cobre todas as
+  // páginas que já usam este componente; quem não usa chama o hook direto.
+  useDocumentTitle(title)
+
   return (
     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-7">
       <div className="min-w-0">

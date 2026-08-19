@@ -6,6 +6,7 @@ import { Avatar } from '../components/Avatar'
 import { DateField } from '../components/ui/DateField'
 import { roleLabel } from '../lib/permissions'
 import { CalendarConnect } from './profile/CalendarConnect'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? '/api'
 
@@ -20,6 +21,7 @@ function formatCurrency(value) {
 }
 
 export function ProfilePage() {
+  useDocumentTitle('Perfil')
   const { profile, updateProfile } = useAuth()
   const [form, setForm] = useState({
     name: '',

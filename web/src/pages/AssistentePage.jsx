@@ -13,6 +13,7 @@ import { BolhaMarkdown } from '../components/assistente/BolhaMarkdown'
 import { criarPincel } from '../lib/agentPincel'
 import { RodapeBolha } from '../components/assistente/RodapeBolha'
 import { podeRefazer, podeEditar, limparParaRefazer } from '../lib/agentAcoes'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 // ── Página do Assistente (tela cheia) ──────────────────────────────────────
 // Lista à esquerda (md+); mobile abre o mesmo conteúdo full-height. Sem
@@ -166,6 +167,7 @@ function ChipsLinks({ links }) {
 }
 
 export function AssistentePage() {
+  useDocumentTitle('Assistente')
   const { profile } = useAuth()
   const [mensagens, setMensagens] = useState([]) // { autor, texto, proposta?, aprovado?, cancelado?, erro?, executando? }
   const [input, setInput] = useState('')

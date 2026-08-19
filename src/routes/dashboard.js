@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
 import { requireAdmin } from '../middleware/requireAdmin.js'
 import { query } from '../lib/db.js'
+import { usuariosOnline } from '../lib/onlineUsers.js'
 
 const router = Router()
 
@@ -17,6 +18,7 @@ router.get('/dashboard', requireAuth, requireAdmin, async (req, res) => {
       { rows: entries },
       { rows: profiles },
       { rows: projects },
+      { rows: running },
     ] = await Promise.all([
       query(
         `SELECT user_id, project_id, duration_minutes, cost_snapshot
@@ -32,6 +34,7 @@ router.get('/dashboard', requireAuth, requireAdmin, async (req, res) => {
       query(
         `SELECT id, name, status, sale_value FROM projects WHERE deleted_at IS NULL`
       ),
+      query(`SELECT DISTINCT user_id FROM time_entries WHERE status = 'running'`),
     ])
 
     const profileMap = {}
@@ -71,6 +74,12 @@ router.get('/dashboard', requireAuth, requireAdmin, async (req, res) => {
 
     const activeUsers = (profiles || []).filter((p) => p.is_active).length
     const totalUsers = (profiles || []).length
+    // "Online" = sinal recente no processo (request ou heartbeat) OU cronômetro
+    // rodando. O Set já deduplica quem satisfaz os dois. O filtro por is_active
+    // evita contar quem foi desligado mas ainda tinha um timer aberto.
+    const idsOnline = usuariosOnline()
+    for (const r of running || []) idsOnline.add(r.user_id)
+    const onlineUsers = (profiles || []).filter((p) => p.is_active && idsOnline.has(p.id)).length
     const activeProjectsCount = activeProjects.length
     const totalProjectsCount = (projects || []).length
 
@@ -103,6 +112,7 @@ router.get('/dashboard', requireAuth, requireAdmin, async (req, res) => {
         total_minutes: totalMinutes,
         active_users: activeUsers,
         total_users: totalUsers,
+        online_users: onlineUsers,
         active_projects: activeProjectsCount,
         total_projects: totalProjectsCount,
       },

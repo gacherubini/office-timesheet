@@ -9,6 +9,7 @@ import { LiveDot } from '../components/LiveDot'
 import { Card } from '../components/ui/Card'
 import { BrandLine } from '../components/BrandLine'
 import { useAuth } from '../contexts/AuthContext'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 function formatClock(minutes) {
   const h = Math.floor((minutes || 0) / 60)
@@ -44,6 +45,7 @@ function SectionCard({ title, count, action, children }) {
 }
 
 export function EmployeeDashboardPage() {
+  useDocumentTitle('Início')
   const { profile } = useAuth()
   const [stats, setStats] = useState(null)
   const [statsLoading, setStatsLoading] = useState(true)

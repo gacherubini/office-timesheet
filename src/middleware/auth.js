@@ -2,6 +2,7 @@ import { verifyAccessToken } from '../lib/jwt.js'
 import { query } from '../lib/db.js'
 import { logger } from '../lib/logger.js'
 import { getCachedProfile, setCachedProfile } from '../lib/userCache.js'
+import { marcarVisto } from '../lib/onlineUsers.js'
 
 export async function requireAuth(req, res, next) {
   try {
@@ -50,6 +51,9 @@ export async function requireAuth(req, res, next) {
     req.accessToken = token
     req.authUser = { id: profile.id, email: profile.email }
     req.profile = profile
+    // Presença: depois de todas as guardas, para que 401/403 não conte como
+    // "online". É um Map.set em memória — nada de I/O neste caminho.
+    marcarVisto(profile.id)
     next()
   } catch (err) {
     logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em requireAuth')

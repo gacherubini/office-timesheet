@@ -12,6 +12,7 @@ import { Tabs } from '../../components/ui/Tabs'
 import { Modal } from '../../components/ui/Modal'
 import { Button } from '../../components/ui/Button'
 import { getPeriodRange } from '../../lib/periods'
+import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 
 function formatCurrency(value) {
   return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -85,6 +86,10 @@ function LiveNowStrip({ live }) {
 }
 
 export function AdminDashboardPage() {
+  // Home do admin: não usa PageHeader (layout próprio), então liga o título
+  // da aba direto — senão a aba fica travada em "Entrar" depois do login.
+  useDocumentTitle('Painel')
+
   const [period, setPeriod] = useState('month')
   const { start_date: startDate, end_date: endDate } = getPeriodRange(period)
   const [data, setData] = useState(null)
@@ -356,9 +361,9 @@ export function AdminDashboardPage() {
         </div>
         <div className="relative z-10 flex gap-9 pb-1">
           <div>
-            <p className="text-[9px] uppercase tracking-[.2em] text-white/60">Usuários ativos</p>
+            <p className="text-[9px] uppercase tracking-[.2em] text-white/60">Usuários online</p>
             <p className="mt-2 font-display text-2xl font-light leading-none tabular-nums">
-              {loading ? '—' : `${kpis?.active_users ?? 0} de ${kpis?.total_users ?? 0}`}
+              {loading ? '—' : (kpis?.online_users ?? 0)}
             </p>
           </div>
           <div>

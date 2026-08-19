@@ -1,5 +1,6 @@
 import { query, pool } from '../../lib/db.js'
 import { clearUserCache } from '../../lib/userCache.js'
+import { limparOnline } from '../../lib/onlineUsers.js'
 
 export { query, pool }
 
@@ -16,4 +17,7 @@ export async function resetDb() {
   // O cache de usuário vive no processo e sobrevive entre testes; sem limpar,
   // um perfil de um teste anterior poderia vazar pro seguinte.
   clearUserCache()
+  // Presença também vive no processo: sem limpar, um usuário marcado num teste
+  // anterior contaria como online no seguinte.
+  limparOnline()
 }
