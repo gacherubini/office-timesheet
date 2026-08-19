@@ -95,4 +95,31 @@ describe('visibilidade por campo — clientes', () => {
     expect(res.body.phones[0].is_primary).toBe(true)
     expect(res.body.phones[0].value).toBe('222')
   })
+
+  // Item 2 do bloco de 19/08/2026: vínculo (person_links) com sócio marcado
+  // admin_only vazava o nome dele pelo links[] da PJ, mesmo a ficha direta
+  // daquela pessoa devolvendo 404 para quem não é admin.
+  describe('admin_only no links[] da ficha', () => {
+    let socioOculto
+    beforeEach(async () => {
+      const res = await asUser(admin).post('/admin/clients').send({ name: 'SOCIO-OCULTO' })
+      socioOculto = res.body.id
+      await query(`UPDATE clients SET admin_only = true WHERE id = $1`, [socioOculto])
+      await query(
+        `INSERT INTO person_links (company_client_id, member_client_id, role)
+         VALUES ($1, $2, 'socio')`, [cliente, socioOculto])
+    })
+
+    it('a linha do vínculo com sócio admin_only some para quem não é admin', async () => {
+      const res = await asUser(emp).get(`/admin/clients/${cliente}`)
+      expect(res.body.links).toHaveLength(0)
+      expect(JSON.stringify(res.body)).not.toContain('SOCIO-OCULTO')
+    })
+
+    it('a linha do vínculo continua aparecendo para o admin', async () => {
+      const res = await asUser(admin).get(`/admin/clients/${cliente}`)
+      expect(res.body.links).toHaveLength(1)
+      expect(res.body.links[0].member_name).toBe('SOCIO-OCULTO')
+    })
+  })
 })

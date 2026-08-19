@@ -161,13 +161,19 @@ router.delete('/projects/:id/stages/:stageId', requireAuth, requireProjectManage
 })
 
 // ─── Catálogo global de etapas ─────────────────────────────────────────
-router.get('/stage-catalog', requireAuth, async (_req, res) => {
+// Por padrão só as ativas: quem popula um seletor de etapas (criar etapa de
+// projeto, template) não quer arquivada na lista. A tela de administração do
+// catálogo (StageCatalogPage) é a exceção — ela precisa mostrar e reativar o
+// que foi arquivado, daí o include_archived=1 opt-in em vez de mudar o
+// default e quebrar todo mundo que já chama a rota sem parâmetro.
+router.get('/stage-catalog', requireAuth, async (req, res) => {
+  const incluirArquivadas = req.query.include_archived === '1'
   try {
     const { rows } = await query(
       `SELECT id, name, description, position, is_archived, created_at, updated_at
          FROM stage_catalog
-        WHERE NOT is_archived
-        ORDER BY position, name`)
+        WHERE ($1::boolean OR NOT is_archived)
+        ORDER BY position, name`, [incluirArquivadas])
     return res.json(rows)
   } catch (err) {
     logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em GET /stage-catalog')

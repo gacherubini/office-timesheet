@@ -16,6 +16,7 @@ import { ProfilePage } from './pages/ProfilePage'
 import { EmployeeDashboardPage } from './pages/EmployeeDashboardPage'
 import { GlobalTasksPage } from './pages/GlobalTasksPage'
 import { PessoasPage } from './pages/PessoasPage'
+import { StageCatalogPage } from './pages/StageCatalogPage'
 import { AssistentePage } from './pages/AssistentePage'
 import { PerformancePage } from './pages/PerformancePage'
 import { AdminLivePage } from './pages/admin/AdminLivePage'
@@ -73,6 +74,11 @@ export default function App() {
       <Route path="/agenda" element={<ProtectedRoute><Layout><AgendaPage /></Layout></ProtectedRoute>} />
       <Route path="/assistente" element={<ProtectedRoute><Layout><AssistentePage /></Layout></ProtectedRoute>} />
       <Route path="/performance" element={<ProtectedRoute disallowAdministrativeIntern><Layout><PerformancePage /></Layout></ProtectedRoute>} />
+      {/* Catálogo global de etapas — a gestão POR PROJETO continua dentro de
+          /projetos (StageManagerModal). Acesso restrito a quem gerencia
+          projetos (mesma régua do requireProjectManagement no backend),
+          barrado aqui pelo ProtectedRoute — não mais dentro da página. */}
+      <Route path="/catalogo-etapas" element={<ProtectedRoute projectManagerOnly><Layout><StageCatalogPage /></Layout></ProtectedRoute>} />
 
       {/* Rotas do admin */}
       <Route path="/admin/approvals" element={<ProtectedRoute approverOnly><Layout><AdminApprovalsPage /></Layout></ProtectedRoute>} />

@@ -97,4 +97,39 @@ describe('templates geram etapas e tarefas', () => {
     const { rows } = await query(`SELECT count(*)::int AS c FROM project_template_stages`)
     expect(rows[0].c).toBe(0)
   })
+
+  // Bug: PUT /project-templates/:id sempre fazia DELETE + insertStages([]) das
+  // etapas quando o corpo não trazia `stages` — a TemplateManager.jsx atual
+  // não manda esse campo, então o primeiro save de um template que ganhou
+  // etapas por API apagava todas elas. Mesmo padrão de "chave ausente
+  // preserva" que routes/clients.js usa no PUT (restricted_fields só é
+  // regravado quando a chave veio no corpo).
+  it('PUT sem `stages` no corpo preserva as etapas existentes', async () => {
+    const tpl = await templateComEtapas()
+    const antes = await asUser(admin).get(`/project-templates/${tpl}`)
+    expect(antes.body.stages.map((s) => s.name)).toEqual(['Anteprojeto', 'Executivo'])
+
+    // Corpo como a tela ATUAL manda: name/description/items, sem `stages`.
+    const res = await asUser(admin).put(`/project-templates/${tpl}`).send({
+      name: 'Residencial (editado)',
+      items: [{ title: 'Tarefa nova' }],
+    })
+    expect(res.status).toBe(200)
+
+    const depois = await asUser(admin).get(`/project-templates/${tpl}`)
+    expect(depois.body.stages.map((s) => s.name)).toEqual(['Anteprojeto', 'Executivo'])
+  })
+
+  it('PUT COM `stages` no corpo continua substituindo (comportamento normal)', async () => {
+    const tpl = await templateComEtapas()
+    const res = await asUser(admin).put(`/project-templates/${tpl}`).send({
+      name: 'Residencial (editado)',
+      stages: [{ name: 'Só uma etapa' }],
+      items: [{ title: 'Tarefa', stage_index: 0 }],
+    })
+    expect(res.status).toBe(200)
+
+    const depois = await asUser(admin).get(`/project-templates/${tpl}`)
+    expect(depois.body.stages.map((s) => s.name)).toEqual(['Só uma etapa'])
+  })
 })

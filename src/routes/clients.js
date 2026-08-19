@@ -226,10 +226,14 @@ router.get('/admin/clients', requireAuth, requireCanViewClients, async (req, res
                       rf.campos AS campos
                FROM clients c
                LEFT JOIN LATERAL (
-                 -- Anexo restrito não conta na contagem de quem não pode vê-lo.
+                 -- GET/DELETE de anexo voltou a requireCanManageClients (item 1,
+                 -- 19/08/2026): quem não gerencia clientes nunca chega na lista
+                 -- de anexos, então a contagem para ele é zero — não "os
+                 -- não-restritos", que ele também não pode ver. $2 é o
+                 -- canManageClients do ator.
                  SELECT COUNT(*)::int AS attachment_count
                  FROM client_attachments a
-                 WHERE a.client_id = c.id AND (a.is_restricted = false OR $1 = true)
+                 WHERE a.client_id = c.id AND $2 = true AND (a.is_restricted = false OR $1 = true)
                ) ac ON true
                LEFT JOIN LATERAL (
                  -- Achado do reinventário de 19/08/2026: sem o filtro de
@@ -258,7 +262,9 @@ router.get('/admin/clients', requireAuth, requireCanViewClients, async (req, res
                  FROM person_restricted_fields WHERE client_id = c.id
                ) rf ON true`
     const conditions = []
-    const params = [isAdmin(req.profile)]
+    // $2 (canManageClients) só entra na contagem de anexos (ac) — os demais
+    // laterais (telefone/email/endereço principal) seguem só com $1.
+    const params = [isAdmin(req.profile), canManageClients(req.profile)]
 
     // Clientes restritos só aparecem para admins.
     if (!isAdmin(req.profile)) {
@@ -308,10 +314,17 @@ router.get('/admin/clients/:id', requireAuth, requireCanViewClients, async (req,
               WHERE client_id = $1 ORDER BY position, created_at`, [req.params.id]),
       query(`SELECT id, label, cep, street, number, complement, district, city, uf, is_primary, position, is_restricted
                FROM person_addresses WHERE client_id = $1 ORDER BY position, created_at`, [req.params.id]),
+      // Achado do reinventário de 19/08/2026: sem o filtro de admin_only aqui,
+      // o vínculo com um sócio/pessoa marcado como admin_only vazava o nome
+      // dele (não é campo restringível — é o `name`) para quem não é admin,
+      // mesmo a ficha DAQUELA pessoa devolvendo 404 direto. name só fica de
+      // fora da restrição para o contratante PRINCIPAL de projeto (titula o
+      // card) — aqui a linha inteira do vínculo secundário some.
       query(`SELECT l.id, l.role, l.member_client_id, m.name AS member_name, m.person_type AS member_person_type
                FROM person_links l
                JOIN clients m ON m.id = l.member_client_id
-              WHERE l.company_client_id = $1 ORDER BY l.role, m.name`, [req.params.id]),
+              WHERE l.company_client_id = $1 AND (m.admin_only = false OR $2 = true)
+              ORDER BY l.role, m.name`, [req.params.id, isAdmin(req.profile)]),
       // Todos os papéis contam (contratante_principal, investidor, etc.) — o
       // contador da ficha da pessoa não é só "quando é o contratante principal".
       query(`SELECT p.id, p.name, p.status, pc.role
@@ -528,10 +541,13 @@ async function loadVisibleClient(req) {
   return client
 }
 
-// Ver a lista é o mesmo modelo da ficha: qualquer autenticado pode olhar
-// (requireCanViewClients), e é a condição is_restricted no SELECT que decide
-// o que aparece. Gerir (upload) continua em requireCanManageClients.
-router.get('/admin/clients/:id/attachments', requireAuth, requireCanViewClients, async (req, res) => {
+// Reafirmado em 19/08/2026: o storage sobe anexo com ACL public-read
+// (src/lib/storage.js) — quem vê a lista pega uma URL que funciona pra
+// sempre, mesmo depois de o documento virar restrito ou de a pessoa ser
+// desligada. Só quem gerencia clientes (admin + estagiário administrativo)
+// chega perto da lista; o filtro is_restricted abaixo segue existindo para
+// proteger o estagiário (que gerencia sem ser admin) dos anexos restritos.
+router.get('/admin/clients/:id/attachments', requireAuth, requireCanManageClients, async (req, res) => {
   try {
     const client = await loadVisibleClient(req)
     if (!client) return res.status(404).json({ error: 'Cliente não encontrado.' })
@@ -576,11 +592,12 @@ router.post('/admin/clients/:id/attachments', requireAuth, requireCanManageClien
   }
 })
 
-// Mesmo raciocínio do GET: o gate de entrada é "pode ver" — quem pode de fato
-// excluir é decidido linha a linha (uploader ou admin) logo abaixo. Sem isto,
-// um colaborador nem chegaria a essa checagem, e o 403 genérico do meio do
-// caminho esconderia a diferença entre "não é seu" e "está restrito" (404).
-router.delete('/admin/clients/:id/attachments/:attId', requireAuth, requireCanViewClients, async (req, res) => {
+// Mesmo gate do GET (requireCanManageClients): quem não gerencia clientes nem
+// chega perto do anexo. Quem pode de fato excluir é decidido linha a linha
+// (uploader ou admin) logo abaixo — o 403 genérico do meio do caminho
+// esconderia a diferença entre "não é seu" e "está restrito" (404) para quem
+// já passou do gate de entrada.
+router.delete('/admin/clients/:id/attachments/:attId', requireAuth, requireCanManageClients, async (req, res) => {
   try {
     const client = await loadVisibleClient(req)
     if (!client) return res.status(404).json({ error: 'Cliente não encontrado.' })

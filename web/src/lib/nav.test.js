@@ -33,4 +33,15 @@ describe('buildNav', () => {
     expect(labels(nav)).toContain('Histórico')
     expect(labels(nav.find((i) => i.label === 'Agenda').children)).toEqual(['Minhas férias'])
   })
+
+  it('sem canManageProjects, Projetos não tem submenu', () => {
+    const nav = buildNav({})
+    expect(nav.find((i) => i.label === 'Projetos').children).toBeUndefined()
+  })
+
+  it('com canManageProjects, Projetos ganha o Catálogo de etapas', () => {
+    const nav = buildNav({ canManageProjects: true })
+    expect(labels(nav.find((i) => i.label === 'Projetos').children)).toEqual(['Catálogo de etapas'])
+    expect(nav.find((i) => i.label === 'Projetos').children[0].to).toBe('/catalogo-etapas')
+  })
 })

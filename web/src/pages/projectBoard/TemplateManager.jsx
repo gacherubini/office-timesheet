@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ArrowLeft, Plus, Trash2, Pencil, ChevronUp, ChevronDown, X, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { api } from '../../lib/api'
 import { PageHeader } from '../../components/ui/PageHeader'
@@ -6,6 +6,8 @@ import { Card } from '../../components/ui/Card'
 import { Modal } from '../../components/ui/Modal'
 import { Input, Select } from '../../components/ui/Input'
 import { Button } from '../../components/ui/Button'
+import { TemplateStagesField } from './TemplateStagesField'
+import { moverEtapa, removerEtapa } from './templateStagesLogic'
 
 const PRIORITIES = [
   { value: 'low', label: 'Baixa' },
@@ -16,30 +18,61 @@ const PRIORITIES = [
 // Gestão de templates de projeto: lista + editor. O editor salva a lista
 // inteira de tasks de uma vez (POST cria / PUT substitui os itens).
 export function TemplateManager({ templates, onBack, onChanged }) {
-  const [editing, setEditing] = useState(null) // null | { id?, name, description, items: [] }
+  // stages: [{ catalog_id, name }] na ordem de exibição — vira `stage_index`
+  // em cada item na hora de salvar (ver comentário de save() e o parseStages
+  // de src/routes/projectTemplates.js). Etapa ainda sem id (rascunho): por
+  // isso todo vínculo item→etapa usa o ÍNDICE dela em `stages`, não um id.
+  const [editing, setEditing] = useState(null) // null | { id?, name, description, stages: [], items: [] }
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [toDelete, setToDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [success, setSuccess] = useState('')
+  const [catalogo, setCatalogo] = useState([])
+  const [carregandoCatalogo, setCarregandoCatalogo] = useState(true)
+  const [erroCatalogo, setErroCatalogo] = useState('')
+
+  // Catálogo global de etapas (GET /stage-catalog) — carrega uma vez quando o
+  // editor abre. Mesmo padrão de StageManagerModal.jsx.
+  useEffect(() => {
+    if (!editing) return
+    let cancelado = false
+    setCarregandoCatalogo(true)
+    api.get('/stage-catalog')
+      .then((rows) => { if (!cancelado) setCatalogo(rows || []) })
+      .catch((err) => { if (!cancelado) setErroCatalogo(err.message || 'Não foi possível carregar o catálogo.') })
+      .finally(() => { if (!cancelado) setCarregandoCatalogo(false) })
+    return () => { cancelado = true }
+  }, [editing?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function startCreate() {
     setError('')
-    setEditing({ name: '', description: '', items: [] })
+    setEditing({ name: '', description: '', stages: [], items: [] })
   }
 
   async function startEdit(t) {
     setError('')
     try {
       const full = await api.get(`/project-templates/${t.id}`)
+      // GET devolve `stages` já ordenadas (position, name — mesma ordem que
+      // insertStages usa pra gravar) e cada item traz `template_stage_id` (o
+      // id de verdade). Convertemos pro índice dentro de `stages`: é o que o
+      // editor (e o PUT depois) usam pra referenciar a etapa, já que uma
+      // etapa recém-criada no rascunho ainda não tem id nenhum.
+      const stages = (full.stages || []).map((s) => ({ catalog_id: s.catalog_id, name: s.name }))
+      const indicePorStageId = new Map((full.stages || []).map((s, i) => [s.id, i]))
       setEditing({
         id: full.id,
         name: full.name || '',
         description: full.description || '',
+        stages,
         items: (full.items || []).map((i) => ({
           title: i.title,
           description: i.description || '',
           priority: i.priority,
+          // Template ANTIGO (migration 050): template_stage_id nulo vira
+          // "Sem etapa" — não forçamos organização nenhuma aqui.
+          stageIndex: i.template_stage_id != null ? indicePorStageId.get(i.template_stage_id) ?? null : null,
         })),
       })
     } catch (err) {
@@ -47,11 +80,31 @@ export function TemplateManager({ templates, onBack, onChanged }) {
     }
   }
 
+  // --- Etapas do rascunho ---------------------------------------------
+  function addStage(stage) {
+    setEditing((e) => ({ ...e, stages: [...e.stages, stage] }))
+  }
+  function removeStage(idx) {
+    setEditing((e) => {
+      const { stages, items } = removerEtapa(e.stages, e.items, idx)
+      return { ...e, stages, items }
+    })
+  }
+  function moveStage(idx, dir) {
+    setEditing((e) => {
+      const { stages, items } = moverEtapa(e.stages, e.items, idx, dir)
+      return { ...e, stages, items }
+    })
+  }
+
   function updateItem(idx, patch) {
     setEditing((e) => ({ ...e, items: e.items.map((it, i) => (i === idx ? { ...it, ...patch } : it)) }))
   }
   function addItem() {
-    setEditing((e) => ({ ...e, items: [...e.items, { title: '', description: '', priority: 'medium' }] }))
+    // Nasce "Sem etapa" (stageIndex null): a task pertence a UMA etapa (mesma
+    // regra do resto do sistema), mas quem escolhe qual é o usuário, no select
+    // ao lado — não adivinhamos, pra não prender a task numa etapa errada.
+    setEditing((e) => ({ ...e, items: [...e.items, { title: '', description: '', priority: 'medium', stageIndex: null }] }))
   }
   function removeItem(idx) {
     setEditing((e) => ({ ...e, items: e.items.filter((_, i) => i !== idx) }))
@@ -76,10 +129,18 @@ export function TemplateManager({ templates, onBack, onChanged }) {
     const payload = {
       name: editing.name.trim(),
       description: editing.description.trim() || null,
+      // `stages` sempre vai no corpo (mesmo vazia) — é o que diferencia esta
+      // tela do bug corrigido em src/routes/projectTemplates.js: lá, `stages`
+      // ausente PRESERVA as etapas atuais; aqui a tela SABE quais são as
+      // etapas do rascunho, então manda a lista completa de propósito
+      // (substituição total é o comportamento certo quando quem edita viu
+      // tudo).
+      stages: editing.stages.map((s) => ({ catalog_id: s.catalog_id || null, name: s.name })),
       items: editing.items.map((i) => ({
         title: i.title.trim(),
         description: i.description.trim() || null,
         priority: i.priority,
+        stage_index: i.stageIndex ?? null,
       })),
     }
     try {
@@ -199,6 +260,19 @@ export function TemplateManager({ templates, onBack, onChanged }) {
               placeholder="Opcional"
             />
 
+            {/* TemplateStagesField já traz seus próprios títulos de seção
+                (Catálogo de etapas / Etapas do template) — sem label extra
+                aqui pra não duplicar. */}
+            <TemplateStagesField
+              stages={editing.stages}
+              onAdd={addStage}
+              onRemove={removeStage}
+              onMove={moveStage}
+              catalogo={catalogo}
+              carregandoCatalogo={carregandoCatalogo}
+              erroCatalogo={erroCatalogo}
+            />
+
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="block text-xs font-medium text-text-secondary">Tasks do template</label>
@@ -246,6 +320,20 @@ export function TemplateManager({ templates, onBack, onChanged }) {
                               placeholder="Título da task"
                               className="flex-1 form-control border px-3 py-2 text-sm outline-none transition-colors"
                             />
+                            {/* Toda task pertence a UMA etapa (mesma regra do
+                                resto do sistema) — mas "Sem etapa" continua
+                                válida: é o que templates antigos (migration
+                                050) e quem ainda não organizou usam. */}
+                            <Select
+                              value={item.stageIndex ?? ''}
+                              onChange={(e) => updateItem(idx, { stageIndex: e.target.value === '' ? null : Number(e.target.value) })}
+                              className="w-40 flex-shrink-0"
+                            >
+                              <option value="">Sem etapa</option>
+                              {editing.stages.map((stage, sIdx) => (
+                                <option key={sIdx} value={sIdx}>{stage.name}</option>
+                              ))}
+                            </Select>
                             <Select
                               value={item.priority}
                               onChange={(e) => updateItem(idx, { priority: e.target.value })}

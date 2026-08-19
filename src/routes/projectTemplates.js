@@ -144,15 +144,25 @@ router.post('/project-templates', requireAuth, requireProjectManagement, async (
   }
 })
 
-// Atualiza nome/descrição e SUBSTITUI todas as etapas e itens (transação).
+// Atualiza nome/descrição e SUBSTITUI itens (transação). As etapas só são
+// substituídas se `stages` vier no corpo — ver comentário logo abaixo.
 router.put('/project-templates/:id', requireAuth, requireProjectManagement, async (req, res) => {
   const name = (req.body?.name || '').trim()
   if (!name) return res.status(400).json({ error: 'Informe o nome do template.' })
   const parsedStages = parseStages(req.body?.stages)
   if (parsedStages.error) return res.status(400).json({ error: parsedStages.error })
-  const parsed = parseItems(req.body?.items, parsedStages.stages.length)
-  if (parsed.error) return res.status(400).json({ error: parsed.error })
   const description = (req.body?.description || '').trim() || null
+
+  // `stages` ausente no corpo PRESERVA as etapas atuais do template, em vez
+  // de apagá-las. Mesmo padrão de "chave ausente preserva" que routes/clients.js
+  // usa no PUT (ali, restricted_fields só é regravado quando a chave vem no
+  // corpo — ver o comentário acima de "if (req.body.restricted_fields...)").
+  // Sem isto, TemplateManager.jsx — que ainda não manda `stages` — apagava,
+  // no primeiro save, as etapas que um template tivesse ganhado por outra via
+  // (API direta, seed). A validação de items (parseItems) precisa do total de
+  // etapas DISPONÍVEIS para checar stage_index, por isso só roda dentro da
+  // transação agora (o total depende do banco quando `stages` está ausente).
+  const stagesInformadas = req.body?.stages !== undefined
 
   try {
     const updated = await withTransaction(async (client) => {
@@ -162,12 +172,29 @@ router.put('/project-templates/:id', requireAuth, requireProjectManagement, asyn
         [name, description, req.params.id],
       )
       if (!rows[0]) return null
-      // items primeiro (FK template_stage_id -> project_template_stages) e
-      // depois as etapas: ON DELETE CASCADE de project_template_items já
-      // cuidaria disso, mas apagar na ordem certa evita depender só do CASCADE.
-      await client.query('DELETE FROM project_template_items WHERE template_id = $1', [req.params.id])
-      await client.query('DELETE FROM project_template_stages WHERE template_id = $1', [req.params.id])
-      const stageIds = await insertStages(client, req.params.id, parsedStages.stages)
+
+      let stageIds
+      if (stagesInformadas) {
+        // items primeiro (FK template_stage_id -> project_template_stages) e
+        // depois as etapas: ON DELETE CASCADE de project_template_items já
+        // cuidaria disso, mas apagar na ordem certa evita depender só do CASCADE.
+        await client.query('DELETE FROM project_template_items WHERE template_id = $1', [req.params.id])
+        await client.query('DELETE FROM project_template_stages WHERE template_id = $1', [req.params.id])
+        stageIds = await insertStages(client, req.params.id, parsedStages.stages)
+      } else {
+        // Preserva as etapas: só busca os ids na mesma ordem do GET (position,
+        // name), pra que um `stage_index` em `items` — se vier — continue
+        // apontando pra etapa certa mesmo sem `stages` no corpo.
+        const { rows: etapasAtuais } = await client.query(
+          `SELECT id FROM project_template_stages WHERE template_id = $1 ORDER BY position, name`,
+          [req.params.id],
+        )
+        await client.query('DELETE FROM project_template_items WHERE template_id = $1', [req.params.id])
+        stageIds = etapasAtuais.map((s) => s.id)
+      }
+
+      const parsed = parseItems(req.body?.items, stageIds.length)
+      if (parsed.error) throw new Error(parsed.error)
       await insertItems(client, req.params.id, parsed.items, stageIds)
       return rows[0]
     })

@@ -270,10 +270,14 @@ router.get('/admin/suppliers/:id', requireAuth, requireCanViewSuppliers, async (
               WHERE supplier_id = $1 ORDER BY position, created_at`, [req.params.id]),
       query(`SELECT id, label, cep, street, number, complement, district, city, uf, is_primary, position, is_restricted
                FROM person_addresses WHERE supplier_id = $1 ORDER BY position, created_at`, [req.params.id]),
+      // Mesmo gate de admin_only do links[] de clients.js (item 2, 19/08/2026):
+      // sem o filtro, o vínculo com um responsável marcado admin_only vazava o
+      // nome dele para quem não é admin. Linha inteira some, não mascara.
       query(`SELECT l.id, l.role, l.member_supplier_id, m.name AS member_name, m.person_type AS member_person_type
                FROM person_links l
                JOIN suppliers m ON m.id = l.member_supplier_id
-              WHERE l.company_supplier_id = $1 ORDER BY l.role, m.name`, [req.params.id]),
+              WHERE l.company_supplier_id = $1 AND (m.admin_only = false OR $2 = true)
+              ORDER BY l.role, m.name`, [req.params.id, isAdmin(req.profile)]),
       query(`SELECT field_name FROM person_restricted_fields WHERE supplier_id = $1`, [req.params.id]),
     ])
     const restritos = restritosRows.map((r) => r.field_name)

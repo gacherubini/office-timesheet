@@ -82,7 +82,13 @@ describe('inventário de visibilidade — nenhum caminho vaza', () => {
   const CAMINHOS = [
     { nome: 'GET /admin/clients',                 method: 'get', url: () => '/admin/clients' },
     { nome: 'GET /admin/clients/:id',             method: 'get', url: () => `/admin/clients/${cliente}` },
-    { nome: 'GET /admin/clients/:id/attachments', method: 'get', url: () => `/admin/clients/${cliente}/attachments` },
+    // Gate voltou a requireCanManageClients (item 1 do bloco de 19/08/2026) —
+    // ator é a estagiária, mesmo motivo do PUT/POST logo abaixo: `emp`
+    // (colaborador comum) toma 403 antes de chegar na visibilidade.
+    {
+      nome: 'GET /admin/clients/:id/attachments', method: 'get', ator: () => intern,
+      url: () => `/admin/clients/${cliente}/attachments`,
+    },
     { nome: 'GET /admin/suppliers',               method: 'get', url: () => '/admin/suppliers' },
     { nome: 'GET /admin/suppliers/:id',           method: 'get', url: () => `/admin/suppliers/${fornecedor}` },
     { nome: 'GET /projects',                      method: 'get', url: () => '/projects' },

@@ -67,7 +67,21 @@ export async function aplicarEdicaoTask(id, patch, actorId) {
     await logActivity(id, actorId, 'priority_changed', { from: before.priority, to: after.priority })
   }
   if (stage_id !== undefined && after.stage_id !== before.stage_id) {
-    await logActivity(id, actorId, 'stage_changed', { from: before.stage_id, to: after.stage_id })
+    // Diferente de status/priority (enums fixos que a tela traduz sozinha),
+    // etapa é uma linha em project_stages — guardar só o uuid deixaria a
+    // atividade ilegível. Buscamos os nomes de ambos os lados e gravamos
+    // junto; os ids continuam no detail para quem for depurar.
+    const { rows: nomes } = await query(
+      'SELECT id, name FROM project_stages WHERE id = ANY($1::uuid[])',
+      [[before.stage_id, after.stage_id].filter(Boolean)],
+    )
+    const nomePorId = Object.fromEntries(nomes.map((n) => [n.id, n.name]))
+    await logActivity(id, actorId, 'stage_changed', {
+      from: before.stage_id,
+      to: after.stage_id,
+      from_name: before.stage_id ? (nomePorId[before.stage_id] || null) : null,
+      to_name: nomePorId[after.stage_id] || null,
+    })
   }
   if (assignee_id !== undefined && (after.assignee_id || null) !== (before.assignee_id || null)) {
     await logActivity(id, actorId, 'assignee_changed', { to: after.assignee_id })

@@ -15,6 +15,7 @@ import { ProjectCatalog } from './projectBoard/ProjectCatalog'
 import { ProjectPage } from './projectBoard/ProjectPage'
 import { ProjectClientsField } from './projectBoard/ProjectClientsField'
 import { TemplateManager } from './projectBoard/TemplateManager'
+import { montarPayloadProjeto } from './projectBoard/helpers'
 import { carimbarContexto } from '../lib/agentContext'
 
 export function ProjectBoardPage() {
@@ -61,6 +62,15 @@ export function ProjectBoardPage() {
   const [projectToDelete, setProjectToDelete] = useState(null)
   const [deleteError, setDeleteError] = useState('')
   const [deleting, setDeleting] = useState(false)
+  // Ficha completa dos contratantes (GET /projects/:id) carrega em paralelo
+  // com o modal de edição já aberto — ver startEditProject e
+  // montarPayloadProjeto. `clientesCarregados` só fica true quando ela
+  // chegou; enquanto isso o Salvar some para não mandar um `clients`
+  // incompleto (apagaria investidor/representante — PUT trata `clients`
+  // como substituição total, gravarClientesDoProjeto em src/routes/projects.js).
+  const [carregandoClientes, setCarregandoClientes] = useState(false)
+  const [clientesCarregados, setClientesCarregados] = useState(true)
+  const [erroClientes, setErroClientes] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const uploadingRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -198,6 +208,9 @@ export function ProjectBoardPage() {
     setEditingProject(null)
     setShowForm(false)
     setFormError('')
+    setCarregandoClientes(false)
+    setClientesCarregados(true)
+    setErroClientes('')
   }
 
   function startCreateProject() {
@@ -226,6 +239,14 @@ export function ProjectBoardPage() {
     setEditingProject(project)
     setShowForm(true)
     setFormError('')
+    // O modal abre já preenchido com o que a listagem tinha — só o
+    // contratante principal. Enquanto a ficha completa não chega (ou se
+    // falhar), `clientesCarregados` fica false: handleProjectSubmit não
+    // manda `clients` no PUT (ver montarPayloadProjeto) e o Salvar fica
+    // desabilitado até chegar ou errar.
+    setClientesCarregados(false)
+    setErroClientes('')
+    setCarregandoClientes(true)
     try {
       const full = await api.get(`/projects/${project.id}`)
       if (full.clients?.length) {
@@ -234,8 +255,12 @@ export function ProjectBoardPage() {
           clients: full.clients.map((c) => ({ client_id: c.client_id, role: c.role, is_primary: c.is_primary })),
         }))
       }
+      setClientesCarregados(true)
     } catch (err) {
       console.error(err)
+      setErroClientes('Não foi possível carregar todos os contratantes deste projeto. O restante do formulário pode ser salvo, mas os contratantes não serão alterados.')
+    } finally {
+      setCarregandoClientes(false)
     }
   }
 
@@ -250,12 +275,7 @@ export function ProjectBoardPage() {
     if (!form.start_date) { setFormError('Informe a data de início.'); return }
     try {
       const wasEditing = Boolean(editingProject)
-      const payload = {
-        name: form.name.trim(),
-        clients: form.clients,
-        address: form.address.trim() || null,
-        start_date: form.start_date,
-      }
+      const payload = montarPayloadProjeto(form, { wasEditing, clientesCarregados })
       if (wasEditing) {
         await api.put(`/projects/${editingProject.id}`, { ...payload, status: form.status })
       } else {
@@ -633,6 +653,11 @@ export function ProjectBoardPage() {
             {formError}
           </div>
         )}
+        {erroClientes && (
+          <div className="state-attention-soft text-sm p-3 mb-4">
+            {erroClientes}
+          </div>
+        )}
         <form onSubmit={handleProjectSubmit} className="space-y-3">
           <Input
             label="Nome do Projeto"
@@ -640,6 +665,9 @@ export function ProjectBoardPage() {
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
           />
+          {carregandoClientes && (
+            <p className="text-sm text-text-secondary">Carregando contratantes…</p>
+          )}
           <ProjectClientsField
             itens={form.clients}
             onChange={(itens) => setForm({ ...form, clients: itens })}
@@ -678,8 +706,8 @@ export function ProjectBoardPage() {
               <option value="completed">Concluído</option>
             </Select>
           )}
-          <Button type="submit" className="w-full">
-            {editingProject ? 'Salvar' : 'Criar Projeto'}
+          <Button type="submit" className="w-full" disabled={carregandoClientes}>
+            {carregandoClientes ? 'Carregando…' : (editingProject ? 'Salvar' : 'Criar Projeto')}
           </Button>
         </form>
       </Modal>

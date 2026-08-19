@@ -134,6 +134,18 @@ describe('API de etapas', () => {
     expect(res.body.map((s) => s.name)).not.toContain('Velha')
   })
 
+  // A tela de administração (StageCatalogPage) precisa reativar etapas
+  // arquivadas — sem isto elas somem para sempre da interface.
+  it('com include_archived=1 traz arquivada e não-arquivada, com is_archived no payload', async () => {
+    await query(`INSERT INTO stage_catalog (name, position) VALUES ('Ativa', 10), ('Velha', 20)`)
+    await query(`UPDATE stage_catalog SET is_archived = true WHERE name = 'Velha'`)
+    const res = await asUser(admin).get('/stage-catalog?include_archived=1')
+    expect(res.status).toBe(200)
+    const porNome = Object.fromEntries(res.body.map((s) => [s.name, s]))
+    expect(porNome.Ativa.is_archived).toBe(false)
+    expect(porNome.Velha.is_archived).toBe(true)
+  })
+
   it('só quem gerencia projetos edita o catálogo', async () => {
     const res = await asUser(emp).post('/stage-catalog').send({ name: 'Nova' })
     expect(res.status).toBe(403)

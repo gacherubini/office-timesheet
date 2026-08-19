@@ -196,11 +196,19 @@ router.get('/projects/:id', requireAuth, async (req, res) => {
     const project = projRows[0]
     if (!project) return res.status(404).json({ error: 'Projeto não encontrado.' })
 
+    // Gate admin_only (item 2, 19/08/2026): vínculo SECUNDÁRIO com cliente
+    // admin_only (ex.: investidor) some da lista para quem não é admin — a
+    // linha inteira, não o nome mascarado. O contratante PRINCIPAL (is_primary)
+    // fica de fora do filtro de propósito: é ele que sincroniza projects.client
+    // (a coluna denormalizada que titula o card, ver query acima) — mesmo
+    // sendo admin_only, esconder aqui deixaria a lista inconsistente com o
+    // título que já aparece sem restrição.
     const { rows: clients } = await query(
       `SELECT pc.client_id, pc.role, pc.is_primary, c.name
          FROM project_clients pc JOIN clients c ON c.id = pc.client_id
-        WHERE pc.project_id = $1 ORDER BY pc.is_primary DESC, c.name`,
-      [req.params.id],
+        WHERE pc.project_id = $1 AND (c.admin_only = false OR pc.is_primary = true OR $2 = true)
+        ORDER BY pc.is_primary DESC, c.name`,
+      [req.params.id, isAdmin(req.profile)],
     )
 
     return res.json({ ...project, clients })

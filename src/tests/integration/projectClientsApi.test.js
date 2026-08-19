@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { resetDb, query } from '../helpers/db.js'
 import { asUser } from '../helpers/api.js'
-import { makeAdmin } from '../helpers/factories.js'
+import { makeAdmin, makeUser } from '../helpers/factories.js'
 
 async function cliente(admin, nome) {
   const res = await asUser(admin).post('/admin/clients').send({ name: nome })
@@ -132,5 +132,123 @@ describe('API — vários contratantes por projeto', () => {
       const ficha = await asUser(admin).get(`/admin/clients/${id}`)
       expect(ficha.body.projects.map((p) => p.name)).toContain('Grand Terroir 31')
     }
+  })
+
+  // Bug real: o modal de edição abre otimista com só o principal (a listagem
+  // não traz os outros contratantes) enquanto busca a ficha completa em
+  // paralelo. Se o usuário salvar antes dessa resposta chegar — ou se ela
+  // falhar — o PUT não pode mandar `clients` incompleto e apagar investidor e
+  // representante. Mesma regra de "chave ausente preserva" de
+  // src/routes/clients.js (preservarLinhasInvisiveis/resolverRestricaoLinhas).
+  it('PUT sem a chave clients preserva os vínculos existentes', async () => {
+    const investidor = await cliente(admin, 'Investidor')
+    const criado = await asUser(admin).post('/projects').send({
+      name: 'Grand Terroir 31',
+      start_date: '2026-08-01',
+      clients: [
+        { client_id: luiz, role: 'contratante_principal', is_primary: true },
+        { client_id: marina, role: 'contratante' },
+        { client_id: investidor, role: 'investidor' },
+      ],
+    })
+    expect(criado.status).toBe(201)
+
+    // PUT só mexe no nome — corpo nem toca em `clients`.
+    const put = await asUser(admin).put(`/projects/${criado.body.id}`).send({ name: 'Grand Terroir 31 — Fase 2' })
+    expect(put.status).toBe(200)
+
+    const ficha = await asUser(admin).get(`/projects/${criado.body.id}`)
+    expect(ficha.body.clients).toHaveLength(3)
+    expect(ficha.body.clients.map((c) => c.client_id).sort()).toEqual([investidor, luiz, marina].sort())
+    expect(ficha.body.clients.find((c) => c.is_primary).client_id).toBe(luiz)
+  })
+
+  it('PUT com a chave clients substitui os vínculos', async () => {
+    const investidor = await cliente(admin, 'Investidor')
+    const criado = await asUser(admin).post('/projects').send({
+      name: 'Grand Terroir 31',
+      start_date: '2026-08-01',
+      clients: [
+        { client_id: luiz, role: 'contratante_principal', is_primary: true },
+        { client_id: marina, role: 'contratante' },
+        { client_id: investidor, role: 'investidor' },
+      ],
+    })
+    expect(criado.status).toBe(201)
+
+    const put = await asUser(admin).put(`/projects/${criado.body.id}`).send({
+      clients: [{ client_id: marina, role: 'contratante_principal', is_primary: true }],
+    })
+    expect(put.status).toBe(200)
+
+    const ficha = await asUser(admin).get(`/projects/${criado.body.id}`)
+    expect(ficha.body.clients).toHaveLength(1)
+    expect(ficha.body.clients[0].client_id).toBe(marina)
+  })
+})
+
+// Item 2 do bloco de 19/08/2026: um investidor (vínculo SECUNDÁRIO)
+// admin_only vazava o nome pelo clients[] de GET /projects/:id mesmo a ficha
+// direta dele devolvendo 404 para quem não é admin.
+describe('admin_only no clients[] de GET /projects/:id', () => {
+  let admin, emp, luiz, investidor
+  beforeEach(async () => {
+    await resetDb()
+    admin = await makeAdmin()
+    emp = await makeUser({ role: 'employee' })
+    luiz = await cliente(admin, 'Luiz Eduardo')
+    const res = await asUser(admin).post('/admin/clients').send({ name: 'Investidor Oculto' })
+    investidor = res.body.id
+    await query(`UPDATE clients SET admin_only = true WHERE id = $1`, [investidor])
+  })
+
+  it('vínculo secundário admin_only some do clients[] para quem não é admin', async () => {
+    const criado = await asUser(admin).post('/projects').send({
+      name: 'Grand Terroir 31',
+      start_date: '2026-08-01',
+      clients: [
+        { client_id: luiz, role: 'contratante_principal', is_primary: true },
+        { client_id: investidor, role: 'investidor' },
+      ],
+    })
+    expect(criado.status).toBe(201)
+
+    const ficha = await asUser(emp).get(`/projects/${criado.body.id}`)
+    expect(ficha.body.clients).toHaveLength(1)
+    expect(ficha.body.clients.map((c) => c.client_id)).not.toContain(investidor)
+    expect(JSON.stringify(ficha.body)).not.toContain('Investidor Oculto')
+  })
+
+  it('vínculo secundário admin_only continua aparecendo para o admin', async () => {
+    const criado = await asUser(admin).post('/projects').send({
+      name: 'Grand Terroir 31',
+      start_date: '2026-08-01',
+      clients: [
+        { client_id: luiz, role: 'contratante_principal', is_primary: true },
+        { client_id: investidor, role: 'investidor' },
+      ],
+    })
+    expect(criado.status).toBe(201)
+
+    const ficha = await asUser(admin).get(`/projects/${criado.body.id}`)
+    expect(ficha.body.clients.map((c) => c.client_id)).toContain(investidor)
+  })
+
+  // O contratante PRINCIPAL não é afetado pelo gate — mesmo admin_only, ele
+  // segue titulando o card (projects.client, coluna denormalizada) e
+  // continua aparecendo em clients[] (é a mesma pessoa que já titula o card
+  // sem restrição — escondê-la só do array deixaria a ficha inconsistente).
+  it('contratante principal admin_only não some — o card não fica sem título', async () => {
+    const criado = await asUser(admin).post('/projects').send({
+      name: 'Grand Terroir 31',
+      start_date: '2026-08-01',
+      clients: [{ client_id: investidor, role: 'contratante_principal', is_primary: true }],
+    })
+    expect(criado.status).toBe(201)
+
+    const ficha = await asUser(emp).get(`/projects/${criado.body.id}`)
+    expect(ficha.body.client).toBe('Investidor Oculto')
+    expect(ficha.body.clients).toHaveLength(1)
+    expect(ficha.body.clients[0].client_id).toBe(investidor)
   })
 })

@@ -107,12 +107,12 @@ function AvatarMenu({ profile, onLogout }) {
 }
 
 export function Topbar() {
-  const { profile, isAdmin, isAdministrativeIntern, logout } = useAuth()
+  const { profile, isAdmin, isAdministrativeIntern, canManageProjects, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
   const [drawerOpen, setDrawerOpen] = useState(false)
 
-  const nav = buildNav({ isAdmin, isAdministrativeIntern })
+  const nav = buildNav({ isAdmin, isAdministrativeIntern, canManageProjects })
 
   useEffect(() => setDrawerOpen(false), [location.pathname])
 

@@ -83,6 +83,11 @@ export function activityText(a) {
     case 'assignee_changed': return `${who} alterou o responsável`
     case 'title_changed': return `${who} renomeou para "${d.to}"`
     case 'priority_changed': return `${who} mudou a prioridade (${priorityMeta(d.from).label} → ${priorityMeta(d.to).label})`
+    // stage_changed guarda uuids em from/to (project_stages é por projeto,
+    // não um enum fixo) e o NOME em from_name/to_name — só o backend sabe
+    // traduzir o uuid. Atividade gravada antes desta correção não tem
+    // from_name/to_name; "uma etapa" evita mostrar "undefined" ou o uuid cru.
+    case 'stage_changed': return `${who} mudou a etapa (${d.from_name || 'uma etapa'} → ${d.to_name || 'uma etapa'})`
     case 'comment_added': return `${who} comentou`
     case 'attachment_added': return `${who} anexou ${d.file_name || 'um arquivo'}`
     default: return `${who} · ${a.type}`
@@ -102,6 +107,27 @@ export function formatClock(totalSeconds) {
   const m = Math.floor((s % 3600) / 60)
   const sec = s % 60
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+}
+
+// Payload do POST/PUT de projeto a partir do estado do formulário. O ponto
+// delicado é `clients`: ao editar, o modal abre otimista com só o
+// contratante principal (o que a listagem tinha) enquanto GET /projects/:id
+// busca a ficha completa (todos os papéis) em paralelo. Se esse GET ainda
+// não voltou — ou falhou — na hora de salvar, `clientesCarregados` é falso e
+// `clients` NÃO entra no corpo: o backend trata `clients` como substituição
+// total (gravarClientesDoProjeto em src/routes/projects.js), então mandar a
+// lista incompleta apagaria investidor/representante. Ao criar não existe
+// "carregado do servidor" — `clients` sempre vai.
+export function montarPayloadProjeto(form, { wasEditing, clientesCarregados }) {
+  const payload = {
+    name: form.name.trim(),
+    address: form.address.trim() || null,
+    start_date: form.start_date,
+  }
+  if (!wasEditing || clientesCarregados) {
+    payload.clients = form.clients
+  }
+  return payload
 }
 
 export function formatMinutes(minutes) {

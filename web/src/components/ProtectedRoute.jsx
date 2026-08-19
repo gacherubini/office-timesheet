@@ -5,9 +5,10 @@ export function ProtectedRoute({
   children,
   adminOnly = false,
   approverOnly = false,
+  projectManagerOnly = false,
   disallowAdministrativeIntern = false,
 }) {
-  const { profile, isAdmin, isAdministrativeIntern, canApproveRequests, loading } = useAuth()
+  const { profile, isAdmin, isAdministrativeIntern, canApproveRequests, canManageProjects, loading } = useAuth()
 
   if (loading) {
     return (
@@ -20,6 +21,7 @@ export function ProtectedRoute({
   if (!profile) return <Navigate to="/login" replace />
   if (adminOnly && !isAdmin) return <Navigate to="/" replace />
   if (approverOnly && !canApproveRequests) return <Navigate to="/" replace />
+  if (projectManagerOnly && !canManageProjects) return <Navigate to="/" replace />
   if (disallowAdministrativeIntern && isAdministrativeIntern) return <Navigate to="/" replace />
 
   return children

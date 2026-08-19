@@ -56,6 +56,24 @@ describe('PUT /tasks/:id — etapa (stage_id)', () => {
     expect(rows[0].detail.to).toBe(etapaB.id)
   })
 
+  // Bug real: o detail de stage_changed só guardava uuids (from/to). O
+  // popover de histórico (web/src/pages/projectBoard/helpers.js) não tem
+  // como traduzir um uuid de project_stages sozinho — vira "Ana ·
+  // stage_changed" na tela. A correção grava também from_name/to_name.
+  it('grava o NOME das etapas no detail da atividade, além dos ids', async () => {
+    await asUser(admin).put(`/tasks/${tarefa.id}`).send({ stage_id: etapaB.id })
+
+    const { rows } = await query(
+      `SELECT detail FROM task_activity WHERE task_id = $1 AND type = 'stage_changed'`,
+      [tarefa.id],
+    )
+    expect(rows.length).toBe(1)
+    expect(rows[0].detail.from).toBe(etapaA.id)
+    expect(rows[0].detail.to).toBe(etapaB.id)
+    expect(rows[0].detail.from_name).toBe(etapaA.name)
+    expect(rows[0].detail.to_name).toBe(etapaB.name)
+  })
+
   it('não registra atividade quando a etapa enviada é a mesma que já estava', async () => {
     await asUser(admin).put(`/tasks/${tarefa.id}`).send({ stage_id: etapaA.id })
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { resetDb } from '../helpers/db.js'
+import { resetDb, query } from '../helpers/db.js'
 import { asUser } from '../helpers/api.js'
 import { makeUser, makeAdmin } from '../helpers/factories.js'
 
@@ -81,5 +81,36 @@ describe('API de fornecedores — contatos múltiplos e PF/PJ', () => {
     const res = await asUser(admin).post('/admin/suppliers').send({ person_type: 'pj', nome_fantasia: 'X' })
     expect(res.status).toBe(400)
     expect(res.body.error).toMatch(/razão social/i)
+  })
+
+  // Item 2 do bloco de 19/08/2026: mesmo vazamento de clientVisibility.test.js,
+  // aqui do lado de fornecedores — vínculo com responsável técnico admin_only
+  // vazava o nome dele pelo links[] da ficha da PJ.
+  describe('admin_only no links[] da ficha', () => {
+    let empresa, responsavelOculto
+    beforeEach(async () => {
+      const e = await asUser(admin).post('/admin/suppliers').send({
+        person_type: 'pj', razao_social: 'Marcenaria Alfa Ltda', cnpj: '22.222.222/0001-22',
+      })
+      empresa = e.body.id
+      const r = await asUser(admin).post('/admin/suppliers').send({ name: 'RESPONSAVEL-OCULTO' })
+      responsavelOculto = r.body.id
+      await query(`UPDATE suppliers SET admin_only = true WHERE id = $1`, [responsavelOculto])
+      await query(
+        `INSERT INTO person_links (company_supplier_id, member_supplier_id, role)
+         VALUES ($1, $2, 'responsavel_tecnico')`, [empresa, responsavelOculto])
+    })
+
+    it('a linha do vínculo com responsável admin_only some para quem não é admin', async () => {
+      const res = await asUser(emp).get(`/admin/suppliers/${empresa}`)
+      expect(res.body.links).toHaveLength(0)
+      expect(JSON.stringify(res.body)).not.toContain('RESPONSAVEL-OCULTO')
+    })
+
+    it('a linha do vínculo continua aparecendo para o admin', async () => {
+      const res = await asUser(admin).get(`/admin/suppliers/${empresa}`)
+      expect(res.body.links).toHaveLength(1)
+      expect(res.body.links[0].member_name).toBe('RESPONSAVEL-OCULTO')
+    })
   })
 })
