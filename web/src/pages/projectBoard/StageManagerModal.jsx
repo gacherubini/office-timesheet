@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Check, Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import { api } from '../../lib/api'
 import { Modal } from '../../components/ui/Modal'
 import { Input, Select } from '../../components/ui/Input'
@@ -21,6 +21,81 @@ const STATUS_OPCOES = [
 // /projects/:id/stages, com catalog_id, due_date, owner_id, status, etc.).
 // Toda mutação chama `onChanged()` para o pai recarregar essa lista — o
 // modal não guarda cópia própria, só espelha o que vem por prop.
+// Uma etapa do projeto em uma linha. Sem rótulo por campo: o cabeçalho da
+// tabela nomeia as colunas uma vez, e cada campo leva o rótulo em `title` e
+// `aria-label` — o que aparece no hover e no leitor de tela sem gastar altura.
+// Inativa mostra só o nome; os campos nem existem, para o olho achar rápido o
+// que está ligado.
+function Linha({ nome, ativa, extra = false, ocupado, onAlternar, users, salvarEtapa, erro }) {
+  return (
+    <div className="px-2 py-1.5">
+      <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)_minmax(0,1.25fr)_3.5rem_minmax(0,1.25fr)_1.75rem] items-center gap-2">
+        <label className="flex min-w-0 items-center gap-2 text-sm cursor-pointer">
+          <input
+            type="checkbox"
+            checked={Boolean(ativa)}
+            disabled={ocupado}
+            onChange={onAlternar}
+            aria-label={ativa ? `Desativar a etapa ${nome}` : `Ativar a etapa ${nome}`}
+          />
+          <span className="truncate text-text-primary" title={nome}>{nome}</span>
+          {extra && <span className="shrink-0 text-[10px] text-text-secondary">extra</span>}
+        </label>
+
+        {ativa ? (
+          <>
+            <DateField
+              size="sm"
+              title="Prazo de entrega"
+              aria-label={`Prazo da etapa ${nome}`}
+              value={ativa.due_date || ''}
+              onChange={(e) => salvarEtapa(ativa, { due_date: e.target.value || null })}
+            />
+            <Select
+              size="sm"
+              title="Responsável"
+              aria-label={`Responsável da etapa ${nome}`}
+              value={ativa.owner_id || ''}
+              onChange={(e) => salvarEtapa(ativa, { owner_id: e.target.value || null })}
+            >
+              <option value="">Sem responsável</option>
+              {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </Select>
+            <Input
+              type="number"
+              title="Ordem na trilha"
+              aria-label={`Ordem da etapa ${nome}`}
+              value={ativa.position ?? 0}
+              onChange={(e) => salvarEtapa(ativa, { position: Number(e.target.value) })}
+            />
+            <Select
+              size="sm"
+              title="Status da etapa"
+              aria-label={`Status da etapa ${nome}`}
+              value={ativa.status || 'nao_iniciada'}
+              onChange={(e) => salvarEtapa(ativa, { status: e.target.value })}
+            >
+              {STATUS_OPCOES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </Select>
+            <button
+              type="button"
+              onClick={onAlternar}
+              disabled={ocupado}
+              aria-label={`Remover a etapa ${nome} deste projeto`}
+              className="justify-self-end p-1 text-text-secondary hover:state-danger disabled:opacity-50"
+            >
+              <Trash2 size={14} />
+            </button>
+          </>
+        ) : (
+          <span className="hidden sm:block sm:col-span-5" />
+        )}
+      </div>
+      {erro && <p className="mt-1 text-xs state-danger">{erro}</p>}
+    </div>
+  )
+}
+
 export function StageManagerModal({ projectId, stages = [], users = [], onClose, onChanged }) {
   const [catalogo, setCatalogo] = useState([])
   const [carregandoCatalogo, setCarregandoCatalogo] = useState(true)
@@ -98,45 +173,63 @@ export function StageManagerModal({ projectId, stages = [], users = [], onClose,
   }
 
   return (
-    <Modal open onClose={onClose} size="lg" title="Gerenciar etapas">
+    <Modal open onClose={onClose} size="xl" title="Gerenciar etapas">
       {erroCatalogo && <p className="text-xs state-danger mb-3">{erroCatalogo}</p>}
 
-      <div className="space-y-5">
-        {/* Catálogo: marca ativa/desativa cada etapa padrão */}
-        <div>
-          <p className="text-[11px] uppercase tracking-wider text-text-secondary mb-1.5">
-            Catálogo de etapas
-          </p>
-          {carregandoCatalogo ? (
-            <p className="text-xs text-text-secondary">Carregando...</p>
-          ) : (
-            <div className="border border-border-subtle divide-y divide-border-subtle">
+      {/* UMA linha por etapa. Antes o modal listava cada etapa DUAS vezes —
+          como checkbox no catálogo em cima e como linha editável embaixo — o
+          que dobrava a altura para gerenciar a mesma coisa. Aqui o checkbox
+          ativa/desativa e, quando ativa, os campos daquela etapa ficam
+          editáveis na própria linha. */}
+      <div className="space-y-4">
+        {carregandoCatalogo ? (
+          <p className="text-xs text-text-secondary">Carregando...</p>
+        ) : (
+          <div>
+            <div className="hidden sm:grid grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)_minmax(0,1.25fr)_3.5rem_minmax(0,1.25fr)_1.75rem] gap-2 px-2 pb-1 text-[10px] uppercase tracking-wider text-text-secondary">
+              <span>Etapa</span><span>Prazo</span><span>Responsável</span>
+              <span>Ordem</span><span>Status</span><span />
+            </div>
+            <div className="divide-y divide-border-subtle border-y border-border-subtle">
               {catalogo.map((item) => {
                 const ativa = etapaPorCatalogId.get(item.id)
                 return (
-                  <label
+                  <Linha
                     key={item.id}
-                    className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-surface-alt"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={Boolean(ativa)}
-                      disabled={busyId === item.id || (ativa && busyId === ativa.id)}
-                      onChange={() => (ativa ? excluirEtapa(ativa) : ativarDoCatalogo(item))}
-                    />
-                    <span className="flex-1 text-text-primary">{item.name}</span>
-                    {ativa && <Check size={13} className="text-state-success" />}
-                  </label>
+                    nome={item.name}
+                    ativa={ativa}
+                    ocupado={busyId === item.id || Boolean(ativa && busyId === ativa.id)}
+                    onAlternar={() => (ativa ? excluirEtapa(ativa) : ativarDoCatalogo(item))}
+                    users={users}
+                    salvarEtapa={salvarEtapa}
+                    erro={ativa ? erroPorEtapa[ativa.id] : null}
+                  />
                 )
               })}
-            </div>
-          )}
-        </div>
 
-        {/* Acrescentar etapa extra fora do catálogo */}
+              {/* Etapas que não vieram do catálogo: sempre ativas, e a única
+                  forma de removê-las é a lixeira — não há checkbox de catálogo
+                  para elas. */}
+              {stages.filter((e) => !e.catalog_id).map((e) => (
+                <Linha
+                  key={e.id}
+                  nome={e.name}
+                  extra
+                  ativa={e}
+                  ocupado={busyId === e.id}
+                  onAlternar={() => excluirEtapa(e)}
+                  users={users}
+                  salvarEtapa={salvarEtapa}
+                  erro={erroPorEtapa[e.id]}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="flex items-end gap-2">
           <Input
-            label="Acrescentar etapa extra"
+            label="Acrescentar etapa fora do catálogo"
             placeholder="Ex.: Maquete física"
             value={novoNome}
             onChange={(e) => setNovoNome(e.target.value)}
@@ -145,68 +238,6 @@ export function StageManagerModal({ projectId, stages = [], users = [], onClose,
           <Button onClick={adicionarExtra} disabled={salvandoNovo || !novoNome.trim()}>
             <Plus size={15} /> {salvandoNovo ? 'Adicionando...' : 'Adicionar'}
           </Button>
-        </div>
-
-        {/* Etapas ativas: prazo, responsável, ordem e status in-place */}
-        <div>
-          <p className="text-[11px] uppercase tracking-wider text-text-secondary mb-1.5">
-            Etapas ativas neste projeto
-          </p>
-          {stages.length === 0 && (
-            <p className="text-xs text-text-secondary">Nenhuma etapa ativa ainda.</p>
-          )}
-          <div className="space-y-3">
-            {stages.map((stage) => (
-              <div key={stage.id} className="border border-border-subtle p-3">
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <span className="text-sm font-medium text-text-primary">{stage.name}</span>
-                  <button
-                    type="button"
-                    onClick={() => excluirEtapa(stage)}
-                    disabled={busyId === stage.id}
-                    aria-label={`Excluir etapa ${stage.name}`}
-                    className="p-1 text-text-secondary hover:state-danger disabled:opacity-50"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  <DateField
-                    label="Prazo"
-                    size="sm"
-                    value={stage.due_date || ''}
-                    onChange={(e) => salvarEtapa(stage, { due_date: e.target.value || null })}
-                  />
-                  <Select
-                    label="Responsável"
-                    size="sm"
-                    value={stage.owner_id || ''}
-                    onChange={(e) => salvarEtapa(stage, { owner_id: e.target.value || null })}
-                  >
-                    <option value="">Sem responsável</option>
-                    {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-                  </Select>
-                  <Input
-                    label="Ordem"
-                    type="number"
-                    value={stage.position ?? 0}
-                    onChange={(e) => salvarEtapa(stage, { position: Number(e.target.value) })}
-                  />
-                  <Select
-                    label="Status"
-                    size="sm"
-                    value={stage.status || 'nao_iniciada'}
-                    onChange={(e) => salvarEtapa(stage, { status: e.target.value })}
-                  >
-                    {STATUS_OPCOES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </Select>
-                </div>
-                {erroPorEtapa[stage.id] && (
-                  <p className="text-xs state-danger mt-2">{erroPorEtapa[stage.id]}</p>
-                )}
-              </div>
-            ))}
-          </div>
         </div>
       </div>
     </Modal>

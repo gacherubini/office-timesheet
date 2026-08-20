@@ -34,7 +34,13 @@ export function TaskCard({
         <span className={`w-2 h-2 mt-1.5 flex-shrink-0 ${prio.dot}`} title={`Prioridade ${prio.label}`} />
         <p className={`text-sm font-medium text-text-primary ${muted ? 'line-through decoration-text-secondary/50' : ''}`}>{task.title}</p>
       </div>
-      <p className="text-[11px] text-text-secondary truncate mb-2">{task.project_name}</p>
+      <p className="text-[11px] text-text-secondary truncate mb-1">{task.project_name}</p>
+      {showStage && task.stage_name && (
+        <p className="mb-2 flex items-center gap-1 text-[10px] text-text-secondary" title={`Etapa: ${task.stage_name}`}>
+          <Layers size={11} className="flex-shrink-0" />
+          <span className="truncate">{task.stage_name}</span>
+        </p>
+      )}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 min-w-0">
           {task.assignee_id ? (
@@ -59,14 +65,6 @@ export function TaskCard({
             task.total_minutes > 0 && (
               <span className="text-[11px] tabular-nums">{formatMinutes(task.total_minutes)}</span>
             )
-          )}
-          {showStage && task.stage_name && (
-            <span
-              title={`Etapa: ${task.stage_name}`}
-              className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 bg-surface-alt text-text-secondary"
-            >
-              <Layers size={11} /> {task.stage_name}
-            </span>
           )}
           {task.due_date && (
             <span

@@ -319,6 +319,11 @@ export function ProjectPage({
             ) : (
               <KanbanBoard
                 tasks={filteredTasks}
+                // Com o quadro filtrado o titulo ja diz "Tarefas · Anteprojeto";
+                // repetir a etapa em cada card vira ruido. Sem filtro o rotulo e
+                // essencial — e na tela global /tarefas ele aparece sempre,
+                // porque la nao existe filtro de etapa.
+                showStage={!etapaAtiva}
                 onOpenTask={onOpenTask}
                 onMove={onMove}
                 currentUserId={currentUserId}

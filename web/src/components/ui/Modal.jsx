@@ -14,7 +14,7 @@ export function Modal({ open, onClose, title, children, footer, size = 'md', clo
   if (!open) return null
 
   const sizeClass =
-    size === 'sm' ? 'max-w-sm' : size === 'lg' ? 'max-w-2xl' : 'max-w-md'
+    size === 'sm' ? 'max-w-sm' : size === 'xl' ? 'max-w-4xl' : size === 'lg' ? 'max-w-2xl' : 'max-w-md'
 
   return (
     <div

@@ -72,6 +72,7 @@ export function KanbanBoard({
                   timerElapsed={timerElapsed}
                   timerBusy={timerBusyId === task.id}
                   onToggleTimer={onToggleTimer}
+                  showStage={showStage}
                 />
               ))}
             </div>
