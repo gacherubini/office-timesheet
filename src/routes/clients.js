@@ -26,6 +26,25 @@ function optionalText(value) {
 
 const PAPEIS_VINCULO = new Set(['socio', 'responsavel_tecnico', 'contato_principal', 'financeiro'])
 
+// Colunas que a ficha e as respostas de escrita devolvem. LISTA EXPLÍCITA, e
+// não `*`, por um motivo específico: `clients` ainda carrega phone/email/address,
+// as colunas de contato único que a migration 043 COPIOU para as tabelas
+// filhas e deixou congeladas para o rollback ser possível. Ninguém escreve
+// mais nelas — mas todo cadastro anterior à 043 ainda tem o valor lá, e um
+// `SELECT *` o entregava por fora de `phones[]`/`emails[]`/`addresses[]`,
+// que passam por filtrarLinhasRestritas(). Ou seja: marcar o telefone como
+// restrito escondia a linha nova e continuava ecoando a antiga — furando o
+// item 6 do PDF justamente para os cadastros reais.
+//
+// Se um dia as colunas forem dropadas, esta lista pode voltar a ser `*`; até
+// lá, campo novo em `clients` precisa ser acrescentado AQUI para aparecer na
+// ficha. É o custo de a omissão ser explícita em vez de silenciosa.
+const COLUNAS_FICHA = `id, name, person_type, notes, admin_only,
+  cpf, rg, birth_date,
+  razao_social, nome_fantasia, cnpj, inscricao_estadual, founded_date,
+  bank_name, bank_agency, bank_account, bank_account_type, pix_key,
+  created_at, updated_at`
+
 function parseClientPayload(body = {}) {
   const personType = body.person_type === 'pj' ? 'pj' : 'pf'
 
@@ -298,7 +317,7 @@ router.get('/admin/clients', requireAuth, requireCanViewClients, async (req, res
 router.get('/admin/clients/:id', requireAuth, requireCanViewClients, async (req, res) => {
   try {
     const { rows } = await query(
-      `SELECT * FROM clients WHERE id = $1`, [req.params.id])
+      `SELECT ${COLUNAS_FICHA} FROM clients WHERE id = $1`, [req.params.id])
     const cliente = rows[0]
     // Restrito só aparece para admin — mesmo 404 do resto da rota, para não
     // revelar a existência do cadastro pela diferença entre 403 e 404.
@@ -376,7 +395,8 @@ router.post('/admin/clients', requireAuth, requireCanManageClients, async (req, 
         `INSERT INTO clients (name, person_type, notes, cpf, rg, birth_date,
                               razao_social, nome_fantasia, cnpj, inscricao_estadual, founded_date,
                               bank_name, bank_agency, bank_account, bank_account_type, pix_key, admin_only)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+         RETURNING ${COLUNAS_FICHA}`,
         [parsed.data.name, parsed.data.person_type, parsed.data.notes, parsed.data.cpf, parsed.data.rg,
          parsed.data.birth_date, parsed.data.razao_social, parsed.data.nome_fantasia, parsed.data.cnpj,
          parsed.data.inscricao_estadual, parsed.data.founded_date, parsed.data.bank_name,
@@ -471,7 +491,7 @@ router.put('/admin/clients/:id', requireAuth, requireCanManageClients, async (re
                             razao_social = $7, nome_fantasia = $8, cnpj = $9, inscricao_estadual = $10,
                             founded_date = $11, bank_name = $12, bank_agency = $13, bank_account = $14,
                             bank_account_type = $15, pix_key = $16, admin_only = $17
-         WHERE id = $18 RETURNING *`,
+         WHERE id = $18 RETURNING ${COLUNAS_FICHA}`,
         [parsed.data.name, parsed.data.person_type, parsed.data.notes, parsed.data.cpf, parsed.data.rg,
          parsed.data.birth_date, parsed.data.razao_social, parsed.data.nome_fantasia, parsed.data.cnpj,
          parsed.data.inscricao_estadual, parsed.data.founded_date, parsed.data.bank_name,

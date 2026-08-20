@@ -75,6 +75,37 @@ describe('inventário de visibilidade — nenhum caminho vaza', () => {
       `INSERT INTO client_attachments (client_id, file_url, file_name, is_restricted)
        VALUES ($1,'http://x/c.pdf','CONTRATO-SECRETO.pdf',true)`, [cliente])
 
+    // CADASTRO LEGADO (achado de 20/08/2026): a migration 043 COPIOU
+    // phone/email/address para as tabelas filhas e deixou as colunas antigas
+    // no lugar, congeladas. Só quem existia antes dela tem valor ali — um
+    // cadastro criado pelo POST acima nasce com elas nulas, e é por isso que
+    // a matriz não pegava o vazamento. Aqui simulamos a linha de produção:
+    // coluna antiga preenchida + a linha nova correspondente RESTRITA.
+    // Se a resposta ecoar a coluna antiga, restringir o contato não esconde
+    // nada — que é o critério de aceite do item 6 do PDF.
+    await query(
+      `UPDATE clients SET phone = 'TEL-LEGADO-SECRETO', email = 'EMAIL-LEGADO-SECRETO',
+                          address = 'END-LEGADO-SECRETO' WHERE id = $1`, [cliente])
+    await query(
+      `INSERT INTO person_phones (client_id, label, value, is_primary, is_restricted)
+       VALUES ($1,'principal','TEL-LEGADO-SECRETO',true,true)`, [cliente])
+    await query(
+      `INSERT INTO person_emails (client_id, label, value, is_primary, is_restricted)
+       VALUES ($1,'principal','EMAIL-LEGADO-SECRETO',true,true)`, [cliente])
+    await query(
+      `INSERT INTO person_addresses (client_id, label, street, is_primary, is_restricted)
+       VALUES ($1,'principal','END-LEGADO-SECRETO',true,true)`, [cliente])
+
+    await query(
+      `UPDATE suppliers SET phone = 'TEL-FORN-LEGADO-SECRETO',
+                            email = 'EMAIL-FORN-LEGADO-SECRETO' WHERE id = $1`, [fornecedor])
+    await query(
+      `INSERT INTO person_phones (supplier_id, label, value, is_primary, is_restricted)
+       VALUES ($1,'principal','TEL-FORN-LEGADO-SECRETO',true,true)`, [fornecedor])
+    await query(
+      `INSERT INTO person_emails (supplier_id, label, value, is_primary, is_restricted)
+       VALUES ($1,'principal','EMAIL-FORN-LEGADO-SECRETO',true,true)`, [fornecedor])
+
     projeto = await makeProject({ name: 'Obra' })
     await query(`UPDATE projects SET client_id = $1 WHERE id = $2`, [cliente, projeto.id])
   })
@@ -140,7 +171,9 @@ describe('inventário de visibilidade — nenhum caminho vaza', () => {
       const res = await chamar(caminho)
       expect(res.status).toBeLessThan(400)
       for (const agulha of ['CPF-SECRETO', 'RG-SECRETO', 'BANCO-SECRETO', 'PIX-SECRETO',
-                            'CNPJ-SECRETO', 'PIX-FORN-SECRETO', 'TEL-SECRETO', 'CONTRATO-SECRETO']) {
+                            'CNPJ-SECRETO', 'PIX-FORN-SECRETO', 'TEL-SECRETO', 'CONTRATO-SECRETO',
+                            'TEL-LEGADO-SECRETO', 'EMAIL-LEGADO-SECRETO', 'END-LEGADO-SECRETO',
+                            'TEL-FORN-LEGADO-SECRETO', 'EMAIL-FORN-LEGADO-SECRETO']) {
         expect(contemValor(res.body, agulha)).toBe(false)
       }
     })

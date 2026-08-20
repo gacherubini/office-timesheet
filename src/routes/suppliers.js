@@ -19,6 +19,17 @@ function optionalText(value) {
 
 const PAPEIS_VINCULO = new Set(['socio', 'responsavel_tecnico', 'contato_principal', 'financeiro'])
 
+// Lista explícita em vez de `*` pelo mesmo motivo de COLUNAS_FICHA em
+// clients.js: `suppliers` ainda tem phone/email congeladas pela migration 043,
+// e um `SELECT *` as ecoava por fora de `phones[]`/`emails[]` — ou seja,
+// marcar o contato como restrito não escondia o valor dos cadastros
+// anteriores à 043. Campo novo em `suppliers` precisa entrar AQUI.
+const COLUNAS_FICHA = `id, name, person_type, category, notes, admin_only,
+  cpf, rg, birth_date,
+  razao_social, nome_fantasia, cnpj, inscricao_estadual, founded_date,
+  bank_name, bank_agency, bank_account, bank_account_type, pix_key,
+  created_at, updated_at`
+
 function parseSupplierPayload(body = {}) {
   const personType = body.person_type === 'pj' ? 'pj' : 'pf'
 
@@ -254,7 +265,7 @@ router.get('/admin/suppliers', requireAuth, requireCanViewSuppliers, async (req,
 router.get('/admin/suppliers/:id', requireAuth, requireCanViewSuppliers, async (req, res) => {
   try {
     const { rows } = await query(
-      `SELECT * FROM suppliers WHERE id = $1`, [req.params.id])
+      `SELECT ${COLUNAS_FICHA} FROM suppliers WHERE id = $1`, [req.params.id])
     const fornecedor = rows[0]
     // Restrito só aparece para admin — mesmo 404 do resto da rota, para não
     // revelar a existência do cadastro pela diferença entre 403 e 404.
@@ -318,7 +329,8 @@ router.post('/admin/suppliers', requireAuth, requireCanManageSuppliers, async (r
         `INSERT INTO suppliers (name, person_type, category, notes, cpf, rg, birth_date,
                                 razao_social, nome_fantasia, cnpj, inscricao_estadual, founded_date,
                                 bank_name, bank_agency, bank_account, bank_account_type, pix_key, admin_only)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING *`,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+         RETURNING ${COLUNAS_FICHA}`,
         [parsed.data.name, parsed.data.person_type, parsed.data.category, parsed.data.notes, parsed.data.cpf,
          parsed.data.rg, parsed.data.birth_date, parsed.data.razao_social, parsed.data.nome_fantasia,
          parsed.data.cnpj, parsed.data.inscricao_estadual, parsed.data.founded_date, parsed.data.bank_name,
@@ -403,7 +415,7 @@ router.put('/admin/suppliers/:id', requireAuth, requireCanManageSuppliers, async
                               birth_date = $7, razao_social = $8, nome_fantasia = $9, cnpj = $10,
                               inscricao_estadual = $11, founded_date = $12, bank_name = $13, bank_agency = $14,
                               bank_account = $15, bank_account_type = $16, pix_key = $17, admin_only = $18
-         WHERE id = $19 RETURNING *`,
+         WHERE id = $19 RETURNING ${COLUNAS_FICHA}`,
         [parsed.data.name, parsed.data.person_type, parsed.data.category, parsed.data.notes, parsed.data.cpf,
          parsed.data.rg, parsed.data.birth_date, parsed.data.razao_social, parsed.data.nome_fantasia,
          parsed.data.cnpj, parsed.data.inscricao_estadual, parsed.data.founded_date, parsed.data.bank_name,
