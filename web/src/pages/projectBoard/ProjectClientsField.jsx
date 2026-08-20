@@ -13,6 +13,12 @@ const PAPEIS_CLIENTE = [
 
 const PAPEL_PRINCIPAL = 'contratante_principal'
 
+// Dito no hover do papel travado. Fala do MOTIVO ("é o único"), não da
+// mecânica ("campo desabilitado") — quem passa o mouse quer saber por que não
+// pode, não o que aconteceu com o controle.
+const MOTIVO_PAPEL_TRAVADO =
+  'Com um contratante só, ele é o principal — é o nome dele que aparece no card. Acrescente outro contratante para poder mudar o papel.'
+
 // Papel e "principal" são a MESMA pergunta desde a fusão dos dois controles:
 // quem tem `contratante_principal` É o principal. A linha tinha um rádio de
 // principal ao lado de um Select cuja primeira opção era "Contratante
@@ -35,6 +41,11 @@ function comPrincipalDerivado(item) {
 // O seletor de cliente é sobre o cadastro existente — nunca texto livre,
 // mesma regra do PersonLinksField — para não duplicar cliente por digitação.
 export function ProjectClientsField({ itens = [], onChange, readOnly = false }) {
+  // Com uma linha só não existe escolha de papel a fazer: ela é a principal por
+  // definição, e o projeto precisa de um nome no card. `alterarPapel` mantém a
+  // guarda para esse caso mesmo assim — ela é a invariante do componente, não
+  // um detalhe da tela, e sobrevive a alguém destravar isto aqui um dia.
+  const papelTravado = itens.length === 1
   const [opcoes, setOpcoes] = useState([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState('')
@@ -163,20 +174,31 @@ export function ProjectClientsField({ itens = [], onChange, readOnly = false }) 
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </Select>
-            <Select
-              aria-label="Papel"
-              value={it.role || 'contratante'}
-              onChange={(e) => alterarPapel(i, e.target.value)}
-              disabled={readOnly}
-              // w-52 e não w-44: o Select do projeto gasta mais largura interna
-              // que o <select> nativo (padding + chevron), e "Contratante principal"
-              // passou a truncar quando a troca foi feita.
+            {/* O title vive AQUI, no wrapper, e não no Select: navegador não
+                dispara evento de ponteiro em elemento desabilitado, então
+                tooltip posto no próprio controle travado nunca apareceria.
+                w-52 e não w-44: o Select do projeto gasta mais largura interna
+                que o <select> nativo (padding + chevron), e "Contratante
+                principal" passou a truncar quando a troca foi feita. */}
+            <span
               className="w-52 flex-none"
+              title={papelTravado ? MOTIVO_PAPEL_TRAVADO : undefined}
             >
-              {PAPEIS_CLIENTE.map((p) => (
-                <option key={p.value} value={p.value}>{p.label}</option>
-              ))}
-            </Select>
+              <Select
+                aria-label="Papel"
+                value={it.role || 'contratante'}
+                onChange={(e) => alterarPapel(i, e.target.value)}
+                // Travado no contratante único: ele é o principal por definição.
+                // Antes a tela DEIXAVA escolher e desfazia sozinha, o que parece
+                // defeito — dizer a regra antes é melhor que corrigir depois.
+                disabled={readOnly || papelTravado}
+                className="w-full"
+              >
+                {PAPEIS_CLIENTE.map((p) => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
+              </Select>
+            </span>
             {!readOnly && (
               <button
                 type="button"

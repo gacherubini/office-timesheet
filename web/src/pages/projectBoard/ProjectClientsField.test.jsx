@@ -141,17 +141,48 @@ describe('ProjectClientsField — o papel é o único controle do principal', ()
     ])
   })
 
-  it('com um contratante só, ele continua sendo o principal', async () => {
-    const onChange = vi.fn()
-    render(<ProjectClientsField itens={UM_CONTRATANTE} onChange={onChange} />)
+  // Com um contratante só não há para quem passar o bastão: ele é o principal
+  // por definição. A primeira versão disto DEIXAVA escolher e desfazia sozinha
+  // — o seletor voltava para "Contratante principal" e nada explicava por quê,
+  // o que é um jeito ruim de aplicar uma regra: parece a tela travando.
+  // Agora a regra é dita antes, e não desfeita depois.
+  describe('com um contratante só', () => {
+    it('o papel fica travado', async () => {
+      render(<ProjectClientsField itens={UM_CONTRATANTE} onChange={() => {}} />)
+      await waitFor(() => expect(gatilhos()).toHaveLength(2))
+      expect(gatilhos()[1].disabled).toBe(true)
+    })
 
-    await escolherPapel(0, 'Investidor')
+    it('a trava explica o motivo ao passar o mouse', async () => {
+      render(<ProjectClientsField itens={UM_CONTRATANTE} onChange={() => {}} />)
+      await waitFor(() => expect(gatilhos()).toHaveLength(2))
 
-    // Não há para quem passar o bastão: a troca não pega. O contrário seria
-    // aceitar na tela algo que o servidor desfaz no salvamento seguinte.
-    expect(onChange.mock.calls[0][0]).toEqual([
-      { client_id: 'c1', role: 'contratante_principal', is_primary: true },
-    ])
+      // O title tem que estar num ANCESTRAL, não no botão: navegador não
+      // dispara evento de ponteiro em elemento desabilitado, então tooltip
+      // posto no próprio controle travado nunca apareceria.
+      const explicacao = gatilhos()[1].closest('[title]')
+      expect(explicacao).toBeTruthy()
+
+      // Duas exigências de conteúdo, não de redação: o tooltip diz POR QUE
+      // está travado e COMO destravar. Um aviso que só diz "não pode" deixa a
+      // pessoa presa no mesmo lugar.
+      const texto = explicacao.getAttribute('title')
+      expect(texto).toMatch(/principal/i)
+      expect(texto).toMatch(/acrescente outro contratante/i)
+    })
+
+    it('o cliente continua trocável — quem trava é só o papel', async () => {
+      render(<ProjectClientsField itens={UM_CONTRATANTE} onChange={() => {}} />)
+      await waitFor(() => expect(gatilhos()).toHaveLength(2))
+      expect(gatilhos()[0].disabled).toBe(false)
+    })
+
+    it('com o segundo contratante, o papel destrava nos dois', async () => {
+      render(<ProjectClientsField itens={DOIS} onChange={() => {}} />)
+      await waitFor(() => expect(gatilhos()).toHaveLength(4))
+      expect(gatilhos()[1].disabled).toBe(false)
+      expect(gatilhos()[3].disabled).toBe(false)
+    })
   })
 
   it('a primeira linha nasce contratante principal; as seguintes, contratante', async () => {
