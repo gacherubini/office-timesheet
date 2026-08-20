@@ -15,6 +15,14 @@ const NOME = {
 export function ContactListField({ tipo, itens = [], onChange, readOnly = false, podeRestringir = false }) {
   const nome = NOME[tipo]
   const sugestoes = LABELS[tipo] || []
+  // O marcador de principal só é uma escolha quando há mais de uma linha. Com
+  // uma linha só ele é um grupo de rádio de opção única — não dá nem para
+  // desmarcar — e o resultado já está garantido dos dois lados: adicionar()
+  // nasce principal, remover() promove quem sobrou e normalizarContatos (no
+  // servidor) promove o primeiro se ninguém vier marcado. Some quando não
+  // significa nada; aparece na segunda linha, que é quando a pessoa precisa
+  // dele — e é quando ela descobre que ele existe.
+  const podeEscolherPrincipal = itens.length > 1
 
   function adicionar() {
     onChange([
@@ -67,15 +75,25 @@ export function ContactListField({ tipo, itens = [], onChange, readOnly = false,
       <div className="space-y-2">
         {itens.map((it, i) => (
           <div key={i} className="flex items-center gap-2">
-            <input
-              type="radio"
-              name={`principal-${tipo}`}
-              checked={Boolean(it.is_primary)}
-              onChange={() => marcarPrincipal(i)}
-              disabled={readOnly}
-              title="Principal (é o que aparece nas listagens)"
-              aria-label={`Definir este ${nome.singular} como principal`}
-            />
+            {/* A COLUNA do marcador é reservada sempre; só o rádio entra e sai
+                dela. Se ele saísse do flex, a linha perderia uma coluna e um
+                gap, e o telefone que já estava na tela andaria para a direita
+                no instante em que o segundo fosse adicionado — o usuário veria
+                o formulário "pular" como castigo por ter clicado em adicionar.
+                Reservar 16px vazios é mais barato que essa surpresa. */}
+            <span className="flex w-4 flex-none justify-center">
+              {podeEscolherPrincipal && (
+                <input
+                  type="radio"
+                  name={`principal-${tipo}`}
+                  checked={Boolean(it.is_primary)}
+                  onChange={() => marcarPrincipal(i)}
+                  disabled={readOnly}
+                  title="Principal (é o que aparece nas listagens)"
+                  aria-label={`Definir este ${nome.singular} como principal`}
+                />
+              )}
+            </span>
             {/* Continua sendo input com <datalist>, e não Select: o PDF pede
                 "lista pronta com opção de digitar um personalizado", e o
                 Select não deixa digitar fora da lista. */}

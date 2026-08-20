@@ -82,3 +82,54 @@ describe('AddressListField — a quem o aviso de CEP pertence', () => {
     expect(screen.queryAllByText(ERRO)).toHaveLength(0)
   })
 })
+
+// Mesma decisão do ContactListField, e pelo mesmo motivo: com um endereço só,
+// o marcador de principal é um rádio de opção única — não dá para desmarcar e
+// o resultado já é garantido por adicionar()/remover() aqui e por
+// normalizarContatos no servidor. Ele aparece a partir do segundo, que é
+// quando escolher passa a ser uma escolha.
+describe('AddressListField — o marcador de principal só aparece quando há o que escolher', () => {
+  const UM_ENDERECO = [{ label: 'residencial', cep: '', street: '', is_primary: true }]
+
+  // O cabeçalho da linha é um flex com gap; a primeira coluna é a do marcador.
+  function colunaDoMarcador(indice = 0) {
+    const rotulo = screen.getAllByLabelText(/rótulo do endereço/i)[indice]
+    return rotulo.closest('.flex.items-center').firstElementChild
+  }
+
+  it('com um endereço só, o marcador não aparece', () => {
+    render(<AddressListField itens={UM_ENDERECO} onChange={() => {}} />)
+    expect(screen.queryAllByRole('radio')).toHaveLength(0)
+  })
+
+  it('a partir do segundo endereço, todos ganham o marcador', () => {
+    render(<AddressListField itens={DUAS_LINHAS} onChange={() => {}} />)
+    expect(screen.getAllByRole('radio')).toHaveLength(2)
+  })
+
+  // Escondemos o CONTROLE, não o campo: o endereço único continua saindo como
+  // principal — é ele que a listagem mostra.
+  it('com o marcador escondido, o dado continua saindo como principal', () => {
+    const onChange = vi.fn()
+    render(<AddressListField itens={UM_ENDERECO} onChange={onChange} />)
+    fireEvent.change(screen.getByLabelText('Rua'), { target: { value: 'Rua Nova' } })
+    expect(onChange.mock.calls[0][0][0].is_primary).toBe(true)
+  })
+
+  // Tirar o rádio do flex encolheria o cabeçalho em uma coluna + um gap, e o
+  // rótulo do endereço que já estava na tela andaria para a direita assim que o
+  // segundo endereço fosse adicionado.
+  it('a coluna do marcador é a mesma com um ou com dois endereços — nada anda para o lado quando o segundo chega', () => {
+    render(<AddressListField itens={UM_ENDERECO} onChange={() => {}} />)
+    const sozinha = colunaDoMarcador()
+    const classesSozinha = sozinha.className
+    expect(sozinha.querySelector('input[type="radio"]')).toBeNull()
+    expect(classesSozinha).not.toBe('') // é coluna de verdade, com largura própria
+    cleanup()
+
+    render(<AddressListField itens={DUAS_LINHAS} onChange={() => {}} />)
+    const acompanhada = colunaDoMarcador()
+    expect(acompanhada.className).toBe(classesSozinha)
+    expect(acompanhada.querySelector('input[type="radio"]')).not.toBeNull()
+  })
+})

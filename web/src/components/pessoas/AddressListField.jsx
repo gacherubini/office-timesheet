@@ -12,6 +12,11 @@ import { VisibilityToggle } from './VisibilityToggle'
 // AbortController por linha.
 export function AddressListField({ itens = [], onChange, readOnly = false, buscar, erroCep, podeRestringir = false }) {
   const sugestoes = LABELS.address || []
+  // Mesma regra do ContactListField: com um endereço só, o marcador é um rádio
+  // de opção única que não dá para desmarcar, e o "principal" já sai garantido
+  // por adicionar()/remover() aqui e por normalizarContatos no servidor. Ele
+  // aparece a partir do segundo endereço, que é quando escolher vira escolha.
+  const podeEscolherPrincipal = itens.length > 1
   // Qual linha disparou a última busca. É estado de UI, não de dado — por isso
   // vive aqui e não sobe pelo onChange. Existe porque `erroCep` é um estado só
   // para a lista inteira (um hook por formulário): sem saber de quem é o erro,
@@ -94,15 +99,23 @@ export function AddressListField({ itens = [], onChange, readOnly = false, busca
         {itens.map((it, i) => (
           <div key={i} className="border border-border-subtle p-2.5 space-y-2">
             <div className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="principal-address"
-                checked={Boolean(it.is_primary)}
-                onChange={() => marcarPrincipal(i)}
-                disabled={readOnly}
-                title="Principal (é o que aparece nas listagens)"
-                aria-label="Definir este endereço como principal"
-              />
+              {/* A COLUNA fica reservada mesmo sem o rádio: tirá-lo do flex
+                  encolheria o cabeçalho em uma coluna e um gap, e o rótulo do
+                  endereço que já estava na tela andaria para a direita assim
+                  que o segundo fosse adicionado. */}
+              <span className="flex w-4 flex-none justify-center">
+                {podeEscolherPrincipal && (
+                  <input
+                    type="radio"
+                    name="principal-address"
+                    checked={Boolean(it.is_primary)}
+                    onChange={() => marcarPrincipal(i)}
+                    disabled={readOnly}
+                    title="Principal (é o que aparece nas listagens)"
+                    aria-label="Definir este endereço como principal"
+                  />
+                )}
+              </span>
               <Input
                 list="labels-address"
                 aria-label="Rótulo do endereço"

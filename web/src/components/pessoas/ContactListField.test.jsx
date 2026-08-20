@@ -96,3 +96,57 @@ describe('ContactListField', () => {
     expect(onChange.mock.calls[0][0][0].label).toBe('portaria')
   })
 })
+
+// "Essa bolinha à esquerda tem necessidade?", perguntou quem olhou a tela — e
+// com uma linha só ela não tem: é um grupo de rádio de opção única, que nem dá
+// para desmarcar, e o resultado já está garantido dos dois lados (adicionar()
+// nasce principal, remover() promove quem sobrou, e normalizarContatos promove
+// o primeiro se ninguém vier marcado). O marcador passa a existir exatamente
+// quando passa a significar alguma coisa — que é também quando a pessoa
+// descobre que ele existe.
+describe('ContactListField — o marcador de principal só aparece quando há o que escolher', () => {
+  const CELULAR = { label: 'celular', value: '(11) 99999-0000', is_primary: true }
+  const COMERCIAL = { label: 'comercial', value: '(11) 3333-0000', is_primary: false }
+
+  // A linha do formulário é um flex com gap; a primeira coluna é a do marcador.
+  function colunaDoMarcador(indice = 0) {
+    const rotulo = screen.getAllByLabelText(/rótulo do telefone/i)[indice]
+    return rotulo.closest('.flex.items-center').firstElementChild
+  }
+
+  it('com uma linha só, o marcador não aparece', () => {
+    render(<ContactListField tipo="phone" itens={[CELULAR]} onChange={() => {}} />)
+    expect(screen.queryAllByRole('radio')).toHaveLength(0)
+  })
+
+  it('a partir da segunda linha, todas as linhas ganham o marcador', () => {
+    render(<ContactListField tipo="phone" itens={[CELULAR, COMERCIAL]} onChange={() => {}} />)
+    expect(screen.getAllByRole('radio')).toHaveLength(2)
+  })
+
+  // O que sumiu foi o CONTROLE, não o campo: a linha única continua saindo
+  // marcada como principal, senão a listagem ficaria sem telefone para mostrar.
+  it('com o marcador escondido, o dado continua saindo como principal', () => {
+    const onChange = vi.fn()
+    render(<ContactListField tipo="phone" itens={[CELULAR]} onChange={onChange} />)
+    fireEvent.change(screen.getByLabelText(/valor do telefone/i), { target: { value: '(11) 98888-0000' } })
+    expect(onChange.mock.calls[0][0][0].is_primary).toBe(true)
+  })
+
+  // Esconder o rádio tirando-o do flex encolheria a linha em uma coluna + um
+  // gap, e o telefone que já estava na tela andaria para a direita no instante
+  // em que o segundo fosse adicionado. A coluna fica reservada dos dois jeitos.
+  it('a coluna do marcador é a mesma com uma ou com duas linhas — nada anda para o lado quando a segunda chega', () => {
+    render(<ContactListField tipo="phone" itens={[CELULAR]} onChange={() => {}} />)
+    const sozinha = colunaDoMarcador()
+    const classesSozinha = sozinha.className
+    expect(sozinha.querySelector('input[type="radio"]')).toBeNull()
+    expect(classesSozinha).not.toBe('') // é coluna de verdade, com largura própria
+    cleanup()
+
+    render(<ContactListField tipo="phone" itens={[CELULAR, COMERCIAL]} onChange={() => {}} />)
+    const acompanhada = colunaDoMarcador()
+    expect(acompanhada.className).toBe(classesSozinha)
+    expect(acompanhada.querySelector('input[type="radio"]')).not.toBeNull()
+  })
+})
