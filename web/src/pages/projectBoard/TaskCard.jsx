@@ -1,4 +1,4 @@
-import { MessageSquare, Paperclip, Calendar, Play, Square } from 'lucide-react'
+import { MessageSquare, Paperclip, Calendar, Layers, Play, Square } from 'lucide-react'
 import { Avatar } from '../../components/Avatar'
 import { urgency, urgencyClasses, formatMinutes, formatClock, formatShortDate, priorityMeta } from './helpers'
 
@@ -7,6 +7,11 @@ const TIMER_STATUSES = ['todo', 'in_progress']
 export function TaskCard({
   task, onClick, onDragStart, muted = false,
   currentUserId, timerElapsed = 0, timerBusy = false, onToggleTimer,
+  // Item 3 do brief de 19/08/2026: quadro filtrado por etapa já mostra o
+  // nome dela no título ("Tarefas · Anteprojeto") — repetir em cada card
+  // vira ruído. Sem filtro (o padrão, e sempre no quadro global de
+  // /tarefas), o rótulo é o único jeito de saber a fase da tarefa.
+  showStage = true,
 }) {
   const u = urgency(task.due_date, task.status)
   const prio = priorityMeta(task.priority)
@@ -54,6 +59,14 @@ export function TaskCard({
             task.total_minutes > 0 && (
               <span className="text-[11px] tabular-nums">{formatMinutes(task.total_minutes)}</span>
             )
+          )}
+          {showStage && task.stage_name && (
+            <span
+              title={`Etapa: ${task.stage_name}`}
+              className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 bg-surface-alt text-text-secondary"
+            >
+              <Layers size={11} /> {task.stage_name}
+            </span>
           )}
           {task.due_date && (
             <span

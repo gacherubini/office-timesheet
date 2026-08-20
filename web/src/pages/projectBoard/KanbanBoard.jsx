@@ -3,7 +3,12 @@ import { ChevronRight, Archive } from 'lucide-react'
 import { COLUMNS, ABANDONED_STATUS } from './helpers'
 import { TaskCard } from './TaskCard'
 
-export function KanbanBoard({ tasks, onOpenTask, onMove, currentUserId, timerElapsed, timerBusyId, onToggleTimer }) {
+export function KanbanBoard({
+  tasks, onOpenTask, onMove, currentUserId, timerElapsed, timerBusyId, onToggleTimer,
+  // Repassa para o TaskCard (ver comentário lá): default true — sem prop
+  // (caso do quadro global de /tarefas) o rótulo de etapa sempre aparece.
+  showStage = true,
+}) {
   const [dragOverCol, setDragOverCol] = useState(null)
   const [showAbandoned, setShowAbandoned] = useState(false)
 

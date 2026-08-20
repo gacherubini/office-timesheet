@@ -1,0 +1,29 @@
+-- 054_backfill_cargo_colaborador.sql
+-- Backfill do CARGO (users.position) para quem já estava cadastrado antes da
+-- correção que separou cargo de permissão.
+--
+-- O bug: users.position era gravado como roleLabel(role) — o rótulo da
+-- PERMISSÃO ('Colaborador', 'Administrador', 'Estagiário Administrativo',
+-- 'Gestor de Projetos'), não o cargo real da pessoa. Isso foi corrigido:
+-- position agora é campo digitado, com padrão 'Arquiteto' para cadastros
+-- novos. Mas quem já existia ficou com o rótulo de permissão gravado.
+--
+-- O pedido do cliente (PDF) foi específico: "Colaborador" devia virar
+-- "Arquiteto". O dono do produto decidiu fazer EXATAMENTE isso e nada mais.
+UPDATE users SET position = 'Arquiteto' WHERE position = 'Colaborador';
+
+-- NÃO fazemos o mesmo para 'Administrador', 'Estagiário Administrativo' ou
+-- 'Gestor de Projetos'. Não sabemos o cargo real dessas pessoas — podem ser
+-- arquitetos, engenheiros, estagiários de outra área etc. Adivinhar o cargo
+-- a partir da permissão é EXATAMENTE o erro que esta correção está
+-- consertando; repeti-lo aqui, mesmo que pareça "terminar o serviço", seria
+-- reintroduzir o mesmo bug com um valor diferente. Quem tiver esses rótulos
+-- continua com eles até alguém digitar o cargo certo na ficha.
+--
+-- Por que isso importa mais do que um campo de exibição parece: position
+-- aparece no prompt do assistente de IA (src/lib/agent/prompt.js:64 — a IA é
+-- informada "você está falando com Fulano — Colaborador", que soa como
+-- permissão, não como cargo), em relatórios exportados, no card de
+-- aniversariantes do dashboard, na lista de Pessoas e na ficha de cada
+-- pessoa. Um valor errado ali não é só estético — vaza a confusão
+-- cargo/permissão para todo lugar que lê position.

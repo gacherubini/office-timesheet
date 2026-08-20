@@ -83,12 +83,18 @@ describe('templates geram etapas e tarefas', () => {
     expect(rows[0].name).toBe('Sem etapa')
   })
 
-  it('projeto sem template nasce sem etapa e sem tarefa', async () => {
+  // Desde o item 1 do brief de 19/08/2026, projeto sem template nasce com o
+  // catálogo inteiro (ver projectDefaultStages.test.js) — aqui o beforeEach
+  // já semeou 'Anteprojeto' e 'Executivo'. O que este teste ainda garante é
+  // que continua SEM TAREFA (tarefa só nasce de item de template).
+  it('projeto sem template nasce com as etapas do catálogo e sem tarefa', async () => {
     const res = await asUser(admin).post('/projects').send({
       name: 'Vazio', client_id: cliente, start_date: '2026-08-01',
     })
     const etapas = await asUser(admin).get(`/projects/${res.body.id}/stages`)
-    expect(etapas.body).toHaveLength(0)
+    expect(etapas.body.map((s) => s.name)).toEqual(['Anteprojeto', 'Executivo'])
+    const { rows } = await query(`SELECT count(*)::int AS c FROM tasks WHERE project_id = $1`, [res.body.id])
+    expect(rows[0].c).toBe(0)
   })
 
   it('apagar o template leva as etapas dele', async () => {

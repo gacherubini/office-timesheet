@@ -117,6 +117,7 @@ router.get('/tasks', requireAuth, async (req, res) => {
       `SELECT t.id, t.project_id, t.title, t.description, t.status, t.assignee_id,
               t.due_date, t.position, t.priority, t.stage_id, t.created_by, t.completed_at, t.created_at, t.updated_at,
               p.name AS project_name,
+              s.name AS stage_name,
               a.name AS assignee_name, a.avatar_url AS assignee_avatar_url,
               COALESCE(tl.total_minutes, 0) AS total_minutes,
               COALESCE(cc.comment_count, 0) AS comment_count,
@@ -124,6 +125,7 @@ router.get('/tasks', requireAuth, async (req, res) => {
               myopen.started_at AS open_started_at
        FROM tasks t
        JOIN projects p ON p.id = t.project_id
+       LEFT JOIN project_stages s ON s.id = t.stage_id
        LEFT JOIN users a ON a.id = t.assignee_id
        LEFT JOIN LATERAL (
          SELECT COALESCE(SUM(

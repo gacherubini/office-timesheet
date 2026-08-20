@@ -267,6 +267,24 @@ router.post('/projects', requireAuth, requireProjectManagement, async (req, res)
       templateItems = items
     }
 
+    // Item 1 do brief de 19/08/2026: projeto SEM template nasce com o
+    // catálogo INTEIRO ativo (não-arquivado), na ordem do catálogo — era
+    // opt-in (a pessoa marcava uma a uma em "Gerenciar etapas"), virou
+    // opt-out (ela remove as que não se aplicam). O escritório faz sempre o
+    // mesmo tipo de obra, então a maioria das etapas é usada em todo
+    // projeto — inverter o default é menos trabalho no caso comum.
+    //
+    // Só quando NÃO há template: template é a escolha deliberada de quem o
+    // montou, e empilhar o catálogo por cima duplicaria/confundiria essa
+    // escolha (ver "projeto COM template" em projectDefaultStages.test.js).
+    let catalogStages = []
+    if (!template_id) {
+      const { rows: cat } = await query(
+        `SELECT id, name, position FROM stage_catalog WHERE NOT is_archived ORDER BY position, name`,
+      )
+      catalogStages = cat
+    }
+
     const project = await withTransaction(async (client) => {
       const { rows } = await client.query(
         `INSERT INTO projects (name, address, start_date, status, sale_value)
@@ -288,6 +306,17 @@ router.post('/projects', requireAuth, requireProjectManagement, async (req, res)
           [created.id, ts.catalog_id, ts.name, ts.position],
         )
         etapaPorTemplateStage.set(ts.id, st[0].id)
+      }
+
+      // Sem template: copia o catálogo inteiro (não-arquivado) como etapas
+      // ativas do projeto, na mesma ordem. Mesma cópia (não referência) que
+      // a etapa de template usa — ver comentário da migration 048.
+      for (const cs of catalogStages) {
+        await client.query(
+          `INSERT INTO project_stages (project_id, catalog_id, name, position)
+           VALUES ($1,$2,$3,$4)`,
+          [created.id, cs.id, cs.name, cs.position],
+        )
       }
 
       // Item de template ANTIGO (sem etapa) cai numa etapa coringa, criada só

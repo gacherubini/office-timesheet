@@ -85,13 +85,27 @@ describe('activityText — stage_changed', () => {
     expect(texto).toBe('Ana mudou a etapa (Anteprojeto → Executivo)')
   })
 
-  it('com detail legado (só uuids, sem from_name/to_name), não mostra "undefined"', () => {
+  // "uma etapa → uma etapa" não é falso, mas também não informa nada — um
+  // parêntese vazio de conteúdo é pior que nenhum parêntese.
+  it('com detail legado (só uuids, sem from_name/to_name), omite o parêntese', () => {
     const texto = activityText({
       actor_name: 'Ana',
       type: 'stage_changed',
       detail: { from: 'uuid-1', to: 'uuid-2' },
     })
     expect(texto).not.toMatch(/undefined/)
-    expect(texto).toBe('Ana mudou a etapa (uma etapa → uma etapa)')
+    expect(texto).toBe('Ana mudou a etapa')
+  })
+
+  // Caso misto: só um dos dois nomes veio (pode acontecer se a etapa de
+  // origem foi apagada do catálogo). Meio parêntese ("? → Executivo") informa
+  // pela metade e confunde mais do que ajuda — tratamos como "sem nomes".
+  it('com só um dos nomes (o outro foi apagado), também omite o parêntese', () => {
+    const texto = activityText({
+      actor_name: 'Ana',
+      type: 'stage_changed',
+      detail: { from: 'uuid-1', to: 'uuid-2', to_name: 'Executivo' },
+    })
+    expect(texto).toBe('Ana mudou a etapa')
   })
 })

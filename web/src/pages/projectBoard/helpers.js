@@ -86,8 +86,16 @@ export function activityText(a) {
     // stage_changed guarda uuids em from/to (project_stages é por projeto,
     // não um enum fixo) e o NOME em from_name/to_name — só o backend sabe
     // traduzir o uuid. Atividade gravada antes desta correção não tem
-    // from_name/to_name; "uma etapa" evita mostrar "undefined" ou o uuid cru.
-    case 'stage_changed': return `${who} mudou a etapa (${d.from_name || 'uma etapa'} → ${d.to_name || 'uma etapa'})`
+    // from_name/to_name. Um parêntese como "(uma etapa → uma etapa)" não
+    // mostra "undefined", mas também não informa nada — pior que não ter
+    // parêntese algum. Por isso, sem os DOIS nomes, omitimos o parêntese
+    // inteiro. Isso cobre também o caso misto (só um nome veio, o que pode
+    // acontecer se a etapa de origem foi apagada do catálogo): meio
+    // parêntese confunde mais do que ajuda, então tratamos como "sem nomes".
+    case 'stage_changed':
+      return (d.from_name && d.to_name)
+        ? `${who} mudou a etapa (${d.from_name} → ${d.to_name})`
+        : `${who} mudou a etapa`
     case 'comment_added': return `${who} comentou`
     case 'attachment_added': return `${who} anexou ${d.file_name || 'um arquivo'}`
     default: return `${who} · ${a.type}`
