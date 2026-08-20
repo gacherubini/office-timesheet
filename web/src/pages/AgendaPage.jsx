@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   CalendarClock,
   ChevronLeft,
@@ -11,8 +11,12 @@ import {
   Clock,
   MapPin,
   Plus,
+  ListTodo,
+  Briefcase,
+  ArrowRight,
 } from 'lucide-react'
 import { api } from '../lib/api'
+import { formatDateBR as formatDate } from '../lib/dates'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
@@ -21,6 +25,7 @@ import { Input } from '../components/ui/Input'
 import { DateField } from '../components/ui/DateField'
 import { TimeField } from '../components/ui/TimeField'
 import { getCalendarEvents, getCalendarStatus } from '../lib/calendarClient'
+import { fetchHolidays } from '../lib/holidaysClient'
 import { CalendarConnect } from './profile/CalendarConnect'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -93,6 +98,7 @@ const TYPE_STYLE = {
   office: 'bg-ink/5 text-text-primary',
   google: 'bg-ink/5 text-text-primary',
   presence: 'bg-ink/5 text-text-primary',
+  task: 'bg-ink/5 text-text-primary',
 }
 
 const ICON_BY_KIND = {
@@ -102,17 +108,41 @@ const ICON_BY_KIND = {
   office: Building2,
   google: Video,
   presence: CalendarClock,
+  task: ListTodo,
+}
+
+const TASK_STATUS_LABEL = {
+  todo: 'A fazer',
+  in_progress: 'Em andamento',
+  done: 'Concluída',
+  abandoned: 'Abandonada',
+}
+
+const TASK_PRIORITY_LABEL = {
+  low: 'Baixa',
+  medium: 'Média',
+  high: 'Alta',
+}
+
+function formatDays(days) {
+  return `${days} ${days === 1 ? 'dia' : 'dias'}`
 }
 
 export function AgendaPage() {
   const { profile } = useAuth()
+  const navigate = useNavigate()
   const [view, setView] = useState('week') // 'week' | 'month'
   const [cursor, setCursor] = useState(() => new Date())
   const [events, setEvents] = useState([]) // google + office + holiday
   const [vacations, setVacations] = useState([])
   const [presences, setPresences] = useState([])
+  const [tasks, setTasks] = useState([]) // minhas tarefas com prazo
+  const [upcomingHolidays, setUpcomingHolidays] = useState([])
+  const [upcomingEvents, setUpcomingEvents] = useState([])
+  const [upcomingOffice, setUpcomingOffice] = useState([])
   const [connected, setConnected] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState(null)
+  const [selectedTask, setSelectedTask] = useState(null)
   const [presenceOpen, setPresenceOpen] = useState(false)
   const [presenceInitial, setPresenceInitial] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -123,6 +153,7 @@ export function AgendaPage() {
     personal: true, // Pessoal (Google)
     office: true, // Escritório (Google)
     company: true, // Empresa (comum) — férias + feriados
+    tasks: true, // Minhas tarefas (prazos)
   })
 
   // Intervalo carregado depende da visão (semana ou mês).
@@ -152,19 +183,53 @@ export function AgendaPage() {
       getCalendarEvents(rangeStart, rangeEnd).catch(() => ({ events: [] })),
       api.get(`/vacation-calendar?start_date=${rangeStart}&end_date=${rangeEnd}`).catch(() => []),
       api.get(`/presences?start_date=${rangeStart}&end_date=${rangeEnd}`).catch(() => []),
+      // As tarefas vêm sem recorte de data (o endpoint não filtra por prazo) e
+      // são peneiradas em tasksByDay — por isso não entram na conta do
+      // intervalo visível aqui.
+      profile?.id ? api.get(`/tasks?assignee_id=${profile.id}`).catch(() => []) : Promise.resolve([]),
     ])
-      .then(([evResp, vac, pres]) => {
+      .then(([evResp, vac, pres, tk]) => {
         setEvents(Array.isArray(evResp.events) ? evResp.events : [])
         setVacations(Array.isArray(vac) ? vac : [])
         setPresences(Array.isArray(pres) ? pres : [])
+        setTasks(Array.isArray(tk) ? tk : [])
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
-  }, [rangeStart, rangeEnd, refresh])
+  }, [rangeStart, rangeEnd, refresh, profile?.id])
 
   useEffect(() => {
     getCalendarStatus()
       .then((st) => setConnected(Boolean(st.connected)))
+      .catch(() => {})
+  }, [refresh])
+
+  // Painéis do que vem por aí. Eles NÃO seguem o intervalo navegado — é
+  // justamente esse o serviço que prestam: na semana de hoje ninguém enxerga o
+  // feriado de daqui a três semanas, e antes era preciso trocar de tela para
+  // isso. Feriados do ano atual e do seguinte a partir de hoje; agenda (Google
+  // e escritório) nos próximos 90 dias.
+  useEffect(() => {
+    const now = new Date()
+    const todayK = dateKey(now)
+    const horizon = dateKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 90))
+
+    Promise.all([fetchHolidays(now.getFullYear()), fetchHolidays(now.getFullYear() + 1)])
+      .then(([atual, seguinte]) => {
+        const lista = [...atual, ...seguinte]
+          .filter((h) => h.date >= todayK)
+          .sort((x, y) => x.date.localeCompare(y.date))
+          .slice(0, 6)
+        setUpcomingHolidays(lista)
+      })
+      .catch(() => {})
+
+    getCalendarEvents(todayK, horizon)
+      .then((resp) => {
+        const evs = resp.events || []
+        setUpcomingEvents(evs.filter((e) => e.source === 'google').slice(0, 6))
+        setUpcomingOffice(evs.filter((e) => e.source === 'office').slice(0, 6))
+      })
       .catch(() => {})
   }, [refresh])
 
@@ -218,6 +283,22 @@ export function AgendaPage() {
       }
     }
 
+    // Prazo das minhas tarefas. Concluída e abandonada ficam de fora: o
+    // calendário é do que ainda vai acontecer, e prazo cumprido só ocupa o dia.
+    if (layers.tasks) {
+      for (const t of tasks) {
+        if (!t.due_date || t.status === 'done' || t.status === 'abandoned') continue
+        push(String(t.due_date).slice(0, 10), {
+          id: `task:${t.id}`,
+          kind: 'task',
+          title: t.title,
+          allDay: true,
+          hint: `Tarefa: ${t.title}${t.project_name ? ` · ${t.project_name}` : ''}`,
+          task: t,
+        })
+      }
+    }
+
     // Presença (chego / não vou) — sempre visível, cor accent.
     for (const p of presences) {
       const day = String(p.date).slice(0, 10)
@@ -246,10 +327,14 @@ export function AgendaPage() {
       })
     }
     return map
-  }, [events, vacations, presences, layers, rangeDays, profile?.id])
+  }, [events, vacations, presences, tasks, layers, rangeDays, profile?.id])
 
   // Clique num chip: presença própria abre o editor; eventos abrem o detalhe.
   function handleChipOpen(item) {
+    if (item.kind === 'task') {
+      setSelectedTask(item.task)
+      return
+    }
     if (item.kind === 'presence') {
       if (item.mine) { setPresenceInitial(item.presence); setPresenceOpen(true) }
       return
@@ -360,6 +445,131 @@ export function AgendaPage() {
                 checked={layers.company}
                 onChange={(v) => setLayers((l) => ({ ...l, company: v }))}
               />
+              <LayerToggle
+                label="Minhas tarefas"
+                hint="Prazos em aberto"
+                checked={layers.tasks}
+                onChange={(v) => setLayers((l) => ({ ...l, tasks: v }))}
+              />
+            </div>
+          </Card>
+
+          {/* Os três painéis abaixo não seguem o intervalo navegado — é para
+              isso que servem. Ver a semana não pode custar enxergar o que vem
+              depois dela. */}
+          <Card padded={false} className="overflow-hidden">
+            <div className="px-5 py-4 border-b border-border-subtle">
+              <h2 className="text-[11px] font-medium uppercase tracking-wider text-text-secondary inline-flex items-center gap-1.5">
+                <Flag size={13} className="text-brown" /> Próximos feriados
+              </h2>
+            </div>
+            <div className="divide-y divide-border-subtle">
+              {upcomingHolidays.length === 0 ? (
+                <div className="py-8 px-5 text-center text-sm text-text-secondary">Sem feriados próximos.</div>
+              ) : (
+                upcomingHolidays.map((h) => (
+                  <div key={h.date} className="flex items-center justify-between gap-3 px-5 py-3">
+                    <span className="text-sm text-text-primary truncate">{h.name}</span>
+                    <span className="text-xs text-text-secondary tabular-nums flex-shrink-0">{formatDate(h.date)}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </Card>
+
+          <Card padded={false} className="overflow-hidden">
+            <div className="px-5 py-4 border-b border-border-subtle">
+              <h2 className="text-[11px] font-medium uppercase tracking-wider text-text-secondary inline-flex items-center gap-1.5">
+                <Building2 size={13} className="text-text-secondary" /> Agenda do escritório
+              </h2>
+            </div>
+            <div className="divide-y divide-border-subtle">
+              {upcomingOffice.length === 0 ? (
+                <div className="py-8 px-5 text-center text-sm text-text-secondary">
+                  Nada nos próximos 90 dias.
+                </div>
+              ) : (
+                upcomingOffice.map((ev) => (
+                  <button
+                    key={ev.id}
+                    type="button"
+                    onClick={() => setSelectedEvent(ev)}
+                    className="w-full text-left px-5 py-3 hover:bg-surface-alt transition-colors flex items-center gap-2.5"
+                  >
+                    <Building2 size={14} className="text-text-secondary flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm text-text-primary truncate">{ev.title}</p>
+                      <p className="text-xs text-text-secondary">{formatEventWhen(ev)}</p>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </Card>
+
+          <Card padded={false} className="overflow-hidden">
+            <div className="px-5 py-4 border-b border-border-subtle">
+              <h2 className="text-[11px] font-medium uppercase tracking-wider text-text-secondary inline-flex items-center gap-1.5">
+                <Video size={13} className="text-text-secondary" /> Próximos eventos
+              </h2>
+            </div>
+            <div className="divide-y divide-border-subtle">
+              {upcomingEvents.length === 0 ? (
+                <div className="py-8 px-5 text-center text-sm text-text-secondary">
+                  {/* Vazio por falta de conexão não é a mesma notícia que agenda
+                      vazia — quem nunca conectou precisa saber que é isso. */}
+                  {connected
+                    ? 'Nada nos próximos 90 dias.'
+                    : 'Conecte sua agenda Google acima para ver seus eventos.'}
+                </div>
+              ) : (
+                upcomingEvents.map((ev) => (
+                  <button
+                    key={ev.id}
+                    type="button"
+                    onClick={() => setSelectedEvent(ev)}
+                    className="w-full text-left px-5 py-3 hover:bg-surface-alt transition-colors flex items-center gap-2.5"
+                  >
+                    <Video size={14} className="text-text-secondary flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm text-text-primary truncate">{ev.title}</p>
+                      <p className="text-xs text-text-secondary">{formatEventWhen(ev)}</p>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </Card>
+
+          {/* "No período" e não "no mês": aqui a visão pode ser a semana, e o
+              painel acompanha o intervalo desenhado. O chip no dia diz quem
+              está de férias; este diz até quando e quantos dias. */}
+          <Card padded={false} className="overflow-hidden">
+            <div className="px-5 py-4 border-b border-border-subtle">
+              <h2 className="text-[11px] font-medium uppercase tracking-wider text-text-secondary">
+                Férias no período
+              </h2>
+            </div>
+            <div className="divide-y divide-border-subtle">
+              {loading ? (
+                <div className="py-8 text-center text-sm text-text-secondary">Carregando...</div>
+              ) : vacations.length === 0 ? (
+                <div className="py-8 px-5 text-center text-sm text-text-secondary">
+                  Ninguém de férias neste período.
+                </div>
+              ) : (
+                vacations.map((vacation) => (
+                  <div key={vacation.id} className="p-4 space-y-1">
+                    <p className="text-sm font-medium text-text-primary truncate">
+                      {vacation.profile?.name || 'Colaborador'}
+                    </p>
+                    <p className="text-xs text-text-secondary">
+                      {formatDate(vacation.start_date)} → {formatDate(vacation.end_date)}
+                    </p>
+                    <p className="text-xs text-text-secondary">{formatDays(vacation.days_count)}</p>
+                  </div>
+                ))
+              )}
             </div>
           </Card>
 
@@ -375,6 +585,7 @@ export function AgendaPage() {
                 <LegendItem Icon={Video} label="Compromisso pessoal (Google)" />
                 <LegendItem Icon={Building2} label="Compromisso do escritório" />
                 <LegendItem Icon={CalendarClock} label="Presença (chego / não vou)" />
+                <LegendItem Icon={ListTodo} label="Prazo de tarefa minha" />
               </div>
             </div>
           </Card>
@@ -400,6 +611,7 @@ export function AgendaPage() {
             </div>
           </div>
 
+          <div data-testid="agenda-grade">
           {view === 'week' ? (
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7">
               {weekDays.map((day) => {
@@ -493,6 +705,7 @@ export function AgendaPage() {
               </div>
             </>
           )}
+          </div>
         </Card>
       </div>
 
@@ -528,6 +741,64 @@ export function AgendaPage() {
             )}
             {!selectedEvent.location && !selectedEvent.description && (
               <p className="text-xs text-text-secondary">Sem mais detalhes neste evento.</p>
+            )}
+          </div>
+        </Modal>
+      )}
+
+      {/* Detalhe de um prazo de tarefa */}
+      {selectedTask && (
+        <Modal
+          open
+          onClose={() => setSelectedTask(null)}
+          title={selectedTask.title}
+          size="sm"
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setSelectedTask(null)}>
+                Fechar
+              </Button>
+              {/* /projetos e não /project-board: as duas rotas desenham a mesma
+                  página, mas o isActive do Topbar compara o caminho exato — pela
+                  legada a pessoa chega ao quadro com o menu apagado. */}
+              <Button onClick={() => navigate(`/projetos?task=${selectedTask.id}`)}>
+                Abrir no quadro <ArrowRight size={15} />
+              </Button>
+            </>
+          }
+        >
+          <div className="space-y-3 text-sm">
+            <span className="inline-flex items-center gap-1.5 bg-surface-alt text-text-secondary px-2.5 py-1 text-xs font-medium">
+              <ListTodo size={12} /> Tarefa
+            </span>
+            {selectedTask.project_name && (
+              <div className="flex items-center gap-2 text-text-secondary">
+                <Briefcase size={15} className="flex-shrink-0" />
+                <span>{selectedTask.project_name}</span>
+              </div>
+            )}
+            {selectedTask.due_date && (
+              <div className="flex items-center gap-2 text-text-secondary">
+                <Clock size={15} className="flex-shrink-0" />
+                <span>Prazo: {formatDate(String(selectedTask.due_date).slice(0, 10))}</span>
+              </div>
+            )}
+            <div className="flex flex-wrap gap-2">
+              {TASK_STATUS_LABEL[selectedTask.status] && (
+                <span className="bg-surface-alt px-2.5 py-1 text-xs text-text-secondary">
+                  {TASK_STATUS_LABEL[selectedTask.status]}
+                </span>
+              )}
+              {TASK_PRIORITY_LABEL[selectedTask.priority] && (
+                <span className="bg-surface-alt px-2.5 py-1 text-xs text-text-secondary">
+                  Prioridade: {TASK_PRIORITY_LABEL[selectedTask.priority]}
+                </span>
+              )}
+            </div>
+            {selectedTask.description && (
+              <p className="whitespace-pre-wrap text-text-primary border-t border-border-subtle pt-3">
+                {selectedTask.description}
+              </p>
             )}
           </div>
         </Modal>
@@ -582,6 +853,7 @@ function EventChip({ item, onOpen }) {
   const style = TYPE_STYLE[item.kind] || TYPE_STYLE.google
   const clickable =
     (item.raw && (item.kind === 'google' || item.kind === 'office')) ||
+    item.kind === 'task' ||
     (item.kind === 'presence' && item.mine)
   const content = (
     <>
@@ -597,7 +869,7 @@ function EventChip({ item, onOpen }) {
       <button
         type="button"
         onClick={() => onOpen(item)}
-        title={item.kind === 'presence' ? 'Editar/remover minha presença' : item.title}
+        title={item.hint || (item.kind === 'presence' ? 'Editar/remover minha presença' : item.title)}
         className={`flex w-full items-center gap-1 truncate px-2 py-1 text-left text-[11px] font-medium transition-opacity hover:opacity-80 ${style}`}
       >
         {content}
@@ -606,7 +878,7 @@ function EventChip({ item, onOpen }) {
   }
   return (
     <div
-      title={item.title}
+      title={item.hint || item.title}
       className={`flex w-full items-center gap-1 truncate px-2 py-1 text-[11px] font-medium ${style}`}
     >
       {content}

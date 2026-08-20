@@ -48,7 +48,10 @@ export function AgendaCard() {
           </span>
           Minha Agenda
         </h2>
-        <Link to="/vacation-calendar" className="text-[11px] text-[color:var(--color-accent)] hover:underline">Ver tudo</Link>
+        {/* /agenda, não /vacation-calendar: a tela de calendário saiu do menu
+            quando a agenda a substituiu, e este era o único link que ainda
+            levava a ela — quem clicava saía da navegação nova sem perceber. */}
+        <Link to="/agenda" className="text-[11px] text-[color:var(--color-accent)] hover:underline">Ver tudo</Link>
       </div>
 
       <div className="divide-y divide-border-subtle">
