@@ -155,7 +155,10 @@ export function EmployeeDashboardPage() {
             title="Projetos"
             count={projects.length || null}
             action={
-              <Link to="/project-board" className="text-xs text-text-secondary hover:text-[color:var(--color-accent)] underline transition-colors">
+              // /projetos, não /project-board: as duas rotas desenham a mesma
+              // página, mas o isActive do Topbar compara o caminho exato — pela
+              // rota legada a aba "Projetos" fica apagada no menu.
+              <Link to="/projetos" className="text-xs text-text-secondary hover:text-[color:var(--color-accent)] underline transition-colors">
                 Ver projetos
               </Link>
             }
@@ -169,7 +172,12 @@ export function EmployeeDashboardPage() {
                   return (
                     <Link
                       key={p.id}
-                      to="/project-board"
+                      // O projeto CLICADO, não a aba: ?project=<id> é o
+                      // deep-link que o board já entende (lá a URL é a fonte da
+                      // verdade do projeto aberto). Sem ele, a seta da linha
+                      // largava a pessoa no catálogo para procurar de novo o
+                      // nome em que ela acabara de clicar.
+                      to={`/projetos?project=${p.id}`}
                       className="flex items-center gap-3.5 px-5 py-3.5 hover:bg-surface-alt transition-colors group"
                     >
                       {p.image_url ? (
