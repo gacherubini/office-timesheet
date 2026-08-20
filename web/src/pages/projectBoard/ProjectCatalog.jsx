@@ -38,8 +38,12 @@ export function ProjectCatalog({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {visible.map((p) => {
-        const c = countsByProject[p.id] || { total: 0, todo: 0, in_progress: 0, in_review: 0, done: 0 }
-        const active = (c.todo || 0) + (c.in_progress || 0) + (c.in_review || 0)
+        const c = countsByProject[p.id] || { total: 0, todo: 0, in_progress: 0, blocked: 0, in_review: 0, done: 0 }
+        // "Ativa" é toda tarefa que ainda não terminou. `blocked` ("Falta info",
+        // item 8 do PDF) conta: uma tarefa esperando a prefeitura continua sendo
+        // trabalho em aberto — some daqui e o card do projeto passa a mentir
+        // justamente sobre o que está travado.
+        const active = (c.todo || 0) + (c.in_progress || 0) + (c.blocked || 0) + (c.in_review || 0)
         const completed = p.status === 'completed'
         const isTiming = activeTimer?.project_id === p.id
         const isPaused = isTiming && activeTimer?.paused

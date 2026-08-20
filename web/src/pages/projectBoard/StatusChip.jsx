@@ -6,9 +6,18 @@ import { useClickOutside } from '../../hooks/useClickOutside'
 // Mapa de cores fechado (brand book): neutro para o que ainda não começou,
 // atenção (laranja) pra quem está em curso, marrom pra quem espera revisão,
 // success/danger dos tokens de estado pra concluído/abandonado.
+//
+// Tem que haver uma entrada para CADA chave de COLUMNS: o className interpola
+// STATUS_STYLES[value] direto, e uma chave faltando vira `undefined` na classe
+// — o chip perde toda a cor. Foi o que aconteceu quando 'blocked' entrou no
+// quadro (item 8 do PDF) e este mapa não acompanhou.
 const STATUS_STYLES = {
   todo: 'bg-surface-alt text-text-secondary',
   in_progress: 'state-attention-soft',
+  // Vazado, e não preenchido como "Fazendo": mesma família de laranja porque
+  // é o mesmo trabalho, contorno em vez de fundo porque está parado. Com os
+  // dois preenchidos, colunas vizinhas ficariam indistinguíveis.
+  blocked: 'border border-orange text-orange',
   in_review: 'bg-brown/15 text-brown',
   done: 'state-success-soft',
   abandoned: 'state-danger-soft',

@@ -53,6 +53,7 @@ const PRIORIDADES = {
 const STATUS_BOARD = {
   todo: 'A fazer',
   in_progress: 'Em andamento',
+  blocked: 'Falta info',
   in_review: 'Em revisão',
   done: 'Feito',
   abandoned: 'Abandonado',
