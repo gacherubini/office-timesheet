@@ -2,7 +2,7 @@
 -- "Toda tarefa pertence a uma etapa — campo obrigatório na criação" (item 8 do
 -- PDF de ajustes de 18/08/2026).
 --
--- stage_id entra NULLABLE aqui. O SET NOT NULL é a migration 050, aplicada só
+-- stage_id entra NULLABLE aqui. O SET NOT NULL é a migration 051, aplicada só
 -- depois de este backfill ser verificado em produção: um ALTER TABLE que falha
 -- no meio de um deploy é o pior momento para descobrir uma tarefa órfã.
 --
@@ -29,7 +29,7 @@ UPDATE tasks t
    AND s.name = btrim(t.task_type)
    AND t.stage_id IS NULL;
 
--- Passo 3: o legado sem task_type. É o que permite o NOT NULL da 050 — sem uma
+-- Passo 3: o legado sem task_type. É o que permite o NOT NULL da 051 — sem uma
 -- etapa coringa, a constraint não subiria com dado real. position 999 mantém
 -- "Sem etapa" no fim da trilha, onde ela não atrapalha a leitura do projeto.
 INSERT INTO project_stages (project_id, name, position)

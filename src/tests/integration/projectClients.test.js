@@ -67,11 +67,20 @@ describe('045 — vários clientes por projeto', () => {
 
   // RESTRICT de propósito: apagar um cliente que é contratante de uma obra tem
   // que doer. CASCADE aqui apagaria o vínculo em silêncio.
+  // Casa pelo NOME DO CONSTRAINT, não pela frase nem pelo SQLSTATE: o
+  // Postgres 18 mudou os dois para violação de RESTRICT. A mensagem virou
+  // "violates RESTRICT setting of foreign key constraint" e o código virou
+  // 23001 (restrict_violation), onde o 16 dizia "violates foreign key
+  // constraint" e 23503. O CI roda postgres:16-alpine e quem tem 18 na máquina
+  // veria um vermelho que não é bug — custa a tarde de quem for investigar.
+  // `constraint` é estável nas duas versões e é exatamente o que interessa
+  // afirmar: foi ESTA FK que barrou.
   it('não deixa apagar cliente que é contratante', async () => {
     await query(`INSERT INTO project_clients (project_id, client_id) VALUES ($1,$2)`, [projeto, casal1])
-    await expect(
-      query(`DELETE FROM clients WHERE id = $1`, [casal1]),
-    ).rejects.toThrow(/violates foreign key constraint/)
+    const erro = await query(`DELETE FROM clients WHERE id = $1`, [casal1]).then(
+      () => null, (e) => e)
+    expect(erro).toBeTruthy()
+    expect(erro.constraint).toBe('project_clients_client_id_fkey')
   })
 
   it('apagar o projeto leva os vínculos junto', async () => {

@@ -8,6 +8,14 @@ const router = Router()
 
 const STATUS_VALIDOS = new Set(['nao_iniciada', 'em_andamento', 'entregue', 'aprovada'])
 
+// 23505 = unique_violation. Nome repetido é erro de USUÁRIO, não falha de
+// sistema: `duplicate key value violates unique constraint "..."` não diz a
+// ninguém o que fazer. O DELETE aqui embaixo já tinha esse cuidado (conta as
+// tarefas antes de deixar o RESTRICT estourar) — os POST não tinham.
+function ehNomeDuplicado(err) {
+  return err?.code === '23505'
+}
+
 // Progresso e horas são DERIVADOS, nunca colunas: coluna denormalizada aqui só
 // criaria a chance de divergir do que o quadro mostra. As horas saem de graça —
 // task_time_logs (migration 012) já amarra tempo à tarefa, e a tarefa agora tem
@@ -56,8 +64,11 @@ router.post('/projects/:id/stages', requireAuth, requireProjectManagement, async
     return res.status(400).json({ error: 'status inválido. Use nao_iniciada, em_andamento, entregue ou aprovada.' })
   }
 
+  // Declarado FORA do try para o catch poder citar o nome na mensagem de
+  // duplicado — que pode ter vindo do catálogo, não do corpo.
+  let nomeFinal = name?.trim() || null
+
   try {
-    let nomeFinal = name?.trim() || null
     let posicaoFinal = Number.isInteger(position) ? position : 0
     let catalogIdFinal = null
 
@@ -86,6 +97,12 @@ router.post('/projects/:id/stages', requireAuth, requireProjectManagement, async
     const { rows: completo } = await query(`${SELECT_ETAPAS} WHERE s.id = $1`, [rows[0].id])
     return res.status(201).json(completo[0])
   } catch (err) {
+    if (ehNomeDuplicado(err)) {
+      // O nome da etapa é único DENTRO do projeto (migration 048), então a
+      // frase precisa dizer "neste projeto" — a mesma etapa noutra obra é
+      // legítima e é o caso normal.
+      return res.status(400).json({ error: `Este projeto já tem uma etapa chamada "${nomeFinal}".` })
+    }
     logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em POST /projects/:id/stages')
     return res.status(400).json({ error: err.message })
   }
@@ -129,6 +146,9 @@ router.put('/projects/:id/stages/:stageId', requireAuth, requireProjectManagemen
     const { rows: completo } = await query(`${SELECT_ETAPAS} WHERE s.id = $1`, [rows[0].id])
     return res.json(completo[0])
   } catch (err) {
+    if (ehNomeDuplicado(err)) {
+      return res.status(400).json({ error: `Este projeto já tem uma etapa chamada "${name?.trim()}".` })
+    }
     logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em PUT /projects/:id/stages/:stageId')
     return res.status(400).json({ error: err.message })
   }
@@ -195,6 +215,14 @@ router.post('/stage-catalog', requireAuth, requireProjectManagement, async (req,
     )
     return res.status(201).json(rows[0])
   } catch (err) {
+    if (ehNomeDuplicado(err)) {
+      // Aqui o UNIQUE é GLOBAL (o catálogo é do escritório inteiro). A dica de
+      // arquivada existe porque é o caso que confunde: a etapa não aparece na
+      // lista, a pessoa tenta recriar e leva erro sem entender por quê.
+      return res.status(400).json({
+        error: `O catálogo já tem uma etapa chamada "${name.trim()}". Se ela não aparece na lista, pode estar arquivada.`,
+      })
+    }
     logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em POST /stage-catalog')
     return res.status(400).json({ error: err.message })
   }
@@ -222,6 +250,11 @@ router.put('/stage-catalog/:id', requireAuth, requireProjectManagement, async (r
     if (!rows[0]) return res.status(404).json({ error: 'Etapa do catálogo não encontrada.' })
     return res.json(rows[0])
   } catch (err) {
+    if (ehNomeDuplicado(err)) {
+      return res.status(400).json({
+        error: `O catálogo já tem uma etapa chamada "${name?.trim()}". Se ela não aparece na lista, pode estar arquivada.`,
+      })
+    }
     logger.error({ err: { message: err.message, stack: err.stack } }, 'Erro em PUT /stage-catalog/:id')
     return res.status(400).json({ error: err.message })
   }

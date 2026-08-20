@@ -150,4 +150,50 @@ describe('API de etapas', () => {
     const res = await asUser(emp).post('/stage-catalog').send({ name: 'Nova' })
     expect(res.status).toBe(403)
   })
+
+  // Nome duplicado bate num UNIQUE do banco. Sem tradução, a tela mostra
+  // `duplicate key value violates unique constraint "project_stages_project_id_name_key"`
+  // — jargão que não diz à pessoa o que fazer. O DELETE ao lado já tem esse
+  // cuidado (conta as tarefas antes de deixar o RESTRICT estourar); estes dois
+  // POST não tinham.
+  it('etapa repetida no mesmo projeto explica o problema em português', async () => {
+    const res = await asUser(admin).post(`/projects/${projeto.id}/stages`).send({ name: 'Anteprojeto' })
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/já (existe|tem)/i)
+    expect(res.body.error).toContain('Anteprojeto')
+    expect(res.body.error).not.toMatch(/duplicate key|constraint/i)
+  })
+
+  it('o MESMO nome de etapa em outro projeto continua valendo', async () => {
+    const outra = await makeProject({ name: 'Outra obra' })
+    const res = await asUser(admin).post(`/projects/${outra.id}/stages`).send({ name: 'Anteprojeto' })
+    expect(res.status).toBe(201)
+  })
+
+  it('nome repetido no catálogo explica o problema em português', async () => {
+    await query(`INSERT INTO stage_catalog (name, position) VALUES ('Maquete física', 200)`)
+    const res = await asUser(admin).post('/stage-catalog').send({ name: 'Maquete física' })
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/já (existe|tem)/i)
+    expect(res.body.error).not.toMatch(/duplicate key|constraint/i)
+  })
+
+  // Renomear colide no mesmo UNIQUE que criar — e é o caminho mais provável
+  // de dar colisão, porque quem renomeia não está olhando a lista inteira.
+  it('renomear etapa para um nome que já existe no projeto também explica', async () => {
+    await query(`INSERT INTO project_stages (project_id, name, position) VALUES ($1,'Executivo',90)`, [projeto.id])
+    const res = await asUser(admin).put(`/projects/${projeto.id}/stages/${etapa}`).send({ name: 'Executivo' })
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/já (existe|tem)/i)
+    expect(res.body.error).not.toMatch(/duplicate key|constraint/i)
+  })
+
+  it('renomear etapa do catálogo para um nome existente também explica', async () => {
+    await query(`INSERT INTO stage_catalog (name, position) VALUES ('Uma', 10), ('Outra', 20)`)
+    const { rows } = await query(`SELECT id FROM stage_catalog WHERE name = 'Uma'`)
+    const res = await asUser(admin).put(`/stage-catalog/${rows[0].id}`).send({ name: 'Outra' })
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/já (existe|tem)/i)
+    expect(res.body.error).not.toMatch(/duplicate key|constraint/i)
+  })
 })

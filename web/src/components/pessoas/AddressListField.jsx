@@ -1,15 +1,22 @@
+import { useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { LABELS } from './labels'
 import { apenasDigitos } from '../../hooks/useCep'
 import { VisibilityToggle } from './VisibilityToggle'
 
 // Lista repetível de endereço (item 2 do PDF), com CEP como primeiro campo
-// (item 1). Mesmo contrato controlado do ContactListField: não guarda estado,
-// só devolve a lista nova. `buscar` e `erroBusca`/`buscandoIndice` vêm de fora
-// (o hook useCep é chamado uma vez no formulário pai) para não instanciar um
+// (item 1). Mesmo contrato controlado do ContactListField: não guarda estado
+// de DADO, só devolve a lista nova. `buscar` e `erroCep` vêm de fora (o hook
+// useCep é chamado uma vez no formulário pai) para não instanciar um
 // AbortController por linha.
 export function AddressListField({ itens = [], onChange, readOnly = false, buscar, erroCep, podeRestringir = false }) {
   const sugestoes = LABELS.address || []
+  // Qual linha disparou a última busca. É estado de UI, não de dado — por isso
+  // vive aqui e não sobe pelo onChange. Existe porque `erroCep` é um estado só
+  // para a lista inteira (um hook por formulário): sem saber de quem é o erro,
+  // o aviso pintava embaixo de TODOS os endereços, e errar o CEP da obra
+  // acusava erro também na residencial. null = nenhuma busca desta sessão.
+  const [linhaEmBusca, setLinhaEmBusca] = useState(null)
 
   function adicionar() {
     onChange([
@@ -37,6 +44,10 @@ export function AddressListField({ itens = [], onChange, readOnly = false, busca
   }
 
   function remover(indice) {
+    // A marcação é por ÍNDICE e remover desloca todo mundo abaixo — manter o
+    // número faria o aviso mudar de dono e acusar erro numa linha em que
+    // ninguém digitou. Soltar é mais barato e mais honesto que remapear.
+    setLinhaEmBusca(null)
     const restantes = itens.filter((_, i) => i !== indice)
     if (restantes.length > 0 && !restantes.some((r) => r.is_primary)) {
       restantes[0] = { ...restantes[0], is_primary: true }
@@ -49,8 +60,12 @@ export function AddressListField({ itens = [], onChange, readOnly = false, busca
   async function aoSairDoCep(indice, cep) {
     if (!buscar) return
     if (apenasDigitos(cep).length !== 8) return
+    setLinhaEmBusca(indice)
     const r = await buscar(cep)
+    // Deu certo: some com o aviso de uma tentativa anterior desta mesma linha.
+    // Deu errado: a linha continua marcada, e é nela que o aviso aparece.
     if (!r.ok) return // erro já está no hook; a linha continua editável
+    setLinhaEmBusca(null)
     onChange(itens.map((it, i) => (i === indice ? { ...it, ...r.dados } : it)))
   }
 
@@ -122,6 +137,9 @@ export function AddressListField({ itens = [], onChange, readOnly = false, busca
               aria-label="CEP"
               placeholder="00000-000"
               value={it.cep || ''}
+              // O aviso é anunciado como descrição DESTE campo — e só quando é
+              // desta linha que ele fala.
+              aria-describedby={erroCep && linhaEmBusca === i ? `erro-cep-${i}` : undefined}
               onChange={(e) => {
                 const valor = e.target.value
                 alterar(i, 'cep', valor)
@@ -131,8 +149,8 @@ export function AddressListField({ itens = [], onChange, readOnly = false, busca
               disabled={readOnly}
               className="w-32 border border-border-subtle bg-bg px-2 py-1.5 text-sm"
             />
-            {erroCep && (
-              <p className="text-[11px] state-attention">{erroCep}</p>
+            {erroCep && linhaEmBusca === i && (
+              <p id={`erro-cep-${i}`} className="text-[11px] state-attention">{erroCep}</p>
             )}
 
             <div className="grid grid-cols-3 gap-2">
