@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
+import { Input } from '../ui/Input'
 import { LABELS } from './labels'
 import { apenasDigitos } from '../../hooks/useCep'
 import { VisibilityToggle } from './VisibilityToggle'
@@ -102,14 +103,14 @@ export function AddressListField({ itens = [], onChange, readOnly = false, busca
                 title="Principal (é o que aparece nas listagens)"
                 aria-label="Definir este endereço como principal"
               />
-              <input
+              <Input
                 list="labels-address"
                 aria-label="Rótulo do endereço"
                 placeholder="Rótulo"
                 value={it.label || ''}
                 onChange={(e) => alterar(i, 'label', e.target.value)}
                 disabled={readOnly}
-                className="w-32 border border-border-subtle bg-bg px-2 py-1.5 text-sm"
+                className="w-32"
               />
               {/* Endereço restrito é a linha inteira, não campo a campo — o
                   mesmo raciocínio do ContactListField. */}
@@ -133,7 +134,7 @@ export function AddressListField({ itens = [], onChange, readOnly = false, busca
             {/* O CEP é o PRIMEIRO campo do endereço (item 1 do PDF): ao completar
                 8 dígitos, busca e preenche rua/bairro/cidade/UF — mas nada aqui
                 trava o formulário nem vira readOnly. */}
-            <input
+            <Input
               aria-label="CEP"
               placeholder="00000-000"
               value={it.cep || ''}
@@ -147,64 +148,60 @@ export function AddressListField({ itens = [], onChange, readOnly = false, busca
               }}
               onBlur={(e) => aoSairDoCep(i, e.target.value)}
               disabled={readOnly}
-              className="w-32 border border-border-subtle bg-bg px-2 py-1.5 text-sm"
+              className="w-32"
             />
             {erroCep && linhaEmBusca === i && (
               <p id={`erro-cep-${i}`} className="text-[11px] state-attention">{erroCep}</p>
             )}
 
             <div className="grid grid-cols-3 gap-2">
-              <input
+              <Input
                 aria-label="Rua"
                 placeholder="Rua"
                 value={it.street || ''}
                 onChange={(e) => alterar(i, 'street', e.target.value)}
                 disabled={readOnly}
-                className="col-span-2 border border-border-subtle bg-bg px-2 py-1.5 text-sm"
+                className="col-span-2"
               />
-              <input
+              <Input
                 aria-label="Número"
                 placeholder="Número"
                 value={it.number || ''}
                 onChange={(e) => alterar(i, 'number', e.target.value)}
                 disabled={readOnly}
-                className="border border-border-subtle bg-bg px-2 py-1.5 text-sm"
               />
             </div>
             <div className="grid grid-cols-3 gap-2">
-              <input
+              <Input
                 aria-label="Complemento"
                 placeholder="Complemento"
                 value={it.complement || ''}
                 onChange={(e) => alterar(i, 'complement', e.target.value)}
                 disabled={readOnly}
-                className="border border-border-subtle bg-bg px-2 py-1.5 text-sm"
               />
-              <input
+              <Input
                 aria-label="Bairro"
                 placeholder="Bairro"
                 value={it.district || ''}
                 onChange={(e) => alterar(i, 'district', e.target.value)}
                 disabled={readOnly}
-                className="border border-border-subtle bg-bg px-2 py-1.5 text-sm"
               />
-              <input
+              <Input
                 aria-label="Cidade"
                 placeholder="Cidade"
                 value={it.city || ''}
                 onChange={(e) => alterar(i, 'city', e.target.value)}
                 disabled={readOnly}
-                className="border border-border-subtle bg-bg px-2 py-1.5 text-sm"
               />
             </div>
-            <input
+            <Input
               aria-label="UF"
               placeholder="UF"
               maxLength={2}
               value={it.uf || ''}
               onChange={(e) => alterar(i, 'uf', e.target.value.toUpperCase())}
               disabled={readOnly}
-              className="w-16 border border-border-subtle bg-bg px-2 py-1.5 text-sm"
+              className="w-16"
             />
           </div>
         ))}

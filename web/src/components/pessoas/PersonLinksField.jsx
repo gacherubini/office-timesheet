@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { api } from '../../lib/api'
+import { Select } from '../ui/Input'
 import { PAPEIS_VINCULO } from './labels'
 
 // Vínculo PJ→PF (item 3 do PDF): "sócio", "responsável técnico" etc. O
-// seletor de pessoa é um <select> alimentado pelo cadastro existente — NUNCA
+// seletor de pessoa é um Select alimentado pelo cadastro existente — NUNCA
 // um campo de texto livre. O PDF é explícito: "o vínculo é feito pelo
 // cadastro existente, nunca por texto digitado", justamente para evitar a
 // mesma pessoa duplicada.
@@ -81,12 +82,12 @@ export function PersonLinksField({ entity, itens = [], onChange, excludeId, read
       <div className="space-y-2">
         {itens.map((it, i) => (
           <div key={i} className="flex items-center gap-2">
-            <select
+            <Select
               aria-label="Pessoa"
               value={it[idField] || ''}
               onChange={(e) => alterar(i, idField, e.target.value)}
               disabled={readOnly || carregando}
-              className="flex-1 border border-border-subtle bg-bg px-2 py-1.5 text-sm"
+              className="flex-1"
             >
               <option value="">Selecione a pessoa...</option>
               {opcoes.map((p) => (
@@ -94,20 +95,23 @@ export function PersonLinksField({ entity, itens = [], onChange, excludeId, read
                   {p.name}
                 </option>
               ))}
-            </select>
-            <select
+            </Select>
+            <Select
               aria-label="Papel"
               value={it.role || ''}
               onChange={(e) => alterar(i, 'role', e.target.value)}
               disabled={readOnly}
-              className="w-44 border border-border-subtle bg-bg px-2 py-1.5 text-sm"
+              // w-52 e não w-44: o Select do projeto gasta mais largura interna
+              // que o <select> nativo (padding + chevron), e "Responsável técnico"
+              // passou a truncar quando a troca foi feita.
+              className="w-52 flex-none"
             >
               {PAPEIS_VINCULO.map((p) => (
                 <option key={p.value} value={p.value}>
                   {p.label}
                 </option>
               ))}
-            </select>
+            </Select>
             {!readOnly && (
               <button
                 type="button"

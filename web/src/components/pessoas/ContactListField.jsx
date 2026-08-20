@@ -1,4 +1,5 @@
 import { Plus, Trash2 } from 'lucide-react'
+import { Input } from '../ui/Input'
 import { LABELS } from './labels'
 import { VisibilityToggle } from './VisibilityToggle'
 
@@ -75,22 +76,25 @@ export function ContactListField({ tipo, itens = [], onChange, readOnly = false,
               title="Principal (é o que aparece nas listagens)"
               aria-label={`Definir este ${nome.singular} como principal`}
             />
-            <input
+            {/* Continua sendo input com <datalist>, e não Select: o PDF pede
+                "lista pronta com opção de digitar um personalizado", e o
+                Select não deixa digitar fora da lista. */}
+            <Input
               list={`labels-${tipo}`}
               aria-label={`Rótulo do ${nome.singular}`}
               placeholder="Rótulo"
               value={it.label || ''}
               onChange={(e) => alterar(i, 'label', e.target.value)}
               disabled={readOnly}
-              className="w-32 border border-border-subtle bg-bg px-2 py-1.5 text-sm"
+              className="w-32 flex-none"
             />
-            <input
+            <Input
               aria-label={`Valor do ${nome.singular}`}
               placeholder={tipo === 'email' ? 'nome@dominio.com' : '(11) 99999-0000'}
               value={it.value || ''}
               onChange={(e) => alterar(i, 'value', e.target.value)}
               disabled={readOnly}
-              className="flex-1 border border-border-subtle bg-bg px-2 py-1.5 text-sm"
+              className="flex-1"
             />
             {/* A restrição vive NA LINHA (is_restricted), não no formulário
                 inteiro — cada telefone/e-mail é liberado ou restrito por si. */}

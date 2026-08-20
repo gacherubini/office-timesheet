@@ -1,3 +1,4 @@
+import { Input, Select } from '../ui/Input'
 import { VisibilityToggle } from './VisibilityToggle'
 
 // Dados bancários (item 6 do PDF): banco, agência, conta, tipo e chave PIX.
@@ -36,13 +37,13 @@ export function BankFields({
       <label className="block text-xs font-medium text-text-secondary mb-1.5">Dados bancários</label>
       <div className="grid grid-cols-2 gap-2">
         <div className="flex items-center gap-1">
-          <input
+          <Input
             aria-label="Banco"
             placeholder="Banco"
             value={valor.bank_name || ''}
             onChange={(e) => alterar('bank_name', e.target.value)}
             disabled={readOnly}
-            className="flex-1 border border-border-subtle bg-bg px-2 py-1.5 text-sm"
+            className="flex-1"
           />
           <VisibilityToggle
             restrito={restrito('bank_name')}
@@ -51,13 +52,13 @@ export function BankFields({
           />
         </div>
         <div className="flex items-center gap-1">
-          <input
+          <Input
             aria-label="Agência"
             placeholder="Agência"
             value={valor.bank_agency || ''}
             onChange={(e) => alterar('bank_agency', e.target.value)}
             disabled={readOnly}
-            className="flex-1 border border-border-subtle bg-bg px-2 py-1.5 text-sm"
+            className="flex-1"
           />
           <VisibilityToggle
             restrito={restrito('bank_agency')}
@@ -66,13 +67,13 @@ export function BankFields({
           />
         </div>
         <div className="flex items-center gap-1">
-          <input
+          <Input
             aria-label="Conta"
             placeholder="Conta"
             value={valor.bank_account || ''}
             onChange={(e) => alterar('bank_account', e.target.value)}
             disabled={readOnly}
-            className="flex-1 border border-border-subtle bg-bg px-2 py-1.5 text-sm"
+            className="flex-1"
           />
           <VisibilityToggle
             restrito={restrito('bank_account')}
@@ -81,19 +82,19 @@ export function BankFields({
           />
         </div>
         <div className="flex items-center gap-1">
-          <select
+          <Select
             aria-label="Tipo de conta"
             value={valor.bank_account_type || ''}
             onChange={(e) => alterar('bank_account_type', e.target.value)}
             disabled={readOnly}
-            className="flex-1 border border-border-subtle bg-bg px-2 py-1.5 text-sm"
+            className="flex-1"
           >
             {TIPOS_CONTA.map((t) => (
               <option key={t.value} value={t.value}>
                 {t.label}
               </option>
             ))}
-          </select>
+          </Select>
           <VisibilityToggle
             restrito={restrito('bank_account_type')}
             onChange={(novo) => onAlternarRestricao?.('bank_account_type', novo)}
@@ -101,13 +102,13 @@ export function BankFields({
           />
         </div>
         <div className="col-span-2 flex items-center gap-1">
-          <input
+          <Input
             aria-label="Chave PIX"
             placeholder="Chave PIX"
             value={valor.pix_key || ''}
             onChange={(e) => alterar('pix_key', e.target.value)}
             disabled={readOnly}
-            className="flex-1 border border-border-subtle bg-bg px-2 py-1.5 text-sm"
+            className="flex-1"
           />
           <VisibilityToggle
             restrito={restrito('pix_key')}

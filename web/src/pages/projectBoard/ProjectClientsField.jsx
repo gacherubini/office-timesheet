@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { api } from '../../lib/api'
+import { Select } from '../../components/ui/Input'
 
 // Papéis aceitos pelo backend (PAPEIS_CLIENTE em src/routes/clients.js).
 const PAPEIS_CLIENTE = [
@@ -106,29 +107,32 @@ export function ProjectClientsField({ itens = [], onChange, readOnly = false }) 
               title="Principal (é o que aparece no cabeçalho do projeto)"
               aria-label="Definir este contratante como principal"
             />
-            <select
+            <Select
               aria-label="Cliente"
               value={it.client_id || ''}
               onChange={(e) => alterar(i, 'client_id', e.target.value)}
               disabled={readOnly || carregando}
-              className="flex-1 border border-border-subtle bg-bg px-2 py-1.5 text-sm"
+              className="flex-1"
             >
               <option value="">Selecione o cliente...</option>
               {opcoes.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
-            </select>
-            <select
+            </Select>
+            <Select
               aria-label="Papel"
               value={it.role || 'contratante'}
               onChange={(e) => alterar(i, 'role', e.target.value)}
               disabled={readOnly}
-              className="w-44 border border-border-subtle bg-bg px-2 py-1.5 text-sm"
+              // w-52 e não w-44: o Select do projeto gasta mais largura interna
+              // que o <select> nativo (padding + chevron), e "Contratante principal"
+              // passou a truncar quando a troca foi feita.
+              className="w-52 flex-none"
             >
               {PAPEIS_CLIENTE.map((p) => (
                 <option key={p.value} value={p.value}>{p.label}</option>
               ))}
-            </select>
+            </Select>
             {!readOnly && (
               <button
                 type="button"

@@ -142,6 +142,22 @@ button:focus-visible,
     color: var(--color-field-text);
   }
 
+  /* Rádio e checkbox são os únicos controles que o projeto ainda desenha com
+     o padrão do sistema operacional — não há componente para eles em
+     components/ui. Sem esta regra vinham no AZUL do Chrome, gritando ao lado
+     de campos verdes: os "principal" do cadastro de pessoa e os de ativar
+     etapa no "Gerenciar etapas" eram os mais visíveis.
+
+     `accent-color` é o caminho certo aqui: pinta o controle NATIVO, então
+     mantemos de graça o comportamento de teclado, o estado indeterminado e o
+     modo de alto contraste — tudo que um checkbox reconstruído com <div>
+     perderia. Verde porque é o var(--color-accent); o laranja da marca é
+     grafismo e detalhe, nunca preenchimento de controle. */
+  input[type='checkbox'],
+  input[type='radio'] {
+    accent-color: var(--color-accent);
+  }
+
   .form-control::placeholder {
     color: var(--color-field-placeholder);
   }
