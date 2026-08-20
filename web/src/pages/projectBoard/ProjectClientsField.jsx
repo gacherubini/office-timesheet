@@ -11,6 +11,21 @@ const PAPEIS_CLIENTE = [
   { value: 'representante', label: 'Representante' },
 ]
 
+const PAPEL_PRINCIPAL = 'contratante_principal'
+
+// Papel e "principal" são a MESMA pergunta desde a fusão dos dois controles:
+// quem tem `contratante_principal` É o principal. A linha tinha um rádio de
+// principal ao lado de um Select cuja primeira opção era "Contratante
+// principal" — duas maneiras de responder a mesma coisa, e o dono do produto
+// marcou vários rádios achando que era assim que se escolhem vários
+// contratantes.
+//
+// `is_primary` continua no objeto porque é o que o servidor grava (e o que o
+// UNIQUE INDEX do banco protege), mas aqui ela nunca é escolhida: é derivada.
+function comPrincipalDerivado(item) {
+  return { ...item, is_primary: item.role === PAPEL_PRINCIPAL }
+}
+
 // Lista repetível de contratantes do projeto (item 7 do PDF: "cadastro um
 // projeto com dois contratantes; ambos aparecem no projeto e o projeto
 // aparece na ficha dos dois"). Componente controlado, mesmo contrato dos
@@ -47,9 +62,13 @@ export function ProjectClientsField({ itens = [], onChange, readOnly = false }) 
   function adicionar() {
     onChange([
       ...itens,
-      // O primeiro item nasce principal: com uma opção só, fazer o usuário
-      // marcar é atrito à toa (mesma regra do ContactListField).
-      { client_id: '', role: 'contratante', is_primary: itens.length === 0 },
+      // A primeira linha nasce principal: o projeto precisa de um e, com uma
+      // opção só, fazer o usuário escolher é atrito à toa (mesma regra do
+      // ContactListField).
+      comPrincipalDerivado({
+        client_id: '',
+        role: itens.length === 0 ? PAPEL_PRINCIPAL : 'contratante',
+      }),
     ])
   }
 
@@ -57,19 +76,45 @@ export function ProjectClientsField({ itens = [], onChange, readOnly = false }) 
     onChange(itens.map((it, i) => (i === indice ? { ...it, [campo]: valor } : it)))
   }
 
-  function marcarPrincipal(indice) {
-    onChange(itens.map((it, i) => ({ ...it, is_primary: i === indice })))
+  // O papel é o ÚNICO controle do principal, então é aqui que a invariante
+  // "exatamente um contratante_principal" é mantida.
+  function alterarPapel(indice, papel) {
+    let proximos = itens.map((it, i) => (i === indice ? { ...it, role: papel } : it))
+
+    if (papel === PAPEL_PRINCIPAL) {
+      // Eleger um REBAIXA quem era. Antes o rádio fazia isso sozinho, e como o
+      // Select ao lado continuava dizendo "Contratante principal" na outra
+      // linha, a tela mostrava dois principais ao mesmo tempo.
+      proximos = proximos.map((it, i) =>
+        i !== indice && it.role === PAPEL_PRINCIPAL ? { ...it, role: 'contratante' } : it,
+      )
+    } else if (!proximos.some((it) => it.role === PAPEL_PRINCIPAL)) {
+      // Rebaixou o único principal: alguém precisa assumir na hora. Deixar o
+      // projeto sem principal faria o servidor promover outro pelas costas do
+      // usuário — o principal "pulando" de linha depois de salvar.
+      const substituto = proximos.findIndex((_, i) => i !== indice)
+      if (substituto === -1) {
+        // Contratante único: ele é o principal por definição, então a troca
+        // não pega. Aceitar aqui só adiaria a correção para o salvamento.
+        proximos[indice] = { ...proximos[indice], role: PAPEL_PRINCIPAL }
+      } else {
+        proximos[substituto] = { ...proximos[substituto], role: PAPEL_PRINCIPAL }
+      }
+    }
+
+    onChange(proximos.map(comPrincipalDerivado))
   }
 
   function remover(indice) {
     const restantes = itens.filter((_, i) => i !== indice)
-    // Se o principal saiu, promove o primeiro que sobrou — mesma lógica do
-    // ContactListField, para o principal não "pular" de linha sozinho depois
-    // de salvar (o servidor faria essa promoção de qualquer forma).
-    if (restantes.length > 0 && !restantes.some((r) => r.is_primary)) {
-      restantes[0] = { ...restantes[0], is_primary: true }
+    // Se o principal saiu, promove o primeiro que sobrou — PAPEL e is_primary
+    // juntos, senão a linha promovida voltaria da tela com "Contratante" no
+    // seletor e principal no banco (o servidor faria essa promoção de qualquer
+    // forma; fazer aqui é o que impede o principal de pular de linha sozinho).
+    if (restantes.length > 0 && !restantes.some((r) => r.role === PAPEL_PRINCIPAL)) {
+      restantes[0] = { ...restantes[0], role: PAPEL_PRINCIPAL }
     }
-    onChange(restantes)
+    onChange(restantes.map(comPrincipalDerivado))
   }
 
   return (
@@ -89,6 +134,14 @@ export function ProjectClientsField({ itens = [], onChange, readOnly = false }) 
         )}
       </div>
 
+      {/* A regra escrita, não só implícita no controle: o dono do produto
+          tentou marcar vários principais justamente porque a tela nunca disse
+          o que "principal" significa nem que ele é um só. */}
+      <p className="text-[11px] text-text-secondary mb-2">
+        Só um contratante pode ser o principal: é o nome dele que aparece no card e no cabeçalho
+        do projeto.
+      </p>
+
       {erro && <p className="text-[11px] state-attention mb-1.5">{erro}</p>}
 
       {itens.length === 0 && (
@@ -98,15 +151,6 @@ export function ProjectClientsField({ itens = [], onChange, readOnly = false }) 
       <div className="space-y-2">
         {itens.map((it, i) => (
           <div key={i} className="flex items-center gap-2">
-            <input
-              type="radio"
-              name="principal-cliente-projeto"
-              checked={Boolean(it.is_primary)}
-              onChange={() => marcarPrincipal(i)}
-              disabled={readOnly}
-              title="Principal (é o que aparece no cabeçalho do projeto)"
-              aria-label="Definir este contratante como principal"
-            />
             <Select
               aria-label="Cliente"
               value={it.client_id || ''}
@@ -122,7 +166,7 @@ export function ProjectClientsField({ itens = [], onChange, readOnly = false }) 
             <Select
               aria-label="Papel"
               value={it.role || 'contratante'}
-              onChange={(e) => alterar(i, 'role', e.target.value)}
+              onChange={(e) => alterarPapel(i, e.target.value)}
               disabled={readOnly}
               // w-52 e não w-44: o Select do projeto gasta mais largura interna
               // que o <select> nativo (padding + chevron), e "Contratante principal"

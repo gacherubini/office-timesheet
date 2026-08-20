@@ -41,7 +41,19 @@ const PAPEIS_CLIENTE = new Set(['contratante_principal', 'contratante', 'investi
 
 // Mesma forma de normalizarContatos (lib/personContacts.js): valida tudo ANTES
 // de abrir a transação e garante exatamente um principal, promovendo o primeiro
-// se ninguém marcar. O card e o cabeçalho do projeto precisam de um principal.
+// se ninguém pedir o papel. O card e o cabeçalho do projeto precisam de um.
+//
+// Quem é o principal sai do PAPEL, e não de `is_primary`. A tela tinha dois
+// controles dizendo a mesma coisa na mesma linha — um rádio "principal" ao lado
+// de um Select cuja primeira opção era "Contratante principal" — e o dono do
+// produto marcou vários rádios achando que era assim que se escolhem vários
+// contratantes. Os dois viraram um só: `contratante_principal` É o principal.
+//
+// `is_primary` continua existindo na tabela (é dela que vive o UNIQUE INDEX
+// project_clients_um_principal e os leitores antigos), mas aqui ela é DERIVADA.
+// O que chega no corpo é ignorado de propósito: front antigo em cache,
+// integração e o próprio agente ainda mandam o campo, e acreditar nele seria
+// manter duas fontes de verdade discordando dentro da mesma linha.
 function normalizarClientesDoProjeto(lista) {
   const entrada = Array.isArray(lista) ? lista : []
   if (entrada.length === 0) return { error: 'O projeto precisa de ao menos um cliente.' }
@@ -55,12 +67,21 @@ function normalizarClientesDoProjeto(lista) {
     vistos.add(clientId)
     const role = bruto.role || 'contratante'
     if (!PAPEIS_CLIENTE.has(role)) return { error: `Papel de cliente inválido: ${role}.` }
-    itens.push({ client_id: clientId, role, is_primary: Boolean(bruto.is_primary) })
+    itens.push({ client_id: clientId, role, is_primary: role === 'contratante_principal' })
   }
 
   const principais = itens.filter((i) => i.is_primary)
-  if (principais.length > 1) return { error: 'Marque apenas um cliente como principal.' }
-  if (principais.length === 0) itens[0].is_primary = true
+  // Barrado aqui, em português. O UNIQUE INDEX pega o mesmo caso, mas o erro
+  // dele é cru e sai em inglês — chegar até lá já é ter perdido.
+  if (principais.length > 1) return { error: 'Apenas um cliente pode ser o contratante principal.' }
+  // Ninguém pediu o papel: o primeiro é promovido — PAPEL e is_primary juntos.
+  // Setar só o is_primary (como era antes) deixaria no banco um principal cujo
+  // papel diz outra coisa, e o formulário, que agora lê o principal do papel,
+  // abriria sem principal nenhum.
+  if (principais.length === 0) {
+    itens[0].role = 'contratante_principal'
+    itens[0].is_primary = true
+  }
 
   return { itens }
 }
