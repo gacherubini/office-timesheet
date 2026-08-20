@@ -6,6 +6,11 @@ import { usuariosOnline } from '../lib/onlineUsers.js'
 
 const router = Router()
 
+// Idade máxima de um cronômetro aberto para ele ainda valer como presença.
+// Lido de env pelo mesmo motivo do PRESENCE_WINDOW_MS do onlineUsers.js: deixa
+// o teste encurtar a janela sem esperar 12 horas.
+const JANELA_CRONOMETRO = process.env.TIMER_PRESENCE_WINDOW || '12 hours'
+
 router.get('/dashboard', requireAuth, requireAdmin, async (req, res) => {
   const { start_date, end_date } = req.query
 
@@ -34,7 +39,27 @@ router.get('/dashboard', requireAuth, requireAdmin, async (req, res) => {
       query(
         `SELECT id, name, status, sale_value FROM projects WHERE deleted_at IS NULL`
       ),
-      query(`SELECT DISTINCT user_id FROM time_entries WHERE status = 'running'`),
+      // Cronômetro rodando — a segunda fonte de "online", e são DOIS
+      // cronômetros diferentes: o ponto (time_entries) e o de tarefa
+      // (task_time_logs, o botão "Contar horas" que o item 8 do PDF colocou em
+      // todo card do quadro). Quem está com qualquer um dos dois aberto está
+      // trabalhando, mesmo com a aba fechada mandando zero heartbeat. UNION
+      // (não UNION ALL) porque o mesmo usuário costuma ter os dois.
+      //
+      // O CORTE DE 12h existe porque cronômetro esquecido não é presença. Sem
+      // ele, quem fechou o notebook na sexta sem parar o timer apareceria
+      // "online" na segunda de manhã — e o número pararia de responder a quem
+      // entra e sai, que é exatamente o que o item 9 do PDF veio consertar. A
+      // janela é longa de propósito: maior que qualquer sessão real de
+      // trabalho, para nunca esconder alguém que está de fato trabalhando.
+      query(
+        `SELECT user_id FROM time_entries
+          WHERE status = 'running' AND started_at > now() - $1::interval
+          UNION
+         SELECT user_id FROM task_time_logs
+          WHERE ended_at IS NULL AND started_at > now() - $1::interval`,
+        [JANELA_CRONOMETRO]
+      ),
     ])
 
     const profileMap = {}

@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { resetDb } from '../helpers/db.js'
 import { asUser } from '../helpers/api.js'
-import { makeUser, makeAdmin, makeProject, makeRunningEntry } from '../helpers/factories.js'
+import { makeUser, makeAdmin, makeProject, makeRunningEntry, makeOpenTaskTimer } from '../helpers/factories.js'
 import { limparOnline } from '../../lib/onlineUsers.js'
 
 const PERIODO = '?start_date=2026-08-01&end_date=2026-08-31'
@@ -73,6 +73,62 @@ describe('GET /dashboard — usuários online', () => {
 
     const res = await asUser(admin).get(`/admin/dashboard${PERIODO}`)
     expect(res.body.kpis.online_users).toBe(1)
+  })
+
+  // O item 8 do PDF pôs "Contar horas" em todo card do quadro. Esse timer mora
+  // em task_time_logs, não em time_entries — quem contava só o ponto deixava
+  // de fora justamente quem está apontando hora numa tarefa.
+  it('conta quem está com o cronômetro de TAREFA rodando', async () => {
+    const emp = await makeUser({ role: 'employee', name: 'Ana' })
+    await makeOpenTaskTimer({ user_id: emp.id })
+    limparOnline() // Ana não fez request nenhuma, só tem o timer de tarefa
+
+    const res = await asUser(admin).get(`/admin/dashboard${PERIODO}`)
+    expect(res.body.kpis.online_users).toBe(2) // Ana pelo timer + admin pela request
+  })
+
+  // Cronômetro esquecido não é presença: sem o corte, quem fechou o notebook
+  // na sexta sem parar o timer apareceria online na segunda, e o número
+  // pararia de responder a quem entra e sai.
+  it('não conta cronômetro de tarefa aberto há mais de 12h', async () => {
+    const emp = await makeUser({ role: 'employee', name: 'Esquecida' })
+    await makeOpenTaskTimer({
+      user_id: emp.id,
+      started_at: new Date(Date.now() - 13 * 60 * 60 * 1000).toISOString(),
+    })
+    limparOnline()
+
+    const res = await asUser(admin).get(`/admin/dashboard${PERIODO}`)
+    expect(res.body.kpis.online_users).toBe(1) // só o admin da request
+  })
+
+  it('não conta ponto aberto há mais de 12h', async () => {
+    const emp = await makeUser({ role: 'employee', name: 'Esquecido' })
+    const proj = await makeProject({ name: 'Obra' })
+    await makeRunningEntry({
+      user_id: emp.id,
+      project_id: proj.id,
+      started_at: new Date(Date.now() - 13 * 60 * 60 * 1000).toISOString(),
+    })
+    limparOnline()
+
+    const res = await asUser(admin).get(`/admin/dashboard${PERIODO}`)
+    expect(res.body.kpis.online_users).toBe(1)
+  })
+
+  it('não conta duas vezes quem tem os dois cronômetros abertos', async () => {
+    const emp = await makeUser({ role: 'employee', name: 'Ana' })
+    const proj = await makeProject({ name: 'Obra' })
+    await makeRunningEntry({
+      user_id: emp.id,
+      project_id: proj.id,
+      started_at: new Date().toISOString(),
+    })
+    await makeOpenTaskTimer({ user_id: emp.id })
+    limparOnline()
+
+    const res = await asUser(admin).get(`/admin/dashboard${PERIODO}`)
+    expect(res.body.kpis.online_users).toBe(2) // Ana uma vez só + admin
   })
 
   it('active_users e total_users continuam no payload', async () => {

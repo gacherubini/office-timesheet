@@ -67,6 +67,33 @@ export async function makeRunningEntry({ user_id, project_id, started_at }) {
   return rows[0]
 }
 
+// Cronômetro de TAREFA aberto (o botão "Contar horas" do card). Diferente do
+// ponto: mora em task_time_logs e é `ended_at IS NULL` que marca "rodando".
+// Cria projeto/etapa/tarefa por baixo porque tasks.stage_id é NOT NULL desde a
+// migration 051 — quem chama só quer um timer aberto, não montar a hierarquia.
+export async function makeOpenTaskTimer({ user_id, started_at = new Date().toISOString() }) {
+  const { rows: proj } = await query(
+    `INSERT INTO projects (name, status) VALUES ($1, 'active') RETURNING id`,
+    [`Projeto ${uniq()}`],
+  )
+  const { rows: stage } = await query(
+    `INSERT INTO project_stages (project_id, name) VALUES ($1, 'Anteprojeto') RETURNING id`,
+    [proj[0].id],
+  )
+  const { rows: task } = await query(
+    `INSERT INTO tasks (project_id, title, status, position, stage_id)
+     VALUES ($1, 'Planta baixa', 'in_progress', 0, $2) RETURNING id`,
+    [proj[0].id, stage[0].id],
+  )
+  const { rows } = await query(
+    `INSERT INTO task_time_logs (task_id, user_id, started_at)
+     VALUES ($1, $2, $3)
+     RETURNING id, task_id, user_id, started_at, ended_at`,
+    [task[0].id, user_id, started_at],
+  )
+  return rows[0]
+}
+
 export async function makePause({ time_entry_id, paused_at, resumed_at = null }) {
   const { rows } = await query(
     `INSERT INTO time_entry_pauses (time_entry_id, paused_at, resumed_at)
