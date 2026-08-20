@@ -23,14 +23,26 @@ export function Modal({ open, onClose, title, children, footer, size = 'md', clo
         if (closeOnBackdrop && e.target === e.currentTarget) onClose?.()
       }}
     >
+      {/* max-h + flex-col + corpo rolável: sem os três, conteúdo mais alto que
+          a janela transbordava para OS DOIS LADOS (o backdrop centraliza com
+          `items-center`) e o pedaço de cima — título e botão de fechar — ficava
+          inalcançável, porque nenhum ancestral rolava. Medido em 20/08/2026 no
+          formulário de pessoa: painel de 1016px numa janela de 889px, 64px
+          cortados em cima e 64px embaixo.
+
+          É a mesma receita que o TaskDetailModal já usava; ele refazia o
+          overlay à mão justamente porque este componente não a tinha. */}
       <div
-        className={`bg-surface shadow-2xl w-full ${sizeClass} border border-border-subtle ${
+        className={`bg-surface shadow-2xl w-full ${sizeClass} max-h-[90vh] flex flex-col border border-border-subtle ${
           overflowVisible ? '' : 'overflow-hidden'
         }`}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* flex-none no cabeçalho e no rodapé: são as âncoras que não podem
+            rolar junto — o X precisa estar sempre alcançável, e Salvar/Cancelar
+            não podem exigir rolar até o fim de um formulário longo. */}
         {title && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-border-subtle">
+          <div className="flex-none flex items-center justify-between px-6 py-4 border-b border-border-subtle">
             <h2 className="font-display text-xl text-text-primary">{title}</h2>
             <button
               onClick={onClose}
@@ -40,9 +52,9 @@ export function Modal({ open, onClose, title, children, footer, size = 'md', clo
             </button>
           </div>
         )}
-        <div className="px-6 py-5">{children}</div>
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5">{children}</div>
         {footer && (
-          <div className="px-6 py-4 bg-surface-alt border-t border-border-subtle flex items-center justify-end gap-3">
+          <div className="flex-none px-6 py-4 bg-surface-alt border-t border-border-subtle flex items-center justify-end gap-3">
             {footer}
           </div>
         )}
