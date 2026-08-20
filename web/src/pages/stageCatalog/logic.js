@@ -29,19 +29,38 @@ export function validarNome(nome) {
   return { valido: true, nome: limpo }
 }
 
-// Sobe (direcao -1) ou desce (direcao +1) um item trocando a POSIÇÃO com o
-// vizinho imediato — não a ordem no array. Como a lista é sempre reordenada
-// por posição para exibir, trocar as posições já move o item visualmente.
-// Devolve os dois itens (com posição nova) para o chamador persistir via PUT;
-// se o movimento é inválido (borda da lista), devolve null e não muda nada.
-export function moverPosicao(itensOrdenados, indice, direcao) {
-  const alvo = indice + direcao
-  if (alvo < 0 || alvo >= itensOrdenados.length) return null
+// PASSO entre posições. Dez etapas com posição 10, 20, 30... (ver migration
+// 047) é o mesmo grid que `proximaPosicao` mantém — reordenar precisa devolver
+// a lista no MESMO grid, senão a próxima etapa nova cairia no meio dela.
+const PASSO = 10
 
-  const a = itensOrdenados[indice]
-  const b = itensOrdenados[alvo]
-  return [
-    { ...a, position: b.position },
-    { ...b, position: a.position },
-  ]
+// Tira o item de `de` e o enfia em `para`, devolvendo a lista já renumerada
+// 10/20/30... Substituiu `moverPosicao`, que só sabia trocar com o vizinho:
+// arrastar move várias casas de uma vez, e o teclado virou o caso particular
+// `reordenar(i, i±1)` — um caminho de código só para os dois gestos.
+//
+// Devolve { lista, alterados }:
+//   - `lista`: a ordem nova inteira, para a tela pintar OTIMISTA na hora;
+//   - `alterados`: só quem mudou de posição, que é o que vai por PUT. Mandar
+//     a lista inteira funcionaria, mas gravaria N linhas para mover uma —
+//     e cada PUT é uma chance a mais de meia-falha para o catch tratar.
+//
+// Índice fora da lista (o teclado manda `-1` no primeiro item e `n` no último)
+// e soltar no mesmo lugar são no-op: lista intacta, nada para gravar.
+export function reordenar(itensOrdenados, de, para) {
+  const n = itensOrdenados.length
+  const foraDaLista = (i) => !Number.isInteger(i) || i < 0 || i >= n
+  if (foraDaLista(de) || foraDaLista(para) || de === para) {
+    return { lista: itensOrdenados, alterados: [] }
+  }
+
+  const nova = [...itensOrdenados]
+  const [movido] = nova.splice(de, 1)
+  nova.splice(para, 0, movido)
+
+  const lista = nova.map((item, i) => ({ ...item, position: (i + 1) * PASSO }))
+  // Compara com a posição de ORIGEM do próprio item (não com a do vizinho):
+  // quem já estava no número certo fica de fora e não vira requisição.
+  const alterados = lista.filter((item, i) => item.position !== nova[i].position)
+  return { lista, alterados }
 }

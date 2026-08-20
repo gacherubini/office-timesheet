@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
-import { ArchiveRestore, Archive, ChevronDown, ChevronUp, Pencil, Plus } from 'lucide-react'
+import { ArchiveRestore, Archive, GripVertical, Pencil, Plus } from 'lucide-react'
 import { api } from '../lib/api'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Card } from '../components/ui/Card'
 import { Modal } from '../components/ui/Modal'
 import { Input } from '../components/ui/Input'
 import { Button } from '../components/ui/Button'
-import { ordenarPorPosicao, proximaPosicao, validarNome, moverPosicao } from './stageCatalog/logic'
+import { ordenarPorPosicao, proximaPosicao, validarNome, reordenar } from './stageCatalog/logic'
 
 const FORM_VAZIO = { id: null, name: '', description: '' }
 
@@ -21,6 +21,17 @@ export function StageCatalogPage() {
   const [erro, setErro] = useState('')
   const [busyId, setBusyId] = useState(null)
 
+  // Arrastar em três estados, porque são três perguntas diferentes:
+  // - `arrastavelId`: qual linha está LIBERADA para arrastar. A linha inteira
+  //   é o que arrasta (senão o "fantasma" seria só o ícone da alça), mas só
+  //   depois que o mouse desce na alça — com `draggable` fixo não dá para
+  //   selecionar o texto da etapa nem clicar em Editar/Arquivar.
+  // - `arrastandoId`: quem está em voo, para apagar a linha de origem.
+  // - `alvoId`: onde vai cair, para marcar o lugar antes de soltar.
+  const [arrastavelId, setArrastavelId] = useState(null)
+  const [arrastandoId, setArrastandoId] = useState(null)
+  const [alvoId, setAlvoId] = useState(null)
+
   const [editando, setEditando] = useState(null) // null | { id, name, description }
   const [salvando, setSalvando] = useState(false)
   const [erroForm, setErroForm] = useState('')
@@ -30,9 +41,12 @@ export function StageCatalogPage() {
 
   useEffect(() => { carregar() }, [])
 
-  function carregar() {
+  // `erroParaMostrar` existe por causa da reordenação otimista: quando um PUT
+  // falha, a tela precisa recarregar E dizer o porquê. Se o chamador fizesse
+  // setErro antes, o setErro('') daqui apagaria a mensagem no mesmo tique.
+  function carregar(erroParaMostrar = '') {
     setCarregando(true)
-    setErro('')
+    setErro(erroParaMostrar)
     // include_archived=1 traz também as arquivadas (com is_archived=true no
     // payload), para a tela poder listá-las e oferecer reativar. Sem o
     // parâmetro a API devolve só as ativas (default usado por quem popula
@@ -84,21 +98,65 @@ export function StageCatalogPage() {
     }
   }
 
-  async function mover(indice, direcao) {
-    const par = moverPosicao(ativas, indice, direcao)
-    if (!par) return
-    setBusyId(par[0].id)
+  // Caminho ÚNICO de reordenação: o arrasto manda (de, para) quaisquer e o
+  // teclado manda (i, i±1). Só as ATIVAS entram aqui — a lista de arquivadas
+  // não tem ordem que interesse a ninguém.
+  async function reordenarEtapa(de, para) {
+    const { lista, alterados } = reordenar(ativas, de, para)
+    if (alterados.length === 0) return
+
+    // OTIMISTA de propósito: esperar o PUT com arrasto faz o item voltar para
+    // o lugar antigo e pular de novo quando a resposta chega — o gesto fica
+    // elástico e parece defeito. Aqui a lista já está no lugar certo e os PUTs
+    // vão atrás.
+    const posicaoNova = new Map(lista.map((i) => [i.id, i.position]))
+    setCatalogo((cur) => cur.map((i) => (
+      posicaoNova.has(i.id) ? { ...i, position: posicaoNova.get(i.id) } : i
+    )))
     setErro('')
+
     try {
-      // As duas posições trocam juntas — se só uma persistisse, a lista
-      // ficaria com posição duplicada até a próxima ação corrigir.
-      await Promise.all(par.map((item) => api.put(`/stage-catalog/${item.id}`, { position: item.position })))
-      carregar()
+      await Promise.all(alterados.map((item) => (
+        api.put(`/stage-catalog/${item.id}`, { position: item.position })
+      )))
     } catch (err) {
-      setErro(err.message || 'Não foi possível reordenar.')
-    } finally {
-      setBusyId(null)
+      // Meia-falha (um PUT passou, outro não) deixaria a tela mentindo sobre o
+      // que está gravado. Desfazer no cliente chutaria; recarregar não.
+      carregar(err.message || 'Não foi possível reordenar. A lista voltou ao que está salvo.')
     }
+  }
+
+  // Mesmo padrão HTML5 nativo do quadro (KanbanBoard/TaskCard): id no
+  // dataTransfer, onDragOver com preventDefault, onDrop. Nada de biblioteca.
+  function aoIniciarArrasto(e, item) {
+    e.dataTransfer.setData('text/plain', item.id)
+    e.dataTransfer.effectAllowed = 'move'
+    setArrastandoId(item.id)
+  }
+
+  function encerrarArrasto() {
+    setArrastandoId(null)
+    setArrastavelId(null)
+    setAlvoId(null)
+  }
+
+  function aoSoltar(e, indice) {
+    e.preventDefault()
+    const id = e.dataTransfer.getData('text/plain')
+    encerrarArrasto()
+    // Pelo id, não pelo índice: a lista pode ter sido recarregada no meio do
+    // gesto e um índice velho moveria a etapa errada.
+    const de = ativas.findIndex((item) => item.id === id)
+    if (de >= 0) reordenarEtapa(de, indice)
+  }
+
+  // Teclado não é enfeite: quem chega na alça pelo Tab tem que conseguir
+  // reordenar sem mouse. As bordas (subir o primeiro, descer o último) já são
+  // no-op dentro de `reordenar`, então não precisa de guarda aqui.
+  function aoTeclar(e, indice) {
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
+    e.preventDefault() // senão a página rola junto com a etapa
+    reordenarEtapa(indice, indice + (e.key === 'ArrowUp' ? -1 : 1))
   }
 
   async function arquivar(item) {
@@ -131,7 +189,7 @@ export function StageCatalogPage() {
     <>
       <PageHeader
         title="Catálogo de etapas"
-        subtitle="Etapas padrão que cada projeto pode ativar (Anteprojeto, Executivo...). Arquive as que não fazem mais sentido — arquivar não apaga, só some da lista de escolha em projetos novos."
+        subtitle="Etapas padrão que cada projeto pode ativar (Anteprojeto, Executivo...). Arraste pela alça para mudar a ordem. Arquive as que não fazem mais sentido — arquivar não apaga, só some da lista de escolha em projetos novos."
         actions={
           <Button onClick={abrirNovo}>
             <Plus size={16} />
@@ -150,60 +208,68 @@ export function StageCatalogPage() {
         </div>
       ) : (
         <Card padded={false} className="divide-y divide-border-subtle">
-          {ativas.map((item, i) => (
-            <div key={item.id} className="flex items-start gap-3 px-4 py-3">
-              <div className="flex flex-col pt-0.5">
+          {ativas.map((item, i) => {
+            const ehAlvo = alvoId === item.id && arrastandoId !== item.id
+            return (
+              <div
+                key={item.id}
+                draggable={arrastavelId === item.id}
+                onDragStart={(e) => aoIniciarArrasto(e, item)}
+                onDragEnd={encerrarArrasto}
+                onDragOver={(e) => { e.preventDefault(); setAlvoId(item.id) }}
+                onDragLeave={() => setAlvoId((cur) => (cur === item.id ? null : cur))}
+                onDrop={(e) => aoSoltar(e, i)}
+                // A borda esquerda existe transparente sempre para a linha não
+                // pular 2px quando vira alvo.
+                className={`flex items-start gap-3 border-l-2 px-4 py-3 transition-colors ${
+                  ehAlvo ? 'border-accent bg-accent/5' : 'border-transparent'
+                } ${arrastandoId === item.id ? 'opacity-40' : ''}`}
+              >
                 <button
                   type="button"
-                  onClick={() => mover(i, -1)}
-                  disabled={i === 0 || busyId === item.id}
-                  aria-label={`Mover ${item.name} para cima`}
-                  className="text-text-secondary hover:text-text-primary disabled:opacity-30"
+                  onMouseDown={() => setArrastavelId(item.id)}
+                  onMouseUp={() => setArrastavelId(null)}
+                  onKeyDown={(e) => aoTeclar(e, i)}
+                  aria-label={`Arrastar para reordenar a etapa ${item.name}`}
+                  title="Arraste para reordenar (ou use ↑ e ↓ com a alça focada)"
+                  className="mt-0.5 flex-none cursor-grab text-text-secondary hover:text-text-primary active:cursor-grabbing"
                 >
-                  <ChevronUp size={14} />
+                  <GripVertical size={16} />
                 </button>
-                <button
-                  type="button"
-                  onClick={() => mover(i, 1)}
-                  disabled={i === ativas.length - 1 || busyId === item.id}
-                  aria-label={`Mover ${item.name} para baixo`}
-                  className="text-text-secondary hover:text-text-primary disabled:opacity-30"
-                >
-                  <ChevronDown size={14} />
-                </button>
-              </div>
 
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-text-primary">{item.name}</p>
-                {item.description && (
-                  <p className="text-xs text-text-secondary mt-0.5">{item.description}</p>
-                )}
-              </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-text-primary">{item.name}</p>
+                  {item.description && (
+                    <p className="text-xs text-text-secondary mt-0.5">{item.description}</p>
+                  )}
+                </div>
 
-              <div className="flex items-center gap-3 flex-none">
-                <button
-                  type="button"
-                  onClick={() => abrirEdicao(item)}
-                  className="inline-flex items-center gap-1 text-[11px] text-text-secondary hover:text-text-primary"
-                >
-                  <Pencil size={12} /> Editar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => arquivar(item)}
-                  disabled={busyId === item.id}
-                  className="inline-flex items-center gap-1 text-[11px] text-text-secondary hover:state-danger disabled:opacity-50"
-                >
-                  <Archive size={12} /> Arquivar
-                </button>
+                <div className="flex items-center gap-3 flex-none">
+                  <button
+                    type="button"
+                    onClick={() => abrirEdicao(item)}
+                    className="inline-flex items-center gap-1 text-[11px] text-text-secondary hover:text-text-primary"
+                  >
+                    <Pencil size={12} /> Editar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => arquivar(item)}
+                    disabled={busyId === item.id}
+                    className="inline-flex items-center gap-1 text-[11px] text-text-secondary hover:state-danger disabled:opacity-50"
+                  >
+                    <Archive size={12} /> Arquivar
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </Card>
       )}
 
       {/* Arquivadas — vêm da própria API (include_archived=1), então a lista
-          é real e sobrevive a sair e voltar da tela. */}
+          é real e sobrevive a sair e voltar da tela. Sem alça: etapa fora de
+          uso não tem ordem que importe. */}
       {arquivadas.length > 0 && (
         <div className="mt-6">
           <p className="text-[11px] uppercase tracking-wider text-text-secondary mb-1.5">
